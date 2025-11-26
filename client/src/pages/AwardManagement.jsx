@@ -182,7 +182,7 @@ export default function AwardManagementPage() {
   });
   
   // Also fetch all members for viewing assignments (uses a separate query with all members)
-  const { data: allMembersForAssignments = [] } = useQuery({
+  const { data: allMembersForAssignments = [], isLoading: allMembersLoading } = useQuery({
     queryKey: ['all-members-for-assignments'],
     queryFn: async () => {
       return await base44.entities.Member.list({ limit: 10000 });
@@ -1774,9 +1774,13 @@ export default function AwardManagementPage() {
               </div>
 
               <div className="space-y-2 flex-1 overflow-hidden flex flex-col">
-                <Label>Assigned Members ({filteredAssignedMembers.length})</Label>
+                <Label>Assigned Members {allMembersLoading ? '(Loading...)' : `(${filteredAssignedMembers.length})`}</Label>
                 <div className="border border-slate-200 rounded-lg overflow-y-auto flex-1">
-                  {filteredAssignedMembers.length === 0 ? (
+                  {allMembersLoading ? (
+                    <div className="p-8 text-center text-slate-500">
+                      Loading assigned members...
+                    </div>
+                  ) : filteredAssignedMembers.length === 0 ? (
                     <div className="p-8 text-center text-slate-500">
                       {assignedMembersSearchQuery ? 'No matching members found' : 'No members assigned to this award yet'}
                     </div>

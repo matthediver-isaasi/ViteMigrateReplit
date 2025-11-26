@@ -439,16 +439,107 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { email } = req.body;
 
-      const { data: member } = await supabase
-        .from('members')
-        .select('*')
-        .eq('email', email?.toLowerCase())
-        .single();
+      console.log('[validateMember] Validating member:', email);
 
-      res.json({ valid: !!member, member });
-    } catch (error) {
-      console.error('Validate member error:', error);
-      res.status(500).json({ error: 'Failed to validate member' });
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      // Step 1: Check if this is a TeamMember first
+      const { data: allTeamMembers } = await supabase
+        .from('team_member')
+        .select('*');
+
+      const teamMember = allTeamMembers?.find(
+        (tm: any) => tm.email === email && tm.is_active === true
+      );
+
+      if (teamMember) {
+        console.log('[validateMember] Found active TeamMember');
+
+        return res.json({
+          success: true,
+          member: {
+            email: teamMember.email,
+            first_name: teamMember.first_name,
+            last_name: teamMember.last_name,
+            role_id: teamMember.role_id,
+            is_team_member: true,
+            member_excluded_features: [],
+            has_seen_onboarding_tour: true // Team members don't need the tour
+          }
+        });
+      }
+
+      console.log('[validateMember] Not a TeamMember, checking Member entity...');
+
+      // Step 2: Check Member entity directly
+      const { data: allMembers } = await supabase
+        .from('member')
+        .select('*');
+
+      const member = allMembers?.find((m: any) => m.email === email);
+
+      if (!member) {
+        return res.status(404).json({
+          success: false,
+          error: 'Email not found. Please check your email address or contact support.'
+        });
+      }
+
+      console.log('[validateMember] Found Member record');
+
+      let organizationId = member.organization_id;
+      let organizationName = null;
+      let trainingFundBalance = 0;
+      let purchaseOrderEnabled = false;
+      let programTicketBalances = {};
+
+      if (organizationId) {
+        const { data: allOrgs } = await supabase
+          .from('organization')
+          .select('*');
+
+        let org = allOrgs?.find((o: any) => o.id === organizationId);
+
+        if (!org) {
+          org = allOrgs?.find((o: any) => o.zoho_account_id === organizationId);
+        }
+
+        if (org) {
+          organizationName = org.name;
+          organizationId = org.id;
+          trainingFundBalance = org.training_fund_balance || 0;
+          purchaseOrderEnabled = org.purchase_order_enabled || false;
+          programTicketBalances = org.program_ticket_balances || {};
+        }
+      }
+
+      res.json({
+        success: true,
+        member: {
+          email: member.email,
+          first_name: member.first_name,
+          last_name: member.last_name,
+          organization_id: organizationId,
+          organization_name: organizationName,
+          training_fund_balance: trainingFundBalance,
+          purchase_order_enabled: purchaseOrderEnabled,
+          program_ticket_balances: programTicketBalances,
+          role_id: member.role_id || null,
+          member_excluded_features: member.member_excluded_features || [],
+          has_seen_onboarding_tour: member.has_seen_onboarding_tour || false,
+          is_team_member: false
+        }
+      });
+
+    } catch (error: any) {
+      console.error('[validateMember] ERROR:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Unable to validate member. Please try again later.',
+        details: error.message
+      });
     }
   });
 

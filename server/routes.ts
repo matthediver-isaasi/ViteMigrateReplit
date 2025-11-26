@@ -297,7 +297,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     try {
       const { data, error } = await supabase
-        .from('members')
+        .from('member')
         .select('*')
         .eq('id', req.session.memberId)
         .single();
@@ -339,7 +339,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Check if member exists
       const { data: member, error: memberError } = await supabase
-        .from('members')
+        .from('member')
         .select('id, email, first_name')
         .eq('email', email.toLowerCase())
         .single();

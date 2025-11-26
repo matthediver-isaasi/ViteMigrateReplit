@@ -80,7 +80,7 @@ export default function PreferencesPage() {
 
   const queryClient = useQueryClient();
 
-  // --- Supabase: current auth user ---
+  // --- Get current user from /api/auth/me (magic link auth) ---
   const {
     data: currentUser,
     isLoading: userLoading,
@@ -88,29 +88,36 @@ export default function PreferencesPage() {
   } = useQuery({
     queryKey: ["currentUser"],
     queryFn: async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) throw error;
-      return data.user; // may be null if not logged in
+      try {
+        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        if (!response.ok) {
+          return null;
+        }
+        const data = await response.json();
+        return data || null;
+      } catch {
+        return null;
+      }
     },
     staleTime: 30 * 1000,
   });
 
-  // --- Member record (by auth email) ---
+  // --- Member record (by member ID from session) ---
   const {
     data: memberRecord,
     isLoading: memberLoading,
     error: memberError,
   } = useQuery({
-    queryKey: ["memberRecord", currentUser?.email],
-    enabled: !!currentUser?.email,
+    queryKey: ["memberRecord", currentUser?.id],
+    enabled: !!currentUser?.id,
     staleTime: 30 * 1000,
     queryFn: async () => {
-      if (!currentUser?.email) return null;
+      if (!currentUser?.id) return null;
 
       const { data, error } = await supabase
-        .from("members")
+        .from("member")
         .select("*")
-        .eq("email", currentUser.email)
+        .eq("id", currentUser.id)
         .limit(1);
 
       if (error) throw error;
@@ -130,7 +137,7 @@ export default function PreferencesPage() {
     queryFn: async () => {
       if (!memberRecord?.organization_id) return null;
       const { data, error } = await supabase
-        .from("organizations")
+        .from("organization")
         .select("*")
         .eq("id", memberRecord.organization_id)
         .limit(1);
@@ -167,17 +174,17 @@ export default function PreferencesPage() {
         { data: jobPostings = [], error: jobsError },
       ] = await Promise.all([
         supabase
-          .from("bookings")
+          .from("booking")
           .select("id, member_id, status")
           .eq("member_id", memberId)
           .eq("status", "confirmed"),
         supabase
-          .from("blog_posts")
+          .from("blog_post")
           .select("id, author_id, status")
           .eq("author_id", memberId)
           .eq("status", "published"),
         supabase
-          .from("job_postings")
+          .from("job_posting")
           .select("id, posted_by_member_id")
           .eq("posted_by_member_id", memberId),
       ]);
@@ -373,30 +380,31 @@ export default function PreferencesPage() {
     }
   }, [organizationInfo]);
 
-  // --- Load preferences from auth user metadata ---
+  // --- Load preferences from localStorage ---
   useEffect(() => {
-    if (currentUser?.user_metadata?.preferences) {
-      const prefs = currentUser.user_metadata.preferences;
-      if (prefs.selectedSubcategories) {
-        setSelectedSubcategories(prefs.selectedSubcategories);
-      }
-      if (prefs.expandedCategories) {
-        setExpandedCategories(prefs.expandedCategories);
+    const storedPrefs = localStorage.getItem('agcas_resource_preferences');
+    if (storedPrefs) {
+      try {
+        const prefs = JSON.parse(storedPrefs);
+        if (prefs.selectedSubcategories) {
+          setSelectedSubcategories(prefs.selectedSubcategories);
+        }
+        if (prefs.expandedCategories) {
+          setExpandedCategories(prefs.expandedCategories);
+        }
+      } catch {
+        // Ignore parse errors
       }
     }
-  }, [currentUser]);
+  }, []);
 
   // --- Mutations ---
   const savePreferencesMutation = useMutation({
     mutationFn: async (preferences) => {
-      const { data, error } = await supabase.auth.updateUser({
-        data: { preferences },
-      });
-      if (error) throw error;
-      return data;
+      localStorage.setItem('agcas_resource_preferences', JSON.stringify(preferences));
+      return preferences;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["currentUser"] });
       toast.success("Preferences saved successfully");
       setHasUnsavedChanges(false);
       setIsSaving(false);
@@ -411,7 +419,7 @@ export default function PreferencesPage() {
     mutationFn: async (profileData) => {
       if (!memberRecord?.id) throw new Error("No member record");
       const { data, error } = await supabase
-        .from("members")
+        .from("member")
         .update(profileData)
         .eq("id", memberRecord.id)
         .select()
@@ -436,7 +444,7 @@ export default function PreferencesPage() {
     mutationFn: async (logoUrl) => {
       if (!organizationInfo?.id) throw new Error("No organization");
       const { data, error } = await supabase
-        .from("organizations")
+        .from("organization")
         .update({ logo_url: logoUrl })
         .eq("id", organizationInfo.id)
         .select()

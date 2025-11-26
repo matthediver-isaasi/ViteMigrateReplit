@@ -238,7 +238,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const cancelProgramTicketTransaction = notImplemented("cancelProgramTicketTransaction");
+  export const cancelProgramTicketTransaction = async (params) => {
+    const response = await fetch('/api/functions/cancelProgramTicketTransaction', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const reinstateProgramTicketTransaction = notImplemented("reinstateProgramTicketTransaction");
   export const checkMemberStatusByEmail = notImplemented("checkMemberStatusByEmail");
   export const createJobPostingMember = notImplemented("createJobPostingMember");

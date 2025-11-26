@@ -3119,6 +3119,225 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Cancel Program Ticket Transaction - admin cancellation of specific quantities
+  app.post('/api/functions/cancelProgramTicketTransaction', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { transactionId, quantityToCancel, adminEmail } = req.body;
+
+      console.log('[cancelProgramTicketTransaction] ========================================');
+      console.log('[cancelProgramTicketTransaction] Cancellation request received');
+      console.log('[cancelProgramTicketTransaction] Transaction ID:', transactionId);
+      console.log('[cancelProgramTicketTransaction] Quantity to Cancel:', quantityToCancel);
+      console.log('[cancelProgramTicketTransaction] Admin Email:', adminEmail);
+
+      // Validate inputs
+      if (!transactionId || !quantityToCancel || !adminEmail) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters',
+          required: ['transactionId', 'quantityToCancel', 'adminEmail']
+        });
+      }
+
+      if (quantityToCancel <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'Quantity to cancel must be greater than 0'
+        });
+      }
+
+      // Verify admin privileges
+      const { data: allMembers } = await supabase.from('member').select('*');
+      const adminMember = allMembers?.find((m: any) => m.email === adminEmail);
+
+      if (!adminMember || !adminMember.role_id) {
+        return res.status(403).json({
+          success: false,
+          error: 'Admin user not found or has no role assigned'
+        });
+      }
+
+      const { data: allRoles } = await supabase.from('role').select('*');
+      const adminRole = allRoles?.find((r: any) => r.id === adminMember.role_id);
+
+      if (!adminRole || !adminRole.is_admin) {
+        return res.status(403).json({
+          success: false,
+          error: 'User does not have administrator privileges'
+        });
+      }
+
+      console.log('[cancelProgramTicketTransaction] Admin authorization verified');
+
+      // Fetch the original transaction
+      const { data: allTransactions } = await supabase.from('program_ticket_transaction').select('*');
+      const transaction = allTransactions?.find((t: any) => t.id === transactionId);
+
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          error: 'Transaction not found'
+        });
+      }
+
+      console.log('[cancelProgramTicketTransaction] Transaction found:', {
+        type: transaction.transaction_type,
+        program: transaction.program_name,
+        original_quantity: transaction.original_quantity || transaction.quantity,
+        cancelled_quantity: transaction.cancelled_quantity || 0,
+        status: transaction.status
+      });
+
+      // Validate transaction type
+      if (transaction.transaction_type !== 'purchase') {
+        return res.status(400).json({
+          success: false,
+          error: 'Only purchase transactions can be cancelled',
+          transaction_type: transaction.transaction_type
+        });
+      }
+
+      // Validate transaction status
+      if (transaction.status === 'cancelled') {
+        return res.status(400).json({
+          success: false,
+          error: 'This transaction has already been fully cancelled'
+        });
+      }
+
+      // Calculate available quantity to cancel
+      const originalQuantity = transaction.original_quantity || transaction.quantity;
+      const alreadyCancelled = transaction.cancelled_quantity || 0;
+      const availableToCancelFromThisPurchase = originalQuantity - alreadyCancelled;
+
+      console.log('[cancelProgramTicketTransaction] Cancellation capacity:', {
+        originalQuantity,
+        alreadyCancelled,
+        availableToCancelFromThisPurchase,
+        requestedToCancel: quantityToCancel
+      });
+
+      if (quantityToCancel > availableToCancelFromThisPurchase) {
+        return res.status(400).json({
+          success: false,
+          error: `Cannot cancel ${quantityToCancel} tickets. Only ${availableToCancelFromThisPurchase} ticket(s) available to cancel from this purchase.`,
+          available_to_cancel: availableToCancelFromThisPurchase
+        });
+      }
+
+      // Fetch the organization
+      const { data: allOrganizations } = await supabase.from('organization').select('*');
+      const organization = allOrganizations?.find((o: any) => o.id === transaction.organization_id);
+
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found'
+        });
+      }
+
+      // CRITICAL RULE: Check if tickets have been allocated (used)
+      const currentOrgBalance = (organization.program_ticket_balances || {})[transaction.program_name] || 0;
+
+      console.log('[cancelProgramTicketTransaction] Allocation check:', {
+        currentOrgBalance,
+        quantityToCancel,
+        canCancel: currentOrgBalance >= quantityToCancel
+      });
+
+      if (currentOrgBalance < quantityToCancel) {
+        return res.status(400).json({
+          success: false,
+          error: `Cannot cancel ${quantityToCancel} ticket(s). Only ${currentOrgBalance} unallocated ticket(s) remain in the organization's balance. The remaining ${quantityToCancel - currentOrgBalance} ticket(s) have been allocated/used and cannot be cancelled through this system.`,
+          current_balance: currentOrgBalance,
+          requested_to_cancel: quantityToCancel,
+          unallocated_tickets: currentOrgBalance
+        });
+      }
+
+      // All validations passed - proceed with cancellation
+      console.log('[cancelProgramTicketTransaction] All validations passed. Proceeding with cancellation...');
+
+      // Update the original transaction record
+      const newCancelledQuantity = alreadyCancelled + quantityToCancel;
+      const isFullyCancelled = newCancelledQuantity >= originalQuantity;
+
+      const transactionUpdates: any = {
+        cancelled_quantity: newCancelledQuantity,
+        status: isFullyCancelled ? 'cancelled' : 'active',
+        cancelled_by_member_email: adminEmail,
+        cancelled_at: new Date().toISOString()
+      };
+
+      // If this is the first cancellation, also set original_quantity
+      if (!transaction.original_quantity) {
+        transactionUpdates.original_quantity = transaction.quantity;
+      }
+
+      await supabase
+        .from('program_ticket_transaction')
+        .update(transactionUpdates)
+        .eq('id', transactionId);
+
+      console.log('[cancelProgramTicketTransaction] Transaction record updated');
+
+      // Update organization's balance
+      const updatedProgramBalances = {
+        ...organization.program_ticket_balances,
+        [transaction.program_name]: currentOrgBalance - quantityToCancel
+      };
+
+      await supabase
+        .from('organization')
+        .update({
+          program_ticket_balances: updatedProgramBalances,
+          last_synced: new Date().toISOString()
+        })
+        .eq('id', organization.id);
+
+      console.log('[cancelProgramTicketTransaction] Organization balance updated');
+
+      // Create audit trail transaction
+      await supabase
+        .from('program_ticket_transaction')
+        .insert({
+          organization_id: transaction.organization_id,
+          program_name: transaction.program_name,
+          transaction_type: 'cancellation_void',
+          quantity: quantityToCancel,
+          member_email: adminEmail,
+          original_transaction_id: transactionId,
+          notes: `Admin cancellation: ${quantityToCancel} ticket(s) voided from purchase transaction. Original PO: ${transaction.purchase_order_number || 'N/A'}. Reason: Administrative correction.`
+        });
+
+      console.log('[cancelProgramTicketTransaction] Audit trail created');
+      console.log('[cancelProgramTicketTransaction] CANCELLATION SUCCESSFUL');
+
+      res.json({
+        success: true,
+        message: `Successfully cancelled ${quantityToCancel} ticket(s)`,
+        transaction_id: transactionId,
+        quantity_cancelled: quantityToCancel,
+        total_cancelled_from_transaction: newCancelledQuantity,
+        transaction_status: isFullyCancelled ? 'fully_cancelled' : 'partially_cancelled',
+        remaining_in_transaction: originalQuantity - newCancelledQuantity,
+        new_organization_balance: updatedProgramBalances[transaction.program_name]
+      });
+
+    } catch (error: any) {
+      console.error('[cancelProgramTicketTransaction] Fatal error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to cancel transaction',
+        details: error.message
+      });
+    }
+  });
+
   // Clear Program Ticket Transactions - deletes ALL transaction records (admin/test utility)
   app.post('/api/functions/clearProgramTicketTransactions', async (req: Request, res: Response) => {
     if (!supabase) {

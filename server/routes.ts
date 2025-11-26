@@ -3119,6 +3119,137 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Update Event Image - admin only, handles image upload, description, and URL updates
+  app.post('/api/functions/updateEventImage', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { eventId, imageBase64, fileName, userEmail, description, backstagePublicUrl } = req.body;
+
+      if (!eventId) {
+        return res.status(400).json({ error: 'Event ID is required' });
+      }
+
+      if (!userEmail) {
+        return res.status(400).json({ error: 'User email is required' });
+      }
+
+      console.log('[updateEventImage] Processing request for user:', userEmail);
+
+      // Check if user is an admin (check both Member and TeamMember entities)
+      let isAdmin = false;
+
+      // Check Member entity
+      const { data: allMembers } = await supabase
+        .from('member')
+        .select('*');
+
+      const member = allMembers?.find((m: any) => m.email === userEmail);
+
+      if (member && member.role_id) {
+        const { data: allRoles } = await supabase
+          .from('role')
+          .select('*');
+
+        const role = allRoles?.find((r: any) => r.id === member.role_id);
+        isAdmin = role?.is_admin || false;
+      }
+
+      // If not found in Member, check TeamMember entity
+      if (!isAdmin) {
+        const { data: allTeamMembers } = await supabase
+          .from('team_member')
+          .select('*');
+
+        const teamMember = allTeamMembers?.find((tm: any) => tm.email === userEmail);
+
+        if (teamMember && teamMember.role_id) {
+          const { data: allRoles } = await supabase
+            .from('role')
+            .select('*');
+
+          const role = allRoles?.find((r: any) => r.id === teamMember.role_id);
+          isAdmin = role?.is_admin || false;
+        }
+      }
+
+      if (!isAdmin) {
+        console.log('[updateEventImage] User is not admin:', userEmail);
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+
+      console.log('[updateEventImage] User verified as admin, proceeding with update');
+
+      // Prepare update payload
+      const updatePayload: any = {};
+
+      // Handle image upload if provided
+      if (imageBase64) {
+        // Convert base64 to buffer for upload
+        const base64Data = imageBase64.split(',')[1]; // Remove data:image/...;base64, prefix
+        const mimeType = imageBase64.split(';')[0].split(':')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        const uploadFileName = `events/${eventId}/${fileName || 'event-image.jpg'}`;
+
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('images')
+          .upload(uploadFileName, buffer, {
+            contentType: mimeType,
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error('[updateEventImage] Upload error:', uploadError);
+          return res.status(500).json({ error: 'Failed to upload image' });
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('images')
+          .getPublicUrl(uploadFileName);
+
+        updatePayload.image_url = urlData?.publicUrl;
+        console.log('[updateEventImage] Image uploaded successfully:', updatePayload.image_url);
+      }
+
+      // Handle description update if provided
+      if (description !== undefined && description !== null) {
+        updatePayload.description = description;
+        console.log('[updateEventImage] Updating description');
+      }
+
+      // Handle backstage public URL update if provided
+      if (backstagePublicUrl !== undefined && backstagePublicUrl !== null) {
+        updatePayload.backstage_public_url = backstagePublicUrl;
+        console.log('[updateEventImage] Updating backstage public URL');
+      }
+
+      // Update the event
+      if (Object.keys(updatePayload).length > 0) {
+        await supabase
+          .from('event')
+          .update(updatePayload)
+          .eq('id', eventId);
+
+        console.log('[updateEventImage] Event updated successfully');
+      }
+
+      res.json({
+        success: true,
+        ...updatePayload
+      });
+
+    } catch (error: any) {
+      console.error('[updateEventImage] error:', error);
+      res.status(500).json({
+        error: 'Failed to update event',
+        message: error.message
+      });
+    }
+  });
+
   // Cancel Ticket Via Zoho Flow - cancels ticket and returns to organization balance
   app.post('/api/functions/cancelTicketViaFlow', async (req: Request, res: Response) => {
     if (!supabase) {

@@ -205,7 +205,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const updateEventImage = notImplemented("updateEventImage");
+  export const updateEventImage = async (params) => {
+    const response = await fetch('/api/functions/updateEventImage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const updateProgramDetails = notImplemented("updateProgramDetails");
   export const testEmailAddressInBackstage = notImplemented("testEmailAddressInBackstage");
   export const clearBookings = notImplemented("clearBookings");

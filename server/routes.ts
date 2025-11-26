@@ -3119,6 +3119,89 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Process Backstage Cancellation Webhook
+  app.post('/api/functions/processBackstageCancellation', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const webhookData = req.body;
+
+      console.log("=== BACKSTAGE CANCELLATION WEBHOOK RECEIVED ===");
+      console.log("Full Payload:", JSON.stringify(webhookData, null, 2));
+      console.log("==============================================");
+
+      // Extract key fields from the webhook
+      const action = webhookData.action;
+      const resourceType = webhookData.resource;
+      const backstageOrderId = webhookData.resource_id;
+
+      console.log("Extracted Fields:");
+      console.log("  - Action:", action);
+      console.log("  - Resource:", resourceType);
+      console.log("  - Backstage Order ID:", backstageOrderId);
+
+      // Handle EVENTORDER cancellations where each order represents a single ticket
+      if (action === 'cancel' && resourceType === 'eventorder') {
+        console.log("*** SINGLE TICKET ORDER CANCELLATION DETECTED ***");
+
+        if (!backstageOrderId) {
+          console.error("Missing backstage order ID in cancellation webhook payload");
+          return res.status(400).json({
+            success: false,
+            error: "Missing order ID in payload"
+          });
+        }
+
+        // Find the booking with this specific backstage_order_id
+        const { data: allBookings } = await supabase
+          .from('booking')
+          .select('*');
+
+        const bookingToCancel = allBookings?.find((b: any) =>
+          b.backstage_order_id === backstageOrderId &&
+          b.status !== 'cancelled'
+        );
+
+        if (bookingToCancel) {
+          await supabase
+            .from('booking')
+            .update({ status: 'cancelled' })
+            .eq('id', bookingToCancel.id);
+
+          console.log(`Booking ${bookingToCancel.id} (${bookingToCancel.attendee_email}) updated to cancelled.`);
+
+          return res.json({
+            success: true,
+            message: `Successfully cancelled booking for Backstage Order ID: ${backstageOrderId}`,
+            booking_id: bookingToCancel.id
+          });
+        } else {
+          console.warn(`No active booking found for Backstage Order ID: ${backstageOrderId}`);
+          return res.json({
+            success: true,
+            message: `No active booking found for Backstage Order ID: ${backstageOrderId}`
+          });
+        }
+
+      } else {
+        console.log(`Webhook received but not an 'eventorder' cancellation. Action: ${action}, Resource: ${resourceType}`);
+        return res.json({
+          success: true,
+          message: "Webhook received but not an expected order cancellation event"
+        });
+      }
+
+    } catch (error: any) {
+      console.error("Error processing Backstage cancellation webhook:", error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Apply Discount Code
   app.post('/api/functions/applyDiscountCode', async (req: Request, res: Response) => {
     if (!supabase) {

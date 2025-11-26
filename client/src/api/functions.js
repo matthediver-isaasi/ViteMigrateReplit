@@ -149,7 +149,13 @@ const notImplemented = (name) => () => {
     const response = await fetch('/api/functions/xeroOAuthCallback?' + queryParams.toString());
     return response.json();
   };
-  export const refreshXeroToken = notImplemented("refreshXeroToken");
+  export const refreshXeroToken = async () => {
+    const response = await fetch('/api/functions/refreshXeroToken', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    return response.json();
+  };
   export const createXeroInvoice = notImplemented("createXeroInvoice");
   export const validateUser = notImplemented("validateUser");
   export const applyDiscountCode = notImplemented("applyDiscountCode");

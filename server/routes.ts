@@ -3018,6 +3018,94 @@ AGCAS Events Team
     }
   });
 
+  // Refresh Xero Token
+  app.post('/api/functions/refreshXeroToken', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const XERO_CLIENT_ID = process.env.XERO_CLIENT_ID;
+      const XERO_CLIENT_SECRET = process.env.XERO_CLIENT_SECRET;
+
+      if (!XERO_CLIENT_ID || !XERO_CLIENT_SECRET) {
+        return res.status(500).json({ error: 'Xero credentials not configured' });
+      }
+
+      // Get current token
+      const { data: tokens } = await supabase
+        .from('xero_token')
+        .select('*');
+
+      if (!tokens || tokens.length === 0) {
+        return res.status(404).json({
+          error: 'No Xero token found. Please authenticate first.'
+        });
+      }
+
+      const currentToken = tokens[0];
+
+      // Check if token needs refresh (refresh if expires in next 5 minutes)
+      const expiresAt = new Date(currentToken.expires_at);
+      const now = new Date();
+      const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+
+      if (expiresAt > fiveMinutesFromNow) {
+        return res.json({
+          message: 'Token is still valid',
+          expires_at: currentToken.expires_at
+        });
+      }
+
+      // Refresh the token
+      const tokenResponse = await fetch('https://identity.xero.com/connect/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + Buffer.from(`${XERO_CLIENT_ID}:${XERO_CLIENT_SECRET}`).toString('base64')
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          refresh_token: currentToken.refresh_token,
+        }).toString(),
+      });
+
+      const tokenData = await tokenResponse.json() as any;
+
+      if (!tokenResponse.ok || tokenData.error) {
+        return res.status(400).json({
+          error: 'Failed to refresh token',
+          details: tokenData
+        });
+      }
+
+      // Calculate new expiry
+      const newExpiresAt = new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString();
+
+      // Update stored token
+      await supabase
+        .from('xero_token')
+        .update({
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_at: newExpiresAt,
+        })
+        .eq('id', currentToken.id);
+
+      res.json({
+        success: true,
+        message: 'Token refreshed successfully',
+        expires_at: newExpiresAt
+      });
+
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Failed to refresh Xero token',
+        message: error.message
+      });
+    }
+  });
+
   // Get Xero Auth URL
   app.get('/api/functions/getXeroAuthUrl', async (req: Request, res: Response) => {
     try {

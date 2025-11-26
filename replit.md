@@ -155,29 +155,42 @@ The application is transitioning from Base44 (previous platform) to Replit while
 - Only infrastructure and platform integration changes allowed
 
 **Architecture Pattern for Member/Role Access:**
-React Router's `<Routes>` component doesn't propagate props from parent Layout. Pages requiring member/role data MUST:
-1. Read member info directly from sessionStorage: `sessionStorage.getItem('agcas_member')`
-2. Use their own `useQuery` hooks to fetch member role data
-3. Implement access control logic locally within the component
+React Router's `<Routes>` component doesn't propagate props from parent Layout. All pages requiring member/role data use the centralized `useMemberAccess` hook located at `client/src/hooks/useMemberAccess.js`.
 
-Example pattern (see RoleManagement.jsx):
+The hook provides:
+- `memberInfo` - Current member data from sessionStorage (reactive to updates)
+- `organizationInfo` - Current organization data from sessionStorage (reactive to updates)
+- `memberRole` - Role data fetched via useQuery
+- `isAdmin` - Boolean indicating if memberRole.is_admin === true
+- `isFeatureExcluded(featureId)` - Function to check if a feature is excluded for the user
+- `isAccessReady` - Boolean indicating if all access data is loaded
+- `reloadMemberInfo()` - Function to refresh member data from API and update state
+- `refreshOrganizationInfo()` - Function to refresh organization data from API and update state
+
+Example usage in pages:
 ```javascript
-// Get member info from sessionStorage
-const memberInfo = React.useMemo(() => {
-  const stored = sessionStorage.getItem('agcas_member');
-  return stored ? JSON.parse(stored) : null;
-}, []);
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-// Fetch member role
-const { data: memberRole } = useQuery({
-  queryKey: ['memberRole', memberInfo?.role_id],
-  enabled: !!(memberInfo && memberInfo.role_id),
-  staleTime: Infinity,
-  queryFn: () => base44.entities.Role.get(memberInfo.role_id),
-});
-
-// Determine admin status
-const isAdmin = memberRole?.is_admin === true;
+export default function MyPage() {
+  const { memberInfo, organizationInfo, isAdmin, isAccessReady, reloadMemberInfo } = useMemberAccess();
+  
+  // For admin-only pages, add access control:
+  const [accessChecked, setAccessChecked] = useState(false);
+  
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
+  
+  if (!accessChecked) return <LoadingState />;
+  
+  // Rest of component...
+}
 ```
 
 **Testing Notes:**

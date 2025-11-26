@@ -414,12 +414,14 @@ export default function DiscountCodeManagementPage() {
                           )}
                         </div>
                         
-                        <div>
-                          <div className="text-xs font-medium text-slate-500 mb-1">Created</div>
-                          <p className="text-sm text-slate-700">
-                            {format(new Date(code.created_date), 'MMM d, yyyy')}
-                          </p>
-                        </div>
+                        {code.created_date && (
+                          <div>
+                            <div className="text-xs font-medium text-slate-500 mb-1">Created</div>
+                            <p className="text-sm text-slate-700">
+                              {format(new Date(code.created_date), 'MMM d, yyyy')}
+                            </p>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>

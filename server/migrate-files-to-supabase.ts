@@ -224,8 +224,7 @@ async function runMigration(dryRun = false) {
   console.log('Fetching files from database...');
   const { data: files, error } = await supabase
     .from('file_repository')
-    .select('id, file_name, file_url, file_type, mime_type, file_size, folder_id')
-    .order('created_date', { ascending: true });
+    .select('id, file_name, file_url, file_type, mime_type, file_size, folder_id');
   
   if (error) {
     console.error('Failed to fetch files:', error);
@@ -242,7 +241,8 @@ async function runMigration(dryRun = false) {
   const filesToMigrate = files.filter((f: FileRecord) => {
     if (progress.migratedIds.includes(f.id)) return false;
     if (!f.file_url) return false;
-    if (f.file_url.includes(SUPABASE_URL!)) return false;
+    // Only skip if URL contains Supabase storage pattern
+    if (f.file_url.includes('supabase.co/storage')) return false;
     return true;
   });
   

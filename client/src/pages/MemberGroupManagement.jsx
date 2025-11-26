@@ -52,6 +52,8 @@ export default function MemberGroupManagementPage() {
     expires_at: null
   });
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [assignMode, setAssignMode] = useState(''); // 'guest' or 'organization'
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState('');
 
   const queryClient = useQueryClient();
 
@@ -87,6 +89,38 @@ export default function MemberGroupManagementPage() {
     queryKey: ['member-group-guests'],
     queryFn: () => base44.entities.MemberGroupGuest.list(),
     initialData: []
+  });
+
+  // Organizations for the assign dialog
+  const { data: organizations = [], isLoading: organizationsLoading } = useQuery({
+    queryKey: ['organizations-for-assignment'],
+    queryFn: async () => {
+      const orgs = await base44.entities.Organization.list('name');
+      return orgs;
+    },
+    staleTime: 60 * 1000,
+    enabled: showAssignDialog,
+  });
+
+  // Members filtered by organization (only fetch when dialog is open and organization selected)
+  const { data: filteredMembers = [], isLoading: filteredMembersLoading } = useQuery({
+    queryKey: ['members-for-group-assignment', selectedOrganizationId],
+    queryFn: async () => {
+      if (selectedOrganizationId === '__no_org__') {
+        // Fetch members without an organization
+        const allMembers = await base44.entities.Member.list({ limit: 5000 });
+        return allMembers.filter(m => !m.organization_id);
+      } else if (selectedOrganizationId) {
+        // Fetch members for the selected organization
+        return await base44.entities.Member.list({ 
+          filter: { organization_id: selectedOrganizationId },
+          limit: 1000
+        });
+      }
+      return [];
+    },
+    staleTime: 60 * 1000,
+    enabled: showAssignDialog && assignMode === 'organization' && !!selectedOrganizationId,
   });
 
   const createGroupMutation = useMutation({
@@ -141,6 +175,9 @@ export default function MemberGroupManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['member-group-assignments'] });
       setShowAssignDialog(false);
       setAssignForm({ member_id: '', guest_id: '', group_role: '', expires_at: null });
+      setAssignMode('');
+      setSelectedOrganizationId('');
+      setMemberSearchQuery('');
       toast.success('Member assigned successfully');
     },
     onError: (error) => {
@@ -872,156 +909,248 @@ export default function MemberGroupManagementPage() {
         {/* Assign Member Dialog */}
         <Dialog open={showAssignDialog} onOpenChange={(open) => {
           setShowAssignDialog(open);
-          if (!open) setMemberSearchQuery('');
+          if (!open) {
+            setMemberSearchQuery('');
+            setAssignMode('');
+            setSelectedOrganizationId('');
+            setAssignForm({ member_id: '', guest_id: '', group_role: '', expires_at: null });
+          }
         }}>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col">
             <DialogHeader>
               <DialogTitle>Assign Member to {selectedGroup?.name}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="member-search">Search & Select Member or Guest *</Label>
-                <Input
-                  id="member-search"
-                  value={memberSearchQuery}
-                  onChange={(e) => setMemberSearchQuery(e.target.value)}
-                  placeholder="Search by name or email..."
-                  className="mb-2"
-                />
-                <div className="border border-slate-200 rounded-md max-h-48 overflow-y-auto">
-                  {/* Members */}
-                  {members
-                    .filter(member => {
-                      const searchLower = memberSearchQuery.toLowerCase();
-                      return (
-                        member.first_name?.toLowerCase().includes(searchLower) ||
-                        member.last_name?.toLowerCase().includes(searchLower) ||
-                        member.email?.toLowerCase().includes(searchLower)
-                      );
-                    })
-                    .map((member) => (
-                      <button
-                        key={`member-${member.id}`}
-                        type="button"
-                        onClick={() => setAssignForm({ ...assignForm, member_id: member.id, guest_id: '' })}
-                        className={`w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 ${
-                          assignForm.member_id === member.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
-                        }`}
-                      >
-                        <div className="font-medium text-slate-900">
-                          {member.first_name} {member.last_name}
-                        </div>
-                        <div className="text-xs text-slate-500">{member.email}</div>
-                      </button>
-                    ))}
-                  {/* Guests */}
-                  {guests
-                    .filter(guest => {
-                      if (guest.is_active === false) return false;
-                      const searchLower = memberSearchQuery.toLowerCase();
-                      return (
-                        guest.first_name?.toLowerCase().includes(searchLower) ||
-                        guest.last_name?.toLowerCase().includes(searchLower) ||
-                        guest.email?.toLowerCase().includes(searchLower) ||
-                        guest.organisation?.toLowerCase().includes(searchLower)
-                      );
-                    })
-                    .map((guest) => (
-                      <button
-                        key={`guest-${guest.id}`}
-                        type="button"
-                        onClick={() => setAssignForm({ ...assignForm, guest_id: guest.id, member_id: '' })}
-                        className={`w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 ${
-                          assignForm.guest_id === guest.id ? 'bg-purple-50 border-l-4 border-l-purple-600' : ''
-                        }`}
-                      >
-                        <div className="font-medium text-slate-900 flex items-center gap-2">
-                          {guest.first_name} {guest.last_name}
-                          <Badge className="bg-purple-100 text-purple-700 text-[10px]">Guest</Badge>
-                        </div>
-                        <div className="text-xs text-slate-500">{guest.email}</div>
-                        {guest.organisation && (
-                          <div className="text-xs text-slate-400">{guest.organisation}</div>
-                        )}
-                      </button>
-                    ))}
-                  {members.filter(member => {
-                    const searchLower = memberSearchQuery.toLowerCase();
-                    return (
-                      member.first_name?.toLowerCase().includes(searchLower) ||
-                      member.last_name?.toLowerCase().includes(searchLower) ||
-                      member.email?.toLowerCase().includes(searchLower)
-                    );
-                  }).length === 0 && guests.filter(guest => {
-                    if (guest.is_active === false) return false;
-                    const searchLower = memberSearchQuery.toLowerCase();
-                    return (
-                      guest.first_name?.toLowerCase().includes(searchLower) ||
-                      guest.last_name?.toLowerCase().includes(searchLower) ||
-                      guest.email?.toLowerCase().includes(searchLower) ||
-                      guest.organisation?.toLowerCase().includes(searchLower)
-                    );
-                  }).length === 0 && (
-                    <div className="px-3 py-4 text-center text-sm text-slate-500">
-                      No members or guests found
-                    </div>
-                  )}
+            <div className="space-y-4 py-4 flex-1 overflow-hidden flex flex-col">
+              {/* Step 1: Select Mode (Guest or Organization) */}
+              <div className="space-y-2">
+                <Label>Step 1: Select Category *</Label>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant={assignMode === 'guest' ? 'default' : 'outline'}
+                    onClick={() => {
+                      setAssignMode('guest');
+                      setSelectedOrganizationId('');
+                      setAssignForm({ ...assignForm, member_id: '', guest_id: '' });
+                      setMemberSearchQuery('');
+                    }}
+                    className={assignMode === 'guest' ? 'bg-purple-600 hover:bg-purple-700' : ''}
+                  >
+                    Guests
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={assignMode === 'organization' ? 'default' : 'outline'}
+                    onClick={() => {
+                      setAssignMode('organization');
+                      setAssignForm({ ...assignForm, member_id: '', guest_id: '' });
+                      setMemberSearchQuery('');
+                    }}
+                    className={assignMode === 'organization' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                  >
+                    Members by Organisation
+                  </Button>
                 </div>
               </div>
 
-              <div>
-                <Label htmlFor="role">Select Role *</Label>
-                <Select
-                  value={assignForm.group_role}
-                  onValueChange={(value) => setAssignForm({ ...assignForm, group_role: value })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose a role..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedGroup?.roles?.map((role, idx) => (
-                      <SelectItem key={idx} value={role}>
-                        {role}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Step 2: For Organization mode, select organization */}
+              {assignMode === 'organization' && (
+                <div className="space-y-2">
+                  <Label>Step 2: Select Organisation *</Label>
+                  <Select 
+                    value={selectedOrganizationId} 
+                    onValueChange={(val) => {
+                      setSelectedOrganizationId(val);
+                      setAssignForm({ ...assignForm, member_id: '', guest_id: '' });
+                      setMemberSearchQuery('');
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-organization">
+                      <SelectValue placeholder={organizationsLoading ? "Loading organisations..." : "Select an organisation..."} />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-[300px]">
+                      <SelectItem value="__no_org__">Members without organisation</SelectItem>
+                      {organizations.map(org => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
 
-              <div>
-                <Label>Expiry Date (Optional)</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left font-normal"
-                    >
-                      <Calendar className="mr-2 h-4 w-4" />
-                      {assignForm.expires_at ? format(assignForm.expires_at, 'PPP') : 'No expiry date'}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
-                      mode="single"
-                      selected={assignForm.expires_at}
-                      onSelect={(date) => setAssignForm({ ...assignForm, expires_at: date })}
-                      initialFocus
-                    />
-                    {assignForm.expires_at && (
-                      <div className="p-2 border-t">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="w-full"
-                          onClick={() => setAssignForm({ ...assignForm, expires_at: null })}
-                        >
-                          Clear date
-                        </Button>
-                      </div>
+              {/* Step 3: Select Member/Guest */}
+              {((assignMode === 'guest') || (assignMode === 'organization' && selectedOrganizationId)) && (
+                <div className="space-y-2 flex-1 overflow-hidden flex flex-col">
+                  <Label>{assignMode === 'guest' ? 'Step 2: Select Guest *' : 'Step 3: Select Member *'}</Label>
+                  <Input
+                    value={memberSearchQuery}
+                    onChange={(e) => setMemberSearchQuery(e.target.value)}
+                    placeholder="Search by name or email..."
+                    className="mb-2"
+                  />
+                  <div className="border border-slate-200 rounded-md flex-1 overflow-y-auto min-h-[150px] max-h-[200px]">
+                    {assignMode === 'guest' ? (
+                      /* Guest list */
+                      <>
+                        {guests
+                          .filter(guest => {
+                            if (guest.is_active === false) return false;
+                            const searchLower = memberSearchQuery.toLowerCase();
+                            return (
+                              guest.first_name?.toLowerCase().includes(searchLower) ||
+                              guest.last_name?.toLowerCase().includes(searchLower) ||
+                              guest.email?.toLowerCase().includes(searchLower) ||
+                              guest.organisation?.toLowerCase().includes(searchLower)
+                            );
+                          })
+                          .map((guest) => (
+                            <button
+                              key={`guest-${guest.id}`}
+                              type="button"
+                              onClick={() => setAssignForm({ ...assignForm, guest_id: guest.id, member_id: '' })}
+                              className={`w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 ${
+                                assignForm.guest_id === guest.id ? 'bg-purple-50 border-l-4 border-l-purple-600' : ''
+                              }`}
+                            >
+                              <div className="font-medium text-slate-900 flex items-center gap-2">
+                                {guest.first_name} {guest.last_name}
+                                <Badge className="bg-purple-100 text-purple-700 text-[10px]">Guest</Badge>
+                              </div>
+                              <div className="text-xs text-slate-500">{guest.email}</div>
+                              {guest.organisation && (
+                                <div className="text-xs text-slate-400">{guest.organisation}</div>
+                              )}
+                            </button>
+                          ))}
+                        {guests.filter(guest => {
+                          if (guest.is_active === false) return false;
+                          const searchLower = memberSearchQuery.toLowerCase();
+                          return (
+                            guest.first_name?.toLowerCase().includes(searchLower) ||
+                            guest.last_name?.toLowerCase().includes(searchLower) ||
+                            guest.email?.toLowerCase().includes(searchLower) ||
+                            guest.organisation?.toLowerCase().includes(searchLower)
+                          );
+                        }).length === 0 && (
+                          <div className="px-3 py-4 text-center text-sm text-slate-500">
+                            No guests found
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      /* Members list filtered by organization */
+                      <>
+                        {filteredMembersLoading ? (
+                          <div className="px-3 py-4 text-center text-sm text-slate-500">
+                            Loading members...
+                          </div>
+                        ) : (
+                          <>
+                            {filteredMembers
+                              .filter(member => {
+                                const searchLower = memberSearchQuery.toLowerCase();
+                                return (
+                                  member.first_name?.toLowerCase().includes(searchLower) ||
+                                  member.last_name?.toLowerCase().includes(searchLower) ||
+                                  member.email?.toLowerCase().includes(searchLower)
+                                );
+                              })
+                              .map((member) => (
+                                <button
+                                  key={`member-${member.id}`}
+                                  type="button"
+                                  onClick={() => setAssignForm({ ...assignForm, member_id: member.id, guest_id: '' })}
+                                  className={`w-full text-left px-3 py-2 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-b-0 ${
+                                    assignForm.member_id === member.id ? 'bg-blue-50 border-l-4 border-l-blue-600' : ''
+                                  }`}
+                                >
+                                  <div className="font-medium text-slate-900">
+                                    {member.first_name} {member.last_name}
+                                  </div>
+                                  <div className="text-xs text-slate-500">{member.email}</div>
+                                </button>
+                              ))}
+                            {filteredMembers.filter(member => {
+                              const searchLower = memberSearchQuery.toLowerCase();
+                              return (
+                                member.first_name?.toLowerCase().includes(searchLower) ||
+                                member.last_name?.toLowerCase().includes(searchLower) ||
+                                member.email?.toLowerCase().includes(searchLower)
+                              );
+                            }).length === 0 && (
+                              <div className="px-3 py-4 text-center text-sm text-slate-500">
+                                No members found in this organisation
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </>
                     )}
-                  </PopoverContent>
-                </Popover>
-              </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Role selection */}
+              {(assignForm.member_id || assignForm.guest_id) && (
+                <div className="space-y-2">
+                  <Label>{assignMode === 'guest' ? 'Step 3' : 'Step 4'}: Select Role *</Label>
+                  <Select
+                    value={assignForm.group_role}
+                    onValueChange={(value) => setAssignForm({ ...assignForm, group_role: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Choose a role..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {selectedGroup?.roles?.map((role, idx) => (
+                        <SelectItem key={idx} value={role}>
+                          {role}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              {/* Expiry Date */}
+              {(assignForm.member_id || assignForm.guest_id) && (
+                <div className="space-y-2">
+                  <Label>Expiry Date (Optional)</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start text-left font-normal"
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        {assignForm.expires_at ? format(assignForm.expires_at, 'PPP') : 'No expiry date'}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <CalendarComponent
+                        mode="single"
+                        selected={assignForm.expires_at}
+                        onSelect={(date) => setAssignForm({ ...assignForm, expires_at: date })}
+                        initialFocus
+                      />
+                      {assignForm.expires_at && (
+                        <div className="p-2 border-t">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setAssignForm({ ...assignForm, expires_at: null })}
+                          >
+                            Clear date
+                          </Button>
+                        </div>
+                      )}
+                    </PopoverContent>
+                  </Popover>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setShowAssignDialog(false)}>
@@ -1029,7 +1158,7 @@ export default function MemberGroupManagementPage() {
               </Button>
               <Button
                 onClick={handleAssignMember}
-                disabled={assignMemberMutation.isPending}
+                disabled={assignMemberMutation.isPending || (!assignForm.member_id && !assignForm.guest_id) || !assignForm.group_role}
                 className="bg-blue-600 hover:bg-blue-700"
               >
                 Assign Member

@@ -3119,6 +3119,171 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Reinstate Program Ticket Transaction - admin reinstatement of cancelled tickets
+  app.post('/api/functions/reinstateProgramTicketTransaction', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { transactionId, adminEmail } = req.body;
+
+      console.log('[reinstateProgramTicketTransaction] ========================================');
+      console.log('[reinstateProgramTicketTransaction] Reinstatement request received');
+      console.log('[reinstateProgramTicketTransaction] Transaction ID:', transactionId);
+      console.log('[reinstateProgramTicketTransaction] Admin Email:', adminEmail);
+
+      // Validate inputs
+      if (!transactionId || !adminEmail) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters',
+          required: ['transactionId', 'adminEmail']
+        });
+      }
+
+      // Verify admin privileges
+      const { data: allMembers } = await supabase.from('member').select('*');
+      const adminMember = allMembers?.find((m: any) => m.email === adminEmail);
+
+      if (!adminMember || !adminMember.role_id) {
+        return res.status(403).json({
+          success: false,
+          error: 'Admin user not found or has no role assigned'
+        });
+      }
+
+      const { data: allRoles } = await supabase.from('role').select('*');
+      const adminRole = allRoles?.find((r: any) => r.id === adminMember.role_id);
+
+      if (!adminRole || !adminRole.is_admin) {
+        return res.status(403).json({
+          success: false,
+          error: 'User does not have administrator privileges'
+        });
+      }
+
+      console.log('[reinstateProgramTicketTransaction] Admin authorization verified');
+
+      // Fetch the transaction
+      const { data: allTransactions } = await supabase.from('program_ticket_transaction').select('*');
+      const transaction = allTransactions?.find((t: any) => t.id === transactionId);
+
+      if (!transaction) {
+        return res.status(404).json({
+          success: false,
+          error: 'Transaction not found'
+        });
+      }
+
+      console.log('[reinstateProgramTicketTransaction] Transaction found:', {
+        type: transaction.transaction_type,
+        program: transaction.program_name,
+        original_quantity: transaction.original_quantity || transaction.quantity,
+        cancelled_quantity: transaction.cancelled_quantity || 0,
+        status: transaction.status
+      });
+
+      // Validate transaction type
+      if (transaction.transaction_type !== 'purchase') {
+        return res.status(400).json({
+          success: false,
+          error: 'Only purchase transactions can be reinstated',
+          transaction_type: transaction.transaction_type
+        });
+      }
+
+      // Get the quantity to reinstate
+      const quantityToReinstate = transaction.cancelled_quantity || 0;
+
+      if (quantityToReinstate <= 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'No cancelled tickets to reinstate',
+          cancelled_quantity: quantityToReinstate
+        });
+      }
+
+      console.log('[reinstateProgramTicketTransaction] Quantity to reinstate:', quantityToReinstate);
+
+      // Fetch the organization
+      const { data: allOrganizations } = await supabase.from('organization').select('*');
+      const organization = allOrganizations?.find((o: any) => o.id === transaction.organization_id);
+
+      if (!organization) {
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found'
+        });
+      }
+
+      // All validations passed - proceed with reinstatement
+      console.log('[reinstateProgramTicketTransaction] All validations passed. Proceeding with reinstatement...');
+
+      // Update the transaction record back to active
+      await supabase
+        .from('program_ticket_transaction')
+        .update({
+          cancelled_quantity: 0,
+          status: 'active',
+          cancelled_by_member_email: null,
+          cancelled_at: null
+        })
+        .eq('id', transactionId);
+
+      console.log('[reinstateProgramTicketTransaction] Transaction record updated back to active');
+
+      // Update organization's balance - add the tickets back
+      const currentOrgBalance = (organization.program_ticket_balances || {})[transaction.program_name] || 0;
+      const updatedProgramBalances = {
+        ...organization.program_ticket_balances,
+        [transaction.program_name]: currentOrgBalance + quantityToReinstate
+      };
+
+      await supabase
+        .from('organization')
+        .update({
+          program_ticket_balances: updatedProgramBalances,
+          last_synced: new Date().toISOString()
+        })
+        .eq('id', organization.id);
+
+      console.log('[reinstateProgramTicketTransaction] Organization balance updated - tickets reinstated');
+
+      // Create audit trail transaction with type 'reinstatement'
+      await supabase
+        .from('program_ticket_transaction')
+        .insert({
+          organization_id: transaction.organization_id,
+          program_name: transaction.program_name,
+          transaction_type: 'reinstatement',
+          quantity: quantityToReinstate,
+          member_email: adminEmail,
+          original_transaction_id: transactionId,
+          notes: `Admin reinstatement: ${quantityToReinstate} ticket(s) reinstated after cancellation reversal. Original PO: ${transaction.purchase_order_number || 'N/A'}. Reinstated by: ${adminEmail}.`
+        });
+
+      console.log('[reinstateProgramTicketTransaction] Audit trail created');
+      console.log('[reinstateProgramTicketTransaction] REINSTATEMENT SUCCESSFUL');
+
+      res.json({
+        success: true,
+        message: `Successfully reinstated ${quantityToReinstate} ticket(s)`,
+        transaction_id: transactionId,
+        quantity_reinstated: quantityToReinstate,
+        new_organization_balance: updatedProgramBalances[transaction.program_name]
+      });
+
+    } catch (error: any) {
+      console.error('[reinstateProgramTicketTransaction] Fatal error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to reinstate transaction',
+        details: error.message
+      });
+    }
+  });
+
   // Cancel Program Ticket Transaction - admin cancellation of specific quantities
   app.post('/api/functions/cancelProgramTicketTransaction', async (req: Request, res: Response) => {
     if (!supabase) {

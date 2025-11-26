@@ -312,7 +312,14 @@ const notImplemented = (name) => () => {
   };
   export const extractAndUploadFont = notImplemented("extractAndUploadFont");
   export const enableLoginForAllMembers = notImplemented("enableLoginForAllMembers");
-  export const sendTeamMemberInvite = notImplemented("sendTeamMemberInvite");
+  export const sendTeamMemberInvite = async (params) => {
+    const response = await fetch('/api/functions/sendTeamMemberInvite', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const exportAllData = notImplemented("exportAllData");
   export const generateSitemap = notImplemented("generateSitemap");
   

@@ -3119,6 +3119,101 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Send Team Member Invite - sends invitation via webhook
+  app.post('/api/functions/sendTeamMemberInvite', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { email, inviterName, inviterEmail } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      if (!inviterEmail) {
+        return res.status(401).json({ error: 'Unauthorized - inviter email required' });
+      }
+
+      // First check for environment variable (more secure)
+      let webhookUrl = process.env.TEAM_INVITE_WEBHOOK_URL;
+
+      // Fall back to system settings if not in env
+      if (!webhookUrl) {
+        const { data: allSettings } = await supabase
+          .from('system_settings')
+          .select('*')
+          .eq('setting_key', 'team_invite_webhook_url');
+
+        const webhookSetting = allSettings?.[0];
+
+        if (!webhookSetting || !webhookSetting.setting_value) {
+          return res.status(500).json({
+            error: 'Team invite webhook not configured. Please contact an administrator.'
+          });
+        }
+
+        webhookUrl = webhookSetting.setting_value;
+      }
+
+      // Security: Validate webhook URL is HTTPS and from trusted domains
+      try {
+        const url = new URL(webhookUrl);
+        if (url.protocol !== 'https:') {
+          console.error('[sendTeamMemberInvite] Webhook URL must use HTTPS');
+          return res.status(500).json({ error: 'Invalid webhook configuration' });
+        }
+        // Block internal/private network URLs
+        const hostname = url.hostname.toLowerCase();
+        if (hostname === 'localhost' || 
+            hostname === '127.0.0.1' || 
+            hostname.startsWith('192.168.') ||
+            hostname.startsWith('10.') ||
+            hostname.endsWith('.local')) {
+          console.error('[sendTeamMemberInvite] Webhook URL cannot point to internal network');
+          return res.status(500).json({ error: 'Invalid webhook configuration' });
+        }
+      } catch (urlError) {
+        console.error('[sendTeamMemberInvite] Invalid webhook URL:', urlError);
+        return res.status(500).json({ error: 'Invalid webhook configuration' });
+      }
+
+      // Call the webhook
+      const webhookResponse = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email,
+          inviterName,
+          inviterEmail,
+          timestamp: new Date().toISOString()
+        })
+      });
+
+      if (!webhookResponse.ok) {
+        const errorText = await webhookResponse.text();
+        console.error('[sendTeamMemberInvite] Webhook call failed:', errorText);
+        return res.status(500).json({
+          error: 'Failed to send invitation'
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Invitation sent successfully'
+      });
+
+    } catch (error: any) {
+      console.error('[sendTeamMemberInvite] Error:', error);
+      res.status(500).json({
+        error: error.message
+      });
+    }
+  });
+
   // Generate Member Handles - generates unique handles for members
   app.post('/api/functions/generateMemberHandles', async (req: Request, res: Response) => {
     if (!supabase) {

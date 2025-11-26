@@ -153,3 +153,34 @@ The application is transitioning from Base44 (previous platform) to Replit while
 - All component structures must remain identical
 - Styling and layouts must be pixel-perfect matches
 - Only infrastructure and platform integration changes allowed
+
+**Architecture Pattern for Member/Role Access:**
+React Router's `<Routes>` component doesn't propagate props from parent Layout. Pages requiring member/role data MUST:
+1. Read member info directly from sessionStorage: `sessionStorage.getItem('agcas_member')`
+2. Use their own `useQuery` hooks to fetch member role data
+3. Implement access control logic locally within the component
+
+Example pattern (see RoleManagement.jsx):
+```javascript
+// Get member info from sessionStorage
+const memberInfo = React.useMemo(() => {
+  const stored = sessionStorage.getItem('agcas_member');
+  return stored ? JSON.parse(stored) : null;
+}, []);
+
+// Fetch member role
+const { data: memberRole } = useQuery({
+  queryKey: ['memberRole', memberInfo?.role_id],
+  enabled: !!(memberInfo && memberInfo.role_id),
+  staleTime: Infinity,
+  queryFn: () => base44.entities.Role.get(memberInfo.role_id),
+});
+
+// Determine admin status
+const isAdmin = memberRole?.is_admin === true;
+```
+
+**Testing Notes:**
+- Use `/testlogin` page with `mat@isaasi.co.uk` as authentication backdoor for testing admin features
+- Magic link authentication stores member data in sessionStorage key `agcas_member`
+- React Query uses `staleTime: Infinity`, requiring manual cache invalidation to see updated data

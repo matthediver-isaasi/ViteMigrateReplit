@@ -109,7 +109,7 @@ const AVAILABLE_FEATURES = [
   { id: "payment_training_fund", label: "Use Training Fund for Purchases", category: "Payment Options" }
   ];
 
-export default function RoleManagementPage({ isAdmin, memberRole, isFeatureExcluded, memberInfo }) {
+export default function RoleManagementPage() {
   const [editingRole, setEditingRole] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -118,8 +118,41 @@ export default function RoleManagementPage({ isAdmin, memberRole, isFeatureExclu
 
   const queryClient = useQueryClient();
 
+  // Get member info from sessionStorage (same source as Layout)
+  const memberInfo = React.useMemo(() => {
+    const stored = sessionStorage.getItem('agcas_member');
+    return stored ? JSON.parse(stored) : null;
+  }, []);
+
+  // Fetch member role if member has a role_id
+  const { data: memberRole } = useQuery({
+    queryKey: ['memberRole', memberInfo?.role_id],
+    enabled: !!(memberInfo && memberInfo.role_id),
+    staleTime: Infinity,
+    queryFn: async () => {
+      if (!memberInfo || !memberInfo.role_id) return null;
+      try {
+        const data = await base44.entities.Role.get(memberInfo.role_id);
+        return data || null;
+      } catch (error) {
+        console.error('Error loading memberRole:', error);
+        return null;
+      }
+    },
+  });
+
+  // Determine if user is admin
+  const isAdmin = memberRole?.is_admin === true;
+
+  // Check if feature is excluded for the user's role
+  const isFeatureExcluded = (featureId) => {
+    if (!memberInfo || !featureId) return false;
+    const roleExclusions = memberRole?.excluded_features || [];
+    const memberExclusions = memberInfo.member_excluded_features || [];
+    return roleExclusions.includes(featureId) || memberExclusions.includes(featureId);
+  };
+
   // Redirect non-super-admins (check both isAdmin and feature exclusion)
-  // Handle case where member has no role assigned (memberInfo exists but role_id is null)
   useEffect(() => {
     // Wait for memberInfo to be loaded before checking access
     if (memberInfo !== null && memberInfo !== undefined) {
@@ -129,13 +162,13 @@ export default function RoleManagementPage({ isAdmin, memberRole, isFeatureExclu
       }
       
       // Now we can check access - either role is loaded or member has no role
-      if (!isAdmin || (isFeatureExcluded && isFeatureExcluded('page_RoleManagement'))) {
+      if (!isAdmin || isFeatureExcluded('page_RoleManagement')) {
         window.location.href = createPageUrl('Events');
       } else {
         setAccessChecked(true);
       }
     }
-  }, [isAdmin, memberRole, isFeatureExcluded, memberInfo]);
+  }, [isAdmin, memberRole, memberInfo]);
 
   const { data: roles, isLoading } = useQuery({
     queryKey: ['roles'],

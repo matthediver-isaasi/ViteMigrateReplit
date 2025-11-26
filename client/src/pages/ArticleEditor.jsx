@@ -50,9 +50,10 @@ export default function ArticleEditorPage() {
     queryKey: ['current-member', memberInfo?.email],
     queryFn: async () => {
       const allMembers = await base44.entities.Member.list();
-      return allMembers.find(m => m.email === memberInfo?.email);
+      const member = allMembers.find(m => m.email === memberInfo?.email);
+      return member || null;
     },
-    enabled: !!memberInfo,
+    enabled: !!memberInfo?.email,
     staleTime: 5 * 60 * 1000,
   });
 

@@ -1090,7 +1090,7 @@ export default function FileManagementPage() {
                         </Button>
                       </div>
                       <p className="text-xs text-slate-500 mt-2">
-                        Uploaded {format(new Date(file.created_date), 'MMM d, yyyy')}
+                        {file.created_date ? `Uploaded ${format(new Date(file.created_date), 'MMM d, yyyy')}` : 'Uploaded'}
                       </p>
                     </CardContent>
                   </Card>

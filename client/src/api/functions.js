@@ -96,7 +96,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const verifyMagicLink = notImplemented("verifyMagicLink");
+  export const verifyMagicLink = async (params) => {
+    const response = await fetch('/api/functions/verifyMagicLink', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const syncOrganizationContacts = notImplemented("syncOrganizationContacts");
   export const zohoContactWebhook = notImplemented("zohoContactWebhook");
   export const updateExpiredVouchers = notImplemented("updateExpiredVouchers");

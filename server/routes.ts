@@ -2263,6 +2263,138 @@ AGCAS Events Team
     }
   });
 
+  // Verify Magic Link
+  app.post('/api/functions/verifyMagicLink', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { token } = req.body;
+
+      console.log('[verifyMagicLink] Token received:', token ? 'yes' : 'no');
+
+      if (!token) {
+        return res.status(400).json({ error: 'Token is required' });
+      }
+
+      // Find the magic link
+      const { data: allLinks } = await supabase.from('magic_link').select('*');
+      const magicLink = allLinks?.find((link: any) => link.token === token);
+
+      if (!magicLink) {
+        console.log('[verifyMagicLink] Token not found in database');
+        return res.status(404).json({
+          success: false,
+          error: 'Invalid or expired link'
+        });
+      }
+
+      // Check if already used
+      if (magicLink.used) {
+        console.log('[verifyMagicLink] Token already used');
+        return res.status(400).json({
+          success: false,
+          error: 'This link has already been used'
+        });
+      }
+
+      // Check if expired
+      if (new Date(magicLink.expires_at) < new Date()) {
+        console.log('[verifyMagicLink] Token expired');
+        return res.status(400).json({
+          success: false,
+          error: 'This link has expired'
+        });
+      }
+
+      // Mark as used
+      await supabase
+        .from('magic_link')
+        .update({ used: true })
+        .eq('id', magicLink.id);
+
+      console.log('[verifyMagicLink] Validating user for:', magicLink.email);
+
+      // Validate user and get their data
+      const { data: teamMembers } = await supabase
+        .from('team_member')
+        .select('*')
+        .eq('email', magicLink.email);
+
+      const { data: members } = await supabase
+        .from('member')
+        .select('*')
+        .eq('email', magicLink.email);
+
+      const teamMember = teamMembers?.[0];
+      const member = members?.[0];
+
+      let user: any = null;
+
+      if (teamMember) {
+        user = {
+          email: teamMember.email,
+          first_name: teamMember.first_name,
+          last_name: teamMember.last_name,
+          is_team_member: true,
+          role: teamMember.role
+        };
+      } else if (member && member.login_enabled !== false) {
+        // Get organization details
+        const { data: orgs } = await supabase
+          .from('organization')
+          .select('*')
+          .eq('id', member.organization_id);
+
+        const org = orgs?.[0];
+
+        user = {
+          email: member.email,
+          first_name: member.first_name,
+          last_name: member.last_name,
+          is_team_member: false,
+          organization_id: member.organization_id,
+          organization_name: org?.name || null,
+          zoho_contact_id: member.zoho_contact_id,
+          member_id: member.id
+        };
+
+        // Update last_login
+        try {
+          await supabase
+            .from('member')
+            .update({ last_login: new Date().toISOString() })
+            .eq('id', member.id);
+        } catch (updateError: any) {
+          console.warn('[verifyMagicLink] Failed to update last_login:', updateError.message);
+        }
+      }
+
+      if (!user) {
+        return res.status(403).json({
+          success: false,
+          error: 'User not found or login not enabled'
+        });
+      }
+
+      console.log('[verifyMagicLink] User validated successfully');
+
+      res.json({
+        success: true,
+        user
+      });
+
+    } catch (error: any) {
+      console.error('[verifyMagicLink] error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to verify link',
+        details: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

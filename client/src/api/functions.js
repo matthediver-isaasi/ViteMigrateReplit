@@ -213,7 +213,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const updateProgramDetails = notImplemented("updateProgramDetails");
+  export const updateProgramDetails = async (params) => {
+    const response = await fetch('/api/functions/updateProgramDetails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const testEmailAddressInBackstage = notImplemented("testEmailAddressInBackstage");
   export const clearBookings = notImplemented("clearBookings");
   export const clearProgramTicketTransactions = notImplemented("clearProgramTicketTransactions");

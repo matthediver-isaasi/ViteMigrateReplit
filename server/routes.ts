@@ -3119,6 +3119,173 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Update Program Details - admin only, handles image, description, and offer configurations
+  app.post('/api/functions/updateProgramDetails', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const {
+        programId,
+        imageBase64,
+        fileName,
+        userEmail,
+        description,
+        offerType,
+        bogoBuyQuantity,
+        bogoGetFreeQuantity,
+        bogoLogicType,
+        bulkDiscountThreshold,
+        bulkDiscountPercentage
+      } = req.body;
+
+      if (!programId) {
+        return res.status(400).json({ error: 'Program ID is required' });
+      }
+
+      if (!userEmail) {
+        return res.status(400).json({ error: 'User email is required' });
+      }
+
+      console.log('[updateProgramDetails] Processing request for user:', userEmail);
+
+      // Check if user is an admin
+      let isAdmin = false;
+
+      const { data: allMembers } = await supabase
+        .from('member')
+        .select('*');
+
+      const member = allMembers?.find((m: any) => m.email === userEmail);
+
+      if (member && member.role_id) {
+        const { data: allRoles } = await supabase
+          .from('role')
+          .select('*');
+
+        const role = allRoles?.find((r: any) => r.id === member.role_id);
+        isAdmin = role?.is_admin || false;
+      }
+
+      if (!isAdmin) {
+        const { data: allTeamMembers } = await supabase
+          .from('team_member')
+          .select('*');
+
+        const teamMember = allTeamMembers?.find((tm: any) => tm.email === userEmail);
+
+        if (teamMember && teamMember.role_id) {
+          const { data: allRoles } = await supabase
+            .from('role')
+            .select('*');
+
+          const role = allRoles?.find((r: any) => r.id === teamMember.role_id);
+          isAdmin = role?.is_admin || false;
+        }
+      }
+
+      if (!isAdmin) {
+        console.log('[updateProgramDetails] User is not admin:', userEmail);
+        return res.status(403).json({ error: 'Admin privileges required' });
+      }
+
+      console.log('[updateProgramDetails] User verified as admin, proceeding with update');
+
+      const updatePayload: any = {};
+
+      // Handle image upload if provided
+      if (imageBase64) {
+        const base64Data = imageBase64.split(',')[1];
+        const mimeType = imageBase64.split(';')[0].split(':')[1];
+        const buffer = Buffer.from(base64Data, 'base64');
+
+        const uploadFileName = `programs/${programId}/${fileName || 'program-image.jpg'}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('images')
+          .upload(uploadFileName, buffer, {
+            contentType: mimeType,
+            upsert: true
+          });
+
+        if (uploadError) {
+          console.error('[updateProgramDetails] Upload error:', uploadError);
+          return res.status(500).json({ error: 'Failed to upload image' });
+        }
+
+        const { data: urlData } = supabase.storage
+          .from('images')
+          .getPublicUrl(uploadFileName);
+
+        updatePayload.image_url = urlData?.publicUrl;
+        console.log('[updateProgramDetails] Image uploaded successfully');
+      }
+
+      // Handle description update
+      if (description !== undefined && description !== null) {
+        updatePayload.description = description;
+        console.log('[updateProgramDetails] Updating description');
+      }
+
+      // Handle offer type and related fields
+      if (offerType !== undefined && offerType !== null) {
+        updatePayload.offer_type = offerType;
+        console.log('[updateProgramDetails] Updating offer type to:', offerType);
+
+        if (offerType === 'bogo') {
+          if (bogoBuyQuantity !== undefined) updatePayload.bogo_buy_quantity = bogoBuyQuantity;
+          if (bogoGetFreeQuantity !== undefined) updatePayload.bogo_get_free_quantity = bogoGetFreeQuantity;
+          if (bogoLogicType !== undefined) updatePayload.bogo_logic_type = bogoLogicType;
+
+          updatePayload.bulk_discount_threshold = null;
+          updatePayload.bulk_discount_percentage = null;
+
+          console.log('[updateProgramDetails] BOGO offer configured');
+        } else if (offerType === 'bulk_discount') {
+          if (bulkDiscountThreshold !== undefined) updatePayload.bulk_discount_threshold = bulkDiscountThreshold;
+          if (bulkDiscountPercentage !== undefined) updatePayload.bulk_discount_percentage = bulkDiscountPercentage;
+
+          updatePayload.bogo_buy_quantity = null;
+          updatePayload.bogo_get_free_quantity = null;
+          updatePayload.bogo_logic_type = null;
+
+          console.log('[updateProgramDetails] Bulk discount configured');
+        } else {
+          updatePayload.bogo_buy_quantity = null;
+          updatePayload.bogo_get_free_quantity = null;
+          updatePayload.bogo_logic_type = null;
+          updatePayload.bulk_discount_threshold = null;
+          updatePayload.bulk_discount_percentage = null;
+
+          console.log('[updateProgramDetails] All offers cleared');
+        }
+      }
+
+      // Update the program
+      if (Object.keys(updatePayload).length > 0) {
+        await supabase
+          .from('program')
+          .update(updatePayload)
+          .eq('id', programId);
+
+        console.log('[updateProgramDetails] Program updated successfully');
+      }
+
+      res.json({
+        success: true,
+        ...updatePayload
+      });
+
+    } catch (error: any) {
+      console.error('[updateProgramDetails] error:', error);
+      res.status(500).json({
+        error: 'Failed to update program',
+        message: error.message
+      });
+    }
+  });
+
   // Update Event Image - admin only, handles image upload, description, and URL updates
   app.post('/api/functions/updateEventImage', async (req: Request, res: Response) => {
     if (!supabase) {

@@ -289,12 +289,12 @@ export default function SupportManagementPage() {
                         <p className="text-sm text-slate-600 mb-2 line-clamp-2">{ticket.description}</p>
                         <div className="flex items-center gap-4 text-xs text-slate-500">
                           <span>From: {ticket.submitter_name}</span>
-                          {ticket.created_date && (
-                            <div className="flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {format(new Date(ticket.created_date), 'MMM d, yyyy h:mm a')}
-                            </div>
-                          )}
+                          <div className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {ticket.created_date 
+                              ? format(new Date(ticket.created_date), 'MMM d, yyyy h:mm a')
+                              : 'Date not recorded'}
+                          </div>
                         </div>
                       </div>
                     </div>

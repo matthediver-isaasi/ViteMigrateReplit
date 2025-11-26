@@ -4,10 +4,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { ThumbsUp, ThumbsDown } from "lucide-react";
 import { toast } from "sonner";
+import { useArticleReactionRealtime } from "@/hooks/useArticleReactionRealtime";
 
 export default function ArticleReactions({ articleId, memberInfo, showThumbsUp = true, showThumbsDown = true }) {
   const [userIdentifier, setUserIdentifier] = useState("");
   const queryClient = useQueryClient();
+  
+  useArticleReactionRealtime(articleId, userIdentifier);
 
   // Generate or retrieve user identifier
   useEffect(() => {

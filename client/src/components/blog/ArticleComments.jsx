@@ -10,6 +10,7 @@ import { ThumbsUp, ThumbsDown, MessageCircle, Send, User, ShieldAlert } from "lu
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { useArticleCommentRealtime } from "@/hooks/useArticleCommentRealtime";
+import { useCommentReactionRealtime } from "@/hooks/useCommentReactionRealtime";
 
 export default function ArticleComments({ articleId, memberInfo, showThumbsUp = true, showThumbsDown = true }) {
   const [newComment, setNewComment] = useState("");
@@ -20,6 +21,7 @@ export default function ArticleComments({ articleId, memberInfo, showThumbsUp = 
   const queryClient = useQueryClient();
   
   useArticleCommentRealtime(articleId);
+  useCommentReactionRealtime(articleId, userIdentifier);
 
   // Generate or retrieve user identifier for public users
   useEffect(() => {

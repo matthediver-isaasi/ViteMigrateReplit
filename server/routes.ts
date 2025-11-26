@@ -498,6 +498,216 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json({ success: true, message: 'Zoho CRM sync not yet implemented' });
   });
 
+  // ============ Zoho OAuth Routes ============
+  
+  // Helper to get Zoho accounts domain from API domain
+  const getZohoAccountsDomain = (apiDomain: string): string => {
+    if (apiDomain?.includes('.zohoapis.eu')) {
+      return 'https://accounts.zoho.eu';
+    } else if (apiDomain?.includes('.zohoapis.com.au')) {
+      return 'https://accounts.zoho.com.au';
+    } else {
+      return 'https://accounts.zoho.com';
+    }
+  };
+
+  // Get Zoho Auth URL
+  app.post('/api/functions/getZohoAuthUrl', async (req: Request, res: Response) => {
+    const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+    
+    if (!ZOHO_CLIENT_ID) {
+      return res.status(503).json({ error: 'Zoho OAuth not configured - missing ZOHO_CLIENT_ID' });
+    }
+
+    const accountsDomain = getZohoAccountsDomain(ZOHO_CRM_API_DOMAIN);
+    const redirectUri = `${req.protocol}://${req.get('host')}/api/functions/zohoOAuthCallback`;
+    
+    const scopes = [
+      'ZohoCRM.modules.ALL',
+      'ZohoCRM.settings.ALL',
+      'ZohoBackstage.event.READ',
+      'ZohoBackstage.order.ALL'
+    ].join(',');
+
+    const authUrl = `${accountsDomain}/oauth/v2/auth?` +
+      `scope=${encodeURIComponent(scopes)}` +
+      `&client_id=${ZOHO_CLIENT_ID}` +
+      `&response_type=code` +
+      `&access_type=offline` +
+      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
+      `&prompt=consent`;
+
+    res.json({ authUrl });
+  });
+
+  // Zoho OAuth Callback (GET - browser redirect)
+  app.get('/api/functions/zohoOAuthCallback', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).send(`
+        <html>
+          <body style="font-family: system-ui; padding: 40px; text-align: center;">
+            <h1 style="color: #dc2626;">Configuration Error</h1>
+            <p>Supabase is not configured</p>
+            <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+              Close Window
+            </button>
+          </body>
+        </html>
+      `);
+    }
+
+    const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
+    const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+
+    const code = req.query.code as string;
+    const error = req.query.error as string;
+
+    if (error) {
+      return res.status(400).send(`
+        <html>
+          <body style="font-family: system-ui; padding: 40px; text-align: center;">
+            <h1 style="color: #dc2626;">Authentication Error</h1>
+            <p>Failed to authenticate with Zoho: ${error}</p>
+            <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+              Close Window
+            </button>
+          </body>
+        </html>
+      `);
+    }
+
+    if (!code) {
+      return res.status(400).send(`
+        <html>
+          <body style="font-family: system-ui; padding: 40px; text-align: center;">
+            <h1 style="color: #dc2626;">Missing Authorization Code</h1>
+            <p>No authorization code was provided by Zoho.</p>
+            <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+              Close Window
+            </button>
+          </body>
+        </html>
+      `);
+    }
+
+    try {
+      const accountsDomain = getZohoAccountsDomain(ZOHO_CRM_API_DOMAIN);
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/functions/zohoOAuthCallback`;
+
+      // Exchange authorization code for access token
+      const tokenResponse = await fetch(`${accountsDomain}/oauth/v2/token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          client_id: ZOHO_CLIENT_ID!,
+          client_secret: ZOHO_CLIENT_SECRET!,
+          redirect_uri: redirectUri,
+          code: code,
+        }).toString(),
+      });
+
+      const tokenData = await tokenResponse.json();
+
+      if (!tokenResponse.ok || tokenData.error) {
+        return res.status(400).send(`
+          <html>
+            <body style="font-family: system-ui; padding: 40px; text-align: center;">
+              <h1 style="color: #dc2626;">Token Exchange Failed</h1>
+              <p>Error: ${JSON.stringify(tokenData)}</p>
+              <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                Close Window
+              </button>
+            </body>
+          </html>
+        `);
+      }
+
+      // Calculate expiration time
+      const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString();
+
+      // Store tokens in Supabase
+      const { data: existingTokens } = await supabase
+        .from('zoho_token')
+        .select('id')
+        .limit(1);
+
+      if (existingTokens && existingTokens.length > 0) {
+        await supabase
+          .from('zoho_token')
+          .update({
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token,
+            expires_at: expiresAt,
+            token_type: tokenData.token_type || 'Bearer',
+          })
+          .eq('id', existingTokens[0].id);
+      } else {
+        await supabase
+          .from('zoho_token')
+          .insert({
+            access_token: tokenData.access_token,
+            refresh_token: tokenData.refresh_token,
+            expires_at: expiresAt,
+            token_type: tokenData.token_type || 'Bearer',
+          });
+      }
+
+      res.send(`
+        <html>
+          <head>
+            <style>
+              body {
+                font-family: system-ui;
+                padding: 40px;
+                text-align: center;
+                background: linear-gradient(to br, #f8fafc, #eff6ff);
+              }
+              .success { color: #16a34a; margin-bottom: 10px; }
+              button {
+                margin-top: 20px;
+                padding: 12px 24px;
+                background: #2563eb;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 16px;
+              }
+              button:hover { background: #1d4ed8; }
+            </style>
+          </head>
+          <body>
+            <h1 class="success">Authentication Successful</h1>
+            <p>Your Zoho account has been connected successfully.</p>
+            <p style="font-size: 14px; color: #64748b;">You can now close this window.</p>
+            <button onclick="window.close()">Close Window</button>
+            <script>
+              setTimeout(() => window.close(), 3000);
+            </script>
+          </body>
+        </html>
+      `);
+    } catch (err) {
+      console.error('Zoho OAuth callback error:', err);
+      res.status(500).send(`
+        <html>
+          <body style="font-family: system-ui; padding: 40px; text-align: center;">
+            <h1 style="color: #dc2626;">Server Error</h1>
+            <p>An error occurred during authentication.</p>
+            <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+              Close Window
+            </button>
+          </body>
+        </html>
+      `);
+    }
+  });
+
   // Generic function handler for unimplemented functions
   app.post('/api/functions/:functionName', async (req: Request, res: Response) => {
     const { functionName } = req.params;

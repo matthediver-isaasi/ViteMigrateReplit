@@ -8,10 +8,30 @@ const notImplemented = (name) => () => {
     throw new Error(`Base44 function "${name}" is not implemented. Migrate this feature to Supabase/Vercel.`);
   };
   
-  export const zohoOAuthCallback = notImplemented("zohoOAuthCallback");
-  export const syncMemberFromCRM = notImplemented("syncMemberFromCRM");
+  export const zohoOAuthCallback = async (params) => {
+    // This is called via browser redirect, not directly from client
+    throw new Error("zohoOAuthCallback is handled via browser redirect to /api/functions/zohoOAuthCallback");
+  };
+  
+  export const syncMemberFromCRM = async (params) => {
+    const response = await fetch('/api/functions/syncMemberFromCRM', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
+  
   export const syncEventsFromBackstage = notImplemented("syncEventsFromBackstage");
-  export const getZohoAuthUrl = notImplemented("getZohoAuthUrl");
+  
+  export const getZohoAuthUrl = async (params) => {
+    const response = await fetch('/api/functions/getZohoAuthUrl', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params || {})
+    });
+    return response.json();
+  };
   export const validateMember = notImplemented("validateMember");
   export const refreshMemberBalance = notImplemented("refreshMemberBalance");
   export const syncBackstageEvents = notImplemented("syncBackstageEvents");

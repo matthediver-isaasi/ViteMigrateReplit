@@ -897,6 +897,275 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync All Organizations from Zoho CRM
+  app.post('/api/functions/syncAllOrganizationsFromZoho', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+
+    try {
+      const accessToken = await getValidZohoAccessToken();
+      
+      let allAccounts: any[] = [];
+      let page = 1;
+      let hasMoreRecords = true;
+
+      // Fetch all accounts with pagination (Zoho returns max 200 per page)
+      while (hasMoreRecords) {
+        const accountsResponse = await fetch(
+          `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts?page=${page}&per_page=200`,
+          {
+            headers: {
+              'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            },
+          }
+        );
+
+        if (!accountsResponse.ok) {
+          const errorText = await accountsResponse.text();
+          throw new Error(`Zoho API error: ${accountsResponse.status} - ${errorText}`);
+        }
+
+        const accountsData = await accountsResponse.json();
+        
+        if (accountsData.data && accountsData.data.length > 0) {
+          allAccounts = allAccounts.concat(accountsData.data);
+          hasMoreRecords = accountsData.info?.more_records || false;
+          page++;
+        } else {
+          hasMoreRecords = false;
+        }
+      }
+
+      console.log(`[syncAllOrganizationsFromZoho] Fetched ${allAccounts.length} accounts from Zoho`);
+
+      let created = 0;
+      let updated = 0;
+      let errors: Array<{ accountId: string; name: string; error: string }> = [];
+
+      for (const account of allAccounts) {
+        try {
+          const orgData = {
+            name: account.Account_Name,
+            zoho_account_id: account.id,
+            domain: account.Domain || null,
+            additional_verified_domains: account.Additional_verified_domains || [],
+            training_fund_balance: account.Training_Fund_Balance || 0,
+            purchase_order_enabled: account.Purchase_Order_Enabled || false,
+            last_synced: new Date().toISOString(),
+          };
+
+          // Check if organization exists by zoho_account_id
+          const { data: existingOrgs } = await supabase
+            .from('organization')
+            .select('id')
+            .eq('zoho_account_id', account.id);
+
+          if (existingOrgs && existingOrgs.length > 0) {
+            // Update existing organization
+            await supabase
+              .from('organization')
+              .update(orgData)
+              .eq('id', existingOrgs[0].id);
+            updated++;
+          } else {
+            // Check if organization exists by name (migrated data without zoho_account_id)
+            const { data: orgsByName } = await supabase
+              .from('organization')
+              .select('id')
+              .eq('name', account.Account_Name);
+
+            if (orgsByName && orgsByName.length > 0) {
+              // Update existing organization and set zoho_account_id
+              await supabase
+                .from('organization')
+                .update(orgData)
+                .eq('id', orgsByName[0].id);
+              updated++;
+            } else {
+              // Create new organization
+              await supabase
+                .from('organization')
+                .insert(orgData);
+              created++;
+            }
+          }
+        } catch (err: any) {
+          errors.push({
+            accountId: account.id,
+            name: account.Account_Name,
+            error: err.message
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        total_fetched: allAccounts.length,
+        created,
+        updated,
+        errors: errors.length,
+        error_details: errors.length > 0 ? errors : undefined
+      });
+
+    } catch (error: any) {
+      console.error('Sync all organizations error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Sync All Members from Zoho CRM
+  app.post('/api/functions/syncAllMembersFromZoho', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+
+    try {
+      const accessToken = await getValidZohoAccessToken();
+      
+      // First, get all organizations for lookup
+      const { data: allOrgs } = await supabase
+        .from('organization')
+        .select('id, zoho_account_id, name');
+
+      const orgLookup = new Map<string, string>();
+      if (allOrgs) {
+        allOrgs.forEach((org: any) => {
+          if (org.zoho_account_id) {
+            orgLookup.set(org.zoho_account_id, org.id);
+          }
+        });
+      }
+
+      console.log(`[syncAllMembersFromZoho] Loaded ${orgLookup.size} organizations for lookup`);
+
+      let allContacts: any[] = [];
+      let page = 1;
+      let hasMoreRecords = true;
+
+      // Fetch all contacts with pagination (Zoho returns max 200 per page)
+      while (hasMoreRecords) {
+        const contactsResponse = await fetch(
+          `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts?page=${page}&per_page=200`,
+          {
+            headers: {
+              'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            },
+          }
+        );
+
+        if (!contactsResponse.ok) {
+          const errorText = await contactsResponse.text();
+          throw new Error(`Zoho API error: ${contactsResponse.status} - ${errorText}`);
+        }
+
+        const contactsData = await contactsResponse.json();
+        
+        if (contactsData.data && contactsData.data.length > 0) {
+          allContacts = allContacts.concat(contactsData.data);
+          hasMoreRecords = contactsData.info?.more_records || false;
+          page++;
+        } else {
+          hasMoreRecords = false;
+        }
+      }
+
+      console.log(`[syncAllMembersFromZoho] Fetched ${allContacts.length} contacts from Zoho`);
+
+      let created = 0;
+      let updated = 0;
+      let linkedToOrg = 0;
+      let errors: Array<{ contactId: string; email: string; error: string }> = [];
+
+      for (const contact of allContacts) {
+        try {
+          // Skip contacts without email
+          if (!contact.Email) {
+            continue;
+          }
+
+          // Look up organization_id from zoho account
+          let organizationId = null;
+          if (contact.Account_Name?.id) {
+            organizationId = orgLookup.get(contact.Account_Name.id);
+            if (organizationId) {
+              linkedToOrg++;
+            }
+          }
+
+          const memberData = {
+            email: contact.Email,
+            first_name: contact.First_Name || null,
+            last_name: contact.Last_Name || null,
+            zoho_contact_id: contact.id,
+            organization_id: organizationId,
+            last_synced: new Date().toISOString(),
+          };
+
+          // Check if member exists by zoho_contact_id
+          const { data: existingByZoho } = await supabase
+            .from('member')
+            .select('id')
+            .eq('zoho_contact_id', contact.id);
+
+          if (existingByZoho && existingByZoho.length > 0) {
+            // Update existing member
+            await supabase
+              .from('member')
+              .update(memberData)
+              .eq('id', existingByZoho[0].id);
+            updated++;
+          } else {
+            // Check if member exists by email (migrated data without zoho_contact_id)
+            const { data: existingByEmail } = await supabase
+              .from('member')
+              .select('id')
+              .eq('email', contact.Email);
+
+            if (existingByEmail && existingByEmail.length > 0) {
+              // Update existing member and set zoho_contact_id
+              await supabase
+                .from('member')
+                .update(memberData)
+                .eq('id', existingByEmail[0].id);
+              updated++;
+            } else {
+              // Create new member
+              await supabase
+                .from('member')
+                .insert(memberData);
+              created++;
+            }
+          }
+        } catch (err: any) {
+          errors.push({
+            contactId: contact.id,
+            email: contact.Email || 'no-email',
+            error: err.message
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        total_fetched: allContacts.length,
+        created,
+        updated,
+        linked_to_org: linkedToOrg,
+        errors: errors.length,
+        error_details: errors.length > 0 ? errors : undefined
+      });
+
+    } catch (error: any) {
+      console.error('Sync all members error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Sync Events from Zoho Backstage (simple version)
   app.post('/api/functions/syncEventsFromBackstage', async (req: Request, res: Response) => {
     // Redirect to the more complete syncBackstageEvents

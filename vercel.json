@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "cd client && npx vite build --outDir ../dist/public",
+  "buildCommand": "npx vite build",
   "outputDirectory": "dist/public",
   "framework": "vite",
   "installCommand": "npm install",

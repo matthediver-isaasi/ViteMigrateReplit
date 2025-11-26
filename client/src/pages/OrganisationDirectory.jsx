@@ -75,9 +75,11 @@ export default function OrganisationDirectoryPage() {
   }, [members]);
 
   const filteredOrganizations = useMemo(() => {
+    const excludedIds = displaySettings?.excludedOrgIds || [];
+    
     // First filter out excluded organizations
     let filtered = organizations.filter(org => 
-      !displaySettings.excludedOrgIds.includes(org.id)
+      !excludedIds.includes(org.id)
     );
     
     // Then apply search filter
@@ -90,7 +92,7 @@ export default function OrganisationDirectoryPage() {
     }
     
     return filtered;
-  }, [organizations, searchQuery, displaySettings.excludedOrgIds]);
+  }, [organizations, searchQuery, displaySettings?.excludedOrgIds]);
 
   const totalPages = Math.ceil(filteredOrganizations.length / itemsPerPage);
   const paginatedOrganizations = useMemo(() => {

@@ -913,9 +913,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let hasMoreRecords = true;
 
       // Fetch all accounts with pagination (Zoho returns max 200 per page)
+      // Zoho v3 API requires explicit fields parameter
+      const accountFields = 'Account_Name,Domain,Additional_verified_domains,Training_Fund_Balance,Purchase_Order_Enabled';
+      
       while (hasMoreRecords) {
         const accountsResponse = await fetch(
-          `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts?page=${page}&per_page=200`,
+          `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts?fields=${accountFields}&page=${page}&per_page=200`,
           {
             headers: {
               'Authorization': `Zoho-oauthtoken ${accessToken}`,
@@ -1044,13 +1047,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log(`[syncAllMembersFromZoho] Loaded ${orgLookup.size} organizations for lookup`);
 
       let allContacts: any[] = [];
-      let page = 1;
+      const contactFields = 'First_Name,Last_Name,Email,Account_Name';
+      
+      // Phase 1: Fetch first 2000 records using 'page' param (max 10 pages)
       let hasMoreRecords = true;
-
-      // Fetch all contacts with pagination (Zoho returns max 200 per page)
-      while (hasMoreRecords) {
+      let pageToken: string | null = null;
+      
+      for (let page = 1; page <= 10 && hasMoreRecords; page++) {
         const contactsResponse = await fetch(
-          `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts?page=${page}&per_page=200`,
+          `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts?fields=${contactFields}&page=${page}&per_page=200`,
           {
             headers: {
               'Authorization': `Zoho-oauthtoken ${accessToken}`,
@@ -1067,10 +1072,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         if (contactsData.data && contactsData.data.length > 0) {
           allContacts = allContacts.concat(contactsData.data);
-          hasMoreRecords = contactsData.info?.more_records || false;
-          page++;
-        } else {
-          hasMoreRecords = false;
+        }
+        
+        hasMoreRecords = contactsData.info?.more_records || false;
+        
+        // Get page_token for records beyond 2000
+        if (page === 10 && hasMoreRecords) {
+          pageToken = contactsData.info?.next_page_token || null;
+        }
+      }
+      
+      // Phase 2: Use page_token for records beyond 2000
+      while (pageToken) {
+        const contactsResponse = await fetch(
+          `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts?fields=${contactFields}&page_token=${pageToken}&per_page=200`,
+          {
+            headers: {
+              'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            },
+          }
+        );
+
+        if (!contactsResponse.ok) {
+          const errorText = await contactsResponse.text();
+          throw new Error(`Zoho API error: ${contactsResponse.status} - ${errorText}`);
+        }
+
+        const contactsData = await contactsResponse.json();
+        
+        if (contactsData.data && contactsData.data.length > 0) {
+          allContacts = allContacts.concat(contactsData.data);
+        }
+        
+        pageToken = contactsData.info?.next_page_token || null;
+        
+        if (!contactsData.info?.more_records) {
+          break;
         }
       }
 

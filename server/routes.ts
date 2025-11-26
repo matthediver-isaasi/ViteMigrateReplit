@@ -3119,6 +3119,161 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Apply Discount Code
+  app.post('/api/functions/applyDiscountCode', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { code, totalCost, programTag, memberEmail } = req.body;
+
+      console.log('[applyDiscountCode] Request received:', { code, totalCost, programTag, memberEmail });
+
+      if (!code || !totalCost || typeof totalCost !== 'number' || totalCost < 0) {
+        console.error('[applyDiscountCode] Invalid input validation failed');
+        return res.json({
+          success: false,
+          error: 'Invalid input: code and a valid totalCost are required.'
+        });
+      }
+
+      if (!memberEmail) {
+        console.error('[applyDiscountCode] Member email missing');
+        return res.json({
+          success: false,
+          error: 'Member email is required.'
+        });
+      }
+
+      // Get member's organization
+      const { data: allMembers } = await supabase
+        .from('member')
+        .select('*');
+
+      const member = allMembers?.find((m: any) => m.email === memberEmail);
+
+      if (!member || !member.organization_id) {
+        console.error('[applyDiscountCode] Member or organization not found');
+        return res.json({
+          success: false,
+          error: 'Member organization not found.'
+        });
+      }
+
+      const memberOrgId = member.organization_id;
+
+      // Find discount codes that match
+      const { data: allDiscountCodes } = await supabase
+        .from('discount_code')
+        .select('*');
+
+      const matchingCodes = allDiscountCodes?.filter((dc: any) =>
+        dc.code.toUpperCase() === code.toUpperCase() &&
+        (!dc.organization_id || dc.organization_id === memberOrgId)
+      );
+
+      if (!matchingCodes || matchingCodes.length === 0) {
+        console.error('[applyDiscountCode] Discount code not found:', code);
+        return res.json({ success: false, error: 'Invalid discount code.' });
+      }
+
+      const discountCode = matchingCodes[0];
+      console.log('[applyDiscountCode] Found discount code:', discountCode.code);
+
+      // Validate discount code status and expiry
+      if (!discountCode.is_active) {
+        console.error('[applyDiscountCode] Discount code is inactive');
+        return res.json({ success: false, error: 'Invalid discount code.' });
+      }
+
+      if (discountCode.expires_at && new Date(discountCode.expires_at) < new Date()) {
+        console.error('[applyDiscountCode] Discount code has expired');
+        return res.json({ success: false, error: 'Invalid discount code.' });
+      }
+
+      // Validate minimum purchase amount
+      if (discountCode.min_purchase_amount > 0 && totalCost < discountCode.min_purchase_amount) {
+        console.error('[applyDiscountCode] Minimum purchase amount not met');
+        return res.json({
+          success: false,
+          error: 'Invalid discount code.'
+        });
+      }
+
+      // Validate usage count
+      if (discountCode.max_usage_count) {
+        let currentUsage = 0;
+
+        if (discountCode.organization_id) {
+          // Organization-specific code: check DiscountCodeUsage
+          const { data: usageRecords } = await supabase
+            .from('discount_code_usage')
+            .select('*')
+            .eq('discount_code_id', discountCode.id)
+            .eq('organization_id', memberOrgId);
+
+          if (usageRecords && usageRecords.length > 0) {
+            currentUsage = usageRecords[0].usage_count || 0;
+          }
+        } else {
+          // Global code: check current_usage_count on DiscountCode
+          currentUsage = discountCode.current_usage_count || 0;
+        }
+
+        if (currentUsage >= discountCode.max_usage_count) {
+          console.error('[applyDiscountCode] Max usage count reached');
+          return res.json({ success: false, error: 'Invalid discount code.' });
+        }
+      }
+
+      // Validate program tag if specified
+      if (discountCode.program_tag && discountCode.program_tag !== programTag) {
+        console.error('[applyDiscountCode] Program tag mismatch');
+        return res.json({
+          success: false,
+          error: 'Invalid discount code.'
+        });
+      }
+
+      // Calculate discount amount
+      let discountAmount = 0;
+      if (discountCode.type === 'percentage') {
+        discountAmount = totalCost * (discountCode.value / 100);
+      } else if (discountCode.type === 'fixed') {
+        discountAmount = discountCode.value;
+      }
+
+      // Ensure discount doesn't make total cost negative
+      discountAmount = Math.min(discountAmount, totalCost);
+      const totalCostAfterDiscount = Math.max(0, totalCost - discountAmount);
+
+      console.log('[applyDiscountCode] Discount calculated successfully:', {
+        discountAmount,
+        totalCostAfterDiscount
+      });
+
+      res.json({
+        success: true,
+        discountId: discountCode.id,
+        code: discountCode.code,
+        type: discountCode.type,
+        value: discountCode.value,
+        discountAmount: parseFloat(discountAmount.toFixed(2)),
+        totalCostAfterDiscount: parseFloat(totalCostAfterDiscount.toFixed(2)),
+        isOrganizationSpecific: !!discountCode.organization_id,
+        message: 'Discount applied successfully!'
+      });
+
+    } catch (error: any) {
+      console.error('[applyDiscountCode] Unexpected error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to apply discount code.'
+      });
+    }
+  });
+
   // Validate User - checks TeamMember first, then Zoho CRM
   app.post('/api/functions/validateUser', async (req: Request, res: Response) => {
     if (!supabase) {

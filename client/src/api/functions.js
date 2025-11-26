@@ -172,7 +172,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const applyDiscountCode = notImplemented("applyDiscountCode");
+  export const applyDiscountCode = async (params) => {
+    const response = await fetch('/api/functions/applyDiscountCode', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const debugBackstageEvent = notImplemented("debugBackstageEvent");
   export const processBackstageCancellation = notImplemented("processBackstageCancellation");
   export const cancelBackstageOrder = notImplemented("cancelBackstageOrder");

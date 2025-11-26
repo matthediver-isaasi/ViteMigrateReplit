@@ -286,7 +286,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const createJobPostingPaymentIntent = notImplemented("createJobPostingPaymentIntent");
+  export const createJobPostingPaymentIntent = async (params) => {
+    const response = await fetch('/api/functions/createJobPostingPaymentIntent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const renameResourceSubcategory = notImplemented("renameResourceSubcategory");
   export const generateMemberHandles = notImplemented("generateMemberHandles");
   export const extractAndUploadFont = notImplemented("extractAndUploadFont");

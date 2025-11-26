@@ -3119,6 +3119,63 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Create Job Posting Payment Intent - creates Stripe payment intent for job postings
+  app.post('/api/functions/createJobPostingPaymentIntent', async (req: Request, res: Response) => {
+    try {
+      const { amount, currency = 'gbp', metadata = {} } = req.body;
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({
+          error: 'Invalid amount',
+          details: 'Amount must be greater than 0'
+        });
+      }
+
+      // Validate that we have job posting metadata
+      if (!metadata.job_posting_id) {
+        return res.status(400).json({
+          error: 'Job posting ID is required'
+        });
+      }
+
+      // Get Stripe key from environment
+      const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecretKey) {
+        throw new Error('Stripe secret key not configured');
+      }
+
+      const stripe = new Stripe(stripeSecretKey, {
+        apiVersion: '2023-10-16' as any,
+      });
+
+      // Create a Payment Intent with Stripe
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Stripe expects amount in pence/cents
+        currency: currency,
+        metadata: {
+          ...metadata,
+          type: 'job_posting'
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+
+      res.json({
+        success: true,
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id
+      });
+
+    } catch (error: any) {
+      console.error('Stripe Payment Intent Error:', error);
+      res.status(500).json({
+        error: 'Failed to create payment intent',
+        details: error.message
+      });
+    }
+  });
+
   // Handle Job Posting Payment Webhook - Stripe webhook for job posting payments
   app.post('/api/functions/handleJobPostingPaymentWebhook', async (req: Request, res: Response) => {
     if (!supabase) {

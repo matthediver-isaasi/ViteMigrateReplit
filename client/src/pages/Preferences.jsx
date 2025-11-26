@@ -743,7 +743,9 @@ export default function PreferencesPage() {
         <Card className="border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle>Profile Information</CardTitle>
-            <CardDescription>Update your personal details</CardDescription>
+            <CardDescription>
+              {sessionMember?.handle ? `@${sessionMember.handle}` : 'Update your personal details'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">

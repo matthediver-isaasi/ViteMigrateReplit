@@ -245,6 +245,7 @@ The application uses a hybrid approach to ensure data freshness while maintainin
    - `useBlogPostRealtime` - blog_post table changes
    - `useResourceRealtime` - resource table changes
    - `useNavigationRealtime` - navigation_item and portal_menu changes
+   - `useArticleCommentRealtime` - article_comment table changes (filtered by articleId for live comment updates)
    - All hooks use a single shared Supabase client from `client/src/api/supabaseClient.js`
 
 This approach was chosen because Base44's SDK had multi-minute cache delays that were unacceptable for the client.

@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ThumbsUp, ThumbsDown, MessageCircle, Send, User, ShieldAlert } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useArticleCommentRealtime } from "@/hooks/useArticleCommentRealtime";
 
 export default function ArticleComments({ articleId, memberInfo, showThumbsUp = true, showThumbsDown = true }) {
   const [newComment, setNewComment] = useState("");
@@ -17,6 +18,8 @@ export default function ArticleComments({ articleId, memberInfo, showThumbsUp = 
   const [isCheckingContent, setIsCheckingContent] = useState(false);
   
   const queryClient = useQueryClient();
+  
+  useArticleCommentRealtime(articleId);
 
   // Generate or retrieve user identifier for public users
   useEffect(() => {

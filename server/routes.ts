@@ -3119,6 +3119,94 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Clear Bookings - deletes ALL booking records (admin/test utility)
+  app.post('/api/functions/clearBookings', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      console.log('[clearBookings] ========================================');
+      console.log('[clearBookings] CLEAR BOOKINGS FUNCTION CALLED');
+      console.log('[clearBookings] ========================================');
+      console.log('[clearBookings] WARNING: This will delete ALL booking records');
+
+      // Fetch all bookings
+      console.log('[clearBookings] Fetching all bookings...');
+      const { data: allBookings, error: fetchError } = await supabase
+        .from('booking')
+        .select('*');
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      console.log(`[clearBookings] Found ${allBookings?.length || 0} booking(s) to delete`);
+
+      if (!allBookings || allBookings.length === 0) {
+        console.log('[clearBookings] No bookings to delete');
+        return res.json({
+          success: true,
+          deleted_count: 0,
+          message: 'No bookings found to delete'
+        });
+      }
+
+      // Delete each booking
+      let deletedCount = 0;
+      let errorCount = 0;
+      const errors: any[] = [];
+
+      for (const booking of allBookings) {
+        try {
+          const { error: deleteError } = await supabase
+            .from('booking')
+            .delete()
+            .eq('id', booking.id);
+
+          if (deleteError) throw deleteError;
+
+          deletedCount++;
+          console.log(`[clearBookings] Deleted booking ${booking.id} (${booking.booking_reference || 'no ref'})`);
+
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 50));
+        } catch (error: any) {
+          errorCount++;
+          console.error(`[clearBookings] Failed to delete booking ${booking.id}:`, error.message);
+          errors.push({
+            booking_id: booking.id,
+            booking_reference: booking.booking_reference,
+            error: error.message
+          });
+        }
+      }
+
+      console.log('[clearBookings] ========================================');
+      console.log(`[clearBookings] DELETION COMPLETE`);
+      console.log(`[clearBookings] Successfully deleted: ${deletedCount}`);
+      console.log(`[clearBookings] Failed: ${errorCount}`);
+      console.log('[clearBookings] ========================================');
+
+      res.json({
+        success: true,
+        deleted_count: deletedCount,
+        error_count: errorCount,
+        total_processed: allBookings.length,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `Successfully deleted ${deletedCount} booking(s)${errorCount > 0 ? `. ${errorCount} deletion(s) failed.` : ''}`
+      });
+
+    } catch (error: any) {
+      console.error('[clearBookings] Fatal error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to clear bookings',
+        details: error.message
+      });
+    }
+  });
+
   // Update Program Details - admin only, handles image, description, and offer configurations
   app.post('/api/functions/updateProgramDetails', async (req: Request, res: Response) => {
     if (!supabase) {

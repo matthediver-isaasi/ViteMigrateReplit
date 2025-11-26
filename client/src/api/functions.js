@@ -302,7 +302,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const generateMemberHandles = notImplemented("generateMemberHandles");
+  export const generateMemberHandles = async (params) => {
+    const response = await fetch('/api/functions/generateMemberHandles', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const extractAndUploadFont = notImplemented("extractAndUploadFont");
   export const enableLoginForAllMembers = notImplemented("enableLoginForAllMembers");
   export const sendTeamMemberInvite = notImplemented("sendTeamMemberInvite");

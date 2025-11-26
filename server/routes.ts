@@ -3119,6 +3119,213 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Generate Member Handles - generates unique handles for members
+  app.post('/api/functions/generateMemberHandles', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    // Helper function to generate slug
+    function generateSlug(text: string): string {
+      return text
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    // Helper function to generate unique handle
+    function generateUniqueHandle(firstName: string, lastName: string, existingHandles: Set<string>): string {
+      let baseHandle = `${generateSlug(firstName)}-${generateSlug(lastName)}`;
+
+      if (baseHandle.length < 3) {
+        baseHandle = generateSlug(firstName);
+      }
+      if (baseHandle.length < 3) {
+        baseHandle = generateSlug(lastName);
+      }
+      if (baseHandle.length < 3) {
+        baseHandle = 'member';
+      }
+      if (baseHandle.length > 30) {
+        baseHandle = baseHandle.substring(0, 30);
+      }
+
+      let handle = baseHandle;
+      let counter = 1;
+
+      while (existingHandles.has(handle)) {
+        const suffix = `-${counter}`;
+        const maxBaseLength = 30 - suffix.length;
+        handle = baseHandle.substring(0, maxBaseLength) + suffix;
+        counter++;
+      }
+
+      return handle;
+    }
+
+    try {
+      const { member_email, member_id, generate_all = false } = req.body;
+
+      console.log('[generateMemberHandles] Request received:', { member_email, member_id, generate_all });
+
+      if (!member_email) {
+        return res.status(401).json({
+          error: 'Unauthorized - member_email required',
+          details: 'Please provide your email address in the request'
+        });
+      }
+
+      // Check if requesting member is admin
+      const { data: members } = await supabase.from('member').select('*');
+      const currentMember = members?.find((m: any) => m.email === member_email);
+
+      if (!currentMember) {
+        return res.status(403).json({
+          error: 'Forbidden - Member record not found',
+          details: 'Your user account is not linked to a member record'
+        });
+      }
+
+      if (!currentMember.role_id) {
+        return res.status(403).json({
+          error: 'Forbidden - No role assigned',
+          details: 'Your account does not have a role assigned'
+        });
+      }
+
+      const { data: roles } = await supabase.from('role').select('*');
+      const currentRole = roles?.find((r: any) => r.id === currentMember.role_id);
+
+      if (!currentRole) {
+        return res.status(403).json({
+          error: 'Forbidden - Role not found',
+          details: 'Your assigned role could not be found'
+        });
+      }
+
+      if (!currentRole.is_admin) {
+        return res.status(403).json({
+          error: 'Forbidden - Admin access required',
+          details: 'This operation requires administrator privileges'
+        });
+      }
+
+      console.log('[generateMemberHandles] Admin check passed, proceeding with handle generation');
+
+      // Get all members
+      const allMembers = members || [];
+      console.log('[generateMemberHandles] Total members:', allMembers.length);
+
+      // Get existing handles
+      const existingHandles = new Set<string>(
+        allMembers
+          .filter((m: any) => m.handle)
+          .map((m: any) => m.handle)
+      );
+
+      console.log('[generateMemberHandles] Existing handles:', existingHandles.size);
+
+      const results: any = {
+        success: [],
+        failed: [],
+        skipped: []
+      };
+
+      // Determine which members to process
+      let membersToProcess: any[] = [];
+
+      if (member_id) {
+        const member = allMembers.find((m: any) => m.id === member_id);
+        if (!member) {
+          return res.status(404).json({ error: 'Member not found' });
+        }
+        membersToProcess = [member];
+      } else if (generate_all) {
+        membersToProcess = allMembers.filter((m: any) => !m.handle);
+        console.log('[generateMemberHandles] Members to process:', membersToProcess.length);
+      } else {
+        return res.status(400).json({
+          error: 'Please specify either member_id or set generate_all to true'
+        });
+      }
+
+      // Process each member
+      for (const member of membersToProcess) {
+        try {
+          if (member.handle) {
+            results.skipped.push({
+              member_id: member.id,
+              email: member.email,
+              existing_handle: member.handle,
+              reason: 'Already has handle'
+            });
+            continue;
+          }
+
+          if (!member.first_name || !member.last_name) {
+            results.failed.push({
+              member_id: member.id,
+              email: member.email,
+              error: 'Missing first_name or last_name'
+            });
+            continue;
+          }
+
+          const handle = generateUniqueHandle(
+            member.first_name,
+            member.last_name,
+            existingHandles
+          );
+
+          console.log('[generateMemberHandles] Generated handle for', member.email, ':', handle);
+
+          await supabase
+            .from('member')
+            .update({ handle })
+            .eq('id', member.id);
+
+          existingHandles.add(handle);
+
+          results.success.push({
+            member_id: member.id,
+            email: member.email,
+            name: `${member.first_name} ${member.last_name}`,
+            handle: handle
+          });
+
+        } catch (error: any) {
+          console.error('[generateMemberHandles] Error processing member:', member.email, error);
+          results.failed.push({
+            member_id: member.id,
+            email: member.email,
+            error: error.message
+          });
+        }
+      }
+
+      console.log('[generateMemberHandles] Results:', results.success.length, 'success,', results.failed.length, 'failed,', results.skipped.length, 'skipped');
+
+      res.json({
+        message: 'Handle generation completed',
+        summary: {
+          total_processed: membersToProcess.length,
+          successful: results.success.length,
+          failed: results.failed.length,
+          skipped: results.skipped.length
+        },
+        results
+      });
+
+    } catch (error: any) {
+      console.error('[generateMemberHandles] Fatal error:', error);
+      res.status(500).json({
+        error: 'Failed to generate handles',
+        details: error.message
+      });
+    }
+  });
+
   // Rename Resource Subcategory - renames subcategory and updates all resources
   app.post('/api/functions/renameResourceSubcategory', async (req: Request, res: Response) => {
     if (!supabase) {

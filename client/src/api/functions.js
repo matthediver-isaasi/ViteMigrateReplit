@@ -144,7 +144,11 @@ const notImplemented = (name) => () => {
     const response = await fetch('/api/functions/getXeroAuthUrl');
     return response.json();
   };
-  export const xeroOAuthCallback = notImplemented("xeroOAuthCallback");
+  export const xeroOAuthCallback = async (params) => {
+    const queryParams = new URLSearchParams(params);
+    const response = await fetch('/api/functions/xeroOAuthCallback?' + queryParams.toString());
+    return response.json();
+  };
   export const refreshXeroToken = notImplemented("refreshXeroToken");
   export const createXeroInvoice = notImplemented("createXeroInvoice");
   export const validateUser = notImplemented("validateUser");

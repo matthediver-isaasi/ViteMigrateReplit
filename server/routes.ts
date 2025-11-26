@@ -2861,6 +2861,163 @@ AGCAS Events Team
 
   // ============ Xero Integration Routes ============
 
+  // Xero OAuth Callback
+  app.get('/api/functions/xeroOAuthCallback', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).send('<html><body><h1>Database not configured</h1></body></html>');
+    }
+
+    try {
+      const XERO_CLIENT_ID = process.env.XERO_CLIENT_ID;
+      const XERO_CLIENT_SECRET = process.env.XERO_CLIENT_SECRET;
+      const XERO_REDIRECT_URI = process.env.XERO_REDIRECT_URI;
+
+      const code = req.query.code as string;
+      const error = req.query.error as string;
+
+      if (error) {
+        return res.status(400).send(`
+          <html>
+            <body style="font-family: system-ui; padding: 40px; text-align: center;">
+              <h1 style="color: #dc2626;">Authentication Error</h1>
+              <p>Failed to authenticate with Xero: ${error}</p>
+              <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                Close Window
+              </button>
+            </body>
+          </html>
+        `);
+      }
+
+      if (!code) {
+        return res.status(400).json({ error: 'No authorization code provided' });
+      }
+
+      // Exchange code for tokens
+      const tokenResponse = await fetch('https://identity.xero.com/connect/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic ' + Buffer.from(`${XERO_CLIENT_ID}:${XERO_CLIENT_SECRET}`).toString('base64')
+        },
+        body: new URLSearchParams({
+          grant_type: 'authorization_code',
+          code: code,
+          redirect_uri: XERO_REDIRECT_URI || '',
+        }).toString(),
+      });
+
+      const tokenData = await tokenResponse.json() as any;
+
+      if (!tokenResponse.ok || tokenData.error) {
+        return res.status(400).send(`
+          <html>
+            <body style="font-family: system-ui; padding: 40px; text-align: center;">
+              <h1 style="color: #dc2626;">Token Exchange Failed</h1>
+              <p>Error: ${JSON.stringify(tokenData)}</p>
+              <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                Close Window
+              </button>
+            </body>
+          </html>
+        `);
+      }
+
+      // Get tenant connections
+      const connectionsResponse = await fetch('https://api.xero.com/connections', {
+        headers: {
+          'Authorization': `Bearer ${tokenData.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const connections = await connectionsResponse.json() as any[];
+
+      if (!connections || connections.length === 0) {
+        return res.status(400).send(`
+          <html>
+            <body style="font-family: system-ui; padding: 40px; text-align: center;">
+              <h1 style="color: #dc2626;">No Xero Organizations Found</h1>
+              <p>Please ensure your Xero account has at least one organization.</p>
+              <button onclick="window.close()" style="margin-top: 20px; padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                Close Window
+              </button>
+            </body>
+          </html>
+        `);
+      }
+
+      // Use the first tenant
+      const tenantId = connections[0].tenantId;
+
+      // Calculate expiration
+      const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString();
+
+      // Store tokens in database
+      const { data: existingTokens } = await supabase
+        .from('xero_token')
+        .select('*');
+
+      const tokenRecord = {
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_at: expiresAt,
+        tenant_id: tenantId,
+        token_type: tokenData.token_type || 'Bearer',
+      };
+
+      if (existingTokens && existingTokens.length > 0) {
+        await supabase
+          .from('xero_token')
+          .update(tokenRecord)
+          .eq('id', existingTokens[0].id);
+      } else {
+        await supabase
+          .from('xero_token')
+          .insert(tokenRecord);
+      }
+
+      res.send(`
+        <html>
+          <head>
+            <style>
+              body {
+                font-family: system-ui;
+                padding: 40px;
+                text-align: center;
+                background: linear-gradient(to br, #f8fafc, #eff6ff);
+              }
+              .success { color: #16a34a; margin-bottom: 10px; }
+              button {
+                margin-top: 20px;
+                padding: 12px 24px;
+                background: #2563eb;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 16px;
+              }
+              button:hover { background: #1d4ed8; }
+            </style>
+          </head>
+          <body>
+            <h1 class="success">Xero Connected Successfully</h1>
+            <p>Your Xero account (${connections[0].tenantName}) has been connected.</p>
+            <p style="font-size: 14px; color: #64748b;">You can now close this window.</p>
+            <button onclick="window.close()">Close Window</button>
+            <script>
+              setTimeout(() => window.close(), 3000);
+            </script>
+          </body>
+        </html>
+      `);
+
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get Xero Auth URL
   app.get('/api/functions/getXeroAuthUrl', async (req: Request, res: Response) => {
     try {

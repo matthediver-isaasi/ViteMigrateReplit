@@ -7166,6 +7166,234 @@ AGCAS Events Team
     });
   });
 
+  // ============ File Migration to Supabase Storage ============
+  const BUCKET_NAME = 'file-repository';
+  const fs = await import('fs');
+  const path = await import('path');
+  const { fileURLToPath } = await import('url');
+  
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = path.dirname(__filename);
+  const PROGRESS_FILE = path.join(__dirname, 'file-migration-progress.json');
+  
+  interface MigrationProgress {
+    migratedIds: string[];
+    failedIds: { id: string; error: string }[];
+    lastRunAt: string;
+    isRunning?: boolean;
+  }
+  
+  function loadMigrationProgress(): MigrationProgress {
+    try {
+      if (fs.existsSync(PROGRESS_FILE)) {
+        return JSON.parse(fs.readFileSync(PROGRESS_FILE, 'utf-8'));
+      }
+    } catch (e) {
+      console.log('Could not load progress file');
+    }
+    return { migratedIds: [], failedIds: [], lastRunAt: '' };
+  }
+  
+  function saveMigrationProgress(progress: MigrationProgress) {
+    progress.lastRunAt = new Date().toISOString();
+    fs.writeFileSync(PROGRESS_FILE, JSON.stringify(progress, null, 2));
+  }
+  
+  // Check migration status
+  app.get('/api/file-migration/status', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const progress = loadMigrationProgress();
+      
+      // Get total file count
+      const { count: totalFiles } = await supabase
+        .from('file_repository')
+        .select('id', { count: 'exact', head: true });
+      
+      // Get count of files already on Supabase storage
+      const { data: supabaseFiles } = await supabase
+        .from('file_repository')
+        .select('id')
+        .like('file_url', `%${supabaseUrl}%`);
+      
+      res.json({
+        totalFiles: totalFiles || 0,
+        migratedCount: progress.migratedIds.length,
+        alreadyOnSupabase: supabaseFiles?.length || 0,
+        failedCount: progress.failedIds.length,
+        lastRunAt: progress.lastRunAt,
+        isRunning: progress.isRunning || false,
+        recentFailures: progress.failedIds.slice(-10)
+      });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Start migration
+  app.post('/api/file-migration/start', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    const progress = loadMigrationProgress();
+    if (progress.isRunning) {
+      return res.status(409).json({ error: 'Migration is already running' });
+    }
+    
+    const { limit = 100, dryRun = false } = req.body;
+    
+    // Mark as running
+    progress.isRunning = true;
+    saveMigrationProgress(progress);
+    
+    res.json({ message: 'Migration started', limit, dryRun });
+    
+    // Run migration in background
+    (async () => {
+      try {
+        // Ensure bucket exists
+        if (!dryRun) {
+          const { data: buckets } = await supabase.storage.listBuckets();
+          const bucketExists = buckets?.some(b => b.name === BUCKET_NAME);
+          
+          if (!bucketExists) {
+            await supabase.storage.createBucket(BUCKET_NAME, {
+              public: true,
+              fileSizeLimit: 52428800
+            });
+            console.log(`Created bucket: ${BUCKET_NAME}`);
+          }
+        }
+        
+        // Get files to migrate
+        console.log('[Migration] Fetching files from database...');
+        const { data: files, error: fetchError } = await supabase
+          .from('file_repository')
+          .select('id, file_name, file_url, file_type, mime_type, file_size, folder_id');
+        
+        if (fetchError) {
+          console.error('[Migration] Error fetching files:', fetchError);
+          progress.isRunning = false;
+          saveMigrationProgress(progress);
+          return;
+        }
+        
+        console.log(`[Migration] Found ${files?.length || 0} total files`);
+        
+        if (!files || files.length === 0) {
+          console.log('[Migration] No files found to migrate');
+          progress.isRunning = false;
+          saveMigrationProgress(progress);
+          return;
+        }
+        
+        const filesToMigrate = files.filter((f: any) => {
+          if (progress.migratedIds.includes(f.id)) {
+            return false;
+          }
+          if (!f.file_url) {
+            return false;
+          }
+          // Only skip if URL contains supabase storage URL pattern
+          if (f.file_url.includes('supabase.co/storage')) {
+            return false;
+          }
+          return true;
+        }).slice(0, limit);
+        
+        console.log(`[Migration] ${filesToMigrate.length} files to migrate (limit: ${limit})`);
+        
+        for (const file of filesToMigrate) {
+          try {
+            if (dryRun) {
+              console.log(`[DRY RUN] Would migrate: ${file.file_name}`);
+              continue;
+            }
+            
+            // Download file
+            const response = await fetch(file.file_url);
+            if (!response.ok) {
+              throw new Error(`HTTP ${response.status}`);
+            }
+            const arrayBuffer = await response.arrayBuffer();
+            const contentType = response.headers.get('content-type') || 'application/octet-stream';
+            
+            // Upload to Supabase
+            const folderPath = file.folder_id || 'root';
+            const sanitizedName = file.file_name
+              .replace(/[^a-zA-Z0-9._-]/g, '_')
+              .substring(0, 200);
+            const storagePath = `${folderPath}/${file.id}-${sanitizedName}`;
+            
+            const { error: uploadError } = await supabase.storage
+              .from(BUCKET_NAME)
+              .upload(storagePath, Buffer.from(arrayBuffer), {
+                contentType,
+                cacheControl: '3600',
+                upsert: true
+              });
+            
+            if (uploadError) {
+              throw uploadError;
+            }
+            
+            // Get public URL
+            const { data: publicUrlData } = supabase.storage
+              .from(BUCKET_NAME)
+              .getPublicUrl(storagePath);
+            
+            // Update database record
+            await supabase
+              .from('file_repository')
+              .update({ file_url: publicUrlData.publicUrl })
+              .eq('id', file.id);
+            
+            progress.migratedIds.push(file.id);
+            console.log(`✓ Migrated: ${file.file_name}`);
+            
+          } catch (error: any) {
+            progress.failedIds.push({ id: file.id, error: error.message });
+            console.error(`✗ Failed: ${file.file_name} - ${error.message}`);
+          }
+          
+          saveMigrationProgress(progress);
+        }
+        
+      } catch (error) {
+        console.error('Migration error:', error);
+      } finally {
+        progress.isRunning = false;
+        saveMigrationProgress(progress);
+      }
+    })();
+  });
+  
+  // Reset migration progress (for retrying failed files)
+  app.post('/api/file-migration/reset', async (req: Request, res: Response) => {
+    const { resetFailed = true, resetAll = false } = req.body;
+    
+    const progress = loadMigrationProgress();
+    
+    if (resetAll) {
+      progress.migratedIds = [];
+      progress.failedIds = [];
+    } else if (resetFailed) {
+      progress.failedIds = [];
+    }
+    
+    progress.isRunning = false;
+    saveMigrationProgress(progress);
+    
+    res.json({ 
+      message: resetAll ? 'All progress reset' : 'Failed files reset',
+      progress 
+    });
+  });
+
   // ============ Health Check ============
   app.get('/api/health', (req: Request, res: Response) => {
     res.json({ 

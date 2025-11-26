@@ -3119,6 +3119,103 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Create Job Posting Member - creates job posting for authenticated members
+  app.post('/api/functions/createJobPostingMember', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { memberEmail, ...postingData } = req.body;
+
+      if (!memberEmail) {
+        console.error('[createJobPostingMember] No member email provided');
+        return res.status(400).json({
+          success: false,
+          error: 'Member email is required'
+        });
+      }
+
+      console.log('[createJobPostingMember] Creating job posting for member:', memberEmail);
+
+      // Get member information
+      const { data: allMembers } = await supabase.from('member').select('*');
+      const member = allMembers?.find((m: any) => m.email === memberEmail);
+
+      if (!member) {
+        console.error('[createJobPostingMember] Member not found for email:', memberEmail);
+        return res.status(404).json({
+          success: false,
+          error: 'Member record not found. Please ensure you are logged in with your member email address.'
+        });
+      }
+
+      console.log('[createJobPostingMember] Found member:', member.id, 'organization_id:', member.organization_id);
+
+      // Get organization information
+      let organizationName = null;
+      if (member.organization_id) {
+        const { data: allOrgs } = await supabase.from('organization').select('*');
+        const org = allOrgs?.find((o: any) => o.id === member.organization_id);
+        if (org) {
+          organizationName = org.name;
+          console.log('[createJobPostingMember] Found organization:', organizationName);
+        } else {
+          console.warn('[createJobPostingMember] Organization not found for ID:', member.organization_id);
+        }
+      } else {
+        console.log('[createJobPostingMember] Member has no organization_id');
+      }
+
+      // Create the job posting
+      const { data: jobPosting, error: createError } = await supabase
+        .from('job_posting')
+        .insert({
+          title: postingData.title,
+          description: postingData.description,
+          company_name: postingData.company_name,
+          company_logo_url: postingData.company_logo_url || null,
+          location: postingData.location,
+          salary_range: postingData.salary_range || null,
+          job_type: postingData.job_type || null,
+          hours: postingData.hours || null,
+          closing_date: postingData.closing_date,
+          application_method: postingData.application_method,
+          application_value: postingData.application_value,
+          contact_email: memberEmail,
+          contact_name: postingData.contact_name,
+          posted_by_member_id: member.id,
+          posted_by_organization_id: member.organization_id || null,
+          posted_by_organization_name: organizationName,
+          is_member_post: true,
+          status: 'pending_approval',
+          payment_status: 'N/A',
+          attachment_urls: postingData.attachment_urls || [],
+          attachment_names: postingData.attachment_names || []
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        throw createError;
+      }
+
+      console.log('[createJobPostingMember] Job posting created successfully:', jobPosting.id);
+
+      res.json({
+        success: true,
+        job_id: jobPosting.id
+      });
+
+    } catch (error: any) {
+      console.error('[createJobPostingMember] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message || 'Failed to create job posting'
+      });
+    }
+  });
+
   // Check Member Status By Email - checks if an email belongs to a member
   app.post('/api/functions/checkMemberStatusByEmail', async (req: Request, res: Response) => {
     if (!supabase) {

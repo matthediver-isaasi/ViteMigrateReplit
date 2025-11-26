@@ -11,8 +11,10 @@ import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { useBlogPostRealtime } from "@/hooks/useBlogPostRealtime";
 
 export default function ArticleManagementPage() {
+  useBlogPostRealtime(['all-articles-admin']);
   const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
   const [accessChecked, setAccessChecked] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");

@@ -8,8 +8,10 @@ import { createPageUrl } from "@/utils";
 import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useBlogPostRealtime } from "@/hooks/useBlogPostRealtime";
 
 export default function PublicArticlesPage() {
+  useBlogPostRealtime(['public-articles']);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);

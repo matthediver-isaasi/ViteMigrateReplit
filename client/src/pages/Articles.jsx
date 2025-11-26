@@ -9,8 +9,10 @@ import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { useBlogPostRealtime } from "@/hooks/useBlogPostRealtime";
 
 export default function ArticlesPage() {
+  useBlogPostRealtime(['published-articles']);
   const { memberInfo, memberRole } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);

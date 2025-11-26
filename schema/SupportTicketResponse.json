@@ -1,0 +1,41 @@
+{
+    "name": "SupportTicketResponse",
+    "type": "object",
+    "properties": {
+      "ticket_id": {
+        "type": "string",
+        "description": "Reference to SupportTicket"
+      },
+      "message": {
+        "type": "string",
+        "description": "Response message content"
+      },
+      "is_admin_response": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether this response is from admin/developer"
+      },
+      "responder_email": {
+        "type": "string",
+        "description": "Email of the person who responded"
+      },
+      "responder_name": {
+        "type": "string",
+        "description": "Name of the person who responded"
+      },
+      "attachments": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Array of image URLs attached to this response"
+      }
+    },
+    "required": [
+      "ticket_id",
+      "message",
+      "responder_email",
+      "responder_name"
+    ]
+  }

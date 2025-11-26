@@ -1,0 +1,23 @@
+{
+    "name": "DiscountCodeUsage",
+    "type": "object",
+    "properties": {
+      "discount_code_id": {
+        "type": "string",
+        "description": "Reference to DiscountCode entity"
+      },
+      "organization_id": {
+        "type": "string",
+        "description": "Reference to Organization entity"
+      },
+      "usage_count": {
+        "type": "number",
+        "default": 0,
+        "description": "Number of times this organization has used this discount code"
+      }
+    },
+    "required": [
+      "discount_code_id",
+      "organization_id"
+    ]
+  }

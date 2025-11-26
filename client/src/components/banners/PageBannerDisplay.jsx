@@ -1,0 +1,40 @@
+import React from "react";
+
+export default function PageBannerDisplay({ banner }) {
+  if (!banner || !banner.image_url) return null;
+
+  const sizeClasses = {
+    'full-width': 'w-full',
+    'contained': 'max-w-7xl mx-auto',
+    'wide': 'max-w-screen-2xl mx-auto'
+  };
+
+  const heightClasses = {
+    'small': 'h-32 md:h-48',
+    'medium': 'h-48 md:h-64 lg:h-80',
+    'large': 'h-64 md:h-96 lg:h-[32rem]',
+    'auto': 'h-auto'
+  };
+
+  const positionClasses = {
+    'top': 'object-top',
+    'center': 'object-center',
+    'bottom': 'object-bottom'
+  };
+
+  const containerClass = sizeClasses[banner.size] || sizeClasses['full-width'];
+  const heightClass = heightClasses[banner.height] || heightClasses['medium'];
+  const positionClass = positionClasses[banner.position] || positionClasses['center'];
+
+  return (
+    <div className={`${containerClass} overflow-hidden`}>
+      <div className={`${heightClass} w-full`}>
+        <img
+          src={banner.image_url}
+          alt={banner.alt_text || banner.name}
+          className={`w-full h-full object-cover ${positionClass}`}
+        />
+      </div>
+    </div>
+  );
+}

@@ -1,0 +1,39 @@
+{
+    "name": "TourGroup",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Display name for this tour (e.g., 'Buy Program Tickets - List View')"
+      },
+      "page_name": {
+        "type": "string",
+        "description": "The page this tour belongs to (e.g., 'BuyProgramTickets')"
+      },
+      "view_id": {
+        "type": "string",
+        "description": "Optional identifier for a specific view within a page (e.g., 'list', 'form')"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this tour is currently enabled"
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description for admins about what this tour covers"
+      },
+      "mandatory_selector": {
+        "type": "string",
+        "description": "Optional CSS selector for an element that must be present for the tour to run"
+      },
+      "mandatory_selector_missing_message": {
+        "type": "string",
+        "description": "Custom message to display if the mandatory selector element is not found"
+      }
+    },
+    "required": [
+      "name",
+      "page_name"
+    ]
+  }

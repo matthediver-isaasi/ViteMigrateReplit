@@ -1,0 +1,71 @@
+{
+    "name": "ButtonStyle",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Display name for this button style (e.g., 'Article Card Button', 'Download Resource Button')"
+      },
+      "card_type": {
+        "type": "string",
+        "enum": [
+          "article",
+          "resource"
+        ],
+        "description": "Which card type this button style applies to"
+      },
+      "resource_type": {
+        "type": "string",
+        "enum": [
+          "download",
+          "video",
+          "external_link"
+        ],
+        "description": "For resource cards only: which resource type this style applies to"
+      },
+      "button_type": {
+        "type": "string",
+        "enum": [
+          "rectangular_agcas",
+          "square_agcas",
+          "standard"
+        ],
+        "default": "rectangular_agcas",
+        "description": "Type of button to render"
+      },
+      "button_text": {
+        "type": "string",
+        "description": "Text to display on the button"
+      },
+      "icon_name": {
+        "type": "string",
+        "enum": [
+          "ArrowUpRight",
+          "Download",
+          "ExternalLink",
+          "PlayCircle",
+          "Eye",
+          "FileText",
+          "Mail",
+          "Plus",
+          "none"
+        ],
+        "default": "ArrowUpRight",
+        "description": "Icon to display with rectangular buttons (ignored for square buttons)"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description of this button style"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this button style is currently active"
+      }
+    },
+    "required": [
+      "name",
+      "card_type",
+      "button_type"
+    ]
+  }

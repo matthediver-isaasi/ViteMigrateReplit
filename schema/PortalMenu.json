@@ -1,0 +1,51 @@
+{
+    "name": "PortalMenu",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Menu item display text"
+      },
+      "url": {
+        "type": "string",
+        "description": "Page URL/slug (leave empty for parent menus)"
+      },
+      "icon": {
+        "type": "string",
+        "description": "Lucide icon name"
+      },
+      "section": {
+        "type": "string",
+        "enum": [
+          "user",
+          "admin"
+        ],
+        "default": "user",
+        "description": "Navigation section"
+      },
+      "parent_id": {
+        "type": "string",
+        "description": "Parent menu item ID (empty for top-level items)"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Display order within section/parent"
+      },
+      "feature_id": {
+        "type": "string",
+        "description": "Feature ID for permission checks (format: page_PageName)"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this item is visible"
+      }
+    },
+    "required": [
+      "title",
+      "icon",
+      "feature_id",
+      "section"
+    ]
+  }

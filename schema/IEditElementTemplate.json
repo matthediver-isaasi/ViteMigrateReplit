@@ -1,0 +1,67 @@
+{
+    "name": "IEditElementTemplate",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Display name of the template (e.g., 'Hero Banner', 'Text Block')"
+      },
+      "element_type": {
+        "type": "string",
+        "description": "Type identifier (e.g., 'hero', 'text_block', 'image')"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description of what this element does"
+      },
+      "icon": {
+        "type": "string",
+        "description": "Icon identifier for the palette (lucide-react icon name)"
+      },
+      "category": {
+        "type": "string",
+        "enum": [
+          "layout",
+          "content",
+          "media",
+          "interactive"
+        ],
+        "default": "content",
+        "description": "Category for organizing templates in the palette"
+      },
+      "default_content": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "Default content structure for new instances of this element"
+      },
+      "available_variants": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [
+          "default"
+        ],
+        "description": "Available style variants for this element type"
+      },
+      "content_schema": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "JSON schema describing the content fields for this element (for form generation)"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this template is available for use"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Order in which this template appears in the palette"
+      }
+    },
+    "required": [
+      "name",
+      "element_type"
+    ]
+  }

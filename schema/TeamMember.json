@@ -1,0 +1,34 @@
+{
+    "name": "TeamMember",
+    "type": "object",
+    "properties": {
+      "email": {
+        "type": "string",
+        "format": "email",
+        "description": "Team member's email address (used for login)"
+      },
+      "first_name": {
+        "type": "string",
+        "description": "Team member's first name"
+      },
+      "last_name": {
+        "type": "string",
+        "description": "Team member's last name"
+      },
+      "role_id": {
+        "type": "string",
+        "description": "Reference to Role entity - determines permissions"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this team member account is active"
+      }
+    },
+    "required": [
+      "email",
+      "first_name",
+      "last_name",
+      "role_id"
+    ]
+  }

@@ -1,0 +1,35 @@
+{
+    "name": "ArticleCategory",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Category name (e.g., News, Insights, Updates)"
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description of this category"
+      },
+      "subcategories": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "List of subcategory names under this category"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Order in which this category should appear in filters"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this category is currently active"
+      }
+    },
+    "required": [
+      "name"
+    ]
+  }

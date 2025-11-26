@@ -1,0 +1,1210 @@
+
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Settings, Calendar, Clock, MapPin, Ticket, RefreshCw, Save, Image as ImageIcon, Upload, X } from "lucide-react";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { createPageUrl } from "@/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+export default function EventSettingsPage({ isAdmin, memberRole, isFeatureExcluded }) {
+  const [cancellationDeadlineHours, setCancellationDeadlineHours] = useState(24);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editingEventImage, setEditingEventImage] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [editingEventDescription, setEditingEventDescription] = useState("");
+  const [editingEventPublicUrl, setEditingEventPublicUrl] = useState(""); // New state for public URL
+  const [uploadingImage, setUploadingImage] = useState(false);
+  
+  // Program editing state
+  const [editingProgram, setEditingProgram] = useState(null);
+  const [selectedProgramImage, setSelectedProgramImage] = useState(null);
+  const [programImagePreview, setProgramImagePreview] = useState(null);
+  const [editingProgramDescription, setEditingProgramDescription] = useState("");
+  const [editingOfferType, setEditingOfferType] = useState("none"); // New state for general offer type
+  const [editingBogoLogicType, setEditingBogoLogicType] = useState("buy_x_get_y_free");
+  const [editingBogoBuyQty, setEditingBogoBuyQty] = useState(""); // New state for BOGO Buy Quantity
+  const [editingBogoGetFreeQty, setEditingBogoGetFreeQty] = useState(""); // New state for BOGO Get Free Quantity
+  const [editingBulkThreshold, setEditingBulkThreshold] = useState(""); // New state for Bulk Discount Threshold
+  const [editingBulkPercentage, setEditingBulkPercentage] = useState(""); // New state for Bulk Discount Percentage
+  const [uploadingProgram, setUploadingProgram] = useState(false);
+  
+  const queryClient = useQueryClient();
+
+  // Redirect non-admins
+  useEffect(() => {
+    if (memberRole !== null && memberRole !== undefined) {
+      if (!isAdmin || isFeatureExcluded('page_EventSettings')) {
+        window.location.href = createPageUrl('Events');
+      }
+    }
+  }, [isAdmin, memberRole, isFeatureExcluded]);
+
+  const { data: events, isLoading: loadingEvents } = useQuery({
+    queryKey: ['events'],
+    queryFn: () => base44.entities.Event.list('-start_date'),
+    initialData: [],
+  });
+
+  const { data: settings, isLoading: loadingSettings } = useQuery({
+    queryKey: ['system-settings'],
+    queryFn: () => base44.entities.SystemSettings.list(),
+    initialData: [],
+  });
+
+  const { data: programs, isLoading: loadingPrograms } = useQuery({
+    queryKey: ['programs'],
+    queryFn: () => base44.entities.Program.filter({ is_active: true }),
+    initialData: [],
+  });
+
+  // Load current setting value
+  useEffect(() => {
+    const deadlineSetting = settings.find(s => s.setting_key === 'cancellation_deadline_hours');
+    if (deadlineSetting) {
+      setCancellationDeadlineHours(parseInt(deadlineSetting.setting_value) || 0);
+    }
+  }, [settings]);
+
+  const syncEventsMutation = useMutation({
+    mutationFn: () => base44.functions.invoke('syncBackstageEvents', {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      toast.success('Events synced successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to sync events: ' + error.message);
+    }
+  });
+
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    try {
+      const deadlineSetting = settings.find(s => s.setting_key === 'cancellation_deadline_hours');
+      
+      if (deadlineSetting) {
+        // Update existing setting
+        await base44.entities.SystemSettings.update(deadlineSetting.id, {
+          setting_value: cancellationDeadlineHours.toString(),
+          description: 'Number of hours before event start that cancellations are allowed'
+        });
+      } else {
+        // Create new setting
+        await base44.entities.SystemSettings.create({
+          setting_key: 'cancellation_deadline_hours',
+          setting_value: cancellationDeadlineHours.toString(),
+          description: 'Number of hours before event start that cancellations are allowed'
+        });
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+      toast.success('Settings saved successfully');
+    } catch (error) {
+      toast.error('Failed to save settings: ' + error.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSyncEvents = () => {
+    syncEventsMutation.mutate();
+  };
+
+  const handleEditImage = (event) => {
+    setEditingEventImage(event);
+    setSelectedImage(null);
+    setImagePreview(null);
+    setEditingEventDescription(event.description || "");
+    setEditingEventPublicUrl(event.backstage_public_url || ""); // Initialize public URL
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleImageUpload = async () => {
+    if (!editingEventImage) return;
+    
+    // Check if there are any changes to save
+    const hasImageChange = selectedImage !== null;
+    const hasDescriptionChange = editingEventDescription !== (editingEventImage.description || "");
+    const hasUrlChange = editingEventPublicUrl !== (editingEventImage.backstage_public_url || ""); // Check for URL change
+    
+    if (!hasImageChange && !hasDescriptionChange && !hasUrlChange) { // Update condition
+      toast.error('No changes to save');
+      return;
+    }
+    
+    setUploadingImage(true);
+    try {
+      // Get user email from session storage
+      const storedMember = sessionStorage.getItem('agcas_member');
+      const memberInfo = storedMember ? JSON.parse(storedMember) : null;
+      
+      if (!memberInfo || !memberInfo.email) {
+        throw new Error('User session not found. Please log in again.');
+      }
+      
+      // Prepare payload
+      const payload = {
+        eventId: editingEventImage.id,
+        userEmail: memberInfo.email,
+        description: editingEventDescription,
+        backstagePublicUrl: editingEventPublicUrl // Add public URL to payload
+      };
+      
+      // If image is selected, convert to base64 and add to payload
+      if (hasImageChange) {
+        const reader = new FileReader();
+        reader.readAsDataURL(selectedImage);
+        
+        await new Promise((resolve, reject) => {
+          reader.onload = () => {
+            payload.imageBase64 = reader.result;
+            payload.fileName = selectedImage.name;
+            resolve();
+          };
+          reader.onerror = () => {
+            reject(new Error('Failed to read image file'));
+          };
+        });
+      }
+      
+      // Use the Base44 SDK to invoke the function
+      const response = await base44.functions.invoke('updateEventImage', payload);
+      
+      if (response.data && response.data.success) {
+        queryClient.invalidateQueries({ queryKey: ['events'] });
+        toast.success('Event updated successfully');
+        setEditingEventImage(null);
+        setSelectedImage(null);
+        setImagePreview(null);
+        setEditingEventDescription("");
+        setEditingEventPublicUrl(""); // Reset public URL
+      } else {
+        throw new Error(response.data ? response.data.error : 'Failed to update event');
+      }
+      
+    } catch (error) {
+      console.error('Event update error:', error);
+      toast.error('Failed to update event: ' + error.message);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  // Program editing handlers
+  const handleEditProgram = (program) => {
+    setEditingProgram(program);
+    setSelectedProgramImage(null);
+    setProgramImagePreview(null);
+    setEditingProgramDescription(program.description || "");
+    
+    // Determine offer type based on existing data
+    let offerType = program.offer_type || "none";
+    if (!program.offer_type) {
+      // Backward compatibility: infer from existing fields
+      if (program.bogo_buy_quantity !== null && program.bogo_get_free_quantity !== null) {
+        offerType = "bogo";
+      } else if (program.bulk_discount_threshold !== null && program.bulk_discount_percentage !== null) {
+        offerType = "bulk_discount";
+      }
+    }
+    setEditingOfferType(offerType);
+    
+    // BOGO fields
+    setEditingBogoLogicType(program.bogo_logic_type || "buy_x_get_y_free");
+    setEditingBogoBuyQty(program.bogo_buy_quantity === null || program.bogo_buy_quantity === undefined ? "" : program.bogo_buy_quantity.toString());
+    setEditingBogoGetFreeQty(program.bogo_get_free_quantity === null || program.bogo_get_free_quantity === undefined ? "" : program.bogo_get_free_quantity.toString());
+    
+    // Bulk discount fields
+    setEditingBulkThreshold(program.bulk_discount_threshold === null || program.bulk_discount_threshold === undefined ? "" : program.bulk_discount_threshold.toString());
+    setEditingBulkPercentage(program.bulk_discount_percentage === null || program.bulk_discount_percentage === undefined ? "" : program.bulk_discount_percentage.toString());
+  };
+
+  const handleProgramImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedProgramImage(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProgramImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // Helper to build a comparable offer state object
+  // `offerType` here is expected to be already correctly determined ("none", "bogo", "bulk_discount")
+  const buildComparableOfferState = (
+    offerType,
+    bogoBuyQty,
+    bogoGetFreeQty,
+    bogoLogicType,
+    bulkThreshold,
+    bulkPercentage
+  ) => {
+    const state = {
+      offerType: offerType,
+      bogoBuyQuantity: null,
+      bogoGetFreeQuantity: null,
+      bogoLogicType: null,
+      bulkDiscountThreshold: null,
+      bulkDiscountPercentage: null,
+    };
+
+    if (offerType === "bogo") {
+      state.bogoBuyQuantity = bogoBuyQty === "" || bogoBuyQty === null ? null : parseInt(bogoBuyQty);
+      state.bogoGetFreeQuantity = bogoGetFreeQty === "" || bogoGetFreeQty === null ? null : parseInt(bogoGetFreeQty);
+      state.bogoLogicType = bogoLogicType;
+    } else if (offerType === "bulk_discount") {
+      state.bulkDiscountThreshold = bulkThreshold === "" || bulkThreshold === null ? null : parseInt(bulkThreshold);
+      state.bulkDiscountPercentage = bulkPercentage === "" || bulkPercentage === null ? null : parseFloat(bulkPercentage);
+    }
+    return state;
+  };
+
+  const handleProgramUpdate = async () => {
+    if (!editingProgram) return;
+    
+    const hasImageChange = selectedProgramImage !== null;
+    const hasDescriptionChange = editingProgramDescription !== (editingProgram.description || "");
+
+    // Determine the 'current' effective offer type from the program data (with backward compatibility)
+    let currentEffectiveOfferType = editingProgram.offer_type || "none";
+    if (!editingProgram.offer_type) {
+      if (editingProgram.bogo_buy_quantity !== null && editingProgram.bogo_get_free_quantity !== null) {
+        currentEffectiveOfferType = "bogo";
+      } else if (editingProgram.bulk_discount_threshold !== null && editingProgram.bulk_discount_percentage !== null) {
+        currentEffectiveOfferType = "bulk_discount";
+      }
+    }
+
+    // Build original state from `editingProgram` using actual stored values
+    const originalOfferState = buildComparableOfferState(
+      currentEffectiveOfferType,
+      editingProgram.bogo_buy_quantity,
+      editingProgram.bogo_get_free_quantity,
+      editingProgram.bogo_logic_type,
+      editingProgram.bulk_discount_threshold,
+      editingProgram.bulk_discount_percentage
+    );
+
+    // Build proposed state from current dialog states (convert inputs to numbers/null for comparison)
+    const proposedOfferState = buildComparableOfferState(
+      editingOfferType,
+      editingBogoBuyQty,
+      editingBogoGetFreeQty,
+      editingBogoLogicType,
+      editingBulkThreshold,
+      editingBulkPercentage
+    );
+    
+    const hasOfferSettingsChange = JSON.stringify(originalOfferState) !== JSON.stringify(proposedOfferState);
+    
+    if (!hasImageChange && !hasDescriptionChange && !hasOfferSettingsChange) {
+      toast.error('No changes to save');
+      return;
+    }
+    
+    // Validate offer-specific fields
+    if (editingOfferType === "bogo") {
+      if (!editingBogoBuyQty || !editingBogoGetFreeQty) {
+        toast.error('Please enter both BOGO buy and free quantities');
+        return;
+      }
+      const buyQty = parseInt(editingBogoBuyQty);
+      const freeQty = parseInt(editingBogoGetFreeQty);
+      if (isNaN(buyQty) || buyQty < 1 || isNaN(freeQty) || freeQty < 1) {
+        toast.error('BOGO quantities must be positive integers');
+        return;
+      }
+    }
+    
+    if (editingOfferType === "bulk_discount") {
+      if (!editingBulkThreshold || !editingBulkPercentage) {
+        toast.error('Please enter both bulk discount threshold and percentage');
+        return;
+      }
+      const threshold = parseInt(editingBulkThreshold);
+      const percentage = parseFloat(editingBulkPercentage);
+      if (isNaN(threshold) || threshold < 2) {
+        toast.error('Bulk discount threshold must be an integer of at least 2');
+        return;
+      }
+      if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+        toast.error('Bulk discount percentage must be a number between 0 and 100');
+        return;
+      }
+    }
+    
+    setUploadingProgram(true);
+    try {
+      // Get user email from session storage
+      const storedMember = sessionStorage.getItem('agcas_member');
+      const memberInfo = storedMember ? JSON.parse(storedMember) : null;
+      
+      if (!memberInfo || !memberInfo.email) {
+        throw new Error('User session not found. Please log in again.');
+      }
+      
+      // Prepare payload
+      const payload = {
+        programId: editingProgram.id,
+        userEmail: memberInfo.email,
+        description: editingProgramDescription,
+        offerType: editingOfferType // Add offer type to payload
+      };
+      
+      // Add offer-specific fields based on type, or clear if not applicable
+      if (editingOfferType === "bogo") {
+        payload.bogoBuyQuantity = parseInt(editingBogoBuyQty);
+        payload.bogoGetFreeQuantity = parseInt(editingBogoGetFreeQty);
+        payload.bogoLogicType = editingBogoLogicType;
+        // Explicitly clear other offer types
+        payload.bulkDiscountThreshold = null;
+        payload.bulkDiscountPercentage = null;
+      } else if (editingOfferType === "bulk_discount") {
+        payload.bulkDiscountThreshold = parseInt(editingBulkThreshold);
+        payload.bulkDiscountPercentage = parseFloat(editingBulkPercentage);
+        // Explicitly clear other offer types
+        payload.bogoBuyQuantity = null;
+        payload.bogoGetFreeQuantity = null;
+        payload.bogoLogicType = null;
+      } else { // editingOfferType === "none"
+        payload.bogoBuyQuantity = null;
+        payload.bogoGetFreeQuantity = null;
+        payload.bogoLogicType = null;
+        payload.bulkDiscountThreshold = null;
+        payload.bulkDiscountPercentage = null;
+      }
+      
+      // If image is selected, convert to base64 and add to payload
+      if (hasImageChange) {
+        const reader = new FileReader();
+        reader.readAsDataURL(selectedProgramImage);
+        
+        await new Promise((resolve, reject) => {
+          reader.onload = () => {
+            payload.imageBase64 = reader.result;
+            payload.fileName = selectedProgramImage.name;
+            resolve();
+          };
+          reader.onerror = () => {
+            reject(new Error('Failed to read image file'));
+          };
+        });
+      }
+      
+      // Use the Base44 SDK to invoke the function
+      const response = await base44.functions.invoke('updateProgramDetails', payload);
+      
+      if (response.data && response.data.success) {
+        queryClient.invalidateQueries({ queryKey: ['programs'] });
+        toast.success('Program updated successfully');
+        setEditingProgram(null);
+        setSelectedProgramImage(null);
+        setProgramImagePreview(null);
+        setEditingProgramDescription("");
+        setEditingOfferType("none"); // Reset all new states
+        setEditingBogoLogicType("buy_x_get_y_free");
+        setEditingBogoBuyQty("");
+        setEditingBogoGetFreeQty("");
+        setEditingBulkThreshold("");
+        setEditingBulkPercentage("");
+      } else {
+        throw new Error(response.data ? response.data.error : 'Failed to update program');
+      }
+      
+    } catch (error) {
+      console.error('Program update error:', error);
+      toast.error('Failed to update program: ' + error.message);
+    } finally {
+      setUploadingProgram(false);
+    }
+  };
+
+  const isLoading = loadingEvents || loadingSettings || loadingPrograms;
+
+  // Show loading state while determining access
+  if (memberRole === null || memberRole === undefined) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+        <div className="animate-pulse text-slate-600">Loading...</div>
+      </div>
+    );
+  }
+
+  // Don't render anything for users without access (will redirect)
+  if (!isAdmin || isFeatureExcluded('page_EventSettings')) {
+    return null;
+  }
+
+  const upcomingEvents = events.filter(e => {
+    if (!e.start_date) return false;
+    return new Date(e.start_date) > new Date();
+  });
+
+  const pastEvents = events.filter(e => {
+    if (!e.start_date) return false;
+    return new Date(e.start_date) <= new Date();
+  });
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
+              Event Settings
+            </h1>
+            <p className="text-slate-600">
+              Manage synced events and system configuration
+            </p>
+          </div>
+          <Button 
+            onClick={handleSyncEvents} 
+            disabled={syncEventsMutation.isPending}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            <RefreshCw className={`w-4 h-4 mr-2 ${syncEventsMutation.isPending ? 'animate-spin' : ''}`} />
+            Sync Events
+          </Button>
+        </div>
+
+        {/* Configuration Section */}
+        <Card className="border-slate-200 shadow-sm mb-8">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <Settings className="w-5 h-5 text-amber-600" />
+              <CardTitle>Cancellation Settings</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="max-w-2xl space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="cancellation-deadline">
+                  Cancellation Deadline (Hours Before Event)
+                </Label>
+                <div className="flex items-center gap-4">
+                  <Input
+                    id="cancellation-deadline"
+                    type="number"
+                    min="0"
+                    step="1"
+                    value={cancellationDeadlineHours}
+                    onChange={(e) => setCancellationDeadlineHours(parseInt(e.target.value) || 0)}
+                    className="w-32"
+                  />
+                  <span className="text-sm text-slate-600">hours</span>
+                  <Button
+                    onClick={handleSaveSettings}
+                    disabled={isSaving}
+                    className="ml-auto"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Settings
+                  </Button>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Members will not be able to cancel tickets within this timeframe before the event starts.
+                  Set to 0 to allow cancellations up until the event start time.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Programs Section */}
+        <Card className="border-slate-200 shadow-sm mb-8">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <Ticket className="w-5 h-5 text-purple-600" />
+              <CardTitle>Programs</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            {programs.length === 0 ? (
+              <p className="text-center text-slate-500 py-8">No active programs found</p>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {programs.map((program) => (
+                  <Card key={program.id} className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    {program.image_url && (
+                      <div className="h-32 overflow-hidden bg-slate-100">
+                        <img 
+                          src={program.image_url} 
+                          alt={program.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <CardHeader className="border-b border-slate-200">
+                      <CardTitle className="text-base">{program.name}</CardTitle>
+                      {program.description && (
+                        <p className="text-sm text-slate-600 line-clamp-2 mt-2">
+                          {program.description}
+                        </p>
+                      )}
+                    </CardHeader>
+                    <CardContent className="pt-4">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditProgram(program)}
+                        className="w-full"
+                      >
+                        <ImageIcon className="w-3 h-3 mr-2" />
+                        Edit Program
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Events List */}
+        <div className="space-y-8">
+          {/* Upcoming Events */}
+          <div>
+            <h2 className="text-2xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+              <Calendar className="w-6 h-6 text-blue-600" />
+              Upcoming Events ({upcomingEvents.length})
+            </h2>
+            
+            {upcomingEvents.length === 0 ? (
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-8 text-center text-slate-500">
+                  No upcoming events synced
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {upcomingEvents.map((event) => (
+                  <Card key={event.id} className="border-slate-200 shadow-sm hover:shadow-md transition-shadow">
+                    {event.image_url && (
+                      <div className="h-32 overflow-hidden bg-slate-100">
+                        <img 
+                          src={event.image_url} 
+                          alt={event.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <CardHeader className="border-b border-slate-200">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-base line-clamp-2">{event.title}</CardTitle>
+                        {event.program_tag && (
+                          <Badge className="bg-blue-100 text-blue-700 border-blue-200 shrink-0">
+                            {event.program_tag}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-2">
+                      {event.start_date && (
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          <span>{format(new Date(event.start_date), 'MMM d, yyyy h:mm a')}</span>
+                        </div>
+                      )}
+                      {event.location && (
+                        <div className="flex items-center gap-2 text-xs text-slate-600">
+                          <MapPin className="w-3 h-3 text-slate-400" />
+                          <span className="line-clamp-1">{event.location}</span>
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-slate-600">
+                        <Ticket className="w-3 h-3 text-slate-400" />
+                        <span>
+                          {event.available_seats === 0 || event.available_seats === null
+                            ? 'Unlimited seats'
+                            : `${event.available_seats} seats available`}
+                        </span>
+                      </div>
+                      {event.ticket_price > 0 && (
+                        <div className="pt-2 mt-2 border-t border-slate-200">
+                          <span className="text-sm font-semibold text-slate-900">
+                            £{event.ticket_price.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="pt-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleEditImage(event)}
+                          className="w-full"
+                        >
+                          <ImageIcon className="w-3 h-3 mr-2" />
+                          Edit Event
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Past Events */}
+          {pastEvents.length > 0 && (
+            <div>
+              <h2 className="text-2xl font-bold text-slate-900 mb-4 flex items-center gap-2">
+                <Calendar className="w-6 h-6 text-slate-400" />
+                Past Events ({pastEvents.length})
+              </h2>
+              
+              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pastEvents.map((event) => (
+                  <Card key={event.id} className="border-slate-200 shadow-sm opacity-60">
+                    {event.image_url && (
+                      <div className="h-32 overflow-hidden bg-slate-100">
+                        <img 
+                          src={event.image_url} 
+                          alt={event.title}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                    )}
+                    <CardHeader className="border-b border-slate-200">
+                      <div className="flex items-start justify-between gap-2">
+                        <CardTitle className="text-base line-clamp-2">{event.title}</CardTitle>
+                        {event.program_tag && (
+                          <Badge variant="outline" className="shrink-0">
+                            {event.program_tag}
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="pt-4 space-y-2">
+                      {event.start_date && (
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <Clock className="w-3 h-3 text-slate-400" />
+                          <span>{format(new Date(event.start_date), 'MMM d, yyyy h:mm a')}</span>
+                        </div>
+                      )}
+                      {event.location && (
+                        <div className="flex items-center gap-2 text-xs text-slate-500">
+                          <MapPin className="w-3 h-3 text-slate-400" />
+                          <span className="line-clamp-1">{event.location}</span>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Event Edit Dialog */}
+      <Dialog open={!!editingEventImage} onOpenChange={(open) => {
+        if (!open) {
+          setEditingEventImage(null);
+          setSelectedImage(null);
+          setImagePreview(null);
+          setEditingEventDescription("");
+          setEditingEventPublicUrl("");
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Event Details</DialogTitle>
+          </DialogHeader>
+          
+          {editingEventImage && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-2">{editingEventImage.title}</h3>
+                <p className="text-sm text-slate-600">
+                  Update the image, description, and public event link
+                </p>
+              </div>
+
+              {/* Current Image */}
+              <div>
+                <Label className="text-sm font-medium text-slate-700 mb-2 block">Current Image</Label>
+                {editingEventImage.image_url ? (
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <img 
+                      src={editingEventImage.image_url} 
+                      alt="Current event image"
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 rounded-lg p-8 text-center bg-slate-50">
+                    <ImageIcon className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">No image set</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Image Preview */}
+              {imagePreview && (
+                <div>
+                  <Label className="text-sm font-medium text-slate-700 mb-2 block">New Image Preview</Label>
+                  <div className="border border-blue-200 rounded-lg overflow-hidden">
+                    <img 
+                      src={imagePreview} 
+                      alt="Preview"
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* File Input */}
+              <div>
+                <Label htmlFor="image-upload" className="text-sm font-medium text-slate-700 mb-2 block">
+                  Select New Image (Optional)
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="image-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="flex-1"
+                  />
+                  {selectedImage && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSelectedImage(null);
+                        setImagePreview(null);
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Description Editor */}
+              <div>
+                <Label htmlFor="event-description" className="text-sm font-medium text-slate-700 mb-2 block">
+                  Event Description
+                </Label>
+                <Textarea
+                  id="event-description"
+                  value={editingEventDescription}
+                  onChange={(e) => setEditingEventDescription(e.target.value)}
+                  placeholder="Enter event description..."
+                  rows={6}
+                  className="w-full"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  This description will override the synced description from Backstage
+                </p>
+              </div>
+
+              {/* Public Event URL */}
+              <div>
+                <Label htmlFor="event-public-url" className="text-sm font-medium text-slate-700 mb-2 block">
+                  Public Event Page URL
+                </Label>
+                <Input
+                  id="event-public-url"
+                  type="url"
+                  value={editingEventPublicUrl}
+                  onChange={(e) => setEditingEventPublicUrl(e.target.value)}
+                  placeholder="https://agcasevents.zohobackstage.eu/event/..."
+                  className="w-full"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Paste the public Backstage event link that attendees will use to view event details
+                </p>
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingEventImage(null);
+                setSelectedImage(null);
+                setImagePreview(null);
+                setEditingEventDescription("");
+                setEditingEventPublicUrl("");
+              }}
+              disabled={uploadingImage}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleImageUpload}
+              disabled={uploadingImage}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {uploadingImage ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Program Edit Dialog */}
+      <Dialog open={!!editingProgram} onOpenChange={(open) => {
+        if (!open) {
+          setEditingProgram(null);
+          setSelectedProgramImage(null);
+          setProgramImagePreview(null);
+          setEditingProgramDescription("");
+          setEditingOfferType("none"); // Reset new states
+          setEditingBogoLogicType("buy_x_get_y_free");
+          setEditingBogoBuyQty("");
+          setEditingBogoGetFreeQty("");
+          setEditingBulkThreshold("");
+          setEditingBulkPercentage("");
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Program Details</DialogTitle>
+          </DialogHeader>
+          
+          {editingProgram && (
+            <div className="space-y-4">
+              <div>
+                <h3 className="font-semibold text-slate-900 mb-2">{editingProgram.name}</h3>
+                <p className="text-sm text-slate-600">
+                  Update the image, description, and offer details for this program
+                </p>
+              </div>
+
+              {/* Current Image */}
+              <div>
+                <Label className="text-sm font-medium text-slate-700 mb-2 block">Current Image</Label>
+                {editingProgram.image_url ? (
+                  <div className="border border-slate-200 rounded-lg overflow-hidden">
+                    <img 
+                      src={editingProgram.image_url} 
+                      alt="Current program image"
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                ) : (
+                  <div className="border border-slate-200 rounded-lg p-8 text-center bg-slate-50">
+                    <ImageIcon className="w-12 h-12 text-slate-300 mx-auto mb-2" />
+                    <p className="text-sm text-slate-500">No image set</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Image Preview */}
+              {programImagePreview && (
+                <div>
+                  <Label className="text-sm font-medium text-slate-700 mb-2 block">New Image Preview</Label>
+                  <div className="border border-blue-200 rounded-lg overflow-hidden">
+                    <img 
+                      src={programImagePreview} 
+                      alt="Preview"
+                      className="w-full h-48 object-cover"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* File Input */}
+              <div>
+                <Label htmlFor="program-image-upload" className="text-sm font-medium text-slate-700 mb-2 block">
+                  Select New Image (Optional)
+                </Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="program-image-upload"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleProgramImageSelect}
+                    className="flex-1"
+                  />
+                  {selectedProgramImage && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        setSelectedProgramImage(null);
+                        setProgramImagePreview(null);
+                      }}
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* Description Editor */}
+              <div>
+                <Label htmlFor="program-description" className="text-sm font-medium text-slate-700 mb-2 block">
+                  Program Description
+                </Label>
+                <Textarea
+                  id="program-description"
+                  value={editingProgramDescription}
+                  onChange={(e) => setEditingProgramDescription(e.target.value)}
+                  placeholder="Enter program description..."
+                  rows={6}
+                  className="w-full"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  This description will be displayed on the program cards
+                </p>
+              </div>
+
+              {/* Offer Configuration */}
+              <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-4">
+                <div>
+                  <Label className="text-sm font-medium text-slate-700 mb-3 block">
+                    Offer Type
+                  </Label>
+                  <RadioGroup value={editingOfferType} onValueChange={setEditingOfferType}>
+                    <div className="space-y-3">
+                      <div 
+                        className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                          editingOfferType === 'none' 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-slate-200 hover:bg-slate-100'
+                        }`}
+                        onClick={() => setEditingOfferType('none')}
+                      >
+                        <RadioGroupItem value="none" id="offer-none" className="mt-1" />
+                        <div className="flex-1">
+                          <Label htmlFor="offer-none" className="font-medium cursor-pointer">No Offer</Label>
+                          <p className="text-xs text-slate-600 mt-1">
+                            Standard pricing with no discounts
+                          </p>
+                        </div>
+                      </div>
+
+                      <div 
+                        className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                          editingOfferType === 'bogo' 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-slate-200 hover:bg-slate-100'
+                        }`}
+                        onClick={() => setEditingOfferType('bogo')}
+                      >
+                        <RadioGroupItem value="bogo" id="offer-bogo" className="mt-1" />
+                        <div className="flex-1">
+                          <Label htmlFor="offer-bogo" className="font-medium cursor-pointer">BOGO (Buy X Get Y Free)</Label>
+                          <p className="text-xs text-slate-600 mt-1">
+                            Customers receive free tickets with their purchase
+                          </p>
+                        </div>
+                      </div>
+
+                      <div 
+                        className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                          editingOfferType === 'bulk_discount' 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-slate-200 hover:bg-slate-100'
+                        }`}
+                        onClick={() => setEditingOfferType('bulk_discount')}
+                      >
+                        <RadioGroupItem value="bulk_discount" id="offer-bulk" className="mt-1" />
+                        <div className="flex-1">
+                          <Label htmlFor="offer-bulk" className="font-medium cursor-pointer">Bulk Discount</Label>
+                          <p className="text-xs text-slate-600 mt-1">
+                            Percentage discount when buying multiple tickets
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </RadioGroup>
+                </div>
+
+                {/* BOGO Configuration */}
+                {editingOfferType === 'bogo' && (
+                  <div className="space-y-4 pt-4 border-t border-slate-300">
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                        BOGO Configuration
+                      </Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label htmlFor="bogo-buy-qty" className="text-xs text-slate-600 mb-1 block">
+                            Buy Quantity
+                          </Label>
+                          <Input
+                            id="bogo-buy-qty"
+                            type="number"
+                            min="1"
+                            value={editingBogoBuyQty}
+                            onChange={(e) => setEditingBogoBuyQty(e.target.value)}
+                            placeholder="e.g., 4"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="bogo-free-qty" className="text-xs text-slate-600 mb-1 block">
+                            Get Free Quantity
+                          </Label>
+                          <Input
+                            id="bogo-free-qty"
+                            type="number"
+                            min="1"
+                            value={editingBogoGetFreeQty}
+                            onChange={(e) => setEditingBogoGetFreeQty(e.target.value)}
+                            placeholder="e.g., 1"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                        BOGO Logic Type
+                      </Label>
+                      <RadioGroup value={editingBogoLogicType} onValueChange={setEditingBogoLogicType}>
+                        <div className="space-y-2">
+                          <div className="flex items-start gap-2">
+                            <RadioGroupItem value="buy_x_get_y_free" id="logic-legacy" className="mt-1" />
+                            <div className="flex-1">
+                              <Label htmlFor="logic-legacy" className="text-sm cursor-pointer">
+                                Buy X, Get Y Free (Legacy)
+                              </Label>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                User enters {editingBogoBuyQty || 'X'} &rarr; Receives {editingBogoBuyQty && editingBogoGetFreeQty ? parseInt(editingBogoBuyQty) + parseInt(editingBogoGetFreeQty) : 'X+Y'} &rarr; Pays for {editingBogoBuyQty || 'X'}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <RadioGroupItem value="enter_total_pay_less" id="logic-new" className="mt-1" />
+                            <div className="flex-1">
+                              <Label htmlFor="logic-new" className="text-sm cursor-pointer">
+                                Enter Total, Pay for Fewer
+                              </Label>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                User enters {editingBogoBuyQty && editingBogoGetFreeQty ? parseInt(editingBogoBuyQty) + parseInt(editingBogoGetFreeQty) : 'X+Y'} &rarr; Receives {editingBogoBuyQty && editingBogoGetFreeQty ? parseInt(editingBogoBuyQty) + parseInt(editingBogoGetFreeQty) : 'X+Y'} &rarr; Pays for {editingBogoBuyQty || 'X'}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                  </div>
+                )}
+
+                {/* Bulk Discount Configuration */}
+                {editingOfferType === 'bulk_discount' && (
+                  <div className="space-y-4 pt-4 border-t border-slate-300">
+                    <div>
+                      <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                        Bulk Discount Configuration
+                      </Label>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label htmlFor="bulk-threshold" className="text-xs text-slate-600 mb-1 block">
+                            Minimum Tickets
+                          </Label>
+                          <Input
+                            id="bulk-threshold"
+                            type="number"
+                            min="2"
+                            value={editingBulkThreshold}
+                            onChange={(e) => setEditingBulkThreshold(e.target.value)}
+                            placeholder="e.g., 10"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="bulk-percentage" className="text-xs text-slate-600 mb-1 block">
+                            Discount %
+                          </Label>
+                          <Input
+                            id="bulk-percentage"
+                            type="number"
+                            min="0"
+                            max="100"
+                            step="0.1"
+                            value={editingBulkPercentage}
+                            onChange={(e) => setEditingBulkPercentage(e.target.value)}
+                            placeholder="e.g., 15"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-2">
+                        {editingBulkThreshold && editingBulkPercentage 
+                          ? `Customers buying ${editingBulkThreshold}+ tickets will receive ${editingBulkPercentage}% off`
+                          : 'Enter values to see preview'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setEditingProgram(null);
+                setSelectedProgramImage(null);
+                setProgramImagePreview(null);
+                setEditingProgramDescription("");
+                setEditingOfferType("none");
+                setEditingBogoLogicType("buy_x_get_y_free");
+                setEditingBogoBuyQty("");
+                setEditingBogoGetFreeQty("");
+                setEditingBulkThreshold("");
+                setEditingBulkPercentage("");
+              }}
+              disabled={uploadingProgram}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleProgramUpdate}
+              disabled={uploadingProgram}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {uploadingProgram ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}

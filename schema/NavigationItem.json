@@ -1,0 +1,73 @@
+{
+    "name": "NavigationItem",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Display text for the navigation item"
+      },
+      "url": {
+        "type": "string",
+        "description": "Link URL (can be page slug like 'PublicAbout' or external URL like 'https://example.com')"
+      },
+      "link_type": {
+        "type": "string",
+        "enum": [
+          "internal",
+          "external"
+        ],
+        "default": "internal",
+        "description": "Whether the link is to an internal page or external URL"
+      },
+      "location": {
+        "type": "string",
+        "enum": [
+          "top_nav",
+          "main_nav"
+        ],
+        "default": "main_nav",
+        "description": "Which navigation bar this item appears in"
+      },
+      "parent_id": {
+        "type": "string",
+        "description": "Parent navigation item ID for sub-menus (null for top-level items)"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Order in which this item appears"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this item is currently visible"
+      },
+      "open_in_new_tab": {
+        "type": "boolean",
+        "default": false,
+        "description": "For external links, whether to open in a new tab"
+      },
+      "icon": {
+        "type": "string",
+        "description": "Optional Lucide icon name"
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description shown in mega-menu"
+      },
+      "highlight_style": {
+        "type": "string",
+        "enum": [
+          "none",
+          "gradient_button"
+        ],
+        "default": "none",
+        "description": "Special styling for featured items"
+      }
+    },
+    "required": [
+      "title",
+      "url",
+      "location"
+    ]
+  }

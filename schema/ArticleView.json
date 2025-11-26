@@ -1,0 +1,23 @@
+{
+    "name": "ArticleView",
+    "type": "object",
+    "properties": {
+      "article_id": {
+        "type": "string",
+        "description": "Reference to BlogPost entity"
+      },
+      "user_identifier": {
+        "type": "string",
+        "description": "Email or session identifier to track who viewed"
+      },
+      "is_member": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether this view is from a logged-in member"
+      }
+    },
+    "required": [
+      "article_id",
+      "user_identifier"
+    ]
+  }

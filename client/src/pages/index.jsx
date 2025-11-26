@@ -1,0 +1,597 @@
+import Layout from "./Layout.jsx";
+
+import Events from "./Events";
+
+import Home from "./Home";
+
+import AdminSetup from "./AdminSetup";
+
+import EventDetails from "./EventDetails";
+
+import BuyProgramTickets from "./BuyProgramTickets";
+
+import VerifyMagicLink from "./VerifyMagicLink";
+
+import TestLogin from "./TestLogin";
+
+import Balances from "./Balances";
+
+import Dashboard from "./Dashboard";
+
+import UnpackedInternationalEmployability from "./UnpackedInternationalEmployability";
+
+import Articles from "./Articles";
+
+import ArticleEditor from "./ArticleEditor";
+
+import ArticleView from "./ArticleView";
+
+import PublicAbout from "./PublicAbout";
+
+import PublicContact from "./PublicContact";
+
+import PublicEvents from "./PublicEvents";
+
+import RoleManagement from "./RoleManagement";
+
+import MemberRoleAssignment from "./MemberRoleAssignment";
+
+import TeamMemberManagement from "./TeamMemberManagement";
+
+import DiscountCodeManagement from "./DiscountCodeManagement";
+
+import MyTickets from "./MyTickets";
+
+import EventSettings from "./EventSettings";
+
+import Bookings from "./Bookings";
+
+import TourManagement from "./TourManagement";
+
+import History from "./History";
+
+import TicketSalesAnalytics from "./TicketSalesAnalytics";
+
+import Resources from "./Resources";
+
+import PublicResources from "./PublicResources";
+
+import ResourceSettings from "./ResourceSettings";
+
+import ResourceManagement from "./ResourceManagement";
+
+import FileManagement from "./FileManagement";
+
+import TagManagement from "./TagManagement";
+
+import JobBoard from "./JobBoard";
+
+import JobDetails from "./JobDetails";
+
+import PostJob from "./PostJob";
+
+import JobPostSuccess from "./JobPostSuccess";
+
+import JobBoardSettings from "./JobBoardSettings";
+
+import JobPostingManagement from "./JobPostingManagement";
+
+import MyJobPostings from "./MyJobPostings";
+
+import PageBannerManagement from "./PageBannerManagement";
+
+import IEditPageManagement from "./IEditPageManagement";
+
+import IEditTemplateManagement from "./IEditTemplateManagement";
+
+import IEditPageEditor from "./IEditPageEditor";
+
+import testpage from "./testpage";
+
+import NavigationManagement from "./NavigationManagement";
+
+import Preferences from "./Preferences";
+
+import MyArticles from "./MyArticles";
+
+import PublicArticles from "./PublicArticles";
+
+import MemberHandleManagement from "./MemberHandleManagement";
+
+import ButtonElements from "./ButtonElements";
+
+import ButtonStyleManagement from "./ButtonStyleManagement";
+
+import BorderRadiusSettings from "./BorderRadiusSettings";
+
+import AwardManagement from "./AwardManagement";
+
+import Team from "./Team";
+
+import MemberDirectory from "./MemberDirectory";
+
+import WallOfFameManagement from "./WallOfFameManagement";
+
+import DynamicPage from "./DynamicPage";
+
+import sharon from "./sharon";
+
+import content from "./content";
+
+import icontent from "./icontent";
+
+import ViewPage from "./ViewPage";
+
+import ParamTest from "./ParamTest";
+
+import TeamInviteSettings from "./TeamInviteSettings";
+
+import OrganisationDirectory from "./OrganisationDirectory";
+
+import FloaterManagement from "./FloaterManagement";
+
+import FormManagement from "./FormManagement";
+
+import FormBuilder from "./FormBuilder";
+
+import FormView from "./FormView";
+
+import MemberDirectorySettings from "./MemberDirectorySettings";
+
+import FormSubmissions from "./FormSubmissions";
+
+import NewsEditor from "./NewsEditor";
+
+import MyNews from "./MyNews";
+
+import NewsView from "./NewsView";
+
+import News from "./News";
+
+import PublicNews from "./PublicNews";
+
+import NewsSettings from "./NewsSettings";
+
+import DataExport from "./DataExport";
+
+import ArticleManagement from "./ArticleManagement";
+
+import SiteMap from "./SiteMap";
+
+import Support from "./Support";
+
+import SupportManagement from "./SupportManagement";
+
+import PortalNavigationManagement from "./PortalNavigationManagement";
+
+import CategoryManagement from "./CategoryManagement";
+
+import MemberGroupManagement from "./MemberGroupManagement";
+
+import ArticlesSettings from "./ArticlesSettings";
+
+import GuestWriterManagement from "./GuestWriterManagement";
+
+import OrganisationDirectorySettings from "./OrganisationDirectorySettings";
+
+import InstalledFonts from "./InstalledFonts";
+
+import PortalMenuManagement from "./PortalMenuManagement";
+
+import MemberGroupAssignmentReport from "./MemberGroupAssignmentReport";
+
+import TeamEngagementReport from "./TeamEngagementReport";
+
+import MemberGroupGuestManagement from "./MemberGroupGuestManagement";
+
+import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+
+const PAGES = {
+    
+    Events: Events,
+    
+    Home: Home,
+    
+    AdminSetup: AdminSetup,
+    
+    EventDetails: EventDetails,
+    
+    BuyProgramTickets: BuyProgramTickets,
+    
+    VerifyMagicLink: VerifyMagicLink,
+    
+    TestLogin: TestLogin,
+    
+    Balances: Balances,
+    
+    Dashboard: Dashboard,
+    
+    UnpackedInternationalEmployability: UnpackedInternationalEmployability,
+    
+    Articles: Articles,
+    
+    ArticleEditor: ArticleEditor,
+    
+    ArticleView: ArticleView,
+    
+    PublicAbout: PublicAbout,
+    
+    PublicContact: PublicContact,
+    
+    PublicEvents: PublicEvents,
+    
+    RoleManagement: RoleManagement,
+    
+    MemberRoleAssignment: MemberRoleAssignment,
+    
+    TeamMemberManagement: TeamMemberManagement,
+    
+    DiscountCodeManagement: DiscountCodeManagement,
+    
+    MyTickets: MyTickets,
+    
+    EventSettings: EventSettings,
+    
+    Bookings: Bookings,
+    
+    TourManagement: TourManagement,
+    
+    History: History,
+    
+    TicketSalesAnalytics: TicketSalesAnalytics,
+    
+    Resources: Resources,
+    
+    PublicResources: PublicResources,
+    
+    ResourceSettings: ResourceSettings,
+    
+    ResourceManagement: ResourceManagement,
+    
+    FileManagement: FileManagement,
+    
+    TagManagement: TagManagement,
+    
+    JobBoard: JobBoard,
+    
+    JobDetails: JobDetails,
+    
+    PostJob: PostJob,
+    
+    JobPostSuccess: JobPostSuccess,
+    
+    JobBoardSettings: JobBoardSettings,
+    
+    JobPostingManagement: JobPostingManagement,
+    
+    MyJobPostings: MyJobPostings,
+    
+    PageBannerManagement: PageBannerManagement,
+    
+    IEditPageManagement: IEditPageManagement,
+    
+    IEditTemplateManagement: IEditTemplateManagement,
+    
+    IEditPageEditor: IEditPageEditor,
+    
+    testpage: testpage,
+    
+    NavigationManagement: NavigationManagement,
+    
+    Preferences: Preferences,
+    
+    MyArticles: MyArticles,
+    
+    PublicArticles: PublicArticles,
+    
+    MemberHandleManagement: MemberHandleManagement,
+    
+    ButtonElements: ButtonElements,
+    
+    ButtonStyleManagement: ButtonStyleManagement,
+    
+    BorderRadiusSettings: BorderRadiusSettings,
+    
+    AwardManagement: AwardManagement,
+    
+    Team: Team,
+    
+    MemberDirectory: MemberDirectory,
+    
+    WallOfFameManagement: WallOfFameManagement,
+    
+    DynamicPage: DynamicPage,
+    
+    sharon: sharon,
+    
+    content: content,
+    
+    icontent: icontent,
+    
+    ViewPage: ViewPage,
+    
+    ParamTest: ParamTest,
+    
+    TeamInviteSettings: TeamInviteSettings,
+    
+    OrganisationDirectory: OrganisationDirectory,
+    
+    FloaterManagement: FloaterManagement,
+    
+    FormManagement: FormManagement,
+    
+    FormBuilder: FormBuilder,
+    
+    FormView: FormView,
+    
+    MemberDirectorySettings: MemberDirectorySettings,
+    
+    FormSubmissions: FormSubmissions,
+    
+    NewsEditor: NewsEditor,
+    
+    MyNews: MyNews,
+    
+    NewsView: NewsView,
+    
+    News: News,
+    
+    PublicNews: PublicNews,
+    
+    NewsSettings: NewsSettings,
+    
+    DataExport: DataExport,
+    
+    ArticleManagement: ArticleManagement,
+    
+    SiteMap: SiteMap,
+    
+    Support: Support,
+    
+    SupportManagement: SupportManagement,
+    
+    PortalNavigationManagement: PortalNavigationManagement,
+    
+    CategoryManagement: CategoryManagement,
+    
+    MemberGroupManagement: MemberGroupManagement,
+    
+    ArticlesSettings: ArticlesSettings,
+    
+    GuestWriterManagement: GuestWriterManagement,
+    
+    OrganisationDirectorySettings: OrganisationDirectorySettings,
+    
+    InstalledFonts: InstalledFonts,
+    
+    PortalMenuManagement: PortalMenuManagement,
+    
+    MemberGroupAssignmentReport: MemberGroupAssignmentReport,
+    
+    TeamEngagementReport: TeamEngagementReport,
+    
+    MemberGroupGuestManagement: MemberGroupGuestManagement,
+    
+}
+
+function _getCurrentPage(url) {
+    if (url.endsWith('/')) {
+        url = url.slice(0, -1);
+    }
+    let urlLastPart = url.split('/').pop();
+    if (urlLastPart.includes('?')) {
+        urlLastPart = urlLastPart.split('?')[0];
+    }
+
+    const pageName = Object.keys(PAGES).find(page => page.toLowerCase() === urlLastPart.toLowerCase());
+    return pageName || Object.keys(PAGES)[0];
+}
+
+// Create a wrapper component that uses useLocation inside the Router context
+function PagesContent() {
+    const location = useLocation();
+    const currentPage = _getCurrentPage(location.pathname);
+    
+    return (
+        <Layout currentPageName={currentPage}>
+            <Routes>            
+                
+                    <Route path="/" element={<Events />} />
+                
+                
+                <Route path="/Events" element={<Events />} />
+                
+                <Route path="/Home" element={<Home />} />
+                
+                <Route path="/AdminSetup" element={<AdminSetup />} />
+                
+                <Route path="/EventDetails" element={<EventDetails />} />
+                
+                <Route path="/BuyProgramTickets" element={<BuyProgramTickets />} />
+                
+                <Route path="/VerifyMagicLink" element={<VerifyMagicLink />} />
+                
+                <Route path="/TestLogin" element={<TestLogin />} />
+                
+                <Route path="/Balances" element={<Balances />} />
+                
+                <Route path="/Dashboard" element={<Dashboard />} />
+                
+                <Route path="/UnpackedInternationalEmployability" element={<UnpackedInternationalEmployability />} />
+                
+                <Route path="/Articles" element={<Articles />} />
+                
+                <Route path="/ArticleEditor" element={<ArticleEditor />} />
+                
+                <Route path="/ArticleView" element={<ArticleView />} />
+                
+                <Route path="/PublicAbout" element={<PublicAbout />} />
+                
+                <Route path="/PublicContact" element={<PublicContact />} />
+                
+                <Route path="/PublicEvents" element={<PublicEvents />} />
+                
+                <Route path="/RoleManagement" element={<RoleManagement />} />
+                
+                <Route path="/MemberRoleAssignment" element={<MemberRoleAssignment />} />
+                
+                <Route path="/TeamMemberManagement" element={<TeamMemberManagement />} />
+                
+                <Route path="/DiscountCodeManagement" element={<DiscountCodeManagement />} />
+                
+                <Route path="/MyTickets" element={<MyTickets />} />
+                
+                <Route path="/EventSettings" element={<EventSettings />} />
+                
+                <Route path="/Bookings" element={<Bookings />} />
+                
+                <Route path="/TourManagement" element={<TourManagement />} />
+                
+                <Route path="/History" element={<History />} />
+                
+                <Route path="/TicketSalesAnalytics" element={<TicketSalesAnalytics />} />
+                
+                <Route path="/Resources" element={<Resources />} />
+                
+                <Route path="/PublicResources" element={<PublicResources />} />
+                
+                <Route path="/ResourceSettings" element={<ResourceSettings />} />
+                
+                <Route path="/ResourceManagement" element={<ResourceManagement />} />
+                
+                <Route path="/FileManagement" element={<FileManagement />} />
+                
+                <Route path="/TagManagement" element={<TagManagement />} />
+                
+                <Route path="/JobBoard" element={<JobBoard />} />
+                
+                <Route path="/JobDetails" element={<JobDetails />} />
+                
+                <Route path="/PostJob" element={<PostJob />} />
+                
+                <Route path="/JobPostSuccess" element={<JobPostSuccess />} />
+                
+                <Route path="/JobBoardSettings" element={<JobBoardSettings />} />
+                
+                <Route path="/JobPostingManagement" element={<JobPostingManagement />} />
+                
+                <Route path="/MyJobPostings" element={<MyJobPostings />} />
+                
+                <Route path="/PageBannerManagement" element={<PageBannerManagement />} />
+                
+                <Route path="/IEditPageManagement" element={<IEditPageManagement />} />
+                
+                <Route path="/IEditTemplateManagement" element={<IEditTemplateManagement />} />
+                
+                <Route path="/IEditPageEditor" element={<IEditPageEditor />} />
+                
+                <Route path="/testpage" element={<testpage />} />
+                
+                <Route path="/NavigationManagement" element={<NavigationManagement />} />
+                
+                <Route path="/Preferences" element={<Preferences />} />
+                
+                <Route path="/MyArticles" element={<MyArticles />} />
+                
+                <Route path="/PublicArticles" element={<PublicArticles />} />
+                
+                <Route path="/MemberHandleManagement" element={<MemberHandleManagement />} />
+                
+                <Route path="/ButtonElements" element={<ButtonElements />} />
+                
+                <Route path="/ButtonStyleManagement" element={<ButtonStyleManagement />} />
+                
+                <Route path="/BorderRadiusSettings" element={<BorderRadiusSettings />} />
+                
+                <Route path="/AwardManagement" element={<AwardManagement />} />
+                
+                <Route path="/Team" element={<Team />} />
+                
+                <Route path="/MemberDirectory" element={<MemberDirectory />} />
+                
+                <Route path="/WallOfFameManagement" element={<WallOfFameManagement />} />
+                
+                <Route path="/DynamicPage" element={<DynamicPage />} />
+                
+                <Route path="/sharon" element={<sharon />} />
+                
+                <Route path="/content" element={<content />} />
+                
+                <Route path="/icontent" element={<icontent />} />
+                
+                <Route path="/ViewPage" element={<ViewPage />} />
+                
+                <Route path="/ParamTest" element={<ParamTest />} />
+                
+                <Route path="/TeamInviteSettings" element={<TeamInviteSettings />} />
+                
+                <Route path="/OrganisationDirectory" element={<OrganisationDirectory />} />
+                
+                <Route path="/FloaterManagement" element={<FloaterManagement />} />
+                
+                <Route path="/FormManagement" element={<FormManagement />} />
+                
+                <Route path="/FormBuilder" element={<FormBuilder />} />
+                
+                <Route path="/FormView" element={<FormView />} />
+                
+                <Route path="/MemberDirectorySettings" element={<MemberDirectorySettings />} />
+                
+                <Route path="/FormSubmissions" element={<FormSubmissions />} />
+                
+                <Route path="/NewsEditor" element={<NewsEditor />} />
+                
+                <Route path="/MyNews" element={<MyNews />} />
+                
+                <Route path="/NewsView" element={<NewsView />} />
+                
+                <Route path="/News" element={<News />} />
+                
+                <Route path="/PublicNews" element={<PublicNews />} />
+                
+                <Route path="/NewsSettings" element={<NewsSettings />} />
+                
+                <Route path="/DataExport" element={<DataExport />} />
+                
+                <Route path="/ArticleManagement" element={<ArticleManagement />} />
+                
+                <Route path="/SiteMap" element={<SiteMap />} />
+                
+                <Route path="/Support" element={<Support />} />
+                
+                <Route path="/SupportManagement" element={<SupportManagement />} />
+                
+                <Route path="/PortalNavigationManagement" element={<PortalNavigationManagement />} />
+                
+                <Route path="/CategoryManagement" element={<CategoryManagement />} />
+                
+                <Route path="/MemberGroupManagement" element={<MemberGroupManagement />} />
+                
+                <Route path="/ArticlesSettings" element={<ArticlesSettings />} />
+                
+                <Route path="/GuestWriterManagement" element={<GuestWriterManagement />} />
+                
+                <Route path="/OrganisationDirectorySettings" element={<OrganisationDirectorySettings />} />
+                
+                <Route path="/InstalledFonts" element={<InstalledFonts />} />
+                
+                <Route path="/PortalMenuManagement" element={<PortalMenuManagement />} />
+                
+                <Route path="/MemberGroupAssignmentReport" element={<MemberGroupAssignmentReport />} />
+                
+                <Route path="/TeamEngagementReport" element={<TeamEngagementReport />} />
+                
+                <Route path="/MemberGroupGuestManagement" element={<MemberGroupGuestManagement />} />
+                
+            </Routes>
+        </Layout>
+    );
+}
+
+export default function Pages() {
+    return (
+        <Router>
+            <PagesContent />
+        </Router>
+    );
+}

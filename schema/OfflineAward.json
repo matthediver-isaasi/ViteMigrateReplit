@@ -1,0 +1,39 @@
+{
+    "name": "OfflineAward",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Award name (e.g., 'Outstanding Contribution Award', 'Member of the Year')"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description of what this award represents"
+      },
+      "classification_id": {
+        "type": "string",
+        "description": "Reference to AwardClassification entity"
+      },
+      "period_text": {
+        "type": "string",
+        "description": "Free text for the period/achievement (e.g., '1st quarter', '2026', 'Summer 25')"
+      },
+      "level": {
+        "type": "number",
+        "description": "Award level for ordering (1 = first level, 2 = second level, etc.)"
+      },
+      "image_url": {
+        "type": "string",
+        "description": "URL to the award badge/logo image"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this award is currently active"
+      }
+    },
+    "required": [
+      "name",
+      "level"
+    ]
+  }

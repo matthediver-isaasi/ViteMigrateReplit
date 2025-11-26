@@ -1,0 +1,67 @@
+{
+    "name": "Booking",
+    "type": "object",
+    "properties": {
+      "event_id": {
+        "type": "string",
+        "description": "Reference to Event entity"
+      },
+      "member_id": {
+        "type": "string",
+        "description": "Reference to Member who made the booking"
+      },
+      "attendee_email": {
+        "type": "string",
+        "format": "email",
+        "description": "Email of the attendee (could be member or colleague)"
+      },
+      "attendee_first_name": {
+        "type": "string"
+      },
+      "attendee_last_name": {
+        "type": "string"
+      },
+      "ticket_price": {
+        "type": "number",
+        "description": "Price at time of booking"
+      },
+      "payment_method": {
+        "type": "string",
+        "enum": [
+          "voucher",
+          "training_fund",
+          "account",
+          "program_ticket"
+        ],
+        "description": "How this ticket was paid for"
+      },
+      "booking_reference": {
+        "type": "string",
+        "description": "Unique booking reference"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "confirmed",
+          "cancelled",
+          "pending_backstage_sync"
+        ],
+        "default": "confirmed",
+        "description": "Booking status - pending_backstage_sync means local booking created but Backstage provisioning failed"
+      },
+      "confirmation_token": {
+        "type": "string",
+        "description": "Unique token for colleague to confirm attendance"
+      },
+      "backstage_order_id": {
+        "type": "string",
+        "description": "Zoho Backstage order ID after sync"
+      }
+    },
+    "required": [
+      "event_id",
+      "member_id",
+      "ticket_price"
+    ]
+  }

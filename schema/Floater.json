@@ -1,0 +1,127 @@
+{
+    "name": "Floater",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Name/label for this floater (for admin reference)"
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description of what this floater does"
+      },
+      "image_url": {
+        "type": "string",
+        "description": "URL to the image to display"
+      },
+      "action_type": {
+        "type": "string",
+        "enum": [
+          "webhook",
+          "url",
+          "form"
+        ],
+        "default": "webhook",
+        "description": "Action to perform when clicked: call webhook, redirect to URL, or open a form"
+      },
+      "webhook_url": {
+        "type": "string",
+        "description": "Webhook URL to call when clicked (required if action_type is webhook)"
+      },
+      "redirect_url": {
+        "type": "string",
+        "description": "URL to navigate to when clicked (required if action_type is url)"
+      },
+      "form_slug": {
+        "type": "string",
+        "description": "Form slug to open when clicked (required if action_type is form)"
+      },
+      "window_target": {
+        "type": "string",
+        "enum": [
+          "current",
+          "new_tab",
+          "parent",
+          "popup"
+        ],
+        "default": "new_tab",
+        "description": "For URL action: how to open the URL"
+      },
+      "popup_width": {
+        "type": "number",
+        "default": 800,
+        "description": "Width of popup window (only used when window_target is popup)"
+      },
+      "popup_height": {
+        "type": "number",
+        "default": 600,
+        "description": "Height of popup window (only used when window_target is popup)"
+      },
+      "display_location": {
+        "type": "string",
+        "enum": [
+          "portal",
+          "public",
+          "both"
+        ],
+        "default": "both",
+        "description": "Where this floater should appear"
+      },
+      "position": {
+        "type": "string",
+        "enum": [
+          "bottom-right",
+          "bottom-left",
+          "top-right",
+          "top-left"
+        ],
+        "default": "bottom-right",
+        "description": "Corner position of the floater"
+      },
+      "offset_x": {
+        "type": "number",
+        "default": 20,
+        "description": "Horizontal offset from edge in pixels"
+      },
+      "offset_y": {
+        "type": "number",
+        "default": 20,
+        "description": "Vertical offset from edge in pixels"
+      },
+      "width": {
+        "type": "number",
+        "default": 80,
+        "description": "Width of the floater in pixels"
+      },
+      "height": {
+        "type": "number",
+        "default": 80,
+        "description": "Height of the floater in pixels"
+      },
+      "show_background": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether to show rounded background and shadow (true) or just the image (false)"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this floater is currently active"
+      },
+      "click_count": {
+        "type": "number",
+        "default": 0,
+        "description": "Number of times this floater has been clicked"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Display order for multiple floaters (lower numbers appear first)"
+      }
+    },
+    "required": [
+      "name",
+      "image_url",
+      "action_type"
+    ]
+  }

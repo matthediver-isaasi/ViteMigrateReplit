@@ -1,0 +1,409 @@
+
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileEdit, Plus, Eye, Pencil, Trash2, ExternalLink, Search, Zap } from "lucide-react";
+import { format } from "date-fns";
+import { toast } from "sonner";
+import { createPageUrl } from "@/utils";
+import { useNavigate } from "react-router-dom";
+
+export default function IEditPageManagementPage({ isAdmin }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [pageToDelete, setPageToDelete] = useState(null);
+  const [newPage, setNewPage] = useState({
+    title: "",
+    slug: "",
+    description: "",
+    layout_type: "public",
+    status: "draft"
+  });
+
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
+  const { data: pages, isLoading } = useQuery({
+    queryKey: ['iedit-pages'],
+    queryFn: () => base44.entities.IEditPage.list('-updated_date'),
+    initialData: []
+  });
+
+  const createPageMutation = useMutation({
+    mutationFn: (pageData) => base44.entities.IEditPage.create(pageData),
+    onSuccess: (newPage) => {
+      queryClient.invalidateQueries({ queryKey: ['iedit-pages'] });
+      setShowCreateDialog(false);
+      setNewPage({ title: "", slug: "", description: "", layout_type: "public", status: "draft" });
+      toast.success('Page created successfully');
+      navigate(createPageUrl('IEditPageEditor') + `?pageId=${newPage.id}`);
+    },
+    onError: (error) => {
+      toast.error('Failed to create page: ' + error.message);
+    }
+  });
+
+  const deletePageMutation = useMutation({
+    mutationFn: async (pageId) => {
+      const allElements = await base44.entities.IEditPageElement.filter({ page_id: pageId });
+      for (const element of allElements) {
+        await base44.entities.IEditPageElement.delete(element.id);
+      }
+      await base44.entities.IEditPage.delete(pageId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['iedit-pages'] });
+      setShowDeleteDialog(false);
+      setPageToDelete(null);
+      toast.success('Page deleted successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to delete page: ' + error.message);
+    }
+  });
+
+  const requestTopLevelUrlMutation = useMutation({
+    mutationFn: async (page) => {
+      await base44.integrations.Core.SendEmail({
+        to: "developers@isaasi.co.uk",
+        subject: `Top-Level URL Request: /${page.slug}`,
+        body: `
+A request has been made to convert the following page to a top-level URL:
+
+Page Title: ${page.title}
+Slug: ${page.slug}
+Layout Type: ${page.layout_type}
+Status: ${page.status}
+Page ID: ${page.id}
+
+Current URL: ${window.location.origin}${createPageUrl('content')}?page=${page.slug}
+Requested URL: ${window.location.origin}/${page.slug}
+
+Please create a physical page file for this slug to enable top-level routing.
+        `
+      });
+    },
+    onSuccess: () => {
+      toast.success('Request sent to developers');
+    },
+    onError: (error) => {
+      toast.error('Failed to send request: ' + error.message);
+    }
+  });
+
+  const handleCreatePage = () => {
+    if (!newPage.title.trim() || !newPage.slug.trim()) {
+      toast.error('Title and slug are required');
+      return;
+    }
+
+    const slugRegex = /^[a-z0-9-]+$/;
+    if (!slugRegex.test(newPage.slug)) {
+      toast.error('Slug must be lowercase with hyphens only (no spaces or special characters)');
+      return;
+    }
+
+    createPageMutation.mutate(newPage);
+  };
+
+  const handleDeletePage = () => {
+    if (pageToDelete) {
+      deletePageMutation.mutate(pageToDelete.id);
+    }
+  };
+
+  const filteredPages = pages.filter(page => 
+    page.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    page.slug?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    page.description?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const getStatusBadge = (status) => {
+    const variants = {
+      draft: "bg-slate-100 text-slate-700",
+      published: "bg-green-100 text-green-700",
+      archived: "bg-amber-100 text-amber-700"
+    };
+    return variants[status] || variants.draft;
+  };
+
+  const getPublicUrl = (slug) => {
+    return createPageUrl('content') + `?page=${slug}`;
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="p-12 text-center">
+            <p className="text-slate-600">You don't have permission to access this page.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
+              Page Editor
+            </h1>
+            <p className="text-slate-600">
+              Create and manage custom pages with drag-and-drop elements
+            </p>
+          </div>
+          <Button onClick={() => setShowCreateDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+            <Plus className="w-4 h-4 mr-2" />
+            New Page
+          </Button>
+        </div>
+
+        {/* Search */}
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 mb-8">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+            <Input
+              placeholder="Search pages by title, slug, or description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+
+        {/* Pages Grid */}
+        {isLoading ? (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {Array(6).fill(0).map((_, i) => (
+              <Card key={i} className="animate-pulse border-slate-200">
+                <CardHeader>
+                  <div className="h-6 bg-slate-200 rounded w-3/4 mb-2" />
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                </CardHeader>
+              </Card>
+            ))}
+          </div>
+        ) : filteredPages.length === 0 ? (
+          <Card className="border-slate-200">
+            <CardContent className="p-12 text-center">
+              <FileEdit className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                {searchQuery ? 'No Pages Found' : 'No Pages Yet'}
+              </h3>
+              <p className="text-slate-600 mb-6">
+                {searchQuery 
+                  ? 'Try adjusting your search query' 
+                  : 'Create your first custom page to get started'}
+              </p>
+              {!searchQuery && (
+                <Button onClick={() => setShowCreateDialog(true)} className="bg-blue-600 hover:bg-blue-700">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Page
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredPages.map((page) => (
+              <Card key={page.id} className="border-slate-200 hover:shadow-lg transition-shadow">
+                <CardHeader>
+                  <div className="flex items-start justify-between mb-2">
+                    <CardTitle className="text-lg">{page.title}</CardTitle>
+                    <Badge className={getStatusBadge(page.status)}>
+                      {page.status}
+                    </Badge>
+                  </div>
+                  {page.description && (
+                    <p className="text-sm text-slate-600 line-clamp-2">{page.description}</p>
+                  )}
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-sm">
+                    <span className="text-slate-500">Slug:</span>
+                    <span className="ml-2 font-mono text-slate-700">/{page.slug}</span>
+                  </div>
+                  
+                  <div className="text-sm">
+                    <span className="text-slate-500">Layout:</span>
+                    <span className="ml-2 text-slate-700 capitalize">{page.layout_type}</span>
+                  </div>
+
+                  {page.updated_date && (
+                    <div className="text-xs text-slate-500">
+                      Updated {format(new Date(page.updated_date), 'MMM d, yyyy')}
+                    </div>
+                  )}
+
+                  <div className="flex gap-2 pt-2 border-t border-slate-200">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(createPageUrl('IEditPageEditor') + `?pageId=${page.id}`)}
+                      className="flex-1"
+                    >
+                      <Pencil className="w-3 h-3 mr-1" />
+                      Edit
+                    </Button>
+                    {page.status === 'published' && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open(getPublicUrl(page.slug), '_blank')}
+                        title="View Published Page"
+                      >
+                        <ExternalLink className="w-3 h-3" />
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setPageToDelete(page);
+                        setShowDeleteDialog(true);
+                      }}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </Button>
+                  </div>
+
+                  {/* Request Top-Level URL Button */}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => requestTopLevelUrlMutation.mutate(page)}
+                    disabled={requestTopLevelUrlMutation.isPending}
+                    className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  >
+                    <Zap className="w-3 h-3 mr-1" />
+                    Request Top-Level URL (/{page.slug})
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+
+        {/* Create Page Dialog */}
+        <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Create New Page</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="title">Page Title *</Label>
+                <Input
+                  id="title"
+                  value={newPage.title}
+                  onChange={(e) => {
+                    const title = e.target.value;
+                    setNewPage({
+                      ...newPage,
+                      title,
+                      slug: newPage.slug === '' ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : newPage.slug
+                    });
+                  }}
+                  placeholder="e.g., About Our Organization"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="slug">URL Slug *</Label>
+                <Input
+                  id="slug"
+                  value={newPage.slug}
+                  onChange={(e) => setNewPage({ ...newPage, slug: e.target.value.toLowerCase() })}
+                  placeholder="e.g., about-our-organization"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Lowercase letters, numbers, and hyphens only
+                </p>
+              </div>
+
+              <div>
+                <Label htmlFor="description">Description (Optional)</Label>
+                <Textarea
+                  id="description"
+                  value={newPage.description}
+                  onChange={(e) => setNewPage({ ...newPage, description: e.target.value })}
+                  placeholder="Brief description for admin reference..."
+                  rows={3}
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="layout_type">Layout Type</Label>
+                <Select
+                  value={newPage.layout_type}
+                  onValueChange={(value) => setNewPage({ ...newPage, layout_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="public">Public (With header/footer)</SelectItem>
+                    <SelectItem value="member">Member Portal (With sidebar)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowCreateDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreatePage}
+                disabled={createPageMutation.isPending}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                Create & Edit
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete Page</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-slate-600">
+                Are you sure you want to delete <strong>{pageToDelete?.title}</strong>? 
+                This will also delete all elements on this page. This action cannot be undone.
+              </p>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowDeleteDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleDeletePage}
+                disabled={deletePageMutation.isPending}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                Delete Page
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  );
+}

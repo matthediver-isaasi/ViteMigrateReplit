@@ -1,0 +1,35 @@
+{
+    "name": "MemberGroupAssignment",
+    "type": "object",
+    "properties": {
+      "member_id": {
+        "type": "string",
+        "description": "Reference to Member entity (null if guest)"
+      },
+      "guest_id": {
+        "type": "string",
+        "description": "Reference to MemberGroupGuest entity (null if member)"
+      },
+      "group_id": {
+        "type": "string",
+        "description": "Reference to MemberGroup entity"
+      },
+      "group_role": {
+        "type": "string",
+        "description": "Role within the group (from the group's roles array)"
+      },
+      "expires_at": {
+        "type": "string",
+        "format": "date",
+        "description": "Optional expiry date for this assignment"
+      },
+      "notes": {
+        "type": "string",
+        "description": "Optional notes about this assignment"
+      }
+    },
+    "required": [
+      "group_id",
+      "group_role"
+    ]
+  }

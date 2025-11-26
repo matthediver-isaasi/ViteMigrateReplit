@@ -1,0 +1,69 @@
+{
+    "name": "Form",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Form name"
+      },
+      "description": {
+        "type": "string",
+        "description": "Form description"
+      },
+      "slug": {
+        "type": "string",
+        "description": "URL-friendly identifier for the form"
+      },
+      "layout_type": {
+        "type": "string",
+        "enum": [
+          "standard",
+          "card_swipe"
+        ],
+        "default": "standard",
+        "description": "Form layout: standard (all fields at once) or card_swipe (one field per card)"
+      },
+      "fields": {
+        "type": "array",
+        "items": {
+          "type": "object"
+        },
+        "default": [],
+        "description": "Array of form field definitions"
+      },
+      "submit_button_text": {
+        "type": "string",
+        "default": "Submit",
+        "description": "Text for the submit button"
+      },
+      "success_message": {
+        "type": "string",
+        "default": "Thank you for your submission!",
+        "description": "Message shown after successful submission"
+      },
+      "redirect_url": {
+        "type": "string",
+        "description": "Optional URL to redirect to after submission"
+      },
+      "require_authentication": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether users must be logged in to submit"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether the form is currently active"
+      },
+      "submission_count": {
+        "type": "number",
+        "default": 0,
+        "description": "Number of submissions received"
+      }
+    },
+    "required": [
+      "name",
+      "slug",
+      "layout_type"
+    ]
+  }

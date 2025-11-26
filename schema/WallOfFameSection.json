@@ -1,0 +1,27 @@
+{
+    "name": "WallOfFameSection",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Name of the Wall of Fame section (e.g., 'Our Team', 'Leadership')"
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description for this section"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Order in which this section appears"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this section is currently active"
+      }
+    },
+    "required": [
+      "name"
+    ]
+  }

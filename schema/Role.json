@@ -1,0 +1,67 @@
+{
+    "name": "Role",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Role name (e.g., 'Standard Member', 'Premium Member', 'Administrator')"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description of what this role includes"
+      },
+      "excluded_features": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "List of feature IDs that members with this role should NOT have access to"
+      },
+      "is_default": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether this is the default role for new members"
+      },
+      "is_admin": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether this role has administrator privileges"
+      },
+      "show_tours": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether users with this role should see page tours"
+      },
+      "default_landing_page": {
+        "type": "string",
+        "enum": [
+          "Events",
+          "Dashboard",
+          "Bookings",
+          "Balances",
+          "BuyProgramTickets",
+          "History"
+        ],
+        "default": "Events",
+        "description": "The page users with this role land on after login"
+      },
+      "layout_theme": {
+        "type": "string",
+        "enum": [
+          "default",
+          "new_header"
+        ],
+        "default": "default",
+        "description": "Visual theme/layout to apply for users with this role"
+      },
+      "requires_effective_from_date": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether assigning this role requires an Effective From date (e.g., for Alumni)"
+      }
+    },
+    "required": [
+      "name"
+    ]
+  }

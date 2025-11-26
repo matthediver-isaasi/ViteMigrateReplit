@@ -1,0 +1,57 @@
+{
+    "name": "FileRepository",
+    "type": "object",
+    "properties": {
+      "file_name": {
+        "type": "string",
+        "description": "Original file name"
+      },
+      "file_url": {
+        "type": "string",
+        "description": "Public URL of the uploaded file"
+      },
+      "file_type": {
+        "type": "string",
+        "enum": [
+          "image",
+          "document",
+          "video",
+          "other"
+        ],
+        "description": "Type of file"
+      },
+      "mime_type": {
+        "type": "string",
+        "description": "MIME type of the file"
+      },
+      "file_size": {
+        "type": "number",
+        "description": "File size in bytes"
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description of the file"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Tags for categorizing files"
+      },
+      "uploaded_by": {
+        "type": "string",
+        "description": "Email of the user who uploaded the file"
+      },
+      "folder_id": {
+        "type": "string",
+        "description": "Reference to FileRepositoryFolder entity - the folder this file belongs to"
+      }
+    },
+    "required": [
+      "file_name",
+      "file_url",
+      "file_type"
+    ]
+  }

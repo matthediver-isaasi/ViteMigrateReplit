@@ -1,0 +1,64 @@
+{
+    "name": "WallOfFamePerson",
+    "type": "object",
+    "properties": {
+      "category_id": {
+        "type": "string",
+        "description": "Reference to WallOfFameCategory entity"
+      },
+      "member_id": {
+        "type": "string",
+        "description": "Reference to Member entity (if this person is a member)"
+      },
+      "first_name": {
+        "type": "string",
+        "description": "First name (used for ad-hoc entries or override)"
+      },
+      "last_name": {
+        "type": "string",
+        "description": "Last name (used for ad-hoc entries or override)"
+      },
+      "job_title": {
+        "type": "string",
+        "description": "Job title or position"
+      },
+      "secondary_organisation": {
+        "type": "string",
+        "description": "Secondary organisation (optional)"
+      },
+      "secondary_job_title": {
+        "type": "string",
+        "description": "Secondary job title (optional)"
+      },
+      "biography": {
+        "type": "string",
+        "description": "Full biography/description of the person"
+      },
+      "profile_photo_url": {
+        "type": "string",
+        "description": "URL to profile photo"
+      },
+      "linkedin_url": {
+        "type": "string",
+        "description": "LinkedIn profile URL"
+      },
+      "email": {
+        "type": "string",
+        "format": "email",
+        "description": "Email address (optional)"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Order in which this person appears within their category"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this person is currently displayed"
+      }
+    },
+    "required": [
+      "category_id"
+    ]
+  }

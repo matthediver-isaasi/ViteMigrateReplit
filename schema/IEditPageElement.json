@@ -1,0 +1,37 @@
+{
+    "name": "IEditPageElement",
+    "type": "object",
+    "properties": {
+      "page_id": {
+        "type": "string",
+        "description": "Reference to IEditPage entity"
+      },
+      "element_type": {
+        "type": "string",
+        "description": "Type of element (e.g., 'hero', 'text_block', 'image', 'two_column', 'cta_button')"
+      },
+      "display_order": {
+        "type": "number",
+        "description": "Order of this element on the page (lower numbers appear first)"
+      },
+      "content": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "Element-specific content data (e.g., {text: '...', heading: '...', imageUrl: '...'})"
+      },
+      "style_variant": {
+        "type": "string",
+        "description": "Style variant for this element (e.g., 'default', 'dark', 'accent', 'minimal')"
+      },
+      "settings": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "Additional settings (e.g., alignment, spacing, visibility options)"
+      }
+    },
+    "required": [
+      "page_id",
+      "element_type",
+      "display_order"
+    ]
+  }

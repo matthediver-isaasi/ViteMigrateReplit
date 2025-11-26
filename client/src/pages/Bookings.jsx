@@ -1,0 +1,450 @@
+
+import React from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Calendar, MapPin, Clock, User, Ticket, AlertCircle, Pencil } from "lucide-react";
+import { format } from "date-fns";
+import { createPageUrl } from "@/utils";
+import { Link } from "react-router-dom";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import PageTour from "../components/tour/PageTour";
+import TourButton from "../components/tour/TourButton";
+
+export default function BookingsPage({ memberInfo, memberRole }) {
+  const [cancellingTicketId, setCancellingTicketId] = React.useState(null);
+  const [showCancelDialog, setShowCancelDialog] = React.useState(false);
+  const [ticketToCancel, setTicketToCancel] = React.useState(null);
+  const [cancelledTicketIds, setCancelledTicketIds] = React.useState(new Set());
+  const [showTour, setShowTour] = React.useState(false);
+  const [tourAutoShow, setTourAutoShow] = React.useState(false);
+  
+  // Add ref to track if tour has been auto-started in this session
+  const hasAutoStartedTour = React.useRef(false);
+
+  // Determine if tours should be shown for this user
+  const shouldShowTours = memberRole?.show_tours !== false;
+
+  // Check if user has seen this page's tour
+  const hasSeenTour = memberInfo?.page_tours_seen?.Bookings === true;
+
+  // Auto-show tour on first visit if tours are enabled
+  React.useEffect(() => {
+    if (shouldShowTours && !hasSeenTour && memberInfo && !hasAutoStartedTour.current) {
+      hasAutoStartedTour.current = true; // Mark as auto-started
+      setTourAutoShow(true);
+      setShowTour(true);
+    }
+  }, [shouldShowTours, hasSeenTour, memberInfo]);
+
+  const { data: bookings, isLoading: loadingBookings } = useQuery({
+    queryKey: ['my-bookings', memberInfo?.email],
+    queryFn: async () => {
+      if (!memberInfo?.email) return [];
+      
+      const allMembers = await base44.entities.Member.list();
+      const currentMember = allMembers.find(m => m.email === memberInfo.email);
+      
+      if (!currentMember) return [];
+      
+      const allBookings = await base44.entities.Booking.list('-created_date');
+      return allBookings.filter(b => b.member_id === currentMember.id);
+    },
+    enabled: !!memberInfo?.email,
+    initialData: [],
+  });
+
+  const { data: events, isLoading: loadingEvents } = useQuery({
+    queryKey: ['events'],
+    queryFn: () => base44.entities.Event.list(),
+    initialData: [],
+  });
+
+  const handleTourComplete = async () => {
+    setShowTour(false);
+    setTourAutoShow(false);
+  };
+
+  const handleTourDismiss = async () => {
+    setShowTour(false);
+    setTourAutoShow(false);
+    await updateMemberTourStatus('Bookings');
+  };
+
+  const handleStartTour = () => {
+    setShowTour(false);
+    setTourAutoShow(false);
+    
+    setTimeout(() => {
+      setShowTour(true);
+      setTourAutoShow(true);
+    }, 10);
+  };
+
+  const updateMemberTourStatus = async (tourKey) => {
+    if (memberInfo && !memberInfo.is_team_member) {
+      try {
+        const allMembers = await base44.entities.Member.list();
+        const currentMember = allMembers.find(m => m.email === memberInfo.email);
+        
+        if (currentMember) {
+          const updatedTours = { ...(currentMember.page_tours_seen || {}), [tourKey]: true };
+          await base44.entities.Member.update(currentMember.id, {
+            page_tours_seen: updatedTours
+          });
+          
+          const updatedMemberInfo = { ...memberInfo, page_tours_seen: updatedTours };
+          sessionStorage.setItem('agcas_member', JSON.stringify(updatedMemberInfo));
+        }
+      } catch (error) {
+        console.error('Failed to update tour status:', error);
+      }
+    }
+  };
+
+  const handleCancelClick = (booking) => {
+    setTicketToCancel(booking);
+    setShowCancelDialog(true);
+  };
+
+  const handleCancelConfirm = async () => {
+    if (!ticketToCancel || !ticketToCancel.backstage_order_id) {
+      toast.error('Unable to cancel: Missing ticket information');
+      setShowCancelDialog(false);
+      return;
+    }
+
+    setCancellingTicketId(ticketToCancel.id);
+    setShowCancelDialog(false);
+
+    try {
+      const allMembers = await base44.entities.Member.list();
+      const currentMember = allMembers.find(m => m.email === memberInfo.email);
+      
+      if (!currentMember) {
+        toast.error('Unable to verify member identity');
+        setCancellingTicketId(null);
+        setTicketToCancel(null);
+        return;
+      }
+
+      const response = await base44.functions.invoke('cancelTicketViaFlow', {
+        orderId: ticketToCancel.backstage_order_id,
+        cancelReason: 'Cancelled by member via iConnect',
+        memberId: currentMember.id
+      });
+
+      if (response.data.success) {
+        setCancelledTicketIds(prev => new Set([...prev, ticketToCancel.id]));
+        toast.success('Ticket cancelled successfully');
+        
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      } else {
+        throw new Error(response.data.error || 'Failed to cancel ticket');
+      }
+    } catch (error) {
+      console.error('Cancellation error:', error);
+      toast.error('Failed to cancel ticket. Please try again or contact support.');
+    } finally {
+      setCancellingTicketId(null);
+      setTicketToCancel(null);
+    }
+  };
+
+  if (!memberInfo) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+        <div className="animate-pulse text-slate-600">Loading...</div>
+      </div>
+    );
+  }
+
+  const isLoading = loadingBookings || loadingEvents;
+
+  const bookingsByReference = bookings.reduce((acc, booking) => {
+    const ref = booking.booking_reference || 'unknown';
+    if (!acc[ref]) {
+      acc[ref] = [];
+    }
+    acc[ref].push(booking);
+    return acc;
+  }, {});
+
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'confirmed':
+        return 'bg-green-100 text-green-700 border-green-200';
+      case 'pending':
+        return 'bg-amber-100 text-amber-700 border-amber-200';
+      case 'cancelled':
+        return 'bg-red-100 text-red-700 border-red-200';
+      default:
+        return 'bg-slate-100 text-slate-700 border-slate-200';
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      {showTour && shouldShowTours && (
+        <PageTour
+          tourGroupName="Bookings"
+          viewId={null}
+          onComplete={handleTourComplete}
+          onDismissPermanently={handleTourDismiss}
+          autoShow={tourAutoShow}
+        />
+      )}
+
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
+              Bookings
+            </h1>
+            {shouldShowTours && (
+              <TourButton onClick={handleStartTour} />
+            )}
+          </div>
+          <p className="text-slate-600">
+            View and manage your event registrations
+          </p>
+        </div>
+
+        {isLoading ? (
+          <div className="grid md:grid-cols-2 gap-6">
+            {Array(4).fill(0).map((_, i) => (
+              <Card key={i} className="animate-pulse border-slate-200">
+                <CardHeader>
+                  <div className="h-6 bg-slate-200 rounded w-3/4 mb-2" />
+                  <div className="h-4 bg-slate-200 rounded w-1/2" />
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="h-4 bg-slate-200 rounded" />
+                    <div className="h-4 bg-slate-200 rounded w-5/6" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : bookings.length === 0 ? (
+          <Card className="border-slate-200 shadow-sm">
+            <CardContent className="p-12 text-center">
+              <Calendar className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                No bookings yet
+              </h3>
+              <p className="text-slate-600 mb-6">
+                Your event registrations will appear here once you book tickets
+              </p>
+              <Link to={createPageUrl('Events')}>
+                <button className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                  Browse Events
+                </button>
+              </Link>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {Object.entries(bookingsByReference).map(([bookingRef, groupBookings], index) => {
+              const firstBooking = groupBookings[0];
+              const event = events.find(e => e.id === firstBooking.event_id);
+              
+              if (!event) return null;
+
+              const startDate = event.start_date ? new Date(event.start_date) : null;
+
+              return (
+                <Card 
+                  key={bookingRef} 
+                  id={index === 0 ? "first-booking-card" : undefined}
+                  className="border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <CardHeader className="border-b border-slate-200">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-2">
+                          <CardTitle className="text-xl">{event.title}</CardTitle>
+                          {event.program_tag && (
+                            <Badge className="bg-blue-100 text-blue-700 border-blue-200">
+                              {event.program_tag}
+                            </Badge>
+                          )}
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {startDate && (
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <Calendar className="w-4 h-4 text-slate-400" />
+                              <span>{format(startDate, "EEEE, MMMM d, yyyy")}</span>
+                            </div>
+                          )}
+                          
+                          {startDate && (
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <Clock className="w-4 h-4 text-slate-400" />
+                              <span>{format(startDate, "h:mm a")}</span>
+                            </div>
+                          )}
+                          
+                          {event.location && (
+                            <div className="flex items-center gap-2 text-sm text-slate-600">
+                              <MapPin className="w-4 h-4 text-slate-400" />
+                              <span>{event.location}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {event.image_url && (
+                        <img 
+                          src={event.image_url} 
+                          alt={event.title}
+                          className="w-24 h-24 object-cover rounded-lg"
+                        />
+                      )}
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="pt-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2 text-sm">
+                        <Ticket className="w-4 h-4 text-slate-400" />
+                        <span className="text-slate-600">Booking Reference:</span>
+                        <span className="font-semibold text-slate-900">{bookingRef}</span>
+                      </div>
+                      
+                      <div>
+                        <h4 className="text-sm font-semibold text-slate-700 mb-3">
+                          Attendees ({groupBookings.length})
+                        </h4>
+                        <div className="grid md:grid-cols-2 gap-3">
+                          {groupBookings.map((booking, bookingIndex) => {
+                            const isCancelled = booking.status === 'cancelled' || cancelledTicketIds.has(booking.id);
+                            
+                            return (
+                              <div 
+                                key={booking.id}
+                                id={index === 0 && bookingIndex === 0 ? "first-ticket-card" : undefined}
+                                className={`flex flex-col gap-2 p-3 rounded-lg border ${
+                                  isCancelled 
+                                    ? 'bg-red-50/50 border-red-200' 
+                                    : 'bg-slate-50 border-slate-200'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-2">
+                                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                                    <User className="w-4 h-4 text-slate-400 shrink-0 mt-0.5" />
+                                    <div className="flex-1 min-w-0">
+                                      {booking.attendee_first_name && booking.attendee_last_name ? (
+                                        <div>
+                                          <p className={`text-sm font-medium truncate ${
+                                            isCancelled ? 'line-through text-slate-500' : 'text-slate-900'
+                                          }`}>
+                                            {booking.attendee_first_name} {booking.attendee_last_name}
+                                          </p>
+                                          <p className={`text-xs truncate ${
+                                            isCancelled ? 'text-slate-400' : 'text-slate-500'
+                                          }`}>
+                                            {booking.attendee_email}
+                                          </p>
+                                        </div>
+                                      ) : booking.attendee_email ? (
+                                        <p className={`text-sm truncate ${
+                                          isCancelled ? 'line-through text-slate-500' : 'text-slate-700'
+                                        }`}>
+                                          {booking.attendee_email}
+                                        </p>
+                                      ) : (
+                                        <p className="text-sm text-slate-500 italic">
+                                          Pending confirmation
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    <Badge className={`${getStatusColor(isCancelled ? 'cancelled' : booking.status)}`}>
+                                      {isCancelled ? 'cancelled' : booking.status}
+                                    </Badge>
+                                    {!isCancelled && booking.backstage_order_id && (
+                                      <Button
+                                        id={index === 0 && bookingIndex === 0 ? "first-ticket-edit-button" : undefined}
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                        onClick={() => handleCancelClick(booking)}
+                                        disabled={cancellingTicketId === booking.id}
+                                      >
+                                        <Pencil className="w-3 h-3" />
+                                      </Button>
+                                    )}
+                                  </div>
+                                </div>
+                                
+                                {booking.backstage_order_id && (
+                                  <div className="flex items-center gap-2 text-xs text-slate-500 pl-6">
+                                    <Ticket className="w-3 h-3 text-purple-400" />
+                                    <span className="font-mono text-purple-600 bg-purple-50 px-2 py-0.5 rounded">
+                                      {booking.backstage_order_id}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                      
+                      {groupBookings.some(b => b.status === 'pending') && (
+                        <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                          <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                          <p className="text-xs text-amber-800">
+                            Some bookings are pending confirmation. Confirmation links have been sent to the attendees' email addresses.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Cancel Registration?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cancelling this registration will make the ticket available for reallocation.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, keep registration</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleCancelConfirm}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Yes, cancel registration
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  );
+}

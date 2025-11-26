@@ -1,0 +1,61 @@
+{
+    "name": "Organization",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Organization name from Zoho CRM Accounts"
+      },
+      "logo_url": {
+        "type": "string",
+        "description": "URL to organization logo image"
+      },
+      "zoho_account_id": {
+        "type": "string",
+        "description": "Zoho CRM Account ID"
+      },
+      "domain": {
+        "type": "string",
+        "description": "Primary domain for the organization"
+      },
+      "additional_verified_domains": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "Additional verified domains for the organization",
+        "default": []
+      },
+      "training_fund_balance": {
+        "type": "number",
+        "default": 0,
+        "description": "Available training fund balance"
+      },
+      "program_ticket_balances": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "number"
+        },
+        "description": "Available program tickets by program name",
+        "default": {}
+      },
+      "purchase_order_enabled": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether this organization can use purchase orders"
+      },
+      "contacts_synced_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When organization contacts were last fully synced"
+      },
+      "last_synced": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Last sync from Zoho CRM"
+      }
+    },
+    "required": [
+      "name"
+    ]
+  }

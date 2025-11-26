@@ -1,0 +1,63 @@
+{
+    "name": "DiscountCode",
+    "type": "object",
+    "properties": {
+      "code": {
+        "type": "string",
+        "description": "Unique discount code (e.g., SUMMER20)"
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "percentage",
+          "fixed"
+        ],
+        "description": "Type of discount: percentage off or fixed monetary amount"
+      },
+      "value": {
+        "type": "number",
+        "description": "The discount amount (e.g., 20 for 20% or 10.00 for £10 fixed)"
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description for internal reference"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this discount code is currently active"
+      },
+      "expires_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Optional expiry date for the discount code"
+      },
+      "min_purchase_amount": {
+        "type": "number",
+        "default": 0,
+        "description": "Minimum total purchase amount required for the discount to apply"
+      },
+      "max_usage_count": {
+        "type": "number",
+        "description": "Maximum number of times this code can be used (globally for general codes, per-organization for org-specific codes)"
+      },
+      "current_usage_count": {
+        "type": "number",
+        "default": 0,
+        "description": "Current usage count for global codes only (organization-specific codes use DiscountCodeUsage entity)"
+      },
+      "program_tag": {
+        "type": "string",
+        "description": "Optional: program tag if this discount is specific to a program"
+      },
+      "organization_id": {
+        "type": "string",
+        "description": "Optional: Reference to Organization entity if this discount is exclusive to one organization. If null, it's a global discount available to all organizations."
+      }
+    },
+    "required": [
+      "code",
+      "type",
+      "value"
+    ]
+  }

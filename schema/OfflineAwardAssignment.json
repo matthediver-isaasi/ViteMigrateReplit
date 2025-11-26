@@ -1,0 +1,30 @@
+{
+    "name": "OfflineAwardAssignment",
+    "type": "object",
+    "properties": {
+      "offline_award_id": {
+        "type": "string",
+        "description": "Reference to OfflineAward entity"
+      },
+      "member_id": {
+        "type": "string",
+        "description": "Reference to Member entity"
+      },
+      "sublevel_id": {
+        "type": "string",
+        "description": "Reference to AwardSublevel entity (optional)"
+      },
+      "assigned_by": {
+        "type": "string",
+        "description": "Email of admin who assigned the award"
+      },
+      "notes": {
+        "type": "string",
+        "description": "Optional notes about the assignment"
+      }
+    },
+    "required": [
+      "offline_award_id",
+      "member_id"
+    ]
+  }

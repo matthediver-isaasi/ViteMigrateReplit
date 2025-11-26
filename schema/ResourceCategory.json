@@ -1,0 +1,50 @@
+{
+    "name": "ResourceCategory",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Category name (e.g., Webinars, Reports)"
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description of this category"
+      },
+      "subcategories": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "List of subcategory names under this category"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Order in which this category should appear in filters"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this category is currently active"
+      },
+      "applies_to_content_types": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "Articles",
+            "Resources"
+          ]
+        },
+        "default": [
+          "Articles",
+          "Resources"
+        ],
+        "description": "Content types this category's filters apply to (e.g., Articles only use Theme, Resources use Theme and Level)"
+      }
+    },
+    "required": [
+      "name"
+    ]
+  }

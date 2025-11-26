@@ -1,0 +1,40 @@
+{
+    "name": "GuestWriter",
+    "type": "object",
+    "properties": {
+      "full_name": {
+        "type": "string",
+        "description": "Full name of the guest writer"
+      },
+      "email": {
+        "type": "string",
+        "format": "email",
+        "description": "Email address of the guest writer"
+      },
+      "organization": {
+        "type": "string",
+        "description": "Organization/company the guest writer is affiliated with"
+      },
+      "job_title": {
+        "type": "string",
+        "description": "Job title or position"
+      },
+      "biography": {
+        "type": "string",
+        "description": "Professional biography of the guest writer"
+      },
+      "profile_photo_url": {
+        "type": "string",
+        "description": "URL to guest writer's profile photo"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this guest writer profile is active"
+      }
+    },
+    "required": [
+      "full_name",
+      "email"
+    ]
+  }

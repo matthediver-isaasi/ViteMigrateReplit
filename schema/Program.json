@@ -1,0 +1,71 @@
+{
+    "name": "Program",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Program name"
+      },
+      "description": {
+        "type": "string",
+        "description": "Program description"
+      },
+      "program_tag": {
+        "type": "string",
+        "description": "Tag used to link events to this program"
+      },
+      "image_url": {
+        "type": "string",
+        "description": "Program banner image"
+      },
+      "program_ticket_price": {
+        "type": "number",
+        "default": 0,
+        "description": "Price per program ticket"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this program is currently active"
+      },
+      "offer_type": {
+        "type": "string",
+        "enum": [
+          "none",
+          "bogo",
+          "bulk_discount"
+        ],
+        "default": "none",
+        "description": "Type of offer for this program: none, BOGO, or bulk discount"
+      },
+      "bulk_discount_threshold": {
+        "type": "number",
+        "description": "Number of tickets needed to trigger bulk discount"
+      },
+      "bulk_discount_percentage": {
+        "type": "number",
+        "description": "Percentage discount for bulk purchases"
+      },
+      "bogo_buy_quantity": {
+        "type": "number",
+        "description": "Buy X quantity for BOGO offer (e.g., 3 in 'buy 3 get 1 free')"
+      },
+      "bogo_get_free_quantity": {
+        "type": "number",
+        "description": "Get Y free quantity for BOGO offer (e.g., 1 in 'buy 3 get 1 free')"
+      },
+      "bogo_logic_type": {
+        "type": "string",
+        "enum": [
+          "buy_x_get_y_free",
+          "enter_total_pay_less"
+        ],
+        "default": "buy_x_get_y_free",
+        "description": "BOGO calculation method: 'buy_x_get_y_free' = user enters X, receives X+Y, pays for X (legacy). 'enter_total_pay_less' = user enters total tickets wanted, pays for fewer"
+      }
+    },
+    "required": [
+      "name",
+      "program_tag"
+    ]
+  }

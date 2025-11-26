@@ -1,0 +1,96 @@
+{
+    "name": "Resource",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "The main title of the resource"
+      },
+      "description": {
+        "type": "string",
+        "description": "A brief summary or excerpt to display on the card"
+      },
+      "subcategories": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Array of subcategories from any category"
+      },
+      "resource_type": {
+        "type": "string",
+        "enum": [
+          "download",
+          "video",
+          "external_link"
+        ],
+        "description": "Defines the nature of the resource and dictates the CTA button text/action"
+      },
+      "target_url": {
+        "type": "string",
+        "description": "The URL for the resource itself (download link, YouTube/Vimeo embed code, or external website URL)"
+      },
+      "open_in_new_tab": {
+        "type": "boolean",
+        "default": true,
+        "description": "For external_link type: whether to open in a new tab or same window"
+      },
+      "image_url": {
+        "type": "string",
+        "description": "A URL for a thumbnail or preview image to display on the resource card"
+      },
+      "release_date": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When the resource should be released/made available to users. Resources with future dates are scheduled for release."
+      },
+      "is_public": {
+        "type": "boolean",
+        "default": true,
+        "description": "A flag to control visibility - if false, only members can see it"
+      },
+      "allowed_role_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Array of role IDs that can access this resource. Empty array means all roles can access (when is_public is false)"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "For more granular search or filtering"
+      },
+      "author_id": {
+        "type": "string",
+        "description": "ID of the member or team member who authored this resource"
+      },
+      "author_name": {
+        "type": "string",
+        "description": "Name of the author (cached for display)"
+      },
+      "folder_id": {
+        "type": "string",
+        "description": "Reference to ResourceFolder entity - the folder this resource belongs to"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "active"
+        ],
+        "default": "active",
+        "description": "Publication status - draft resources are not visible to end users"
+      }
+    },
+    "required": [
+      "title",
+      "resource_type",
+      "target_url"
+    ]
+  }

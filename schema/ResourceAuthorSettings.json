@@ -1,0 +1,42 @@
+{
+    "name": "ResourceAuthorSettings",
+    "type": "object",
+    "properties": {
+      "author_role_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Role IDs that can be selected as resource authors"
+      },
+      "description_character_limit": {
+        "type": "number",
+        "default": 500,
+        "description": "Maximum number of characters allowed for resource descriptions"
+      },
+      "show_folders": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether to show the folder management section in Resource Management"
+      },
+      "enabled_social_icons": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "enum": [
+            "x",
+            "linkedin",
+            "email"
+          ]
+        },
+        "default": [
+          "x",
+          "linkedin",
+          "email"
+        ],
+        "description": "Which social sharing icons to display on resource cards"
+      }
+    },
+    "required": []
+  }

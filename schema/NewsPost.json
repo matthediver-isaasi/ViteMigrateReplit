@@ -1,0 +1,78 @@
+{
+    "name": "NewsPost",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "News article title"
+      },
+      "slug": {
+        "type": "string",
+        "description": "URL-friendly identifier"
+      },
+      "author_id": {
+        "type": "string",
+        "description": "Reference to Member or TeamMember who created it (for internal tracking only)"
+      },
+      "author_name": {
+        "type": "string",
+        "description": "Cached author name (for internal tracking only)"
+      },
+      "summary": {
+        "type": "string",
+        "description": "Short excerpt for listings"
+      },
+      "content": {
+        "type": "string",
+        "description": "Main article content (rich text HTML)"
+      },
+      "feature_image_url": {
+        "type": "string",
+        "description": "Main image for the article"
+      },
+      "subcategories": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "News categories from ResourceCategory"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "News tags/keywords"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "published",
+          "archived"
+        ],
+        "default": "draft",
+        "description": "Publication status"
+      },
+      "published_date": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When the news was/will be published"
+      },
+      "seo_title": {
+        "type": "string",
+        "description": "Custom SEO title"
+      },
+      "seo_description": {
+        "type": "string",
+        "description": "Custom SEO description"
+      }
+    },
+    "required": [
+      "title",
+      "slug",
+      "content"
+    ]
+  }

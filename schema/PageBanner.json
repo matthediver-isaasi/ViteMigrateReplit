@@ -1,0 +1,72 @@
+{
+    "name": "PageBanner",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Descriptive name for the banner (e.g., 'Homepage Hero Banner')"
+      },
+      "image_url": {
+        "type": "string",
+        "description": "URL of the uploaded banner image"
+      },
+      "alt_text": {
+        "type": "string",
+        "description": "Alternative text for the image (for accessibility)"
+      },
+      "size": {
+        "type": "string",
+        "enum": [
+          "full-width",
+          "contained",
+          "wide"
+        ],
+        "default": "full-width",
+        "description": "Banner size option"
+      },
+      "height": {
+        "type": "string",
+        "enum": [
+          "small",
+          "medium",
+          "large",
+          "auto"
+        ],
+        "default": "medium",
+        "description": "Banner height option"
+      },
+      "position": {
+        "type": "string",
+        "enum": [
+          "top",
+          "center",
+          "bottom"
+        ],
+        "default": "center",
+        "description": "Vertical positioning of the image within the banner"
+      },
+      "associated_pages": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "List of public page names where this banner should appear"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Order priority if multiple banners on same page (lower numbers show first)"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this banner is currently active"
+      }
+    },
+    "required": [
+      "name",
+      "image_url",
+      "associated_pages"
+    ]
+  }

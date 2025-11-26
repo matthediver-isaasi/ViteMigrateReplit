@@ -1,0 +1,36 @@
+{
+    "name": "AwardClassification",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Classification name (e.g., 'Writing Awards', 'Attendance Awards', 'Effort Awards')"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description of this classification"
+      },
+      "award_category": {
+        "type": "string",
+        "enum": [
+          "online",
+          "offline"
+        ],
+        "description": "Whether this classification is for online or offline awards"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Order in which classifications appear"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this classification is currently active"
+      }
+    },
+    "required": [
+      "name",
+      "award_category"
+    ]
+  }

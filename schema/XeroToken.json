@@ -1,0 +1,33 @@
+{
+    "name": "XeroToken",
+    "type": "object",
+    "properties": {
+      "access_token": {
+        "type": "string",
+        "description": "Current access token for Xero"
+      },
+      "refresh_token": {
+        "type": "string",
+        "description": "Refresh token for getting new access tokens"
+      },
+      "expires_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When the access token expires"
+      },
+      "tenant_id": {
+        "type": "string",
+        "description": "The Xero organization ID (tenant) to invoice"
+      },
+      "token_type": {
+        "type": "string",
+        "default": "Bearer"
+      }
+    },
+    "required": [
+      "access_token",
+      "refresh_token",
+      "expires_at",
+      "tenant_id"
+    ]
+  }

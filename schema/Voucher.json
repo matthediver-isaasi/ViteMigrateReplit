@@ -1,0 +1,52 @@
+{
+    "name": "Voucher",
+    "type": "object",
+    "properties": {
+      "organization_id": {
+        "type": "string",
+        "description": "Reference to Organization entity"
+      },
+      "code": {
+        "type": "string",
+        "description": "Unique voucher code/identifier"
+      },
+      "value": {
+        "type": "number",
+        "description": "Monetary value of the voucher"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description of the voucher (e.g., 'Annual Conference 2023')"
+      },
+      "expires_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When this voucher expires"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "active",
+          "used",
+          "expired"
+        ],
+        "default": "active",
+        "description": "Current status of the voucher"
+      },
+      "used_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When this voucher was used"
+      },
+      "used_for_transaction_id": {
+        "type": "string",
+        "description": "Reference to ProgramTicketTransaction where this was used"
+      }
+    },
+    "required": [
+      "organization_id",
+      "code",
+      "value",
+      "expires_at"
+    ]
+  }

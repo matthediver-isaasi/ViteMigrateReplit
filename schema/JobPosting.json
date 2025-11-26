@@ -1,0 +1,152 @@
+{
+    "name": "JobPosting",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Job title"
+      },
+      "description": {
+        "type": "string",
+        "description": "Full job description"
+      },
+      "company_name": {
+        "type": "string",
+        "description": "Name of the company posting the job"
+      },
+      "company_logo_url": {
+        "type": "string",
+        "description": "URL to the company logo"
+      },
+      "location": {
+        "type": "string",
+        "description": "Job location (e.g., 'London, UK', 'Remote', 'Hybrid')"
+      },
+      "salary_range": {
+        "type": "string",
+        "description": "Salary range or compensation details"
+      },
+      "job_type": {
+        "type": "string",
+        "description": "Type of employment (configurable via JobBoardSettings)"
+      },
+      "hours": {
+        "type": "string",
+        "description": "Working hours (e.g., 'Full-time', 'Part-time', configurable via JobBoardSettings)"
+      },
+      "application_method": {
+        "type": "string",
+        "enum": [
+          "url",
+          "email"
+        ],
+        "description": "How to apply: via URL or email"
+      },
+      "application_value": {
+        "type": "string",
+        "description": "The URL or email address for applications"
+      },
+      "contact_email": {
+        "type": "string",
+        "format": "email",
+        "description": "Email of the person who posted the job"
+      },
+      "contact_name": {
+        "type": "string",
+        "description": "Name of the person who posted the job"
+      },
+      "posted_by_member_id": {
+        "type": "string",
+        "description": "Reference to Member entity if posted by a logged-in member"
+      },
+      "posted_by_organization_id": {
+        "type": "string",
+        "description": "Reference to Organization entity - tracks which member organization posted this job"
+      },
+      "posted_by_organization_name": {
+        "type": "string",
+        "description": "Name of the organization that posted this job (cached for display)"
+      },
+      "is_member_post": {
+        "type": "boolean",
+        "default": false,
+        "description": "True if posted by a member for free, false for paid non-member posts"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "pending_approval",
+          "active",
+          "expired",
+          "rejected",
+          "pending_payment"
+        ],
+        "default": "pending_approval",
+        "description": "Current status of the job posting"
+      },
+      "payment_status": {
+        "type": "string",
+        "enum": [
+          "N/A",
+          "pending",
+          "paid",
+          "failed"
+        ],
+        "default": "N/A",
+        "description": "Payment status for non-member posts"
+      },
+      "stripe_payment_intent_id": {
+        "type": "string",
+        "description": "Stripe payment intent ID for non-member posts"
+      },
+      "stripe_checkout_session_id": {
+        "type": "string",
+        "description": "Stripe checkout session ID"
+      },
+      "amount_paid": {
+        "type": "number",
+        "description": "Amount paid for the job posting"
+      },
+      "expiry_date": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Date when the job posting will expire (auto-archive)"
+      },
+      "closing_date": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Application deadline - date when applications close"
+      },
+      "featured": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether this job should be featured/highlighted"
+      },
+      "attachment_urls": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "URLs of uploaded documents (job packs, PDFs, Word docs, etc.)"
+      },
+      "attachment_names": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Original filenames of uploaded documents"
+      }
+    },
+    "required": [
+      "title",
+      "description",
+      "company_name",
+      "location",
+      "application_method",
+      "application_value",
+      "contact_email",
+      "closing_date"
+    ]
+  }

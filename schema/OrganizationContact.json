@@ -1,0 +1,42 @@
+{
+    "name": "OrganizationContact",
+    "type": "object",
+    "properties": {
+      "organization_id": {
+        "type": "string",
+        "description": "Reference to Organization entity"
+      },
+      "zoho_contact_id": {
+        "type": "string",
+        "description": "Zoho CRM Contact ID"
+      },
+      "email": {
+        "type": "string",
+        "format": "email",
+        "description": "Contact's email address"
+      },
+      "first_name": {
+        "type": "string",
+        "description": "Contact's first name"
+      },
+      "last_name": {
+        "type": "string",
+        "description": "Contact's last name"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this contact is still active"
+      },
+      "last_synced": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Last sync from Zoho CRM"
+      }
+    },
+    "required": [
+      "organization_id",
+      "zoho_contact_id",
+      "email"
+    ]
+  }

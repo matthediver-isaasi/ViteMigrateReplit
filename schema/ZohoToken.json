@@ -1,0 +1,28 @@
+{
+    "name": "ZohoToken",
+    "type": "object",
+    "properties": {
+      "access_token": {
+        "type": "string",
+        "description": "Current access token"
+      },
+      "refresh_token": {
+        "type": "string",
+        "description": "Refresh token for getting new access tokens"
+      },
+      "expires_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When the access token expires"
+      },
+      "token_type": {
+        "type": "string",
+        "default": "Bearer"
+      }
+    },
+    "required": [
+      "access_token",
+      "refresh_token",
+      "expires_at"
+    ]
+  }

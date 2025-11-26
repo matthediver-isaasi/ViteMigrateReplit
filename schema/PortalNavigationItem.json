@@ -1,0 +1,71 @@
+{
+    "name": "PortalNavigationItem",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Display text for the navigation item"
+      },
+      "url": {
+        "type": "string",
+        "description": "Page URL or slug"
+      },
+      "icon": {
+        "type": "string",
+        "description": "Lucide icon name"
+      },
+      "feature_id": {
+        "type": "string",
+        "description": "Feature ID for permission checks"
+      },
+      "section": {
+        "type": "string",
+        "enum": [
+          "user",
+          "admin"
+        ],
+        "default": "user",
+        "description": "Whether this item appears in user or admin navigation"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Order in which this item appears"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this item is currently visible"
+      },
+      "parent_title": {
+        "type": "string",
+        "description": "Parent menu title if this is a sub-item"
+      },
+      "sub_items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "url": {
+              "type": "string"
+            },
+            "feature_id": {
+              "type": "string"
+            }
+          }
+        },
+        "default": [],
+        "description": "Sub-menu items for this navigation item"
+      }
+    },
+    "required": [
+      "title",
+      "url",
+      "icon",
+      "feature_id",
+      "section"
+    ]
+  }

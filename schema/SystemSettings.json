@@ -1,0 +1,22 @@
+{
+    "name": "SystemSettings",
+    "type": "object",
+    "properties": {
+      "setting_key": {
+        "type": "string",
+        "description": "Unique key for this setting"
+      },
+      "setting_value": {
+        "type": "string",
+        "description": "Value for this setting (stored as string, parsed as needed)"
+      },
+      "description": {
+        "type": "string",
+        "description": "Human-readable description of what this setting does"
+      }
+    },
+    "required": [
+      "setting_key",
+      "setting_value"
+    ]
+  }

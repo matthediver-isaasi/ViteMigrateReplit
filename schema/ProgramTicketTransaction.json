@@ -1,0 +1,110 @@
+{
+    "name": "ProgramTicketTransaction",
+    "type": "object",
+    "properties": {
+      "organization_id": {
+        "type": "string",
+        "description": "Reference to Organization entity"
+      },
+      "program_name": {
+        "type": "string",
+        "description": "Name of the program"
+      },
+      "transaction_type": {
+        "type": "string",
+        "enum": [
+          "purchase",
+          "usage",
+          "refund",
+          "cancellation_void",
+          "reinstatement"
+        ],
+        "description": "Type of transaction"
+      },
+      "quantity": {
+        "type": "number",
+        "description": "Number of tickets in this transaction (positive for purchase/refund, positive for usage)"
+      },
+      "original_quantity": {
+        "type": "number",
+        "description": "Original quantity of tickets in this transaction (for purchases, before any cancellations)"
+      },
+      "cancelled_quantity": {
+        "type": "number",
+        "default": 0,
+        "description": "Number of tickets from this transaction that have been cancelled (for purchase transactions)"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "active",
+          "cancelled"
+        ],
+        "default": "active",
+        "description": "Status of the transaction - 'cancelled' when fully cancelled"
+      },
+      "purchase_order_number": {
+        "type": "string",
+        "description": "PO number for purchases"
+      },
+      "booking_reference": {
+        "type": "string",
+        "description": "Booking reference for usages/refunds"
+      },
+      "event_name": {
+        "type": "string",
+        "description": "Event name for usages/refunds"
+      },
+      "member_email": {
+        "type": "string",
+        "description": "Email of member who made the transaction"
+      },
+      "notes": {
+        "type": "string",
+        "description": "Additional notes about the transaction"
+      },
+      "xero_invoice_id": {
+        "type": "string",
+        "description": "Xero invoice ID if an invoice was raised for an account charge"
+      },
+      "xero_invoice_number": {
+        "type": "string",
+        "description": "Xero invoice number for reference"
+      },
+      "xero_invoice_pdf_uri": {
+        "type": "string",
+        "description": "Private file URI for the Xero invoice PDF"
+      },
+      "discount_code_id": {
+        "type": "string",
+        "description": "Reference to DiscountCode entity if a discount was applied"
+      },
+      "discount_amount_applied": {
+        "type": "number",
+        "description": "The monetary value of the discount applied (e.g., 50.00 for £50 off)"
+      },
+      "total_cost_before_discount": {
+        "type": "number",
+        "description": "The original total cost before any discount was applied"
+      },
+      "cancelled_by_member_email": {
+        "type": "string",
+        "description": "Email of admin who cancelled this transaction (for audit trail)"
+      },
+      "cancelled_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When this transaction was cancelled"
+      },
+      "original_transaction_id": {
+        "type": "string",
+        "description": "For cancellation_void or reinstatement types, reference to the original purchase transaction"
+      }
+    },
+    "required": [
+      "organization_id",
+      "program_name",
+      "transaction_type",
+      "quantity"
+    ]
+  }

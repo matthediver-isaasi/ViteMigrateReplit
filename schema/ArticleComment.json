@@ -1,0 +1,42 @@
+{
+    "name": "ArticleComment",
+    "type": "object",
+    "properties": {
+      "article_id": {
+        "type": "string",
+        "description": "Reference to BlogPost entity"
+      },
+      "content": {
+        "type": "string",
+        "description": "The comment text"
+      },
+      "author_name": {
+        "type": "string",
+        "description": "Name of the person commenting"
+      },
+      "author_member_id": {
+        "type": "string",
+        "description": "Reference to Member entity if commenter is a logged-in member"
+      },
+      "is_member": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether this comment is from a logged-in member"
+      },
+      "thumbs_up_count": {
+        "type": "number",
+        "default": 0,
+        "description": "Number of thumbs up reactions"
+      },
+      "thumbs_down_count": {
+        "type": "number",
+        "default": 0,
+        "description": "Number of thumbs down reactions"
+      }
+    },
+    "required": [
+      "article_id",
+      "content",
+      "author_name"
+    ]
+  }

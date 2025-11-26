@@ -1,0 +1,30 @@
+{
+    "name": "MagicLink",
+    "type": "object",
+    "properties": {
+      "email": {
+        "type": "string",
+        "format": "email",
+        "description": "Email address for this magic link"
+      },
+      "token": {
+        "type": "string",
+        "description": "Unique token for authentication"
+      },
+      "expires_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When this magic link expires"
+      },
+      "used": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether this link has been used"
+      }
+    },
+    "required": [
+      "email",
+      "token",
+      "expires_at"
+    ]
+  }

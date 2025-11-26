@@ -1,0 +1,59 @@
+{
+    "name": "FormSubmission",
+    "type": "object",
+    "properties": {
+      "form_id": {
+        "type": "string",
+        "description": "Reference to Form entity"
+      },
+      "form_name": {
+        "type": "string",
+        "description": "Cached form name for reference"
+      },
+      "submitted_by_email": {
+        "type": "string",
+        "format": "email",
+        "description": "Email of the submitter (if authenticated)"
+      },
+      "submitted_by_name": {
+        "type": "string",
+        "description": "Name of the submitter (if authenticated)"
+      },
+      "submission_data": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "The submitted form data as key-value pairs"
+      },
+      "ip_address": {
+        "type": "string",
+        "description": "IP address of submitter"
+      },
+      "user_agent": {
+        "type": "string",
+        "description": "Browser user agent"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "new",
+          "junk",
+          "actioned"
+        ],
+        "default": "new",
+        "description": "Status of the submission"
+      },
+      "status_updated_by": {
+        "type": "string",
+        "description": "Email of the user who last updated the status"
+      },
+      "status_updated_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When the status was last updated"
+      }
+    },
+    "required": [
+      "form_id",
+      "submission_data"
+    ]
+  }

@@ -1,0 +1,88 @@
+{
+    "name": "SupportTicket",
+    "type": "object",
+    "properties": {
+      "type": {
+        "type": "string",
+        "enum": [
+          "bug",
+          "feature_request",
+          "how_to",
+          "general"
+        ],
+        "description": "Type of support ticket"
+      },
+      "subject": {
+        "type": "string",
+        "description": "Ticket subject/title"
+      },
+      "description": {
+        "type": "string",
+        "description": "Detailed description of the issue or request"
+      },
+      "severity": {
+        "type": "string",
+        "enum": [
+          "minor",
+          "moderate",
+          "major",
+          "critical"
+        ],
+        "default": "moderate",
+        "description": "Severity level of the issue"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "open",
+          "in_progress",
+          "resolved",
+          "closed"
+        ],
+        "default": "open",
+        "description": "Current status of the ticket"
+      },
+      "priority": {
+        "type": "string",
+        "enum": [
+          "low",
+          "medium",
+          "high",
+          "urgent"
+        ],
+        "default": "medium",
+        "description": "Priority level"
+      },
+      "submitter_email": {
+        "type": "string",
+        "description": "Email of the person who submitted the ticket"
+      },
+      "submitter_name": {
+        "type": "string",
+        "description": "Name of the person who submitted the ticket"
+      },
+      "assigned_to": {
+        "type": "string",
+        "description": "Admin/developer assigned to this ticket"
+      },
+      "attachments": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Array of file URLs attached to the ticket"
+      },
+      "resolution_notes": {
+        "type": "string",
+        "description": "Final resolution notes when ticket is closed"
+      }
+    },
+    "required": [
+      "type",
+      "subject",
+      "description",
+      "submitter_email",
+      "submitter_name"
+    ]
+  }

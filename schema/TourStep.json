@@ -1,0 +1,70 @@
+{
+    "name": "TourStep",
+    "type": "object",
+    "properties": {
+      "tour_group_id": {
+        "type": "string",
+        "description": "Reference to TourGroup entity"
+      },
+      "step_order": {
+        "type": "number",
+        "description": "The sequence of this step within its tour (1, 2, 3, etc.)"
+      },
+      "target_selector": {
+        "type": [
+          "string",
+          "null"
+        ],
+        "description": "CSS selector for the element to highlight (e.g., '#first-program-card'). Leave null/empty for welcome/info steps."
+      },
+      "title": {
+        "type": "string",
+        "description": "Title shown in the tour popup"
+      },
+      "content": {
+        "type": "string",
+        "description": "Explanatory text for this step"
+      },
+      "placement": {
+        "type": "string",
+        "enum": [
+          "top",
+          "bottom",
+          "left",
+          "right"
+        ],
+        "default": "bottom",
+        "description": "Where the popup appears relative to target"
+      },
+      "mode": {
+        "type": "string",
+        "enum": [
+          "interactive",
+          "standard"
+        ],
+        "default": "standard",
+        "description": "Interactive requires clicking target to proceed"
+      },
+      "size": {
+        "type": "string",
+        "enum": [
+          "small",
+          "medium",
+          "large"
+        ],
+        "default": "medium",
+        "description": "Size of the popup card (only applies to welcome/info steps)"
+      },
+      "gap": {
+        "type": "number",
+        "default": 40,
+        "description": "Gap in pixels between the popup and target element (or viewport edge for welcome steps)"
+      }
+    },
+    "required": [
+      "tour_group_id",
+      "step_order",
+      "title",
+      "content"
+    ]
+  }

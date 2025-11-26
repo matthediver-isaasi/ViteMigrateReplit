@@ -1,0 +1,519 @@
+import React from "react";
+import AGCASButton from "../../ui/AGCASButton";
+
+export default function IEditHeroElement({ content, variant, settings }) {
+  const {
+    heading_font_family = 'Poppins',
+    heading_font_size = 48,
+    heading_letter_spacing = 0,
+    heading_underline_enabled = false,
+    heading_underline_color = '#000000',
+    heading_underline_width = 100,
+    heading_underline_weight = 2,
+    heading_underline_spacing = 16,
+    heading_underline_to_content_spacing = 24,
+    subheading_font_family = 'Poppins',
+    subheading_font_size = 20,
+    subheading_line_height = 1.5,
+    text_align = 'center',
+    background_color,
+    padding_left = 16,
+    padding_right = 16,
+    button_top_margin = 32,
+    button
+  } = content;
+
+  const variants = {
+    default: "bg-gradient-to-r from-blue-600 to-indigo-600 text-white",
+    dark: "bg-slate-900 text-white",
+    light: "bg-slate-50 text-slate-900",
+  };
+
+  const bgClass = variants[variant] || variants.default;
+  const bgStyle = background_color ? { backgroundColor: background_color } : {};
+  const containerStyle = {
+    paddingLeft: `${padding_left}px`,
+    paddingRight: `${padding_right}px`,
+    textAlign: text_align
+  };
+
+  return (
+    <div className={background_color ? "py-20" : `${bgClass} py-20`} style={bgStyle}>
+      <div className="max-w-7xl mx-auto px-4" style={containerStyle}>
+        {content.heading && (
+          <div>
+            <h1 
+              className="font-bold"
+              style={{ 
+                fontFamily: heading_font_family,
+                fontSize: `${heading_font_size}px`,
+                letterSpacing: `${heading_letter_spacing}px`,
+                marginBottom: heading_underline_enabled ? `${heading_underline_spacing}px` : '24px'
+              }}
+            >
+              {content.heading}
+            </h1>
+            {heading_underline_enabled && (
+              <div 
+                style={{
+                  width: `${heading_underline_width}px`,
+                  height: `${heading_underline_weight}px`,
+                  backgroundColor: heading_underline_color,
+                  margin: text_align === 'center' ? '0 auto' : text_align === 'right' ? '0 0 0 auto' : '0',
+                  marginBottom: `${heading_underline_to_content_spacing}px`
+                }}
+              />
+            )}
+          </div>
+        )}
+        {content.subheading && (
+          <p 
+            className="mb-8 opacity-90"
+            style={{ 
+              fontFamily: subheading_font_family,
+              fontSize: `${subheading_font_size}px`,
+              lineHeight: subheading_line_height
+            }}
+          >
+            {content.subheading}
+          </p>
+          )}
+          {button && button.text && (
+          <div style={{ marginTop: `${button_top_margin}px` }}>
+          <AGCASButton
+            text={button.text}
+            link={button.link}
+            buttonStyleId={button.button_style_id}
+            customBgColor={button.custom_bg_color}
+            customTextColor={button.custom_text_color}
+            customBorderColor={button.custom_border_color}
+            openInNewTab={button.open_in_new_tab}
+            size={button.size || 'large'}
+            showArrow={button.show_arrow}
+            />
+            </div>
+            )}
+            </div>
+            </div>
+  );
+}
+
+// Editor Component
+export function IEditHeroElementEditor({ element, onChange }) {
+  const defaultButton = { 
+    text: '', 
+    link: '', 
+    button_style_id: '', 
+    open_in_new_tab: false, 
+    size: 'large', 
+    show_arrow: false, 
+    custom_bg_color: '#000000', 
+    custom_text_color: '#ffffff', 
+    custom_border_color: '' 
+  };
+
+  const content = element.content || {
+    heading: '',
+    subheading: '',
+    heading_font_family: 'Poppins',
+    heading_font_size: 48,
+    heading_letter_spacing: 0,
+    heading_underline_enabled: false,
+    heading_underline_color: '#000000',
+    heading_underline_width: 100,
+    heading_underline_weight: 2,
+    heading_underline_spacing: 16,
+    heading_underline_to_content_spacing: 24,
+    subheading_font_family: 'Poppins',
+    subheading_font_size: 20,
+    subheading_line_height: 1.5,
+    text_align: 'center',
+    background_color: '',
+    padding_left: 16,
+    padding_right: 16,
+    button_top_margin: 32,
+    button: defaultButton
+  };
+
+  const updateContent = (key, value) => {
+    onChange({ ...element, content: { ...content, [key]: value } });
+  };
+
+  const updateButton = (key, value) => {
+    const currentButton = content.button || defaultButton;
+    updateContent('button', { ...currentButton, [key]: value });
+  };
+
+  // Fetch button styles
+  const [buttonStyles, setButtonStyles] = React.useState([]);
+  
+  React.useEffect(() => {
+    const fetchStyles = async () => {
+      try {
+        const { base44 } = await import("@/api/base44Client");
+        const styles = await base44.entities.ButtonStyle.list();
+        setButtonStyles(styles.filter(s => s.is_active));
+      } catch (error) {
+        console.error('Failed to fetch button styles:', error);
+      }
+    };
+    fetchStyles();
+  }, []);
+
+  const button = content.button || defaultButton;
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm font-medium mb-1">Heading</label>
+        <input
+          type="text"
+          value={content.heading || ''}
+          onChange={(e) => updateContent('heading', e.target.value)}
+          className="w-full px-3 py-2 border border-slate-300 rounded-md"
+          placeholder="Enter heading..."
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium mb-1">Heading Font</label>
+          <select
+            value={content.heading_font_family || 'Poppins'}
+            onChange={(e) => updateContent('heading_font_family', e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+          >
+            <option value="Poppins">Poppins</option>
+            <option value="Degular Medium">Degular Medium</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Heading Size (px)</label>
+          <input
+            type="number"
+            value={content.heading_font_size || 48}
+            onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value) || 48)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            min="12"
+            max="200"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Heading Letter Spacing (px)</label>
+        <input
+          type="number"
+          step="0.5"
+          value={content.heading_letter_spacing || 0}
+          onChange={(e) => updateContent('heading_letter_spacing', parseFloat(e.target.value) || 0)}
+          className="w-full px-3 py-2 border border-slate-300 rounded-md"
+          min="-5"
+          max="20"
+        />
+      </div>
+
+      <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="underline-enabled"
+            checked={content.heading_underline_enabled || false}
+            onChange={(e) => updateContent('heading_underline_enabled', e.target.checked)}
+            className="w-4 h-4"
+          />
+          <label htmlFor="underline-enabled" className="text-sm font-medium cursor-pointer">
+            Show line below heading
+          </label>
+        </div>
+
+        {content.heading_underline_enabled && (
+          <>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Line Color</label>
+                <input
+                  type="color"
+                  value={content.heading_underline_color || '#000000'}
+                  onChange={(e) => updateContent('heading_underline_color', e.target.value)}
+                  className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Line Width (px)</label>
+                <input
+                  type="number"
+                  value={content.heading_underline_width || 100}
+                  onChange={(e) => updateContent('heading_underline_width', parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="10"
+                  max="1000"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Line Weight (px)</label>
+                <input
+                  type="number"
+                  value={content.heading_underline_weight || 2}
+                  onChange={(e) => updateContent('heading_underline_weight', parseInt(e.target.value) || 1)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="1"
+                  max="20"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Spacing from Header (px)</label>
+                <input
+                  type="number"
+                  value={content.heading_underline_spacing || 16}
+                  onChange={(e) => updateContent('heading_underline_spacing', parseInt(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="0"
+                  max="100"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Spacing to Content (px)</label>
+              <input
+                type="number"
+                value={content.heading_underline_to_content_spacing || 24}
+                onChange={(e) => updateContent('heading_underline_to_content_spacing', parseInt(e.target.value) || 0)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                min="0"
+                max="100"
+              />
+            </div>
+          </>
+        )}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Subheading</label>
+        <textarea
+          value={content.subheading || ''}
+          onChange={(e) => updateContent('subheading', e.target.value)}
+          className="w-full px-3 py-2 border border-slate-300 rounded-md"
+          rows="3"
+          placeholder="Enter subheading..."
+        />
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div>
+          <label className="block text-sm font-medium mb-1">Subheading Font</label>
+          <select
+            value={content.subheading_font_family || 'Poppins'}
+            onChange={(e) => updateContent('subheading_font_family', e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+          >
+            <option value="Poppins">Poppins</option>
+            <option value="Degular Medium">Degular Medium</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Size (px)</label>
+          <input
+            type="number"
+            value={content.subheading_font_size || 20}
+            onChange={(e) => updateContent('subheading_font_size', parseInt(e.target.value) || 20)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            min="12"
+            max="100"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Line Height</label>
+          <input
+            type="number"
+            step="0.1"
+            value={content.subheading_line_height || 1.5}
+            onChange={(e) => updateContent('subheading_line_height', parseFloat(e.target.value) || 1.5)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            min="1"
+            max="3"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Text Alignment</label>
+        <select
+          value={content.text_align || 'center'}
+          onChange={(e) => updateContent('text_align', e.target.value)}
+          className="w-full px-3 py-2 border border-slate-300 rounded-md"
+        >
+          <option value="left">Left</option>
+          <option value="center">Center</option>
+          <option value="right">Right</option>
+        </select>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Background Color</label>
+        <input
+          type="color"
+          value={content.background_color || '#3b82f6'}
+          onChange={(e) => updateContent('background_color', e.target.value)}
+          className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+        />
+        <p className="text-xs text-slate-500 mt-1">Leave empty to use variant style</p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium mb-1">Left Padding (px)</label>
+          <input
+            type="number"
+            value={content.padding_left || 16}
+            onChange={(e) => updateContent('padding_left', parseInt(e.target.value) || 0)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            min="0"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Right Padding (px)</label>
+          <input
+            type="number"
+            value={content.padding_right || 16}
+            onChange={(e) => updateContent('padding_right', parseInt(e.target.value) || 0)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            min="0"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium mb-1">Button Top Margin (px)</label>
+        <input
+          type="number"
+          value={content.button_top_margin || 32}
+          onChange={(e) => updateContent('button_top_margin', parseInt(e.target.value) || 0)}
+          className="w-full px-3 py-2 border border-slate-300 rounded-md"
+          min="0"
+          max="200"
+        />
+        <p className="text-xs text-slate-500 mt-1">Space between text and button</p>
+      </div>
+
+      <div className="pt-4 border-t border-slate-200">
+        <h4 className="font-semibold text-sm mb-3">Button Settings</h4>
+        
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Button Text</label>
+            <input
+              type="text"
+              value={button.text || ''}
+              onChange={(e) => updateButton('text', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              placeholder="e.g., Get Started"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Link URL</label>
+            <input
+              type="text"
+              value={button.link || ''}
+              onChange={(e) => updateButton('link', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              placeholder="https://..."
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Button Style</label>
+            <select
+              value={button.button_style_id || ''}
+              onChange={(e) => updateButton('button_style_id', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            >
+              <option value="">Default Style</option>
+              {buttonStyles.map((style) => (
+                <option key={style.id} value={style.id}>
+                  {style.name}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-slate-500 mt-1">Or use custom colors below</p>
+          </div>
+
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Background</label>
+              <input
+                type="color"
+                value={button.custom_bg_color || '#000000'}
+                onChange={(e) => updateButton('custom_bg_color', e.target.value)}
+                className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Text</label>
+              <input
+                type="color"
+                value={button.custom_text_color || '#ffffff'}
+                onChange={(e) => updateButton('custom_text_color', e.target.value)}
+                className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Border</label>
+              <input
+                type="color"
+                value={button.custom_border_color || ''}
+                onChange={(e) => updateButton('custom_border_color', e.target.value)}
+                className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Button Size</label>
+            <select
+              value={button.size || 'large'}
+              onChange={(e) => updateButton('size', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            >
+              <option value="small">Small</option>
+              <option value="medium">Medium</option>
+              <option value="large">Large</option>
+              <option value="xlarge">Extra Large</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="arrow-hero"
+              checked={button.show_arrow || false}
+              onChange={(e) => updateButton('show_arrow', e.target.checked)}
+              className="w-4 h-4"
+            />
+            <label htmlFor="arrow-hero" className="text-sm cursor-pointer">
+              Show arrow icon →
+            </label>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="new-tab-hero"
+              checked={button.open_in_new_tab || false}
+              onChange={(e) => updateButton('open_in_new_tab', e.target.checked)}
+              className="w-4 h-4"
+            />
+            <label htmlFor="new-tab-hero" className="text-sm cursor-pointer">
+              Open in new tab
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

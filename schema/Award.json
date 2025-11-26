@@ -1,0 +1,49 @@
+{
+    "name": "Award",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Award name (e.g., 'Event Champion', 'Prolific Author')"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description of what this award represents"
+      },
+      "classification_id": {
+        "type": "string",
+        "description": "Reference to AwardClassification entity"
+      },
+      "award_type": {
+        "type": "string",
+        "enum": [
+          "events_attended",
+          "articles_published",
+          "jobs_posted"
+        ],
+        "description": "Type of engagement this award is for"
+      },
+      "threshold": {
+        "type": "number",
+        "description": "Base threshold for this award (individual sublevels can override)"
+      },
+      "level": {
+        "type": "number",
+        "description": "Award level for ordering (1 = first level, 2 = second level, etc.)"
+      },
+      "image_url": {
+        "type": "string",
+        "description": "URL to the award badge/logo image"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this award is currently active"
+      }
+    },
+    "required": [
+      "name",
+      "award_type",
+      "level"
+    ]
+  }

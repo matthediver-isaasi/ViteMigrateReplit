@@ -1,0 +1,30 @@
+{
+    "name": "MemberGroup",
+    "type": "object",
+    "properties": {
+      "name": {
+        "type": "string",
+        "description": "Group name"
+      },
+      "description": {
+        "type": "string",
+        "description": "Description of the group"
+      },
+      "roles": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Available roles within this group (e.g., Chair, Vice Chair, Member)"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this group is currently active"
+      }
+    },
+    "required": [
+      "name"
+    ]
+  }

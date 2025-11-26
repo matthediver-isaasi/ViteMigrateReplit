@@ -1,0 +1,32 @@
+{
+    "name": "ArticleReaction",
+    "type": "object",
+    "properties": {
+      "article_id": {
+        "type": "string",
+        "description": "Reference to BlogPost entity"
+      },
+      "reaction_type": {
+        "type": "string",
+        "enum": [
+          "up",
+          "down"
+        ],
+        "description": "Type of reaction: thumbs up or thumbs down"
+      },
+      "user_identifier": {
+        "type": "string",
+        "description": "Email or session identifier to track who reacted"
+      },
+      "is_member": {
+        "type": "boolean",
+        "default": false,
+        "description": "Whether this reaction is from a logged-in member"
+      }
+    },
+    "required": [
+      "article_id",
+      "reaction_type",
+      "user_identifier"
+    ]
+  }

@@ -1,0 +1,82 @@
+{
+    "name": "BlogPost",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Article title"
+      },
+      "slug": {
+        "type": "string",
+        "description": "URL-friendly identifier"
+      },
+      "author_id": {
+        "type": "string",
+        "description": "Reference to Member who created it (null if guest writer)"
+      },
+      "guest_writer_id": {
+        "type": "string",
+        "description": "Reference to GuestWriter (null if member author)"
+      },
+      "author_name": {
+        "type": "string",
+        "description": "Cached author name for display"
+      },
+      "summary": {
+        "type": "string",
+        "description": "Short excerpt for listings"
+      },
+      "content": {
+        "type": "string",
+        "description": "Main article content (rich text HTML)"
+      },
+      "feature_image_url": {
+        "type": "string",
+        "description": "Main image for the article"
+      },
+      "subcategories": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Article subcategories from ResourceCategory (shared with Resources)"
+      },
+      "tags": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Article tags/keywords"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "published",
+          "archived"
+        ],
+        "default": "draft",
+        "description": "Publication status"
+      },
+      "published_date": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When the article was/will be published"
+      },
+      "seo_title": {
+        "type": "string",
+        "description": "Custom SEO title"
+      },
+      "seo_description": {
+        "type": "string",
+        "description": "Custom SEO description"
+      }
+    },
+    "required": [
+      "title",
+      "slug",
+      "content"
+    ]
+  }

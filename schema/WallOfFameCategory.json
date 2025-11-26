@@ -1,0 +1,32 @@
+{
+    "name": "WallOfFameCategory",
+    "type": "object",
+    "properties": {
+      "section_id": {
+        "type": "string",
+        "description": "Reference to WallOfFameSection entity"
+      },
+      "name": {
+        "type": "string",
+        "description": "Category name (e.g., 'Staff', 'Board', 'Advisory Team')"
+      },
+      "description": {
+        "type": "string",
+        "description": "Optional description for this category"
+      },
+      "display_order": {
+        "type": "number",
+        "default": 0,
+        "description": "Order in which this category appears within its section"
+      },
+      "is_active": {
+        "type": "boolean",
+        "default": true,
+        "description": "Whether this category is currently active"
+      }
+    },
+    "required": [
+      "section_id",
+      "name"
+    ]
+  }

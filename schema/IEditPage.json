@@ -1,0 +1,62 @@
+{
+    "name": "IEditPage",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Page title"
+      },
+      "slug": {
+        "type": "string",
+        "description": "URL slug for the page (e.g., 'about-us')"
+      },
+      "description": {
+        "type": "string",
+        "description": "Brief description of the page for admin reference"
+      },
+      "status": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "published",
+          "archived"
+        ],
+        "default": "draft",
+        "description": "Publication status"
+      },
+      "layout_type": {
+        "type": "string",
+        "enum": [
+          "public",
+          "member"
+        ],
+        "default": "public",
+        "description": "Which layout to use when rendering the page"
+      },
+      "meta_title": {
+        "type": "string",
+        "description": "SEO meta title"
+      },
+      "meta_description": {
+        "type": "string",
+        "description": "SEO meta description"
+      },
+      "element_ids": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "default": [],
+        "description": "Ordered array of IEditPageElement IDs that make up this page"
+      },
+      "published_at": {
+        "type": "string",
+        "format": "date-time",
+        "description": "When the page was published"
+      }
+    },
+    "required": [
+      "title",
+      "slug"
+    ]
+  }

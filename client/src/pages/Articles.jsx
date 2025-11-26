@@ -1,0 +1,447 @@
+import React, { useState, useMemo } from "react";
+import { base44 } from "@/api/base44Client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { FileQuestion, ChevronLeft, ChevronRight, SlidersHorizontal, Save } from "lucide-react";
+import ArticleFilter from "../components/blog/ArticleFilter";
+import ArticleCard from "../components/blog/ArticleCard";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+
+export default function ArticlesPage({ memberInfo, memberRole }) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedSubcategories, setSelectedSubcategories] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [sortBy, setSortBy] = useState("newest");
+  const [itemsPerPage, setItemsPerPage] = useState(6);
+  const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  // Fetch current user's preferences
+  const { data: currentUser } = useQuery({
+    queryKey: ['current-user', memberInfo?.email],
+    queryFn: async () => {
+      const user = await base44.auth.me();
+      return user;
+    },
+    enabled: !!memberInfo,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false
+  });
+
+  const { data: articles = [], isLoading: articlesLoading } = useQuery({
+    queryKey: ['published-articles'],
+    queryFn: async () => {
+      const allArticles = await base44.entities.BlogPost.list('-published_date');
+      return allArticles.filter(article => article.status === 'published');
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true
+  });
+
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ['resourceCategories-articles'], // Updated queryKey
+    queryFn: async () => {
+      const cats = await base44.entities.ResourceCategory.list();
+      // Filter to only show categories that apply to Articles
+      const articleCategories = cats.filter(c =>
+        c.is_active &&
+        c.applies_to_content_types &&
+        c.applies_to_content_types.includes("Articles")
+      );
+      return articleCategories.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true
+  });
+
+  // Fetch all views for sorting
+  const { data: allViews = [] } = useQuery({
+    queryKey: ['all-article-views'],
+    queryFn: async () => {
+      return await base44.entities.ArticleView.list();
+    },
+    staleTime: 30 * 1000,
+  });
+
+  // Fetch all reactions for sorting
+  const { data: allReactions = [] } = useQuery({
+    queryKey: ['all-article-reactions'],
+    queryFn: async () => {
+      return await base44.entities.ArticleReaction.list();
+    },
+    staleTime: 30 * 1000,
+  });
+
+  // Fetch button styles once at page level
+  const { data: buttonStyles = [] } = useQuery({
+    queryKey: ['buttonStyles-articles'],
+    queryFn: async () => {
+      const styles = await base44.entities.ButtonStyle.list();
+      return styles.filter(s => s.card_type === 'article' && s.is_active);
+    },
+    staleTime: 0,
+    refetchOnWindowFocus: true
+  });
+
+  const { data: articleDisplayName, isLoading: displayNameLoading } = useQuery({
+    queryKey: ['article-display-name'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const setting = allSettings.find(s => s.setting_key === 'article_display_name');
+      return setting?.setting_value || 'Articles';
+    },
+    staleTime: 0
+  });
+
+  // Load saved preferences once
+  React.useEffect(() => {
+    if (currentUser?.preferences?.resources && !hasLoadedPreferences) {
+      const savedSubcategories = currentUser.preferences.resources.selectedSubcategories || [];
+      setSelectedSubcategories(savedSubcategories);
+      setHasLoadedPreferences(true);
+    }
+  }, [currentUser, hasLoadedPreferences]);
+
+  // Save preferences mutation
+  const savePreferencesMutation = useMutation({
+    mutationFn: async () => {
+      const updatedPreferences = {
+        ...(currentUser?.preferences || {}),
+        resources: {
+          selectedCategory: "all",
+          selectedSubcategories
+        }
+      };
+      await base44.auth.updateMe({ preferences: updatedPreferences });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['current-user'] });
+      toast.success('Filter preferences saved as default');
+    },
+    onError: (error) => {
+      toast.error('Failed to save preferences: ' + error.message);
+    }
+  });
+
+  // Calculate view and like counts per article
+  const articleStats = useMemo(() => {
+    const stats = {};
+    articles.forEach(article => {
+      stats[article.id] = {
+        viewCount: allViews.filter(v => v.article_id === article.id).length,
+        likeCount: allReactions.filter(r => r.article_id === article.id && r.reaction_type === 'up').length
+      };
+    });
+    return stats;
+  }, [articles, allViews, allReactions]);
+
+  const filteredArticles = useMemo(() => {
+    return articles.filter(article => {
+      const matchesSearch = article.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           article.summary?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                           article.tags?.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchesSubcategory = selectedSubcategories.length === 0 ||
+        (article.subcategories && article.subcategories.some(sub => selectedSubcategories.includes(sub)));
+
+      return matchesSearch && matchesSubcategory;
+    });
+  }, [articles, searchQuery, selectedSubcategories]);
+
+  const sortedArticles = useMemo(() => {
+    const sorted = [...filteredArticles];
+    switch (sortBy) {
+      case 'newest':
+        sorted.sort((a, b) => new Date(b.published_date || b.created_date) - new Date(a.published_date || a.created_date));
+        break;
+      case 'oldest':
+        sorted.sort((a, b) => new Date(a.published_date || a.created_date) - new Date(b.published_date || a.created_date));
+        break;
+      case 'title-asc':
+        sorted.sort((a, b) => a.title.localeCompare(b.title));
+        break;
+      case 'title-desc':
+        sorted.sort((a, b) => b.title.localeCompare(a.title));
+        break;
+      case 'most-viewed':
+        sorted.sort((a, b) => (articleStats[b.id]?.viewCount || 0) - (articleStats[a.id]?.viewCount || 0));
+        break;
+      case 'most-liked':
+        sorted.sort((a, b) => (articleStats[b.id]?.likeCount || 0) - (articleStats[a.id]?.likeCount || 0));
+        break;
+      default:
+        break;
+    }
+    return sorted;
+  }, [filteredArticles, sortBy, articleStats]);
+
+  const totalPages = Math.ceil(sortedArticles.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedArticles = sortedArticles.slice(startIndex, endIndex);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        if (totalPages > 5) pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        if (totalPages > 5) pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
+
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedSubcategories, searchQuery, sortBy, itemsPerPage]);
+
+  const handleSubcategoryToggle = (subcategory) => {
+    setSelectedSubcategories(prev => {
+      if (prev.includes(subcategory)) {
+        return prev.filter(s => s !== subcategory);
+      } else {
+        return [...prev, subcategory];
+      }
+    });
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const handleSaveAsDefault = () => {
+    savePreferencesMutation.mutate();
+  };
+
+  const isLoading = articlesLoading || categoriesLoading || displayNameLoading;
+
+  // Check if current filters differ from saved preferences
+  const hasUnsavedChanges = useMemo(() => {
+    if (!currentUser?.preferences?.resources) return selectedSubcategories.length > 0;
+    const savedSubcategories = currentUser.preferences.resources.selectedSubcategories || [];
+
+    if (savedSubcategories.length !== selectedSubcategories.length) return true;
+
+    return !savedSubcategories.every(sub => selectedSubcategories.includes(sub)) ||
+           !selectedSubcategories.every(sub => savedSubcategories.includes(sub));
+  }, [currentUser, selectedSubcategories]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-6">
+            {Array(6).fill(0).map((_, i) => (
+              <Card key={i} className="animate-pulse border-slate-200">
+                <div className="h-48 bg-slate-200" />
+                <div className="p-6">
+                  <div className="h-6 bg-slate-200 rounded w-3/4 mb-2" />
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        <div className="mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
+            {articleDisplayName}
+          </h1>
+          <p className="text-slate-600">
+            Explore {articleDisplayName.toLowerCase()} shared by our community
+          </p>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8">
+          <div className="lg:w-64 flex-shrink-0">
+            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sticky top-8">
+              <ArticleFilter
+                categories={categories}
+                selectedSubcategories={selectedSubcategories}
+                onSubcategoryToggle={handleSubcategoryToggle}
+                searchQuery={searchQuery}
+                onSearchChange={setSearchQuery}
+                onClearSearch={() => setSearchQuery("")}
+                isLoading={categoriesLoading}
+                displayName={articleDisplayName}
+              />
+
+              {memberInfo && hasUnsavedChanges && (
+                <div className="mt-4 pt-4 border-t border-slate-200">
+                  <Button
+                    onClick={handleSaveAsDefault}
+                    variant="outline"
+                    size="sm"
+                    className="w-full gap-2"
+                    disabled={savePreferencesMutation.isPending}
+                  >
+                    {savePreferencesMutation.isPending ? (
+                      <>
+                        <div className="w-3 h-3 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-3 h-3" />
+                        Save as Default
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-xs text-slate-500 mt-2 text-center">
+                    Apply these filters by default
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1">
+            {sortedArticles.length === 0 ? (
+              <Card className="border-slate-200 shadow-sm">
+                <CardContent className="p-12 text-center">
+                  <FileQuestion className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                  <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                    No {articleDisplayName.toLowerCase()} found
+                  </h3>
+                  <p className="text-slate-600">
+                    {searchQuery || selectedSubcategories.length > 0
+                      ? 'Try adjusting your search or filters'
+                      : 'Check back later for new content'}
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+                  <div className="text-sm text-slate-600">
+                    Showing {startIndex + 1}-{Math.min(endIndex, sortedArticles.length)} of {sortedArticles.length} {articleDisplayName.toLowerCase()}
+                  </div>
+
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger className="w-48">
+                      <SlidersHorizontal className="w-4 h-4 mr-2" />
+                      <SelectValue placeholder="Sort By" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="newest">Newest First</SelectItem>
+                      <SelectItem value="oldest">Oldest First</SelectItem>
+                      <SelectItem value="most-viewed">Most Viewed</SelectItem>
+                      <SelectItem value="most-liked">Most Liked</SelectItem>
+                      <SelectItem value="title-asc">Title A-Z</SelectItem>
+                      <SelectItem value="title-desc">Title Z-A</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-6 mb-8">
+                  {paginatedArticles.map(article => (
+                    <ArticleCard 
+                      key={article.id} 
+                      article={article}
+                      buttonStyles={buttonStyles}
+                      displayName={articleDisplayName}
+                    />
+                  ))}
+                </div>
+
+                {sortedArticles.length > 0 && (
+                  <Card className="border-slate-200 shadow-sm">
+                    <CardContent className="p-6">
+                      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div className="flex items-center gap-3">
+                          <span className="text-sm text-slate-600">Items per page:</span>
+                          <Select value={itemsPerPage.toString()} onValueChange={(val) => {
+                            setItemsPerPage(Number(val));
+                            setCurrentPage(1);
+                          }}>
+                            <SelectTrigger className="w-20">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="6">6</SelectItem>
+                              <SelectItem value="12">12</SelectItem>
+                              <SelectItem value="24">24</SelectItem>
+                              <SelectItem value="48">48</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+
+                        <div className="text-sm text-slate-600">
+                          Page {currentPage} of {totalPages}
+                        </div>
+
+                        <div className="flex items-center gap-1">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePageChange(currentPage - 1)}
+                            disabled={currentPage === 1}
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </Button>
+
+                          {getPageNumbers().map((page, idx) => (
+                            <React.Fragment key={idx}>
+                              {page === '...' ? (
+                                <span className="px-2 text-slate-400">...</span>
+                              ) : (
+                                <Button
+                                  variant={currentPage === page ? "default" : "outline"}
+                                  size="sm"
+                                  onClick={() => handlePageChange(page)}
+                                  className={currentPage === page ? "bg-blue-600 hover:bg-blue-700" : ""}
+                                >
+                                  {page}
+                                </Button>
+                              )}
+                            </React.Fragment>
+                          ))}
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePageChange(currentPage + 1)}
+                            disabled={currentPage === totalPages}
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

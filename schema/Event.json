@@ -1,0 +1,58 @@
+{
+    "name": "Event",
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Event name from Backstage"
+      },
+      "description": {
+        "type": "string"
+      },
+      "program_tag": {
+        "type": "string",
+        "description": "Program/category tag from Backstage"
+      },
+      "start_date": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "end_date": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "location": {
+        "type": "string"
+      },
+      "ticket_price": {
+        "type": "number"
+      },
+      "available_seats": {
+        "type": "number"
+      },
+      "backstage_event_id": {
+        "type": "string",
+        "description": "Zoho Backstage Event ID"
+      },
+      "backstage_ticket_type_id": {
+        "type": "string",
+        "description": "Zoho Backstage ticket type ID for this event's main ticket"
+      },
+      "backstage_public_url": {
+        "type": "string",
+        "description": "Public Backstage event page URL for attendees"
+      },
+      "image_url": {
+        "type": "string"
+      },
+      "last_synced": {
+        "type": "string",
+        "format": "date-time",
+        "description": "Last sync from Backstage"
+      }
+    },
+    "required": [
+      "title",
+      "program_tag"
+    ]
+  }

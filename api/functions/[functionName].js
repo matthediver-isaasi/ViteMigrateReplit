@@ -343,6 +343,62 @@ const functionHandlers = {
 
     console.log('[validateMember] Found Member record');
 
+    // Auto-generate handle if member doesn't have one
+    if (!member.handle && member.first_name && member.last_name) {
+      console.log('[validateMember] Member has no handle, generating one...');
+      
+      try {
+        const generateSlug = (text) => {
+          return text
+            .toLowerCase()
+            .trim()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-+|-+$/g, '');
+        };
+
+        const { data: allMembersForHandles } = await supabase
+          .from('member')
+          .select('handle');
+        
+        const existingHandles = new Set(
+          (allMembersForHandles || [])
+            .map(m => m.handle)
+            .filter(h => h !== null)
+        );
+
+        let baseHandle = `${generateSlug(member.first_name)}-${generateSlug(member.last_name)}`;
+        
+        if (baseHandle.length < 3) baseHandle = generateSlug(member.first_name);
+        if (baseHandle.length < 3) baseHandle = generateSlug(member.last_name);
+        if (baseHandle.length < 3) baseHandle = 'member';
+        if (baseHandle.length > 30) baseHandle = baseHandle.substring(0, 30);
+
+        let handle = baseHandle;
+        let counter = 1;
+
+        while (existingHandles.has(handle)) {
+          const suffix = `-${counter}`;
+          const maxBaseLength = 30 - suffix.length;
+          handle = baseHandle.substring(0, maxBaseLength) + suffix;
+          counter++;
+        }
+
+        const { error: updateError } = await supabase
+          .from('member')
+          .update({ handle })
+          .eq('id', member.id);
+
+        if (!updateError) {
+          member.handle = handle;
+          console.log('[validateMember] Generated and saved handle:', handle);
+        } else {
+          console.error('[validateMember] Failed to save handle:', updateError);
+        }
+      } catch (handleError) {
+        console.error('[validateMember] Error generating handle:', handleError.message);
+      }
+    }
+
     let organizationId = member.organization_id;
     let organizationName = null;
     let trainingFundBalance = 0;
@@ -372,9 +428,11 @@ const functionHandlers = {
     return {
       success: true,
       member: {
+        id: member.id,
         email: member.email,
         first_name: member.first_name,
         last_name: member.last_name,
+        handle: member.handle || null,
         organization_id: organizationId,
         organization_name: organizationName,
         training_fund_balance: trainingFundBalance,

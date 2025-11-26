@@ -3119,6 +3119,281 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Validate User - checks TeamMember first, then Zoho CRM
+  app.post('/api/functions/validateUser', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    console.log('\n\n========================================');
+    console.log('validateUser FUNCTION CALLED');
+    console.log('========================================\n');
+
+    try {
+      const { email } = req.body;
+
+      console.log('[validateUser] Email to validate:', email);
+
+      if (!email) {
+        console.warn('[validateUser] No email provided in request');
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      // Step 1: Check if this is a TeamMember first
+      console.log('\n[validateUser] STEP 1: Checking TeamMember table...');
+      const { data: allTeamMembers } = await supabase
+        .from('team_member')
+        .select('*');
+
+      const teamMember = allTeamMembers?.find((tm: any) => tm.email === email && tm.is_active === true);
+
+      if (teamMember) {
+        console.log('[validateUser] MATCH FOUND: Active TeamMember with email:', teamMember.email);
+
+        return res.json({
+          success: true,
+          user: {
+            email: teamMember.email,
+            first_name: teamMember.first_name,
+            last_name: teamMember.last_name,
+            role_id: teamMember.role_id,
+            is_team_member: true,
+            member_excluded_features: [],
+            has_seen_onboarding_tour: teamMember.has_seen_onboarding_tour || false
+          }
+        });
+      }
+
+      console.log('[validateUser] No matching TeamMember found');
+
+      // Step 2: Check Zoho CRM for regular Member
+      console.log('\n[validateUser] STEP 2: Checking Zoho CRM...');
+
+      const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN;
+      const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
+      const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
+
+      if (!ZOHO_CRM_API_DOMAIN || !ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET) {
+        return res.status(500).json({
+          success: false,
+          error: 'Zoho integration not configured'
+        });
+      }
+
+      // Get valid Zoho access token
+      let accessToken: string;
+      try {
+        accessToken = await getValidZohoAccessToken(supabase);
+        console.log('[validateUser] Successfully obtained access token');
+      } catch (authError: any) {
+        console.error('[validateUser] Failed to get Zoho Access Token:', authError.message);
+        return res.status(500).json({
+          success: false,
+          error: 'Zoho integration error. Please contact support.',
+          details: authError.message
+        });
+      }
+
+      // Search Zoho CRM for contact
+      const criteria = `(Email:equals:${email})`;
+      const searchUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts/search?criteria=${encodeURIComponent(criteria)}`;
+
+      console.log('[validateUser] Searching Zoho CRM...');
+
+      const searchResponse = await fetch(searchUrl, {
+        headers: {
+          'Authorization': `Zoho-oauthtoken ${accessToken}`,
+        },
+      });
+
+      console.log('[validateUser] Zoho CRM Response status:', searchResponse.status);
+
+      let searchData: any;
+      try {
+        searchData = await searchResponse.json();
+      } catch (parseError) {
+        console.error('[validateUser] Failed to parse Zoho response');
+        return res.status(500).json({
+          success: false,
+          error: 'Invalid response from CRM'
+        });
+      }
+
+      if (!searchResponse.ok) {
+        console.error('[validateUser] CRM search failed:', searchData);
+        return res.status(searchResponse.status).json({
+          success: false,
+          error: 'Error searching CRM. Please try again.',
+          details: searchData
+        });
+      }
+
+      if (!searchData.data || searchData.data.length === 0) {
+        console.warn('[validateUser] Email not found in Zoho CRM:', email);
+        return res.status(404).json({
+          success: false,
+          error: 'Email not found. Please check your email address or contact support.'
+        });
+      }
+
+      const contact = searchData.data[0];
+      console.log('[validateUser] CONTACT FOUND in Zoho CRM:', contact.Email);
+
+      let organizationId = null;
+      let organizationName = null;
+      let trainingFundBalance = 0;
+      let purchaseOrderEnabled = false;
+      let programTicketBalances: any = {};
+
+      // Step 3: Fetch Account/Organization details
+      if (contact.Account_Name?.id) {
+        console.log('\n[validateUser] STEP 3: Fetching Account (Organization) details...');
+        const accountUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts/${contact.Account_Name.id}`;
+
+        const accountResponse = await fetch(accountUrl, {
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+          },
+        });
+
+        if (accountResponse.ok) {
+          const accountData = await accountResponse.json() as any;
+          const account = accountData.data[0];
+
+          console.log('[validateUser] Account details retrieved:', account.Account_Name);
+
+          organizationName = account.Account_Name;
+          organizationId = account.id;
+          trainingFundBalance = account.Training_Fund_Balance || 0;
+          purchaseOrderEnabled = account.Purchase_Order_Enabled || false;
+
+          // Sync Organization to database
+          console.log('\n[validateUser] Syncing Organization to database...');
+          const { data: existingOrgs } = await supabase
+            .from('organization')
+            .select('*')
+            .eq('zoho_account_id', organizationId);
+
+          if (existingOrgs && existingOrgs.length > 0) {
+            await supabase
+              .from('organization')
+              .update({
+                name: organizationName,
+                training_fund_balance: trainingFundBalance,
+                purchase_order_enabled: purchaseOrderEnabled,
+                last_synced: new Date().toISOString()
+              })
+              .eq('id', existingOrgs[0].id);
+            programTicketBalances = existingOrgs[0].program_ticket_balances || {};
+            console.log('[validateUser] Organization updated');
+          } else {
+            const { data: newOrg } = await supabase
+              .from('organization')
+              .insert({
+                name: organizationName,
+                zoho_account_id: organizationId,
+                training_fund_balance: trainingFundBalance,
+                purchase_order_enabled: purchaseOrderEnabled,
+                last_synced: new Date().toISOString()
+              })
+              .select()
+              .single();
+            programTicketBalances = newOrg?.program_ticket_balances || {};
+            console.log('[validateUser] Organization created');
+          }
+        }
+      }
+
+      // Step 4: Sync Member to database
+      console.log('\n[validateUser] STEP 4: Syncing Member to database...');
+      const { data: allMembers } = await supabase
+        .from('member')
+        .select('*');
+
+      const existingMember = allMembers?.find((m: any) => m.email === email);
+
+      // Check login_enabled status
+      if (existingMember && existingMember.login_enabled === false) {
+        console.warn('[validateUser] Login disabled for member:', email);
+        return res.status(403).json({
+          success: false,
+          error: 'Your account access has been disabled. Please contact your organization administrator.'
+        });
+      }
+
+      const zohoMemberData: any = {
+        email: email,
+        first_name: contact.First_Name,
+        last_name: contact.Last_Name,
+        zoho_contact_id: contact.id,
+        organization_id: organizationId,
+        last_synced: new Date().toISOString()
+      };
+
+      let member: any;
+      if (existingMember) {
+        console.log('[validateUser] Updating existing Member:', existingMember.id);
+        await supabase
+          .from('member')
+          .update(zohoMemberData)
+          .eq('id', existingMember.id);
+
+        member = { ...existingMember, ...zohoMemberData };
+        console.log('[validateUser] Member updated with preserved app fields');
+      } else {
+        console.log('[validateUser] Creating new Member record');
+
+        // Check for default role
+        const { data: allRoles } = await supabase
+          .from('role')
+          .select('*');
+
+        const defaultRole = allRoles?.find((r: any) => r.is_default === true);
+        if (defaultRole) {
+          zohoMemberData.role_id = defaultRole.id;
+        }
+
+        const { data: newMember } = await supabase
+          .from('member')
+          .insert(zohoMemberData)
+          .select()
+          .single();
+
+        member = newMember;
+        console.log('[validateUser] Member created');
+      }
+
+      console.log('\n[validateUser] SUCCESS: Member validation complete');
+
+      res.json({
+        success: true,
+        user: {
+          email: member.email,
+          first_name: member.first_name,
+          last_name: member.last_name,
+          organization_id: organizationId,
+          organization_name: organizationName,
+          training_fund_balance: trainingFundBalance,
+          purchase_order_enabled: purchaseOrderEnabled,
+          program_ticket_balances: programTicketBalances,
+          role_id: member.role_id || null,
+          member_excluded_features: member.member_excluded_features || [],
+          has_seen_onboarding_tour: member.has_seen_onboarding_tour || false,
+          page_tours_seen: member.page_tours_seen || {},
+          is_team_member: false
+        }
+      });
+
+    } catch (error: any) {
+      console.error('\n[validateUser] FATAL ERROR:', error.message);
+      res.status(500).json({
+        success: false,
+        error: 'Unable to validate user. Please try again later.',
+        details: error.message
+      });
+    }
+  });
+
   // Create Xero Invoice
   app.post('/api/functions/createXeroInvoice', async (req: Request, res: Response) => {
     if (!supabase) {

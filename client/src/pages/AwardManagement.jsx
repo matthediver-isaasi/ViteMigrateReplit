@@ -639,7 +639,8 @@ export default function AwardManagementPage() {
       member_id: selectedMemberId,
       sublevel_id: selectedSublevelId || null,
       assigned_by: memberInfo?.email || "",
-      notes: assignmentNotes
+      notes: assignmentNotes,
+      assigned_date: new Date().toISOString()
     };
 
     assignOfflineAwardMutation.mutate(assignmentData);
@@ -1798,7 +1799,7 @@ export default function AwardManagementPage() {
                     </div>
                   ) : (
                     <div className="divide-y divide-slate-200">
-                      {filteredAssignedMembers.map(({ id, member, notes, created_date, assigned_by, sublevel_id }) => {
+                      {filteredAssignedMembers.map(({ id, member, notes, assigned_date, assigned_by, sublevel_id }) => {
                         const sublevel = sublevel_id ? sublevels.find(s => s.id === sublevel_id) : null;
                         
                         return (
@@ -1825,7 +1826,7 @@ export default function AwardManagementPage() {
                                   </div>
                                 )}
                                 <div className="text-xs text-slate-400 mt-1">
-                                  Assigned {new Date(created_date).toLocaleDateString()}
+                                  {assigned_date ? `Assigned ${new Date(assigned_date).toLocaleDateString()}` : 'Assigned'}
                                   {assigned_by && ` by ${assigned_by}`}
                                 </div>
                               </div>

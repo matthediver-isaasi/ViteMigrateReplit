@@ -2620,6 +2620,96 @@ AGCAS Events Team
     }
   });
 
+  // Zoho Contact Webhook - receives contact updates from Zoho CRM
+  app.post('/api/functions/zohoContactWebhook', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const webhookData = req.body;
+
+      console.log('Webhook received:', JSON.stringify(webhookData, null, 2));
+
+      // Extract contact information from webhook
+      const contactData = webhookData.data || webhookData;
+
+      if (!contactData.id || !contactData.Email) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required contact data'
+        });
+      }
+
+      // Find which organization this contact belongs to
+      let organizationId = null;
+      if (contactData.Account_Name && contactData.Account_Name.id) {
+        const { data: allOrgs } = await supabase.from('organization').select('*');
+        const org = allOrgs?.find((o: any) => o.zoho_account_id === contactData.Account_Name.id);
+        if (org) {
+          organizationId = org.id;
+        }
+      }
+
+      if (!organizationId) {
+        return res.json({
+          success: true,
+          message: 'Contact not associated with a synced organization'
+        });
+      }
+
+      // Check if contact already exists
+      const { data: existingContacts } = await supabase
+        .from('organization_contact')
+        .select('*')
+        .eq('zoho_contact_id', contactData.id);
+
+      const contactRecord = {
+        organization_id: organizationId,
+        zoho_contact_id: contactData.id,
+        email: contactData.Email,
+        first_name: contactData.First_Name || '',
+        last_name: contactData.Last_Name || '',
+        is_active: true,
+        last_synced: new Date().toISOString()
+      };
+
+      if (existingContacts && existingContacts.length > 0) {
+        // Update existing contact
+        await supabase
+          .from('organization_contact')
+          .update(contactRecord)
+          .eq('id', existingContacts[0].id);
+
+        res.json({
+          success: true,
+          action: 'updated',
+          contact_id: existingContacts[0].id
+        });
+      } else {
+        // Create new contact
+        const { data: newContact } = await supabase
+          .from('organization_contact')
+          .insert(contactRecord)
+          .select()
+          .single();
+
+        res.json({
+          success: true,
+          action: 'created',
+          contact_id: newContact?.id
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Webhook error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

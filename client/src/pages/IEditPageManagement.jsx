@@ -45,10 +45,10 @@ export default function IEditPageManagementPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const { data: pages, isLoading } = useQuery({
+  const { data: pages = [], isLoading } = useQuery({
     queryKey: ['iedit-pages'],
-    queryFn: () => base44.entities.IEditPage.list('-updated_date'),
-    initialData: []
+    queryFn: () => base44.entities.IEditPage.list(),
+    staleTime: 0
   });
 
   const createPageMutation = useMutation({

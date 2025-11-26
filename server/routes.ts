@@ -3119,6 +3119,122 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Rename Resource Subcategory - renames subcategory and updates all resources
+  app.post('/api/functions/renameResourceSubcategory', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { categoryId, oldSubcategoryName, newSubcategoryName } = req.body;
+
+      // Validate input
+      if (!categoryId || !oldSubcategoryName || !newSubcategoryName) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters: categoryId, oldSubcategoryName, newSubcategoryName'
+        });
+      }
+
+      if (oldSubcategoryName === newSubcategoryName) {
+        return res.status(400).json({
+          success: false,
+          error: 'New subcategory name must be different from the old name'
+        });
+      }
+
+      // Trim the names
+      const oldName = oldSubcategoryName.trim();
+      const newName = newSubcategoryName.trim();
+
+      if (!newName) {
+        return res.status(400).json({
+          success: false,
+          error: 'New subcategory name cannot be empty'
+        });
+      }
+
+      // 1. Get the category
+      const { data: categories } = await supabase.from('resource_category').select('*');
+      const category = categories?.find((c: any) => c.id === categoryId);
+
+      if (!category) {
+        return res.status(404).json({
+          success: false,
+          error: 'Category not found'
+        });
+      }
+
+      // 2. Check if old subcategory exists in the category
+      if (!category.subcategories || !category.subcategories.includes(oldName)) {
+        return res.status(404).json({
+          success: false,
+          error: 'Old subcategory name not found in category'
+        });
+      }
+
+      // 3. Check if new subcategory name already exists (case-insensitive)
+      const subcategoriesLowerCase = category.subcategories.map((s: string) => s.toLowerCase());
+      if (subcategoriesLowerCase.includes(newName.toLowerCase()) && oldName.toLowerCase() !== newName.toLowerCase()) {
+        return res.status(400).json({
+          success: false,
+          error: 'A subcategory with this name already exists in the category'
+        });
+      }
+
+      // 4. Update the ResourceCategory entity
+      const updatedSubcategories = category.subcategories.map((sub: string) =>
+        sub === oldName ? newName : sub
+      );
+
+      // Sort alphabetically
+      updatedSubcategories.sort((a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+
+      await supabase
+        .from('resource_category')
+        .update({ subcategories: updatedSubcategories })
+        .eq('id', categoryId);
+
+      // 5. Find and update all Resource entities with the old subcategory name
+      const { data: allResources } = await supabase.from('resource').select('*');
+      const resourcesToUpdate = allResources?.filter((resource: any) =>
+        resource.subcategories && resource.subcategories.includes(oldName)
+      ) || [];
+
+      console.log(`Found ${resourcesToUpdate.length} resources to update`);
+
+      // Update each resource
+      const updatePromises = resourcesToUpdate.map((resource: any) => {
+        const updatedResourceSubcategories = resource.subcategories.map((sub: string) =>
+          sub === oldName ? newName : sub
+        );
+
+        return supabase
+          .from('resource')
+          .update({ subcategories: updatedResourceSubcategories })
+          .eq('id', resource.id);
+      });
+
+      await Promise.all(updatePromises);
+
+      console.log(`Successfully renamed subcategory from "${oldName}" to "${newName}" in category "${category.name}"`);
+      console.log(`Updated ${resourcesToUpdate.length} resource(s)`);
+
+      res.json({
+        success: true,
+        message: `Successfully renamed subcategory and updated ${resourcesToUpdate.length} resource(s)`,
+        resourcesUpdated: resourcesToUpdate.length
+      });
+
+    } catch (error: any) {
+      console.error('Error renaming subcategory:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Create Job Posting Payment Intent - creates Stripe payment intent for job postings
   app.post('/api/functions/createJobPostingPaymentIntent', async (req: Request, res: Response) => {
     try {

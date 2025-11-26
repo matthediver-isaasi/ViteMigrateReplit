@@ -294,7 +294,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const renameResourceSubcategory = notImplemented("renameResourceSubcategory");
+  export const renameResourceSubcategory = async (params) => {
+    const response = await fetch('/api/functions/renameResourceSubcategory', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const generateMemberHandles = notImplemented("generateMemberHandles");
   export const extractAndUploadFont = notImplemented("extractAndUploadFont");
   export const enableLoginForAllMembers = notImplemented("enableLoginForAllMembers");

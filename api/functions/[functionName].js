@@ -1508,17 +1508,43 @@ const functionHandlers = {
         body: JSON.stringify({ action: 'cancel', cancel_reason: cancelReason })
       });
 
-      attempts.push({ method: 'POST', status: response2.status, success: response2.ok });
+      attempts.push({ method: 'POST action', status: response2.status, success: response2.ok });
 
       if (response2.ok) {
         await supabase.from('booking').update({ status: 'cancelled' }).eq('id', booking.id);
-        return { success: true, method: 'POST', message: 'Order cancelled successfully' };
+        return { success: true, method: 'POST (action parameter)', message: 'Order cancelled successfully' };
       }
     } catch (e) {
-      attempts.push({ method: 'POST', error: e.message });
+      attempts.push({ method: 'POST action', error: e.message });
     }
 
-    return { success: false, message: 'All cancellation attempts failed', attempts, recommendation: 'Consider using Zoho Flow webhook' };
+    try {
+      const refundUrl = `${orderUrl}/refund`;
+      const response3 = await fetch(refundUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cancel_reason: cancelReason, refund_amount: 0 })
+      });
+
+      attempts.push({ method: 'POST refund', url: refundUrl, status: response3.status, success: response3.ok });
+
+      if (response3.ok) {
+        await supabase.from('booking').update({ status: 'cancelled' }).eq('id', booking.id);
+        return { success: true, method: 'POST (refund endpoint)', message: 'Order cancelled successfully' };
+      }
+    } catch (e) {
+      attempts.push({ method: 'POST refund', error: e.message });
+    }
+
+    return {
+      success: false,
+      message: 'All cancellation attempts failed. Zoho Flow webhook approach recommended.',
+      attempts,
+      orderUrl,
+      portalId,
+      backstageEventId: event.backstage_event_id,
+      recommendation: 'Consider using Zoho Flow webhook to handle cancellations'
+    };
   },
 
   async processBackstageCancellation(params) {

@@ -254,7 +254,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const checkMemberStatusByEmail = notImplemented("checkMemberStatusByEmail");
+  export const checkMemberStatusByEmail = async (params) => {
+    const response = await fetch('/api/functions/checkMemberStatusByEmail', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const createJobPostingMember = notImplemented("createJobPostingMember");
   export const createJobPostingNonMember = notImplemented("createJobPostingNonMember");
   export const handleJobPostingPaymentWebhook = notImplemented("handleJobPostingPaymentWebhook");

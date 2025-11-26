@@ -3119,6 +3119,44 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Check Member Status By Email - checks if an email belongs to a member
+  app.post('/api/functions/checkMemberStatusByEmail', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { email } = req.body;
+
+      if (!email || typeof email !== 'string') {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      // Check if email belongs to a member
+      const { data: members } = await supabase
+        .from('member')
+        .select('*')
+        .ilike('email', email.toLowerCase().trim());
+
+      if (members && members.length > 0) {
+        const member = members[0];
+        return res.json({
+          is_member: true,
+          member_id: member.id,
+          full_name: `${member.first_name || ''} ${member.last_name || ''}`.trim()
+        });
+      }
+
+      res.json({
+        is_member: false
+      });
+
+    } catch (error: any) {
+      console.error('Error checking member status:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Reinstate Program Ticket Transaction - admin reinstatement of cancelled tickets
   app.post('/api/functions/reinstateProgramTicketTransaction', async (req: Request, res: Response) => {
     if (!supabase) {

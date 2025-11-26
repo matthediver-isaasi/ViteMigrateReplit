@@ -252,6 +252,34 @@ The application uses a hybrid approach to ensure data freshness while maintainin
 
 This approach was chosen because Base44's SDK had multi-minute cache delays that were unacceptable for the client.
 
+## Runtime Page Provisioning (CMS Feature)
+
+**Overview:**
+The application supports runtime page/route provisioning - a key CMS capability that replaces Base44's limitation of requiring developer intervention to create new page routes. Admins can now publish pages instantly without code deployment.
+
+**How It Works:**
+1. **Catch-All Route**: A `/:slug` route at the end of the router (in `client/src/pages/index.jsx`) catches any URL not matched by explicit routes
+2. **DynamicPage Component**: Located at `client/src/pages/DynamicPage.jsx`, renders IEdit pages based on URL slug
+3. **Publish Toggle**: In IEditPageManagement, admins click "Publish to /{slug}" to make pages live instantly
+
+**Page Status Flow:**
+- `draft` status: Page is not publicly accessible (shows "Page Not Available" message)
+- `published` status: Page is live at `/{slug}` URL
+
+**Access Control:**
+- Public pages (`layout_type: 'public'`): Accessible to everyone when published
+- Member pages (`layout_type: 'member'`): Require login when published
+
+**Fallback Handling:**
+- Unknown slugs show a 404 page with "Go Home" link
+- Unpublished pages show "Page Not Available" message
+- Member pages show "Members Only" gate for unauthenticated users
+
+**Key Files:**
+- `client/src/pages/DynamicPage.jsx` - Dynamic page renderer
+- `client/src/pages/IEditPageManagement.jsx` - Admin publish/unpublish UI
+- `client/src/pages/index.jsx` - Router with catch-all route
+
 **Testing Notes:**
 - Use `/testlogin` page with `mat@isaasi.co.uk` as authentication backdoor for testing admin features
 - Magic link authentication stores member data in sessionStorage key `agcas_member`

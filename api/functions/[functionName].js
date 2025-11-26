@@ -570,6 +570,596 @@ const functionHandlers = {
       .eq('id', member.id);
 
     return { success: true, handle };
+  },
+
+  async validateColleague(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { email, memberEmail, organizationId } = params;
+
+    if (!email || !organizationId) {
+      return { valid: false, error: 'Missing required parameters' };
+    }
+
+    const accessToken = await getValidZohoAccessToken();
+
+    const criteria = `(Email:equals:${email})`;
+    const searchUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts/search?criteria=${encodeURIComponent(criteria)}`;
+
+    const searchResponse = await fetch(searchUrl, {
+      headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}` }
+    });
+
+    let searchData = { data: [] };
+    const responseText = await searchResponse.text();
+
+    if (responseText && responseText.trim() !== '') {
+      try {
+        searchData = JSON.parse(responseText);
+      } catch (e) {
+        console.error('Failed to parse search response:', responseText);
+        searchData = { data: [] };
+      }
+    }
+
+    if (searchResponse.ok && searchData.data && searchData.data.length > 0) {
+      const contact = searchData.data[0];
+
+      if (!contact.Account_Name?.id || contact.Account_Name.id !== organizationId) {
+        return {
+          valid: false,
+          status: 'wrong_organization',
+          error: 'A ticket will be sent shortly. This email address cannot be verified, AGCAS will be in touch.'
+        };
+      }
+
+      return {
+        valid: true,
+        status: 'verified',
+        first_name: contact.First_Name,
+        last_name: contact.Last_Name,
+        zoho_contact_id: contact.id
+      };
+    }
+
+    const emailDomain = email.split('@')[1]?.toLowerCase();
+    if (!emailDomain) {
+      return { valid: false, status: 'invalid_email', error: 'Invalid email format' };
+    }
+
+    const { data: allOrgs } = await supabase.from('organization').select('*');
+    let targetOrg = allOrgs?.find(o => o.id === organizationId);
+    if (!targetOrg) {
+      targetOrg = allOrgs?.find(o => o.zoho_account_id === organizationId);
+    }
+
+    if (targetOrg?.email_domains) {
+      const orgDomains = targetOrg.email_domains.map(d => d.toLowerCase());
+      if (orgDomains.includes(emailDomain)) {
+        return {
+          valid: true,
+          status: 'domain_match',
+          message: 'Email domain matches organization'
+        };
+      }
+    }
+
+    return {
+      valid: true,
+      status: 'external',
+      message: 'A ticket will be sent shortly. This email address cannot be verified, AGCAS will be in touch.'
+    };
+  },
+
+  async createBooking(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const {
+      eventId,
+      memberEmail,
+      attendees,
+      registrationMode,
+      numberOfLinks = 0,
+      ticketsRequired,
+      programTag
+    } = params;
+
+    if (!eventId || !memberEmail) {
+      return { success: false, error: 'Missing required parameters: eventId and memberEmail' };
+    }
+
+    const { data: allMembers } = await supabase.from('member').select('*');
+    const member = allMembers?.find(m => m.email === memberEmail);
+
+    if (!member) {
+      return { success: false, error: 'Member not found' };
+    }
+
+    const { data: allEvents } = await supabase.from('event').select('*');
+    const event = allEvents?.find(e => e.id === eventId);
+
+    if (!event) {
+      return { success: false, error: 'Event not found' };
+    }
+
+    if (!programTag || !event.program_tag) {
+      return { success: false, error: 'This event does not have a program association' };
+    }
+
+    if (!member.organization_id) {
+      return { success: false, error: 'Member does not have an associated organization' };
+    }
+
+    const { data: allOrgs } = await supabase.from('organization').select('*');
+    let org = allOrgs?.find(o => o.id === member.organization_id);
+    if (!org) {
+      org = allOrgs?.find(o => o.zoho_account_id === member.organization_id);
+    }
+
+    if (!org) {
+      return { success: false, error: 'Organization not found' };
+    }
+
+    const currentBalances = org.program_ticket_balances || {};
+    const currentBalance = currentBalances[programTag] || 0;
+
+    if (currentBalance < ticketsRequired) {
+      return { success: false, error: `Insufficient program tickets. Required: ${ticketsRequired}, Available: ${currentBalance}` };
+    }
+
+    const bookingReference = `BK${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    const createdBookings = [];
+
+    if (registrationMode === 'self' || registrationMode === 'colleagues') {
+      for (const attendee of (attendees || [])) {
+        const { data: booking } = await supabase
+          .from('booking')
+          .insert({
+            event_id: eventId,
+            member_id: member.id,
+            attendee_email: attendee.email,
+            attendee_first_name: attendee.first_name,
+            attendee_last_name: attendee.last_name,
+            ticket_price: event.ticket_price || 0,
+            booking_reference: bookingReference,
+            status: 'pending_backstage_sync',
+            payment_method: 'program_ticket'
+          })
+          .select()
+          .single();
+
+        if (booking) createdBookings.push(booking);
+      }
+    } else if (registrationMode === 'links') {
+      for (let i = 0; i < numberOfLinks; i++) {
+        const confirmationToken = crypto.randomUUID();
+
+        const { data: booking } = await supabase
+          .from('booking')
+          .insert({
+            event_id: eventId,
+            member_id: member.id,
+            attendee_email: '',
+            attendee_first_name: '',
+            attendee_last_name: '',
+            ticket_price: event.ticket_price || 0,
+            booking_reference: bookingReference,
+            status: 'pending',
+            payment_method: 'program_ticket',
+            confirmation_token: confirmationToken
+          })
+          .select()
+          .single();
+
+        if (booking) createdBookings.push(booking);
+      }
+    }
+
+    const newBalance = currentBalance - ticketsRequired;
+    const updatedBalances = { ...currentBalances, [programTag]: newBalance };
+
+    await supabase
+      .from('organization')
+      .update({ program_ticket_balances: updatedBalances, last_synced: new Date().toISOString() })
+      .eq('id', org.id);
+
+    await supabase
+      .from('program_ticket_transaction')
+      .insert({
+        organization_id: org.id,
+        program_name: programTag,
+        transaction_type: 'usage',
+        quantity: ticketsRequired,
+        booking_reference: bookingReference,
+        event_name: event.title || 'Unknown Event',
+        member_email: memberEmail,
+        notes: `Used ${ticketsRequired} ${programTag} ticket(s) for ${event.title || 'event'}`
+      });
+
+    return {
+      success: true,
+      booking_reference: bookingReference,
+      bookings: createdBookings,
+      tickets_used: ticketsRequired,
+      remaining_balance: newBalance,
+      warning: 'Backstage sync not performed in serverless mode - admin may need to sync manually'
+    };
+  },
+
+  async processProgramTicketPurchase(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const {
+      organizationId,
+      programName,
+      quantity,
+      paymentMethod,
+      memberEmail,
+      stripePaymentIntentId
+    } = params;
+
+    if (!organizationId || !programName || !quantity) {
+      return { success: false, error: 'Missing required parameters' };
+    }
+
+    const { data: allOrgs } = await supabase.from('organization').select('*');
+    let org = allOrgs?.find(o => o.id === organizationId);
+    if (!org) {
+      org = allOrgs?.find(o => o.zoho_account_id === organizationId);
+    }
+
+    if (!org) {
+      return { success: false, error: 'Organization not found' };
+    }
+
+    const currentBalances = org.program_ticket_balances || {};
+    const currentBalance = currentBalances[programName] || 0;
+    const newBalance = currentBalance + quantity;
+
+    const updatedBalances = { ...currentBalances, [programName]: newBalance };
+
+    await supabase
+      .from('organization')
+      .update({ program_ticket_balances: updatedBalances, last_synced: new Date().toISOString() })
+      .eq('id', org.id);
+
+    const { data: transaction } = await supabase
+      .from('program_ticket_transaction')
+      .insert({
+        organization_id: org.id,
+        program_name: programName,
+        transaction_type: 'purchase',
+        quantity: quantity,
+        payment_method: paymentMethod,
+        member_email: memberEmail,
+        stripe_payment_intent_id: stripePaymentIntentId,
+        notes: `Purchased ${quantity} ${programName} ticket(s)`
+      })
+      .select()
+      .single();
+
+    return {
+      success: true,
+      transaction_id: transaction?.id,
+      new_balance: newBalance,
+      organization_id: org.id
+    };
+  },
+
+  async syncBackstageEvents() {
+    return { 
+      success: false, 
+      error: 'Event sync should be triggered from admin panel in development environment' 
+    };
+  },
+
+  async updateExpiredVouchers() {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const now = new Date().toISOString();
+    
+    const { data: expiredVouchers, error } = await supabase
+      .from('voucher')
+      .update({ status: 'expired' })
+      .lt('expiry_date', now)
+      .eq('status', 'active')
+      .select();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { 
+      success: true, 
+      expired_count: expiredVouchers?.length || 0 
+    };
+  },
+
+  async applyDiscountCode(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { code, memberEmail, eventId, amount } = params;
+
+    if (!code) {
+      return { valid: false, error: 'Discount code is required' };
+    }
+
+    const { data: discountCodes } = await supabase
+      .from('discount_code')
+      .select('*')
+      .eq('code', code.toUpperCase())
+      .eq('is_active', true);
+
+    if (!discountCodes || discountCodes.length === 0) {
+      return { valid: false, error: 'Invalid discount code' };
+    }
+
+    const discountCode = discountCodes[0];
+
+    if (discountCode.expiry_date && new Date(discountCode.expiry_date) < new Date()) {
+      return { valid: false, error: 'Discount code has expired' };
+    }
+
+    if (discountCode.max_uses && discountCode.times_used >= discountCode.max_uses) {
+      return { valid: false, error: 'Discount code has reached maximum uses' };
+    }
+
+    let discountAmount = 0;
+    if (discountCode.discount_type === 'percentage') {
+      discountAmount = (amount * discountCode.discount_value) / 100;
+    } else {
+      discountAmount = discountCode.discount_value;
+    }
+
+    return {
+      valid: true,
+      discount_code_id: discountCode.id,
+      discount_type: discountCode.discount_type,
+      discount_value: discountCode.discount_value,
+      discount_amount: Math.min(discountAmount, amount),
+      final_amount: Math.max(0, amount - discountAmount)
+    };
+  },
+
+  async createJobPostingPaymentIntent(params) {
+    if (!stripe) throw new Error('Stripe not configured');
+    
+    const { amount, jobTitle, companyName, contactEmail } = params;
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency: 'gbp',
+      metadata: {
+        type: 'job_posting',
+        job_title: jobTitle,
+        company_name: companyName,
+        contact_email: contactEmail
+      }
+    });
+
+    return { clientSecret: paymentIntent.client_secret };
+  },
+
+  async createJobPostingMember(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const {
+      title,
+      description,
+      company_name,
+      location,
+      salary_range,
+      job_type,
+      application_url,
+      contact_email,
+      memberEmail,
+      is_featured = false
+    } = params;
+
+    const { data: allMembers } = await supabase.from('member').select('*');
+    const member = allMembers?.find(m => m.email === memberEmail);
+
+    if (!member) {
+      return { success: false, error: 'Member not found' };
+    }
+
+    const { data: jobPosting, error } = await supabase
+      .from('job_posting')
+      .insert({
+        title,
+        description,
+        company_name,
+        location,
+        salary_range,
+        job_type,
+        application_url,
+        contact_email,
+        posted_by_member_id: member.id,
+        posted_by_organization_id: member.organization_id || null,
+        is_featured,
+        status: 'active',
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, job_posting: jobPosting };
+  },
+
+  async createJobPostingNonMember(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const {
+      title,
+      description,
+      company_name,
+      location,
+      salary_range,
+      job_type,
+      application_url,
+      contact_email,
+      contact_name,
+      is_featured = false,
+      stripe_payment_intent_id
+    } = params;
+
+    const { data: jobPosting, error } = await supabase
+      .from('job_posting')
+      .insert({
+        title,
+        description,
+        company_name,
+        location,
+        salary_range,
+        job_type,
+        application_url,
+        contact_email,
+        contact_name,
+        is_featured,
+        status: 'active',
+        stripe_payment_intent_id,
+        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      })
+      .select()
+      .single();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, job_posting: jobPosting };
+  },
+
+  async cancelProgramTicketTransaction(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { transactionId, reason, memberEmail } = params;
+
+    const { data: transaction } = await supabase
+      .from('program_ticket_transaction')
+      .select('*')
+      .eq('id', transactionId)
+      .single();
+
+    if (!transaction) {
+      return { success: false, error: 'Transaction not found' };
+    }
+
+    if (transaction.transaction_type !== 'usage') {
+      return { success: false, error: 'Can only cancel usage transactions' };
+    }
+
+    const { data: org } = await supabase
+      .from('organization')
+      .select('*')
+      .eq('id', transaction.organization_id)
+      .single();
+
+    if (!org) {
+      return { success: false, error: 'Organization not found' };
+    }
+
+    const currentBalances = org.program_ticket_balances || {};
+    const currentBalance = currentBalances[transaction.program_name] || 0;
+    const newBalance = currentBalance + transaction.quantity;
+
+    await supabase
+      .from('organization')
+      .update({
+        program_ticket_balances: { ...currentBalances, [transaction.program_name]: newBalance }
+      })
+      .eq('id', org.id);
+
+    await supabase
+      .from('program_ticket_transaction')
+      .update({
+        cancelled_at: new Date().toISOString(),
+        cancelled_by_member_email: memberEmail,
+        cancellation_reason: reason
+      })
+      .eq('id', transactionId);
+
+    await supabase
+      .from('program_ticket_transaction')
+      .insert({
+        organization_id: org.id,
+        program_name: transaction.program_name,
+        transaction_type: 'refund',
+        quantity: transaction.quantity,
+        member_email: memberEmail,
+        notes: `Refund for cancelled transaction. Reason: ${reason || 'Not specified'}`
+      });
+
+    return {
+      success: true,
+      refunded_quantity: transaction.quantity,
+      new_balance: newBalance
+    };
+  },
+
+  async reinstateProgramTicketTransaction(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { transactionId, memberEmail } = params;
+
+    const { data: transaction } = await supabase
+      .from('program_ticket_transaction')
+      .select('*')
+      .eq('id', transactionId)
+      .single();
+
+    if (!transaction) {
+      return { success: false, error: 'Transaction not found' };
+    }
+
+    if (!transaction.cancelled_at) {
+      return { success: false, error: 'Transaction is not cancelled' };
+    }
+
+    const { data: org } = await supabase
+      .from('organization')
+      .select('*')
+      .eq('id', transaction.organization_id)
+      .single();
+
+    if (!org) {
+      return { success: false, error: 'Organization not found' };
+    }
+
+    const currentBalances = org.program_ticket_balances || {};
+    const currentBalance = currentBalances[transaction.program_name] || 0;
+    const newBalance = currentBalance - transaction.quantity;
+
+    if (newBalance < 0) {
+      return { success: false, error: 'Insufficient balance to reinstate transaction' };
+    }
+
+    await supabase
+      .from('organization')
+      .update({
+        program_ticket_balances: { ...currentBalances, [transaction.program_name]: newBalance }
+      })
+      .eq('id', org.id);
+
+    await supabase
+      .from('program_ticket_transaction')
+      .update({
+        cancelled_at: null,
+        cancelled_by_member_email: null,
+        cancellation_reason: null,
+        notes: transaction.notes + ` | Reinstated by ${memberEmail} on ${new Date().toISOString()}`
+      })
+      .eq('id', transactionId);
+
+    return {
+      success: true,
+      reinstated_quantity: transaction.quantity,
+      new_balance: newBalance
+    };
   }
 };
 

@@ -120,7 +120,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const updateExpiredVouchers = notImplemented("updateExpiredVouchers");
+  export const updateExpiredVouchers = async (params) => {
+    const response = await fetch('/api/functions/updateExpiredVouchers', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params || {})
+    });
+    return response.json();
+  };
   export const createStripePaymentIntent = notImplemented("createStripePaymentIntent");
   export const getStripePublishableKey = notImplemented("getStripePublishableKey");
   export const getXeroAuthUrl = notImplemented("getXeroAuthUrl");

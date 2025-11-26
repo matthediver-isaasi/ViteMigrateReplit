@@ -2710,6 +2710,75 @@ AGCAS Events Team
     }
   });
 
+  // Update Expired Vouchers - administrative task
+  app.post('/api/functions/updateExpiredVouchers', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      console.log('[updateExpiredVouchers] Starting voucher expiry check...');
+
+      // Fetch all active vouchers
+      const { data: allVouchers } = await supabase
+        .from('voucher')
+        .select('*')
+        .eq('status', 'active');
+
+      console.log('[updateExpiredVouchers] Found active vouchers:', allVouchers?.length || 0);
+
+      // Check which ones have expired
+      const now = new Date();
+      console.log('[updateExpiredVouchers] Current time:', now.toISOString());
+
+      const expiredVouchers = (allVouchers || []).filter((v: any) => {
+        const expiryDate = new Date(v.expires_at);
+        const isExpired = expiryDate.getTime() < now.getTime();
+        if (isExpired) {
+          console.log(`[updateExpiredVouchers] Voucher ${v.code} (${v.id}) expired at ${v.expires_at}`);
+        }
+        return isExpired;
+      });
+
+      console.log('[updateExpiredVouchers] Expired vouchers to update:', expiredVouchers.length);
+
+      if (expiredVouchers.length === 0) {
+        console.log('[updateExpiredVouchers] No expired vouchers to update');
+        return res.json({
+          success: true,
+          updated_count: 0,
+          message: 'No expired vouchers found'
+        });
+      }
+
+      // Update each expired voucher
+      const updatePromises = expiredVouchers.map((voucher: any) => {
+        console.log(`[updateExpiredVouchers] Updating voucher ${voucher.code} (${voucher.id}) to expired status`);
+        return supabase
+          .from('voucher')
+          .update({ status: 'expired' })
+          .eq('id', voucher.id);
+      });
+
+      await Promise.all(updatePromises);
+
+      console.log('[updateExpiredVouchers] Successfully updated all expired vouchers');
+
+      res.json({
+        success: true,
+        updated_count: expiredVouchers.length,
+        expired_voucher_ids: expiredVouchers.map((v: any) => v.id)
+      });
+
+    } catch (error: any) {
+      console.error('[updateExpiredVouchers] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

@@ -104,7 +104,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const syncOrganizationContacts = notImplemented("syncOrganizationContacts");
+  export const syncOrganizationContacts = async (params) => {
+    const response = await fetch('/api/functions/syncOrganizationContacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const zohoContactWebhook = notImplemented("zohoContactWebhook");
   export const updateExpiredVouchers = notImplemented("updateExpiredVouchers");
   export const createStripePaymentIntent = notImplemented("createStripePaymentIntent");

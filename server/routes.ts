@@ -2395,6 +2395,231 @@ AGCAS Events Team
     }
   });
 
+  // Sync Organization Contacts from Zoho CRM
+  app.post('/api/functions/syncOrganizationContacts', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+
+    try {
+      const { organizationId } = req.body;
+
+      console.log('=== Sync Organization Contacts Started ===');
+      console.log('Organization ID:', organizationId);
+
+      if (!organizationId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Organization ID is required'
+        });
+      }
+
+      // Get the organization - try by ID first, then by Zoho Account ID
+      const { data: allOrgs } = await supabase.from('organization').select('*');
+      let org = allOrgs?.find((o: any) => o.id === organizationId);
+
+      if (!org) {
+        console.log('Not found by ID, trying Zoho Account ID...');
+        org = allOrgs?.find((o: any) => o.zoho_account_id === organizationId);
+      }
+
+      console.log('Organization found:', org ? org.name : 'NOT FOUND');
+
+      if (!org || !org.zoho_account_id) {
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found or not linked to Zoho',
+          details: {
+            organizationFound: !!org,
+            zohoAccountId: org?.zoho_account_id
+          }
+        });
+      }
+
+      const accessToken = await getValidZohoAccessToken();
+      console.log('Access token obtained');
+
+      // Fetch all contacts for this organization from Zoho CRM
+      let allContacts: any[] = [];
+      let page = 1;
+      const perPage = 200;
+      let hasMore = true;
+
+      console.log('Searching for contacts with Account Name:', org.name);
+
+      while (hasMore) {
+        const criteria = `(Account_Name:equals:${org.name})`;
+        const searchUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts/search?criteria=${encodeURIComponent(criteria)}&page=${page}&per_page=${perPage}`;
+
+        console.log(`Fetching page ${page}...`);
+
+        const response = await fetch(searchUrl, {
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+          },
+        });
+
+        const responseText = await response.text();
+        console.log('Response status:', response.status);
+
+        if (!response.ok) {
+          console.error('Failed to fetch contacts from Zoho:', responseText);
+          break;
+        }
+
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (e) {
+          console.error('Failed to parse JSON response');
+          break;
+        }
+
+        console.log('Contacts in this page:', data.data?.length || 0);
+
+        if (data.data && data.data.length > 0) {
+          allContacts = allContacts.concat(data.data);
+
+          if (data.info && data.info.more_records) {
+            page++;
+          } else {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
+      }
+
+      console.log('Total contacts fetched from Zoho:', allContacts.length);
+
+      if (allContacts.length === 0) {
+        console.log('No contacts found for this organization');
+        await supabase
+          .from('organization')
+          .update({ contacts_synced_at: new Date().toISOString() })
+          .eq('id', org.id);
+
+        return res.json({
+          success: true,
+          synced_count: 0,
+          created: 0,
+          updated: 0,
+          deactivated: 0,
+          message: 'No contacts found for this organization'
+        });
+      }
+
+      // Get existing contacts for this organization
+      const { data: existingContacts } = await supabase
+        .from('organization_contact')
+        .select('*')
+        .eq('organization_id', org.id);
+
+      console.log('Existing contacts in database:', existingContacts?.length || 0);
+
+      const existingByZohoId: Record<string, any> = {};
+      (existingContacts || []).forEach((contact: any) => {
+        existingByZohoId[contact.zoho_contact_id] = contact;
+      });
+
+      // Prepare contacts to create or update
+      const contactsToCreate: any[] = [];
+      const contactsToUpdate: any[] = [];
+      const zohoIdsFound = new Set<string>();
+
+      for (const zohoContact of allContacts) {
+        zohoIdsFound.add(zohoContact.id);
+
+        if (!zohoContact.Email) {
+          console.log(`Skipping Zoho contact ID ${zohoContact.id} because it has no email.`);
+          continue;
+        }
+
+        const contactData = {
+          organization_id: org.id,
+          zoho_contact_id: zohoContact.id,
+          email: zohoContact.Email,
+          first_name: zohoContact.First_Name || '',
+          last_name: zohoContact.Last_Name || '',
+          is_active: true,
+          last_synced: new Date().toISOString()
+        };
+
+        if (existingByZohoId[zohoContact.id]) {
+          contactsToUpdate.push({
+            id: existingByZohoId[zohoContact.id].id,
+            ...contactData
+          });
+        } else {
+          contactsToCreate.push(contactData);
+        }
+      }
+
+      console.log('Contacts to create:', contactsToCreate.length);
+      console.log('Contacts to update:', contactsToUpdate.length);
+
+      // Mark contacts no longer in Zoho as inactive
+      const contactsToDeactivate = (existingContacts || []).filter(
+        (c: any) => !zohoIdsFound.has(c.zoho_contact_id) && c.is_active
+      );
+
+      console.log('Contacts to deactivate:', contactsToDeactivate.length);
+
+      // Perform operations
+      if (contactsToCreate.length > 0) {
+        console.log(`Creating ${contactsToCreate.length} contacts...`);
+        await supabase.from('organization_contact').insert(contactsToCreate);
+        console.log(`${contactsToCreate.length} contacts created successfully.`);
+      }
+
+      if (contactsToUpdate.length > 0) {
+        console.log(`Updating ${contactsToUpdate.length} contacts...`);
+        for (const contact of contactsToUpdate) {
+          const { id, ...updateData } = contact;
+          await supabase.from('organization_contact').update(updateData).eq('id', id);
+        }
+        console.log(`${contactsToUpdate.length} contacts updated successfully.`);
+      }
+
+      if (contactsToDeactivate.length > 0) {
+        console.log(`Deactivating ${contactsToDeactivate.length} contacts...`);
+        for (const contact of contactsToDeactivate) {
+          await supabase
+            .from('organization_contact')
+            .update({ is_active: false, last_synced: new Date().toISOString() })
+            .eq('id', contact.id);
+        }
+        console.log(`${contactsToDeactivate.length} contacts deactivated successfully.`);
+      }
+
+      // Update organization sync timestamp
+      await supabase
+        .from('organization')
+        .update({ contacts_synced_at: new Date().toISOString() })
+        .eq('id', org.id);
+
+      console.log('=== Sync Complete ===');
+
+      res.json({
+        success: true,
+        synced_count: allContacts.length,
+        created: contactsToCreate.length,
+        updated: contactsToUpdate.length,
+        deactivated: contactsToDeactivate.length
+      });
+
+    } catch (error: any) {
+      console.error('=== Sync Error ===');
+      console.error('Error message:', error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

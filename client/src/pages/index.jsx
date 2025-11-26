@@ -583,6 +583,7 @@ function PagesContent() {
                 
                 <Route path="/MemberGroupGuestManagement" element={<MemberGroupGuestManagement />} />
                 
+                <Route path="/auth/verify" element={<VerifyMagicLink />} />
             </Routes>
         </Layout>
     );

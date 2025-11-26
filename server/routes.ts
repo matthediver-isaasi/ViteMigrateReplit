@@ -897,17 +897,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Sync Events from Zoho Backstage
+  // Sync Events from Zoho Backstage (simple version)
   app.post('/api/functions/syncEventsFromBackstage', async (req: Request, res: Response) => {
+    // Redirect to the more complete syncBackstageEvents
+    return res.redirect(307, '/api/functions/syncBackstageEvents');
+  });
+
+  // Sync Backstage Events (full version with ticket classes)
+  app.post('/api/functions/syncBackstageEvents', async (req: Request, res: Response) => {
     if (!supabase) {
       return res.status(503).json({ error: 'Supabase not configured' });
     }
 
-    const ZOHO_BACKSTAGE_PORTAL_NAME = process.env.ZOHO_BACKSTAGE_PORTAL_NAME;
-
-    if (!ZOHO_BACKSTAGE_PORTAL_NAME) {
-      return res.status(503).json({ error: 'ZOHO_BACKSTAGE_PORTAL_NAME not configured' });
-    }
+    const ZOHO_BACKSTAGE_PORTAL_ID = process.env.ZOHO_BACKSTAGE_PORTAL_ID || '20108049755';
 
     try {
       const { accessToken } = req.body;
@@ -916,41 +918,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Missing access token' });
       }
 
-      // Fetch events from Zoho Backstage V3 API
-      const eventsResponse = await fetch(
-        `https://backstage.zoho.com/api/v3/${ZOHO_BACKSTAGE_PORTAL_NAME}/events`,
-        {
-          headers: {
-            'Authorization': `Zoho-oauthtoken ${accessToken}`,
-            'Content-Type': 'application/json',
-          },
+      const baseUrl = 'https://www.zohoapis.eu/backstage/v3';
+      const url = `${baseUrl}/portals/${ZOHO_BACKSTAGE_PORTAL_ID}/events?status=live`;
+
+      console.log('Fetching events from:', url);
+
+      const eventsResponse = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Zoho-oauthtoken ${accessToken}`
         }
-      );
+      });
 
       if (!eventsResponse.ok) {
-        const errorData = await eventsResponse.text();
+        const errorText = await eventsResponse.text();
+        console.error('API error:', errorText);
         return res.status(eventsResponse.status).json({
           error: 'Failed to fetch events from Backstage',
-          details: errorData
+          details: errorText,
+          url: url,
+          status: eventsResponse.status
         });
       }
 
       const eventsData = await eventsResponse.json();
-      const events = eventsData.data || [];
+      const events = eventsData.events || [];
+      console.log('Found events:', events.length);
+
+      if (events.length === 0) {
+        return res.json({
+          success: true,
+          synced: 0,
+          errors: 0,
+          total: 0,
+          message: 'No events found in response'
+        });
+      }
 
       let syncedCount = 0;
       let errorCount = 0;
+      const errors: Array<{ eventId: string; error: string }> = [];
 
-      // Get all existing events once
+      // Get all existing events
       const { data: allExistingEvents } = await supabase
         .from('event')
         .select('*');
 
-      // Sync each event to Supabase
+      console.log('Existing events in DB:', allExistingEvents?.length || 0);
+
       for (const event of events) {
         try {
-          // Extract program tag (first tag in the list)
+          console.log('Processing event:', event.name, 'ID:', event.id);
+
           const programTag = event.tags && event.tags.length > 0 ? event.tags[0] : null;
+
+          // Fetch ticket classes for this event
+          const ticketClassesUrl = `${baseUrl}/portals/${ZOHO_BACKSTAGE_PORTAL_ID}/events/${event.id}/ticket_classes`;
+          console.log('Fetching ticket classes from:', ticketClassesUrl);
+
+          const ticketClassesResponse = await fetch(ticketClassesUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Zoho-oauthtoken ${accessToken}`
+            }
+          });
+
+          let ticketTypeId = null;
+          let ticketPrice = 0;
+          let availableSeats = 0;
+
+          if (ticketClassesResponse.ok) {
+            const ticketClassesData = await ticketClassesResponse.json();
+            const ticketClasses = ticketClassesData.ticket_classes || [];
+
+            console.log(`Found ${ticketClasses.length} ticket classes for event ${event.name}`);
+
+            // Find the "Member" ticket class (free, might be hidden)
+            let memberTicket = ticketClasses.find((tc: any) =>
+              tc.translation?.name?.toLowerCase() === 'member' ||
+              tc.ticket_class_type_string === 'free'
+            );
+
+            // If no member ticket found, use the first ticket class
+            if (!memberTicket && ticketClasses.length > 0) {
+              memberTicket = ticketClasses[0];
+              console.log('No "Member" ticket found, using first ticket class');
+            }
+
+            if (memberTicket) {
+              ticketTypeId = memberTicket.id.toString();
+              ticketPrice = parseFloat(memberTicket.amount || 0);
+              availableSeats = parseInt((memberTicket.quantity || 0) - (memberTicket.sold || 0));
+
+              console.log('Selected ticket class:', {
+                id: ticketTypeId,
+                name: memberTicket.translation?.name,
+                price: ticketPrice,
+                available: availableSeats,
+                type: memberTicket.ticket_class_type_string
+              });
+            }
+          } else {
+            const error = await ticketClassesResponse.text();
+            console.error('Failed to fetch ticket classes:', error);
+          }
 
           const eventData = {
             title: event.name,
@@ -959,16 +1030,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
             start_date: event.start_time,
             end_date: event.end_time,
             location: event.venue?.name || 'Online',
-            ticket_price: event.tickets?.[0]?.price || 0,
-            available_seats: event.tickets?.[0]?.quantity_available || 0,
-            backstage_event_id: event.id,
-            image_url: event.banner_url || null,
+            ticket_price: ticketPrice,
+            available_seats: availableSeats,
+            backstage_event_id: event.id.toString(),
+            backstage_ticket_type_id: ticketTypeId,
+            image_url: event.banner_url || event.thumbnail_url || null,
             last_synced: new Date().toISOString()
           };
 
-          // Check if event already exists
+          console.log('Event data to save:', JSON.stringify(eventData, null, 2));
+
           const existingEvent = allExistingEvents?.find(
-            (e: any) => e.backstage_event_id === event.id
+            (e: any) => e.backstage_event_id === eventData.backstage_event_id
           );
 
           if (existingEvent) {
@@ -976,15 +1049,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
               .from('event')
               .update(eventData)
               .eq('id', existingEvent.id);
+            console.log('Updated event:', eventData.title);
           } else {
             await supabase
               .from('event')
               .insert(eventData);
+            console.log('Created event:', eventData.title);
           }
 
           syncedCount++;
         } catch (error: any) {
           console.error(`Error syncing event ${event.id}:`, error);
+          errors.push({ eventId: event.id, error: error.message });
           errorCount++;
         }
       }
@@ -993,11 +1069,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         success: true,
         synced: syncedCount,
         errors: errorCount,
-        total: events.length
+        total: events.length,
+        errorDetails: errors.length > 0 ? errors : undefined
       });
 
     } catch (error: any) {
-      console.error('Sync events from Backstage error:', error);
+      console.error('Fatal sync error:', error);
       res.status(500).json({
         error: 'Failed to sync events',
         message: error.message

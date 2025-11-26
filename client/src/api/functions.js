@@ -55,7 +55,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const syncBackstageEvents = notImplemented("syncBackstageEvents");
+  export const syncBackstageEvents = async (params) => {
+    const response = await fetch('/api/functions/syncBackstageEvents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const testFunction = notImplemented("testFunction");
   export const validateColleague = notImplemented("validateColleague");
   export const createBooking = notImplemented("createBooking");

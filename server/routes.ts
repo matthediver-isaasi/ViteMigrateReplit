@@ -895,9 +895,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({
         success: true,
         member: {
+          id: member.id,
           email: member.email,
           first_name: member.first_name,
           last_name: member.last_name,
+          handle: member.handle || null,
           organization_id: organizationId,
           organization_name: organizationName,
           training_fund_balance: trainingFundBalance,

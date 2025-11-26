@@ -46,14 +46,27 @@ export default function ArticleEditorPage() {
   const [selectedGuestWriterId, setSelectedGuestWriterId] = useState(null);
 
   // Fetch current member's full record to get the handle
+  // First check if memberInfo already has handle (from login), otherwise fetch by ID
   const { data: currentMember, isLoading: memberLoading } = useQuery({
-    queryKey: ['current-member', memberInfo?.email],
+    queryKey: ['current-member', memberInfo?.id],
     queryFn: async () => {
-      const allMembers = await base44.entities.Member.list();
-      const member = allMembers.find(m => m.email === memberInfo?.email);
-      return member || null;
+      // If memberInfo already has handle, use it directly
+      if (memberInfo?.handle) {
+        return memberInfo;
+      }
+      // Otherwise fetch by ID to get the full member record
+      if (memberInfo?.id) {
+        try {
+          const member = await base44.entities.Member.get(memberInfo.id);
+          return member || null;
+        } catch (error) {
+          console.error('Error fetching member by ID:', error);
+          return null;
+        }
+      }
+      return null;
     },
-    enabled: !!memberInfo?.email,
+    enabled: !!memberInfo?.id || !!memberInfo?.handle,
     staleTime: 5 * 60 * 1000,
   });
 

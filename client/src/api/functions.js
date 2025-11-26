@@ -156,7 +156,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const createXeroInvoice = notImplemented("createXeroInvoice");
+  export const createXeroInvoice = async (params) => {
+    const response = await fetch('/api/functions/createXeroInvoice', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const validateUser = notImplemented("validateUser");
   export const applyDiscountCode = notImplemented("applyDiscountCode");
   export const debugBackstageEvent = notImplemented("debugBackstageEvent");

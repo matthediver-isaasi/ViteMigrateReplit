@@ -3018,6 +3018,265 @@ AGCAS Events Team
     }
   });
 
+  // Helper function to get valid Xero access token
+  async function getValidXeroAccessToken(supabaseClient: any) {
+    const XERO_CLIENT_ID = process.env.XERO_CLIENT_ID;
+    const XERO_CLIENT_SECRET = process.env.XERO_CLIENT_SECRET;
+
+    const { data: tokens } = await supabaseClient
+      .from('xero_token')
+      .select('*');
+
+    if (!tokens || tokens.length === 0) {
+      throw new Error('No Xero token found. Please authenticate first.');
+    }
+
+    const token = tokens[0];
+    const expiresAt = new Date(token.expires_at);
+    const now = new Date();
+    const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+
+    // Token is still valid
+    if (expiresAt > fiveMinutesFromNow) {
+      return { accessToken: token.access_token, tenantId: token.tenant_id };
+    }
+
+    // Refresh token
+    const tokenResponse = await fetch('https://identity.xero.com/connect/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${XERO_CLIENT_ID}:${XERO_CLIENT_SECRET}`).toString('base64')
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: token.refresh_token,
+      }).toString(),
+    });
+
+    const tokenData = await tokenResponse.json() as any;
+
+    if (!tokenResponse.ok || tokenData.error) {
+      throw new Error(`Failed to refresh Xero token: ${JSON.stringify(tokenData)}`);
+    }
+
+    const newExpiresAt = new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString();
+
+    await supabaseClient
+      .from('xero_token')
+      .update({
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_at: newExpiresAt,
+      })
+      .eq('id', token.id);
+
+    return { accessToken: tokenData.access_token, tenantId: token.tenant_id };
+  }
+
+  // Helper function to find or create Xero contact
+  async function findOrCreateXeroContact(accessToken: string, tenantId: string, organizationName: string) {
+    // Search for existing contact
+    const searchResponse = await fetch(
+      `https://api.xero.com/api.xro/2.0/Contacts?where=Name=="${encodeURIComponent(organizationName)}"`,
+      {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'xero-tenant-id': tenantId,
+          'Accept': 'application/json'
+        }
+      }
+    );
+
+    const searchData = await searchResponse.json() as any;
+
+    if (searchData.Contacts && searchData.Contacts.length > 0) {
+      return searchData.Contacts[0].ContactID;
+    }
+
+    // Create new contact
+    const createResponse = await fetch('https://api.xero.com/api.xro/2.0/Contacts', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'xero-tenant-id': tenantId,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({
+        Contacts: [{
+          Name: organizationName
+        }]
+      })
+    });
+
+    const createData = await createResponse.json() as any;
+
+    if (!createResponse.ok || !createData.Contacts || createData.Contacts.length === 0) {
+      throw new Error(`Failed to create Xero contact: ${JSON.stringify(createData)}`);
+    }
+
+    return createData.Contacts[0].ContactID;
+  }
+
+  // Create Xero Invoice
+  app.post('/api/functions/createXeroInvoice', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const {
+        organizationName,
+        purchaseOrderNumber,
+        programName,
+        baseTicketPrice,
+        totalCost,
+        totalTickets,
+        offerDetails,
+        discountCode,
+        discountType,
+        discountValue,
+        stripePaymentIntentId
+      } = req.body;
+
+      if (!organizationName || !programName || totalCost === undefined || !totalTickets) {
+        return res.status(400).json({
+          error: 'Missing required parameters',
+          required: ['organizationName', 'programName', 'totalCost', 'totalTickets']
+        });
+      }
+
+      // Get valid Xero token
+      const { accessToken, tenantId } = await getValidXeroAccessToken(supabase);
+
+      // Find or create contact
+      const contactId = await findOrCreateXeroContact(accessToken, tenantId, organizationName);
+
+      // Calculate unit price (cost per ticket including free ones)
+      const unitPrice = (totalCost / totalTickets).toFixed(2);
+
+      // Build line description
+      let description = `${programName} tickets.\nPrice: £${baseTicketPrice}`;
+      if (offerDetails) {
+        description += `\nOffer: ${offerDetails}`;
+      }
+
+      // Add discount code information if present
+      if (discountCode) {
+        const discountDisplay = discountType === 'percentage'
+          ? `${discountValue}%`
+          : `£${(discountValue || 0).toFixed(2)}`;
+        description += `\nDiscount Code: ${discountCode} (${discountDisplay} off)`;
+      }
+
+      // Add Stripe payment intent ID if present
+      if (stripePaymentIntentId) {
+        description += `\nStripe Payment ID: ${stripePaymentIntentId}`;
+      }
+
+      // Create invoice
+      const invoicePayload = {
+        Invoices: [{
+          Type: 'ACCREC',
+          Contact: {
+            ContactID: contactId
+          },
+          Reference: purchaseOrderNumber || '',
+          Status: 'DRAFT',
+          DueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          LineItems: [{
+            Description: description,
+            Quantity: totalTickets,
+            UnitAmount: parseFloat(unitPrice),
+            AccountCode: '2112',
+            TaxType: 'EXEMPTOUTPUT'
+          }]
+        }]
+      };
+
+      const invoiceResponse = await fetch('https://api.xero.com/api.xro/2.0/Invoices', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'xero-tenant-id': tenantId,
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(invoicePayload)
+      });
+
+      const invoiceData = await invoiceResponse.json() as any;
+
+      if (!invoiceResponse.ok || !invoiceData.Invoices || invoiceData.Invoices.length === 0) {
+        return res.status(400).json({
+          error: 'Failed to create Xero invoice',
+          details: invoiceData
+        });
+      }
+
+      const invoice = invoiceData.Invoices[0];
+
+      // Fetch PDF from Xero
+      const pdfResponse = await fetch(
+        `https://api.xero.com/api.xro/2.0/Invoices/${invoice.InvoiceID}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'xero-tenant-id': tenantId,
+            'Accept': 'application/pdf'
+          }
+        }
+      );
+
+      if (!pdfResponse.ok) {
+        console.error('Failed to fetch invoice PDF from Xero');
+        return res.json({
+          success: true,
+          invoice_id: invoice.InvoiceID,
+          invoice_number: invoice.InvoiceNumber,
+          total: invoice.Total,
+          status: invoice.Status
+        });
+      }
+
+      // Get PDF as buffer and upload to Supabase storage
+      const pdfBuffer = await pdfResponse.arrayBuffer();
+      const fileName = `invoices/invoice-${invoice.InvoiceNumber}.pdf`;
+
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('documents')
+        .upload(fileName, pdfBuffer, {
+          contentType: 'application/pdf',
+          upsert: true
+        });
+
+      let pdfUri = null;
+      if (!uploadError && uploadData) {
+        const { data: urlData } = supabase.storage
+          .from('documents')
+          .getPublicUrl(fileName);
+        pdfUri = urlData?.publicUrl;
+      }
+
+      res.json({
+        success: true,
+        invoice_id: invoice.InvoiceID,
+        invoice_number: invoice.InvoiceNumber,
+        total: invoice.Total,
+        status: invoice.Status,
+        pdf_uri: pdfUri
+      });
+
+    } catch (error: any) {
+      console.error('Xero invoice creation error:', error);
+      res.status(500).json({
+        error: 'Failed to create invoice',
+        message: error.message
+      });
+    }
+  });
+
   // Refresh Xero Token
   app.post('/api/functions/refreshXeroToken', async (req: Request, res: Response) => {
     if (!supabase) {

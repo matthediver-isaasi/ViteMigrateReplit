@@ -422,6 +422,7 @@ function PagesContent() {
                 <Route path="/Articles" element={<Articles />} />
                 
                 <Route path="/ArticleEditor" element={<ArticleEditor />} />
+                <Route path="/articleeditor" element={<ArticleEditor />} />
                 
                 <Route path="/ArticleView" element={<ArticleView />} />
                 

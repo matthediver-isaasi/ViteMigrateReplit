@@ -25,7 +25,7 @@ export default function AGCASSquareButton({
       style={{ fontFamily: 'Poppins, sans-serif' }}
       {...props}
     >
-      <style jsx>{`
+      <style>{`
         .agcas-square-button {
           box-shadow: inset 0 0 0 2px black;
         }

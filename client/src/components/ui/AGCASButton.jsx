@@ -93,7 +93,7 @@ export default function AGCASButton({
       style={{ ...buttonStyles, ...hoverStyles }}
       {...props}
     >
-      <style jsx>{`
+      <style>{`
         .agcas-button {
           box-shadow: inset 0 0 0 2px black;
         }

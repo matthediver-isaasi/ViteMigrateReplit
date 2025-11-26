@@ -160,7 +160,7 @@ export default function PublicResourcesPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <style jsx>{`
+      <style>{`
         .agcas-pagination-button {
           box-shadow: inset 0 0 0 2px black;
           background: transparent;

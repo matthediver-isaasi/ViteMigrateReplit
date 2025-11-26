@@ -268,7 +268,7 @@ export default function ResourceCard({ resource, isLocked = false, buttonStyles 
 
   return (
     <Card className="border-slate-200 hover:shadow-lg transition-shadow duration-300 overflow-hidden h-full flex flex-col rounded-none relative">
-      <style jsx>{`
+      <style>{`
         .agcas-share-button {
           box-shadow: inset 0 0 0 2px black;
         }

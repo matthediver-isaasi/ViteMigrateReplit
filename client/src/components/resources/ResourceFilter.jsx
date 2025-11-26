@@ -89,7 +89,7 @@ export default function ResourceFilter({
 
   return (
     <div className="space-y-0">
-      <style jsx>{`
+      <style>{`
         .accordion-content {
           overflow: hidden;
           transition: max-height 0.3s ease-in-out, opacity 0.3s ease-in-out;

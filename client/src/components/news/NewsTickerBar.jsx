@@ -3,37 +3,33 @@ import { useQuery } from "@tanstack/react-query";
 import { ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-
+import { base44 } from "@/api/base44Client";
 
 export default function NewsTickerBar() {
   const [currentIndex, setCurrentIndex] = useState(0);
 
-  // 🔹 Load ticker settings from SystemSettings via Supabase
+  // Load ticker settings from SystemSettings via base44 client
   const { data: settings = [] } = useQuery({
     queryKey: ["news-ticker-settings"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("SystemSettings") // adjust to your actual table name, e.g. 'system_settings'
-        .select("setting_key, setting_value")
-        .in("setting_key", [
-          "news_ticker_count",
-          "news_ticker_cycle_seconds",
-          "news_ticker_enabled",
-        ]);
-
-      if (error) {
+      try {
+        const allSettings = await base44.entities.SystemSettings.list();
+        return allSettings.filter(s => 
+          s.setting_key === 'news_ticker_count' || 
+          s.setting_key === 'news_ticker_cycle_seconds' ||
+          s.setting_key === 'news_ticker_enabled'
+        );
+      } catch (error) {
         console.error("Error loading news ticker settings:", error);
         return [];
       }
-
-      return data || [];
     },
     staleTime: 5 * 60 * 1000,
   });
 
   const tickerEnabled =
     settings.find((s) => s.setting_key === "news_ticker_enabled")
-      ?.setting_value !== "false";
+      ?.setting_value === "true";
 
   const tickerCount =
     parseInt(
@@ -47,32 +43,36 @@ export default function NewsTickerBar() {
       )?.setting_value
     ) || 5;
 
-  // 🔹 Load latest news posts via Supabase
+  // Load latest news posts via base44 client
   const { data: latestNews = [] } = useQuery({
     queryKey: ["latest-news-ticker", tickerCount],
+    enabled: tickerEnabled,
     queryFn: async () => {
-      const nowIso = new Date().toISOString();
-
-      const { data, error } = await supabase
-        .from("NewsPost") // adjust to your actual table name, e.g. 'news_posts'
-        .select("*")
-        .eq("status", "published")
-        .lte("published_date", nowIso)
-        .order("published_date", { ascending: false })
-        .limit(tickerCount);
-
-      if (error) {
+      try {
+        const nowIso = new Date().toISOString();
+        const allNews = await base44.entities.NewsPost.list();
+        
+        // Filter for published news with published_date <= now
+        const publishedNews = allNews
+          .filter(news => 
+            news.status === 'published' && 
+            news.published_date && 
+            news.published_date <= nowIso
+          )
+          .sort((a, b) => new Date(b.published_date) - new Date(a.published_date))
+          .slice(0, tickerCount);
+        
+        return publishedNews;
+      } catch (error) {
         console.error("Error loading latest news for ticker:", error);
         return [];
       }
-
-      return data || [];
     },
     staleTime: 2 * 60 * 1000,
     refetchInterval: 2 * 60 * 1000,
   });
 
-  // 🔁 Cycle through news items
+  // Cycle through news items
   useEffect(() => {
     if (latestNews.length <= 1) return;
 

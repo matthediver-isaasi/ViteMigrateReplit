@@ -1082,6 +1082,161 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Validate Colleague (check if email belongs to same organization)
+  app.post('/api/functions/validateColleague', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+
+    try {
+      const { email, memberEmail, organizationId } = req.body;
+
+      if (!email || !organizationId) {
+        return res.status(400).json({
+          valid: false,
+          error: 'Missing required parameters'
+        });
+      }
+
+      const accessToken = await getValidZohoAccessToken();
+
+      // Search for the colleague's contact in CRM
+      const criteria = `(Email:equals:${email})`;
+      const searchUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts/search?criteria=${encodeURIComponent(criteria)}`;
+
+      const searchResponse = await fetch(searchUrl, {
+        headers: {
+          'Authorization': `Zoho-oauthtoken ${accessToken}`,
+        },
+      });
+
+      // Check if response has content before parsing
+      let searchData: { data?: any[] } = { data: [] };
+      const responseText = await searchResponse.text();
+
+      if (responseText && responseText.trim() !== '') {
+        try {
+          searchData = JSON.parse(responseText);
+        } catch (e) {
+          console.error('Failed to parse search response:', responseText);
+          searchData = { data: [] };
+        }
+      }
+
+      // If contact found, validate organization
+      if (searchResponse.ok && searchData.data && searchData.data.length > 0) {
+        const contact = searchData.data[0];
+
+        // Check if the contact belongs to the same organization
+        if (!contact.Account_Name?.id || contact.Account_Name.id !== organizationId) {
+          return res.json({
+            valid: false,
+            status: 'wrong_organization',
+            error: 'A ticket will be sent shortly. This email address cannot be verified, AGCAS will be in touch.'
+          });
+        }
+
+        // Valid colleague - return their details
+        return res.json({
+          valid: true,
+          status: 'registered',
+          first_name: contact.First_Name,
+          last_name: contact.Last_Name,
+          zoho_contact_id: contact.id
+        });
+      }
+
+      // Contact not found - check domain matching
+      const emailDomain = email.split('@')[1]?.toLowerCase();
+      if (!emailDomain) {
+        return res.json({
+          valid: false,
+          status: 'invalid_email',
+          error: 'Invalid email format'
+        });
+      }
+
+      // Fetch organization details from CRM
+      const orgResponse = await fetch(
+        `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts/${organizationId}`,
+        {
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+          },
+        }
+      );
+
+      if (!orgResponse.ok) {
+        return res.json({
+          valid: true,
+          status: 'external',
+          message: 'External email address. AGCAS may reach out to validate eligibility.'
+        });
+      }
+
+      const orgData = await orgResponse.json();
+      const org = orgData.data[0];
+
+      // Check primary domain
+      const primaryDomain = org.Domain?.toLowerCase();
+      if (primaryDomain && emailDomain === primaryDomain) {
+        return res.json({
+          valid: true,
+          status: 'unregistered_domain_match',
+          message: 'A ticket and member welcome will be sent shortly.'
+        });
+      }
+
+      // Check additional verified domains - safely handle non-array values
+      let additionalDomains = org.Additional_verified_domains;
+
+      // Ensure additionalDomains is always an array
+      if (!Array.isArray(additionalDomains)) {
+        if (additionalDomains === null || additionalDomains === undefined) {
+          additionalDomains = [];
+        } else if (typeof additionalDomains === 'string') {
+          // If it's a string, try to split by comma or newline
+          additionalDomains = additionalDomains
+            .split(/[,\n]/)
+            .map((d: string) => d.trim())
+            .filter((d: string) => d.length > 0);
+        } else {
+          console.warn('Unexpected type for Additional_verified_domains:', typeof additionalDomains);
+          additionalDomains = [];
+        }
+      }
+
+      const domainMatches = additionalDomains.some(
+        (domain: string) => domain.toLowerCase() === emailDomain
+      );
+
+      if (domainMatches) {
+        return res.json({
+          valid: true,
+          status: 'unregistered_domain_match',
+          message: 'A ticket and member welcome will be sent shortly.'
+        });
+      }
+
+      // Domain doesn't match - external email
+      res.json({
+        valid: true,
+        status: 'external',
+        message: 'A ticket will be sent shortly. This email address cannot be verified, AGCAS will be in touch.'
+      });
+
+    } catch (error: any) {
+      console.error('Validation error:', error);
+      res.status(500).json({
+        valid: false,
+        status: 'error',
+        error: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

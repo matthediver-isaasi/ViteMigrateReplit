@@ -64,7 +64,14 @@ const notImplemented = (name) => () => {
     return response.json();
   };
   export const testFunction = notImplemented("testFunction");
-  export const validateColleague = notImplemented("validateColleague");
+  export const validateColleague = async (params) => {
+    const response = await fetch('/api/functions/validateColleague', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const createBooking = notImplemented("createBooking");
   export const processProgramTicketPurchase = notImplemented("processProgramTicketPurchase");
   export const sendMagicLink = notImplemented("sendMagicLink");

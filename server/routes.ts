@@ -3119,6 +3119,95 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Clear Program Ticket Transactions - deletes ALL transaction records (admin/test utility)
+  app.post('/api/functions/clearProgramTicketTransactions', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      console.log('[clearProgramTicketTransactions] ========================================');
+      console.log('[clearProgramTicketTransactions] CLEAR PROGRAM TICKET TRANSACTIONS CALLED');
+      console.log('[clearProgramTicketTransactions] ========================================');
+      console.log('[clearProgramTicketTransactions] WARNING: This will delete ALL transaction records');
+
+      // Fetch all transactions
+      console.log('[clearProgramTicketTransactions] Fetching all transactions...');
+      const { data: allTransactions, error: fetchError } = await supabase
+        .from('program_ticket_transaction')
+        .select('*');
+
+      if (fetchError) {
+        throw fetchError;
+      }
+
+      console.log(`[clearProgramTicketTransactions] Found ${allTransactions?.length || 0} transaction(s) to delete`);
+
+      if (!allTransactions || allTransactions.length === 0) {
+        console.log('[clearProgramTicketTransactions] No transactions to delete');
+        return res.json({
+          success: true,
+          deleted_count: 0,
+          message: 'No program ticket transactions found to delete'
+        });
+      }
+
+      // Delete each transaction
+      let deletedCount = 0;
+      let errorCount = 0;
+      const errors: any[] = [];
+
+      for (const transaction of allTransactions) {
+        try {
+          const { error: deleteError } = await supabase
+            .from('program_ticket_transaction')
+            .delete()
+            .eq('id', transaction.id);
+
+          if (deleteError) throw deleteError;
+
+          deletedCount++;
+          console.log(`[clearProgramTicketTransactions] Deleted transaction ${transaction.id} (${transaction.transaction_type} - ${transaction.program_name})`);
+
+          // Small delay to avoid rate limiting
+          await new Promise(resolve => setTimeout(resolve, 50));
+        } catch (error: any) {
+          errorCount++;
+          console.error(`[clearProgramTicketTransactions] Failed to delete transaction ${transaction.id}:`, error.message);
+          errors.push({
+            transaction_id: transaction.id,
+            program_name: transaction.program_name,
+            transaction_type: transaction.transaction_type,
+            error: error.message
+          });
+        }
+      }
+
+      console.log('[clearProgramTicketTransactions] ========================================');
+      console.log(`[clearProgramTicketTransactions] DELETION COMPLETE`);
+      console.log(`[clearProgramTicketTransactions] Successfully deleted: ${deletedCount}`);
+      console.log(`[clearProgramTicketTransactions] Failed: ${errorCount}`);
+      console.log('[clearProgramTicketTransactions] ========================================');
+
+      res.json({
+        success: true,
+        deleted_count: deletedCount,
+        error_count: errorCount,
+        total_processed: allTransactions.length,
+        errors: errors.length > 0 ? errors : undefined,
+        message: `Successfully deleted ${deletedCount} transaction(s)${errorCount > 0 ? `. ${errorCount} deletion(s) failed.` : ''}`
+      });
+
+    } catch (error: any) {
+      console.error('[clearProgramTicketTransactions] Fatal error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to clear program ticket transactions',
+        details: error.message
+      });
+    }
+  });
+
   // Clear Bookings - deletes ALL booking records (admin/test utility)
   app.post('/api/functions/clearBookings', async (req: Request, res: Response) => {
     if (!supabase) {

@@ -270,7 +270,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const createJobPostingNonMember = notImplemented("createJobPostingNonMember");
+  export const createJobPostingNonMember = async (params) => {
+    const response = await fetch('/api/functions/createJobPostingNonMember', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const handleJobPostingPaymentWebhook = notImplemented("handleJobPostingPaymentWebhook");
   export const createJobPostingPaymentIntent = notImplemented("createJobPostingPaymentIntent");
   export const renameResourceSubcategory = notImplemented("renameResourceSubcategory");

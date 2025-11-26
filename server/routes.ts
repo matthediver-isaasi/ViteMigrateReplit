@@ -3119,6 +3119,120 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Create Job Posting Non-Member - creates paid job posting with Stripe checkout
+  app.post('/api/functions/createJobPostingNonMember', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const jobData = req.body;
+
+      // Get pricing from system settings
+      const { data: settings } = await supabase
+        .from('system_settings')
+        .select('*')
+        .eq('setting_key', 'job_posting_price');
+
+      let price = 50; // Default price in GBP
+      if (settings && settings.length > 0) {
+        price = parseFloat(settings[0].setting_value);
+      }
+
+      // Calculate expiry date (90 days from now)
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + 90);
+
+      // Create job posting with pending_payment status
+      const { data: jobPosting, error: createError } = await supabase
+        .from('job_posting')
+        .insert({
+          title: jobData.title,
+          description: jobData.description,
+          company_name: jobData.company_name,
+          company_logo_url: jobData.company_logo_url || '',
+          location: jobData.location,
+          salary_range: jobData.salary_range || '',
+          job_type: jobData.job_type,
+          hours: jobData.hours || null,
+          closing_date: jobData.closing_date,
+          application_method: jobData.application_method,
+          application_value: jobData.application_value,
+          contact_email: jobData.contact_email,
+          contact_name: jobData.contact_name,
+          is_member_post: false,
+          status: 'pending_payment',
+          payment_status: 'pending',
+          expiry_date: expiryDate.toISOString(),
+          amount_paid: price,
+          attachment_urls: jobData.attachment_urls || [],
+          attachment_names: jobData.attachment_names || []
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        throw createError;
+      }
+
+      // Initialize Stripe with secret key from environment
+      const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+      if (!stripeSecretKey) {
+        throw new Error('Stripe secret key not configured');
+      }
+
+      const stripe = new Stripe(stripeSecretKey, {
+        apiVersion: '2023-10-16' as any,
+      });
+
+      // Get origin from request headers
+      const origin = req.headers.origin || req.headers.referer?.replace(/\/$/, '') || '';
+
+      // Create Stripe Checkout Session
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price_data: {
+              currency: 'gbp',
+              product_data: {
+                name: 'Job Posting',
+                description: `${jobData.title} at ${jobData.company_name}`,
+              },
+              unit_amount: Math.round(price * 100), // Convert to pence
+            },
+            quantity: 1,
+          },
+        ],
+        mode: 'payment',
+        success_url: `${origin}/JobPostSuccess?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/PostJob?cancelled=true`,
+        customer_email: jobData.contact_email,
+        metadata: {
+          job_posting_id: jobPosting.id,
+          contact_email: jobData.contact_email,
+          contact_name: jobData.contact_name
+        }
+      });
+
+      // Update job posting with session ID
+      await supabase
+        .from('job_posting')
+        .update({ stripe_checkout_session_id: session.id })
+        .eq('id', jobPosting.id);
+
+      res.json({
+        success: true,
+        checkout_url: session.url,
+        job_id: jobPosting.id
+      });
+
+    } catch (error: any) {
+      console.error('Error creating non-member job posting:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Create Job Posting Member - creates job posting for authenticated members
   app.post('/api/functions/createJobPostingMember', async (req: Request, res: Response) => {
     if (!supabase) {

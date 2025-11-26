@@ -1682,6 +1682,430 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Process Program Ticket Purchase
+  app.post('/api/functions/processProgramTicketPurchase', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+    let stripe: any = null;
+    if (stripeSecretKey) {
+      const Stripe = require('stripe');
+      stripe = new Stripe(stripeSecretKey);
+    }
+
+    try {
+      const {
+        memberEmail,
+        programName,
+        quantity,
+        purchaseOrderNumber,
+        selectedVoucherIds = [],
+        trainingFundAmount = 0,
+        accountAmount = 0,
+        paymentMethod = 'account',
+        stripePaymentIntentId = null,
+        appliedDiscountId = null
+      } = req.body;
+
+      if (!memberEmail || !programName || !quantity) {
+        return res.status(400).json({
+          error: 'Missing required parameters',
+          required: ['memberEmail', 'programName', 'quantity']
+        });
+      }
+
+      if (quantity < 1 || quantity > 1000) {
+        return res.status(400).json({
+          error: 'Quantity must be between 1 and 1000'
+        });
+      }
+
+      // Verify Stripe payment if card payment method
+      if (paymentMethod === 'card' && stripePaymentIntentId && stripe) {
+        try {
+          const paymentIntent = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
+
+          if (paymentIntent.status !== 'succeeded') {
+            return res.status(400).json({
+              error: 'Payment not completed',
+              details: `Payment status: ${paymentIntent.status}`
+            });
+          }
+
+          console.log('[processProgramTicketPurchase] Stripe payment verified:', paymentIntent.id);
+        } catch (stripeError: any) {
+          console.error('[processProgramTicketPurchase] Stripe verification failed:', stripeError);
+          return res.status(400).json({
+            error: 'Failed to verify payment',
+            details: stripeError.message
+          });
+        }
+      }
+
+      // Verify that the program exists and is active
+      const { data: allPrograms } = await supabase.from('program').select('*');
+      const program = allPrograms?.find((p: any) => p.program_tag === programName && p.is_active);
+
+      if (!program) {
+        return res.status(404).json({
+          error: 'Program not found or not active',
+          programName: programName
+        });
+      }
+
+      // Get member's organization
+      const { data: allMembers } = await supabase.from('member').select('*');
+      const member = allMembers?.find((m: any) => m.email === memberEmail);
+
+      if (!member || !member.organization_id) {
+        return res.status(404).json({
+          error: 'Member or organization not found'
+        });
+      }
+
+      // Get organization
+      const { data: allOrgs } = await supabase.from('organization').select('*');
+      let org = allOrgs?.find((o: any) => o.id === member.organization_id);
+
+      if (!org) {
+        org = allOrgs?.find((o: any) => o.zoho_account_id === member.organization_id);
+      }
+
+      if (!org) {
+        return res.status(404).json({
+          error: 'Organization not found'
+        });
+      }
+
+      // Calculate cost and tickets based on offer type
+      let totalCost: number;
+      let totalTicketsReceived: number;
+      let discountApplied = false;
+      let discountDetails = '';
+      let costBeforeDiscountCodeApplication: number;
+      let discountAmount = 0;
+      let discountCode: any = null;
+
+      // Determine effective offer type
+      const offerType = program.offer_type || 'none';
+      let effectiveOfferType = offerType;
+      if (offerType === 'none') {
+        if (program.bogo_buy_quantity && program.bogo_get_free_quantity) {
+          effectiveOfferType = 'bogo';
+        } else if (program.bulk_discount_threshold && program.bulk_discount_percentage) {
+          effectiveOfferType = 'bulk_discount';
+        }
+      }
+
+      // Calculate cost and total tickets based on offer type
+      if (effectiveOfferType === 'bogo') {
+        const bogoLogicType = program.bogo_logic_type || 'buy_x_get_y_free';
+
+        if (bogoLogicType === 'buy_x_get_y_free') {
+          if (program.bogo_buy_quantity && program.bogo_get_free_quantity &&
+              quantity >= program.bogo_buy_quantity) {
+            const bogoBlocks = Math.floor(quantity / program.bogo_buy_quantity);
+            const freeTickets = bogoBlocks * program.bogo_get_free_quantity;
+
+            totalTicketsReceived = quantity + freeTickets;
+            totalCost = program.program_ticket_price * quantity;
+
+            discountApplied = true;
+            discountDetails = `Buy ${program.bogo_buy_quantity}, Get ${program.bogo_get_free_quantity} Free - ${freeTickets} free ticket${freeTickets > 1 ? 's' : ''} received`;
+          } else {
+            totalTicketsReceived = quantity;
+            totalCost = program.program_ticket_price * quantity;
+          }
+        } else {
+          totalTicketsReceived = quantity;
+
+          if (program.bogo_buy_quantity && program.bogo_get_free_quantity &&
+              quantity >= (program.bogo_buy_quantity + program.bogo_get_free_quantity)) {
+            const bogoSetSize = program.bogo_buy_quantity + program.bogo_get_free_quantity;
+            const completeBlocks = Math.floor(quantity / bogoSetSize);
+            const remainingTickets = quantity % bogoSetSize;
+            const freeTickets = completeBlocks * program.bogo_get_free_quantity;
+
+            const ticketsToPay = (completeBlocks * program.bogo_buy_quantity) + remainingTickets;
+            totalCost = program.program_ticket_price * ticketsToPay;
+
+            discountApplied = true;
+            discountDetails = `BOGO offer applied - ${freeTickets} free ticket${freeTickets > 1 ? 's' : ''} included`;
+          } else {
+            totalCost = program.program_ticket_price * quantity;
+          }
+        }
+      } else if (effectiveOfferType === 'bulk_discount') {
+        totalTicketsReceived = quantity;
+        totalCost = program.program_ticket_price * quantity;
+
+        if (program.bulk_discount_threshold && program.bulk_discount_percentage &&
+            quantity >= program.bulk_discount_threshold) {
+          const bulkDiscountValue = totalCost * (program.bulk_discount_percentage / 100);
+          totalCost = totalCost - bulkDiscountValue;
+          discountApplied = true;
+          discountDetails = `${program.bulk_discount_percentage}% bulk discount`;
+        }
+      } else {
+        totalTicketsReceived = quantity;
+        totalCost = program.program_ticket_price * quantity;
+      }
+
+      costBeforeDiscountCodeApplication = totalCost;
+
+      // Apply discount code if provided
+      if (appliedDiscountId) {
+        const { data: allDiscountCodes } = await supabase.from('discount_code').select('*');
+        discountCode = allDiscountCodes?.find((dc: any) => dc.id === appliedDiscountId);
+
+        if (discountCode && discountCode.is_active) {
+          if (discountCode.expires_at && new Date(discountCode.expires_at) < new Date()) {
+            return res.status(400).json({ error: 'Discount code has expired' });
+          }
+
+          if (discountCode.program_tag && discountCode.program_tag !== programName) {
+            return res.status(400).json({ error: 'Discount code is not valid for this program' });
+          }
+
+          // Validate usage count
+          if (discountCode.max_usage_count) {
+            let currentUsage = 0;
+
+            if (discountCode.organization_id) {
+              const { data: usageRecords } = await supabase
+                .from('discount_code_usage')
+                .select('*')
+                .eq('discount_code_id', discountCode.id)
+                .eq('organization_id', org.id);
+
+              if (usageRecords && usageRecords.length > 0) {
+                currentUsage = usageRecords[0].usage_count || 0;
+              }
+            } else {
+              currentUsage = discountCode.current_usage_count || 0;
+            }
+
+            if (currentUsage >= discountCode.max_usage_count) {
+              return res.status(400).json({ error: 'Discount code has reached its maximum usage' });
+            }
+          }
+
+          // Calculate discount
+          if (discountCode.type === 'percentage') {
+            discountAmount = totalCost * (discountCode.value / 100);
+          } else if (discountCode.type === 'fixed') {
+            discountAmount = discountCode.value;
+          }
+
+          discountAmount = Math.min(discountAmount, totalCost);
+          totalCost = totalCost - discountAmount;
+
+          // Increment usage count
+          if (discountCode.organization_id) {
+            const { data: usageRecords } = await supabase
+              .from('discount_code_usage')
+              .select('*')
+              .eq('discount_code_id', discountCode.id)
+              .eq('organization_id', org.id);
+
+            if (usageRecords && usageRecords.length > 0) {
+              await supabase
+                .from('discount_code_usage')
+                .update({ usage_count: (usageRecords[0].usage_count || 0) + 1 })
+                .eq('id', usageRecords[0].id);
+            } else {
+              await supabase.from('discount_code_usage').insert({
+                discount_code_id: discountCode.id,
+                organization_id: org.id,
+                usage_count: 1
+              });
+            }
+          } else {
+            await supabase
+              .from('discount_code')
+              .update({ current_usage_count: (discountCode.current_usage_count || 0) + 1 })
+              .eq('id', discountCode.id);
+          }
+
+          console.log(`[processProgramTicketPurchase] Applied discount code ${discountCode.code}: £${discountAmount.toFixed(2)} off`);
+        } else {
+          return res.status(400).json({ error: 'Invalid or inactive discount code provided.' });
+        }
+      }
+
+      // Process vouchers
+      let voucherAmountUsed = 0;
+      const voucherUsageDetails: any[] = [];
+      let remainingCost = totalCost;
+
+      if (selectedVoucherIds.length > 0) {
+        const { data: allVouchers } = await supabase.from('voucher').select('*');
+        const selectedVouchersData = selectedVoucherIds
+          .map((voucherId: string) => allVouchers?.find((v: any) => v.id === voucherId))
+          .filter((v: any) => v !== undefined)
+          .sort((a: any, b: any) => {
+            const expiryA = new Date(a.expires_at).getTime();
+            const expiryB = new Date(b.expires_at).getTime();
+            if (expiryA !== expiryB) return expiryA - expiryB;
+            return a.value - b.value;
+          });
+
+        for (const voucher of selectedVouchersData) {
+          if (voucher.organization_id !== org.id) {
+            return res.status(403).json({ error: `Voucher ${voucher.code} does not belong to your organization` });
+          }
+
+          if (voucher.status !== 'active') {
+            return res.status(400).json({ error: `Voucher ${voucher.code} is not active` });
+          }
+
+          if (new Date(voucher.expires_at) < new Date()) {
+            return res.status(400).json({ error: `Voucher ${voucher.code} has expired` });
+          }
+
+          if (remainingCost <= 0) break;
+
+          const amountToUse = Math.min(voucher.value, remainingCost);
+          voucherAmountUsed += amountToUse;
+          remainingCost -= amountToUse;
+
+          if (amountToUse >= voucher.value) {
+            await supabase.from('voucher').update({ status: 'used', used_at: new Date().toISOString() }).eq('id', voucher.id);
+            voucherUsageDetails.push({ code: voucher.code, voucherId: voucher.id, amountUsed: amountToUse, fullyUsed: true });
+          } else {
+            const newValue = voucher.value - amountToUse;
+            await supabase.from('voucher').update({ value: newValue }).eq('id', voucher.id);
+            voucherUsageDetails.push({ code: voucher.code, voucherId: voucher.id, amountUsed: amountToUse, fullyUsed: false, remainingValue: newValue });
+          }
+        }
+      }
+
+      // Verify payment allocation
+      const remainingAfterInternalFunds = totalCost - voucherAmountUsed - trainingFundAmount;
+      const cardAmount = paymentMethod === 'card' ? remainingAfterInternalFunds : 0;
+      const totalAllocated = voucherAmountUsed + trainingFundAmount + accountAmount + cardAmount;
+
+      if (Math.abs(totalAllocated - totalCost) > 0.01) {
+        return res.status(400).json({
+          error: 'Payment allocation does not match total cost',
+          totalCost: parseFloat(totalCost.toFixed(2)),
+          totalAllocated: parseFloat(totalAllocated.toFixed(2))
+        });
+      }
+
+      // Verify sufficient balances
+      if (trainingFundAmount > (org.training_fund_balance || 0)) {
+        return res.status(400).json({
+          error: 'Insufficient training fund balance',
+          available: org.training_fund_balance || 0,
+          requested: trainingFundAmount
+        });
+      }
+
+      if (accountAmount > 0 && paymentMethod === 'account' && !purchaseOrderNumber) {
+        return res.status(400).json({ error: 'Purchase order number required for account charges' });
+      }
+
+      // Update organization balances
+      const currentProgramBalances = org.program_ticket_balances || {};
+      const currentProgramBalance = currentProgramBalances[programName] || 0;
+      const newProgramBalance = currentProgramBalance + totalTicketsReceived;
+
+      const updatedProgramBalances = { ...currentProgramBalances, [programName]: newProgramBalance };
+
+      const updateData: any = {
+        program_ticket_balances: updatedProgramBalances,
+        last_synced: new Date().toISOString()
+      };
+
+      if (trainingFundAmount > 0) {
+        updateData.training_fund_balance = (org.training_fund_balance || 0) - trainingFundAmount;
+      }
+
+      await supabase.from('organization').update(updateData).eq('id', org.id);
+
+      // Build transaction notes
+      const paymentMethods = [];
+      if (voucherAmountUsed > 0) {
+        const voucherSummary = voucherUsageDetails.map((v: any) =>
+          `${v.code} (£${v.amountUsed.toFixed(2)}${v.fullyUsed ? ' - fully used' : ` - £${v.remainingValue?.toFixed(2)} remaining`})`
+        ).join(', ');
+        paymentMethods.push(`Vouchers: ${voucherSummary}`);
+      }
+      if (trainingFundAmount > 0) paymentMethods.push(`Training Fund: £${trainingFundAmount.toFixed(2)}`);
+      if (accountAmount > 0) paymentMethods.push(`Account: £${accountAmount.toFixed(2)}`);
+      if (cardAmount > 0) paymentMethods.push(`Card: £${cardAmount.toFixed(2)}${stripePaymentIntentId ? ` (Stripe: ${stripePaymentIntentId})` : ''}`);
+
+      let transactionNotes = `Purchased ${quantity} ticket${quantity > 1 ? 's' : ''} for ${program.name}`;
+      if (discountApplied) transactionNotes += ` (${discountDetails})`;
+      transactionNotes += `. Total tickets received: ${totalTicketsReceived}.`;
+      if (discountCode) transactionNotes += ` Discount code ${discountCode.code} applied: £${discountAmount.toFixed(2)} off.`;
+      transactionNotes += ` Payment: ${paymentMethods.join(', ')}`;
+
+      const transactionData: any = {
+        organization_id: org.id,
+        program_name: programName,
+        transaction_type: 'purchase',
+        quantity: totalTicketsReceived,
+        original_quantity: totalTicketsReceived,
+        cancelled_quantity: 0,
+        status: 'active',
+        purchase_order_number: purchaseOrderNumber || null,
+        member_email: memberEmail,
+        notes: transactionNotes,
+        discount_code_id: discountCode?.id || null,
+        discount_amount_applied: discountAmount > 0 ? discountAmount : null,
+        total_cost_before_discount: costBeforeDiscountCodeApplication
+      };
+
+      // Create transaction record
+      const { data: transaction } = await supabase.from('program_ticket_transaction').insert(transactionData).select().single();
+
+      // Update transaction reference in fully used vouchers
+      for (const usage of voucherUsageDetails) {
+        if (usage.fullyUsed) {
+          await supabase.from('voucher').update({ used_for_transaction_id: transaction?.id }).eq('id', usage.voucherId);
+        }
+      }
+
+      res.json({
+        success: true,
+        message: `Successfully added ${totalTicketsReceived} ${program.name} ticket${totalTicketsReceived > 1 ? 's' : ''} to ${org.name}`,
+        balances: updatedProgramBalances,
+        purchase_order_number: purchaseOrderNumber,
+        quantity_purchased: quantity,
+        total_tickets_received: totalTicketsReceived,
+        free_tickets: totalTicketsReceived - quantity,
+        total_cost: totalCost,
+        discount_applied: discountAmount > 0,
+        discount_amount: discountAmount,
+        discount_code: discountCode?.code || null,
+        discount_details: discountDetails,
+        payment_breakdown: {
+          vouchers: voucherAmountUsed,
+          voucher_usage_details: voucherUsageDetails,
+          training_fund: trainingFundAmount,
+          account: accountAmount,
+          card: cardAmount,
+          payment_method: paymentMethod,
+          stripe_payment_intent_id: stripePaymentIntentId
+        },
+        xero_invoice: null,
+        is_simulated_payment: false
+      });
+
+    } catch (error: any) {
+      console.error('Purchase Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to process purchase',
+        message: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

@@ -322,6 +322,149 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // ============ Migration Routes ============
+  
+  // Fix PortalMenu parent_id values (one-time migration)
+  // Converts legacy Base44 parent_id references to new Supabase UUIDs
+  app.post('/api/migrate/portal-menu-parents', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      // Get all PortalMenu items
+      const { data: allItems, error: fetchError } = await supabase
+        .from('portal_menu')
+        .select('*');
+
+      if (fetchError) {
+        return res.status(500).json({ error: fetchError.message });
+      }
+
+      if (!allItems || allItems.length === 0) {
+        return res.json({ message: 'No PortalMenu items found', updated: 0 });
+      }
+
+      // Find items with parent_id that might need fixing
+      // (parent_id is not null and doesn't match any current id)
+      const currentIds = new Set(allItems.map((item: any) => item.id));
+      const itemsWithOrphanedParent = allItems.filter((item: any) => 
+        item.parent_id && !currentIds.has(item.parent_id)
+      );
+
+      console.log('[Migration] Items with orphaned parent_id:', itemsWithOrphanedParent.length);
+
+      // Define parent title patterns for matching children
+      const parentTitlePatterns: Record<string, string[]> = {
+        'News': ['All News', 'Write a News Post', 'Create News'],
+        'Blogs': ['All Blogs', 'My Blogs', 'Write a Blog', 'Create Blog'],
+        'Team': ['My Team', 'Team Members', 'Our Team'],
+        'Articles': ['All Articles', 'My Articles', 'Write Article'],
+        'Resources': ['All Resources', 'My Resources', 'Resource List'],
+        'Role Management': ['Manage Roles', 'Role Assignment', 'Assign Roles', 'Member Role'],
+        'Directory Admin': ['Member Directory', 'Organisation Directory', 'University Directory'],
+        'Event Admin': ['Event Settings', 'Manage Events', 'Event List'],
+        'Job Board Admin': ['Job Postings', 'My Job Postings', 'Job Settings'],
+        'Award Admin': ['Award Management', 'Wall of Fame', 'Manage Awards'],
+        'Forms Admin': ['Form Management', 'Form Submissions', 'Manage Forms'],
+        'Support Admin': ['Support Tickets', 'Manage Support', 'Support Management'],
+        'iConnect System': ['Navigation', 'Page Builder', 'Banners', 'Tours', 'Templates', 'Button Styles', 'System Settings'],
+        'News Admin': ['News Management', 'News Settings', 'Manage News'],
+        'Blog Admin': ['Blog Management', 'Blog Settings', 'Manage Blog', 'Article Management', 'Articles Settings'],
+        'Resource Admin': ['Resource Management', 'Resource Settings', 'Category Management', 'Tag Management'],
+        'Category Admin': ['Categories', 'Tag Management', 'Manage Categories'],
+        'File Repository': ['File Management', 'Manage Files'],
+        'Floater Admin': ['Floater Management', 'Manage Floaters'],
+        'Page Builder': ['Page Management', 'Template Management', 'iEdit Pages', 'iEdit Templates'],
+        'Member Groups': ['Group Management', 'Manage Groups'],
+      };
+
+      // Build a mapping of parent titles to their new UUIDs (for items without parent_id)
+      const parentItems = allItems.filter((item: any) => !item.parent_id);
+      const parentTitleToId: Record<string, { id: string; section: string }> = {};
+      parentItems.forEach((parent: any) => {
+        parentTitleToId[parent.title] = { id: parent.id, section: parent.section };
+      });
+
+      console.log('[Migration] Parent items found:', Object.keys(parentTitleToId));
+
+      // Track updates
+      const updates: { id: string; title: string; oldParentId: string; newParentId: string }[] = [];
+
+      // For each orphaned child, try to find its parent
+      for (const child of itemsWithOrphanedParent) {
+        let newParentId: string | null = null;
+        let matchedParentTitle: string | null = null;
+
+        // First, try exact pattern matching
+        for (const [parentTitle, childTitles] of Object.entries(parentTitlePatterns)) {
+          if (childTitles.some(ct => child.title.includes(ct) || ct.includes(child.title))) {
+            // Check if parent exists in same section or admin section
+            const parent = parentTitleToId[parentTitle];
+            if (parent && (parent.section === child.section || parent.section === 'admin')) {
+              newParentId = parent.id;
+              matchedParentTitle = parentTitle;
+              break;
+            }
+          }
+        }
+
+        // If no pattern match, try fuzzy matching by checking if child title contains parent title
+        if (!newParentId) {
+          for (const [parentTitle, parent] of Object.entries(parentTitleToId)) {
+            if (parent.section === child.section) {
+              // Check if child title suggests it belongs to this parent
+              const parentWords = parentTitle.toLowerCase().split(' ');
+              const childWords = child.title.toLowerCase().split(' ');
+              if (parentWords.some((pw: string) => childWords.includes(pw) && pw.length > 3)) {
+                newParentId = parent.id;
+                matchedParentTitle = parentTitle;
+                break;
+              }
+            }
+          }
+        }
+
+        if (newParentId) {
+          // Update the parent_id in Supabase
+          const { error: updateError } = await supabase
+            .from('portal_menu')
+            .update({ parent_id: newParentId })
+            .eq('id', child.id);
+
+          if (updateError) {
+            console.error('[Migration] Error updating', child.title, ':', updateError.message);
+          } else {
+            updates.push({
+              id: child.id,
+              title: child.title,
+              oldParentId: child.parent_id,
+              newParentId: newParentId
+            });
+            console.log(`[Migration] Updated "${child.title}" -> parent "${matchedParentTitle}" (${newParentId})`);
+          }
+        } else {
+          console.log(`[Migration] Could not find parent for "${child.title}" (orphaned parent_id: ${child.parent_id})`);
+        }
+      }
+
+      // Return summary
+      const orphanedRemaining = itemsWithOrphanedParent.length - updates.length;
+      res.json({
+        message: 'Migration completed',
+        totalItems: allItems.length,
+        orphanedBefore: itemsWithOrphanedParent.length,
+        updated: updates.length,
+        orphanedRemaining: orphanedRemaining,
+        updates: updates
+      });
+
+    } catch (error) {
+      console.error('Migration error:', error);
+      res.status(500).json({ error: 'Failed to migrate PortalMenu parents' });
+    }
+  });
+
   // ============ Function Routes ============
   
   // Send Magic Link

@@ -9,6 +9,7 @@ import ResourceCard from "../components/resources/ResourceCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { useResourceRealtime } from "@/hooks/useResourceRealtime";
 
 export default function ResourcesPage() {
   const { memberInfo, memberRole, isAdmin } = useMemberAccess();
@@ -20,6 +21,8 @@ export default function ResourcesPage() {
   const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
 
   const queryClient = useQueryClient();
+  
+  useResourceRealtime(['resources']);
 
   // Fetch current user's preferences
   const { data: currentUser } = useQuery({

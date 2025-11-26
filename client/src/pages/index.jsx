@@ -585,6 +585,9 @@ function PagesContent() {
                 <Route path="/MemberGroupGuestManagement" element={<MemberGroupGuestManagement />} />
                 
                 <Route path="/auth/verify" element={<VerifyMagicLink />} />
+                
+                {/* Dynamic CMS pages - catch-all route for IEdit pages by slug */}
+                <Route path="/:slug" element={<DynamicPage />} />
             </Routes>
         </Layout>
     );

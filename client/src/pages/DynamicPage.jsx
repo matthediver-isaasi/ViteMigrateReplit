@@ -1,41 +1,37 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import PublicLayout from "../components/layouts/PublicLayout";
 import IEditElementRenderer from "../components/iedit/IEditElementRenderer";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 export default function DynamicPage() {
-  const [pageSlug, setPageSlug] = useState(null);
+  const { slug } = useParams();
+  const { memberInfo, isAccessReady } = useMemberAccess();
 
-  // Extract slug from URL path
-  useEffect(() => {
-    const path = window.location.pathname;
-    // Remove leading slash to get the slug
-    const slug = path.startsWith('/') ? path.substring(1) : path;
-    setPageSlug(slug);
-  }, []);
-
-  // Fetch page by slug
+  // Fetch page by slug (regardless of status - we check permissions separately)
   const { data: page, isLoading: pageLoading, error: pageError } = useQuery({
-    queryKey: ['iedit-public-page', pageSlug],
+    queryKey: ['iedit-dynamic-page', slug],
     queryFn: async () => {
-      const allPages = await base44.entities.IEditPage.filter({ 
-        slug: pageSlug,
-        status: 'published'
+      const pages = await base44.entities.IEditPage.list({ 
+        filter: { slug: slug }
       });
-      return allPages[0];
+      return pages[0] || null;
     },
-    enabled: !!pageSlug
+    enabled: !!slug,
+    staleTime: 0
   });
 
-  // Fetch page elements
-  const { data: elements, isLoading: elementsLoading } = useQuery({
-    queryKey: ['iedit-public-elements', page?.id],
-    queryFn: () => base44.entities.IEditPageElement.filter({ 
-      page_id: page.id 
-    }, 'display_order'),
-    initialData: [],
-    enabled: !!page?.id
+  // Fetch page elements when page is loaded
+  const { data: elements = [], isLoading: elementsLoading } = useQuery({
+    queryKey: ['iedit-dynamic-elements', page?.id],
+    queryFn: () => base44.entities.IEditPageElement.list({ 
+      filter: { page_id: page.id },
+      sort: { display_order: 'asc' }
+    }),
+    enabled: !!page?.id,
+    staleTime: 0
   });
 
   // Set page title and meta description
@@ -43,7 +39,6 @@ export default function DynamicPage() {
     if (page) {
       document.title = page.meta_title || page.title || 'AGCAS';
       
-      // Set meta description if provided
       if (page.meta_description) {
         let metaDesc = document.querySelector('meta[name="description"]');
         if (!metaDesc) {
@@ -56,27 +51,55 @@ export default function DynamicPage() {
     }
   }, [page]);
 
+  // Check if page is accessible
+  const isPublished = page?.status === 'published';
+  const isMemberPage = page?.layout_type === 'member';
+  const isLoggedIn = !!memberInfo;
+
+  // Show loading while fetching page data
   if (pageLoading || elementsLoading) {
     return (
-      <PublicLayout currentPageName="DynamicPage">
-        <div className="min-h-screen flex items-center justify-center">
+      <PublicLayout currentPageName={slug}>
+        <div className="min-h-screen flex items-center justify-center" data-testid="loading-dynamic-page">
           <div className="text-slate-600">Loading page...</div>
         </div>
       </PublicLayout>
     );
   }
 
-  if (pageError || !page) {
+  // Page doesn't exist - show 404 (catch-all route means we can't fall through)
+  if (!page) {
     return (
-      <PublicLayout currentPageName="DynamicPage">
-        <div className="min-h-screen flex items-center justify-center">
+      <PublicLayout currentPageName={slug}>
+        <div className="min-h-screen flex items-center justify-center" data-testid="page-not-found">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-slate-900 mb-4">Page Not Found</h1>
-            <p className="text-slate-600 mb-2">
-              The page you're looking for doesn't exist or hasn't been published yet.
+            <h1 className="text-6xl font-bold text-slate-300 mb-4">404</h1>
+            <h2 className="text-2xl font-bold text-slate-900 mb-2">Page Not Found</h2>
+            <p className="text-slate-600 mb-6">
+              The page you're looking for doesn't exist.
             </p>
-            <p className="text-sm text-slate-500">
-              (Looking for: "/{pageSlug}")
+            <a 
+              href="/" 
+              className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              data-testid="link-home"
+            >
+              Go Home
+            </a>
+          </div>
+        </div>
+      </PublicLayout>
+    );
+  }
+
+  // Page exists but not published
+  if (!isPublished) {
+    return (
+      <PublicLayout currentPageName={slug}>
+        <div className="min-h-screen flex items-center justify-center" data-testid="page-not-published">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-slate-900 mb-4">Page Not Available</h1>
+            <p className="text-slate-600">
+              This page is currently in draft mode and not publicly accessible.
             </p>
           </div>
         </div>
@@ -84,15 +107,49 @@ export default function DynamicPage() {
     );
   }
 
-  // Determine which layout to use
-  const LayoutComponent = page.layout_type === 'member' 
+  // For member pages, wait for access to be ready before showing member-only gate
+  if (isMemberPage && !isAccessReady) {
+    return (
+      <PublicLayout currentPageName={slug}>
+        <div className="min-h-screen flex items-center justify-center" data-testid="loading-access-check">
+          <div className="text-slate-600">Checking access...</div>
+        </div>
+      </PublicLayout>
+    );
+  }
+
+  // Member page but user not logged in (only check after access is ready)
+  if (isMemberPage && !isLoggedIn) {
+    return (
+      <PublicLayout currentPageName={slug}>
+        <div className="min-h-screen flex items-center justify-center" data-testid="page-requires-login">
+          <div className="text-center">
+            <h1 className="text-4xl font-bold text-slate-900 mb-4">Members Only</h1>
+            <p className="text-slate-600 mb-6">
+              This page is only accessible to logged-in members.
+            </p>
+            <a 
+              href="/Home" 
+              className="inline-flex items-center justify-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              data-testid="link-login"
+            >
+              Log In
+            </a>
+          </div>
+        </div>
+      </PublicLayout>
+    );
+  }
+
+  // Render the page with appropriate layout
+  // Member pages use a simple wrapper, public pages use PublicLayout
+  const LayoutComponent = isMemberPage 
     ? ({ children }) => <div className="min-h-screen">{children}</div>
     : PublicLayout;
 
   return (
-    <LayoutComponent currentPageName="DynamicPage">
-      <div className="w-full">
-        {/* Render each element */}
+    <LayoutComponent currentPageName={slug}>
+      <div className="w-full" data-testid={`dynamic-page-${slug}`}>
         {elements.map((element) => (
           <IEditElementRenderer
             key={element.id}
@@ -100,9 +157,8 @@ export default function DynamicPage() {
           />
         ))}
         
-        {/* Empty state */}
         {elements.length === 0 && (
-          <div className="min-h-screen flex items-center justify-center">
+          <div className="min-h-screen flex items-center justify-center" data-testid="page-no-content">
             <div className="text-center">
               <p className="text-slate-600">This page has no content yet.</p>
             </div>

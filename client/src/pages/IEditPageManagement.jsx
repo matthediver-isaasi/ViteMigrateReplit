@@ -84,32 +84,26 @@ export default function IEditPageManagementPage() {
     }
   });
 
-  const requestTopLevelUrlMutation = useMutation({
+  const togglePublishMutation = useMutation({
     mutationFn: async (page) => {
-      await base44.integrations.Core.SendEmail({
-        to: "developers@isaasi.co.uk",
-        subject: `Top-Level URL Request: /${page.slug}`,
-        body: `
-A request has been made to convert the following page to a top-level URL:
-
-Page Title: ${page.title}
-Slug: ${page.slug}
-Layout Type: ${page.layout_type}
-Status: ${page.status}
-Page ID: ${page.id}
-
-Current URL: ${window.location.origin}${createPageUrl('content')}?page=${page.slug}
-Requested URL: ${window.location.origin}/${page.slug}
-
-Please create a physical page file for this slug to enable top-level routing.
-        `
-      });
+      const newStatus = page.status === 'published' ? 'draft' : 'published';
+      const updateData = { 
+        status: newStatus,
+        published_at: newStatus === 'published' ? new Date().toISOString() : null
+      };
+      await base44.entities.IEditPage.update(page.id, updateData);
+      return { ...page, ...updateData };
     },
-    onSuccess: () => {
-      toast.success('Request sent to developers');
+    onSuccess: (updatedPage) => {
+      queryClient.invalidateQueries({ queryKey: ['iedit-pages'] });
+      if (updatedPage.status === 'published') {
+        toast.success(`Page published! Now live at ${window.location.origin}/${updatedPage.slug}`);
+      } else {
+        toast.success('Page unpublished and returned to draft');
+      }
     },
     onError: (error) => {
-      toast.error('Failed to send request: ' + error.message);
+      toast.error('Failed to update page status: ' + error.message);
     }
   });
 
@@ -290,17 +284,29 @@ Please create a physical page file for this slug to enable top-level routing.
                     </Button>
                   </div>
 
-                  {/* Request Top-Level URL Button */}
+                  {/* Publish/Unpublish Toggle */}
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => requestTopLevelUrlMutation.mutate(page)}
-                    disabled={requestTopLevelUrlMutation.isPending}
-                    className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    onClick={() => togglePublishMutation.mutate(page)}
+                    disabled={togglePublishMutation.isPending}
+                    className={`w-full ${
+                      page.status === 'published' 
+                        ? 'text-orange-600 hover:text-orange-700 hover:bg-orange-50' 
+                        : 'text-green-600 hover:text-green-700 hover:bg-green-50'
+                    }`}
+                    data-testid={`button-toggle-publish-${page.id}`}
                   >
                     <Zap className="w-3 h-3 mr-1" />
-                    Request Top-Level URL (/{page.slug})
+                    {page.status === 'published' ? 'Unpublish Page' : `Publish to /${page.slug}`}
                   </Button>
+                  
+                  {/* Show live URL when published */}
+                  {page.status === 'published' && (
+                    <div className="text-xs text-green-600 bg-green-50 rounded px-2 py-1 text-center" data-testid={`text-live-url-${page.id}`}>
+                      Live at: <a href={`/${page.slug}`} target="_blank" rel="noopener noreferrer" className="underline font-medium">/{page.slug}</a>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             ))}

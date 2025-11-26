@@ -3119,6 +3119,242 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Cancel Backstage Order - tries multiple API approaches
+  app.post('/api/functions/cancelBackstageOrder', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { orderId, cancelReason = "Cancelled by member" } = req.body;
+
+      console.log('=== CANCEL BACKSTAGE ORDER ===');
+      console.log('Order ID:', orderId);
+      console.log('Cancel Reason:', cancelReason);
+
+      if (!orderId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameter: orderId'
+        });
+      }
+
+      // Step 1: Find the booking with this backstage_order_id
+      const { data: allBookings } = await supabase
+        .from('booking')
+        .select('*');
+
+      const booking = allBookings?.find((b: any) => b.backstage_order_id === orderId);
+
+      if (!booking) {
+        console.error('No booking found with backstage_order_id:', orderId);
+        return res.status(404).json({
+          success: false,
+          error: 'No booking found with this Backstage order ID'
+        });
+      }
+
+      console.log('Found booking:', booking.id);
+
+      // Step 2: Get the event to find the backstage_event_id
+      const { data: allEvents } = await supabase
+        .from('event')
+        .select('*');
+
+      const event = allEvents?.find((e: any) => e.id === booking.event_id);
+
+      if (!event || !event.backstage_event_id) {
+        console.error('Event not found or missing backstage_event_id');
+        return res.status(404).json({
+          success: false,
+          error: 'Event not found or missing Backstage event ID'
+        });
+      }
+
+      console.log('Backstage Event ID:', event.backstage_event_id);
+
+      // Step 3: Get access token
+      const accessToken = await getValidZohoAccessToken(supabase);
+      console.log('Access token obtained');
+
+      const portalId = process.env.ZOHO_BACKSTAGE_PORTAL_ID || "20108049755";
+      const baseUrl = "https://www.zohoapis.eu/backstage/v3";
+      const orderUrl = `${baseUrl}/portals/${portalId}/events/${event.backstage_event_id}/orders/${orderId}`;
+
+      console.log('Order URL:', orderUrl);
+
+      const attempts: any[] = [];
+
+      // ATTEMPT 1: PUT request with status update
+      console.log('\n--- ATTEMPT 1: PUT request with status ---');
+      try {
+        const putBody = {
+          status: 'cancelled',
+          cancel_reason: cancelReason
+        };
+
+        const response1 = await fetch(orderUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(putBody)
+        });
+
+        const responseText1 = await response1.text();
+        console.log('Response Status:', response1.status);
+
+        attempts.push({
+          method: 'PUT',
+          url: orderUrl,
+          body: putBody,
+          status: response1.status,
+          response: responseText1,
+          success: response1.ok
+        });
+
+        if (response1.ok) {
+          console.log('SUCCESS with PUT');
+
+          await supabase
+            .from('booking')
+            .update({ status: 'cancelled' })
+            .eq('id', booking.id);
+
+          return res.json({
+            success: true,
+            method: 'PUT',
+            message: 'Order cancelled successfully',
+            attempts
+          });
+        }
+      } catch (error: any) {
+        console.error('ATTEMPT 1 Error:', error.message);
+        attempts.push({ method: 'PUT', url: orderUrl, error: error.message });
+      }
+
+      // ATTEMPT 2: POST with action parameter
+      console.log('\n--- ATTEMPT 2: POST with action=cancel ---');
+      try {
+        const postBody = {
+          action: 'cancel',
+          cancel_reason: cancelReason
+        };
+
+        const response2 = await fetch(orderUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(postBody)
+        });
+
+        const responseText2 = await response2.text();
+        console.log('Response Status:', response2.status);
+
+        attempts.push({
+          method: 'POST',
+          url: orderUrl,
+          body: postBody,
+          status: response2.status,
+          response: responseText2,
+          success: response2.ok
+        });
+
+        if (response2.ok) {
+          console.log('SUCCESS with POST action=cancel');
+
+          await supabase
+            .from('booking')
+            .update({ status: 'cancelled' })
+            .eq('id', booking.id);
+
+          return res.json({
+            success: true,
+            method: 'POST (action parameter)',
+            message: 'Order cancelled successfully',
+            attempts
+          });
+        }
+      } catch (error: any) {
+        console.error('ATTEMPT 2 Error:', error.message);
+        attempts.push({ method: 'POST', url: orderUrl, error: error.message });
+      }
+
+      // ATTEMPT 3: Try refund endpoint
+      console.log('\n--- ATTEMPT 3: POST to refund endpoint ---');
+      try {
+        const refundUrl = `${orderUrl}/refund`;
+        const postBody = {
+          cancel_reason: cancelReason,
+          refund_amount: 0
+        };
+
+        const response3 = await fetch(refundUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(postBody)
+        });
+
+        const responseText3 = await response3.text();
+        console.log('Response Status:', response3.status);
+
+        attempts.push({
+          method: 'POST',
+          url: refundUrl,
+          body: postBody,
+          status: response3.status,
+          response: responseText3,
+          success: response3.ok
+        });
+
+        if (response3.ok) {
+          console.log('SUCCESS with refund endpoint');
+
+          await supabase
+            .from('booking')
+            .update({ status: 'cancelled' })
+            .eq('id', booking.id);
+
+          return res.json({
+            success: true,
+            method: 'POST (refund endpoint)',
+            message: 'Order cancelled successfully',
+            attempts
+          });
+        }
+      } catch (error: any) {
+        console.error('ATTEMPT 3 Error:', error.message);
+        attempts.push({ method: 'POST', url: `${orderUrl}/refund`, error: error.message });
+      }
+
+      console.log('\n=== ALL ATTEMPTS COMPLETED ===');
+      console.log('Summary: All cancellation attempts failed.');
+
+      res.json({
+        success: false,
+        message: 'All cancellation attempts failed. Zoho Flow webhook approach recommended.',
+        attempts,
+        orderUrl,
+        portalId,
+        backstageEventId: event.backstage_event_id,
+        recommendation: 'Consider using Zoho Flow webhook to handle cancellations'
+      });
+
+    } catch (error: any) {
+      console.error('Fatal error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Process Backstage Cancellation Webhook
   app.post('/api/functions/processBackstageCancellation', async (req: Request, res: Response) => {
     if (!supabase) {

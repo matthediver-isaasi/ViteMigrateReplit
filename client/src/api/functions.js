@@ -47,7 +47,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const refreshMemberBalance = notImplemented("refreshMemberBalance");
+  export const refreshMemberBalance = async (params) => {
+    const response = await fetch('/api/functions/refreshMemberBalance', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const syncBackstageEvents = notImplemented("syncBackstageEvents");
   export const testFunction = notImplemented("testFunction");
   export const validateColleague = notImplemented("validateColleague");

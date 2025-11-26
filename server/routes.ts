@@ -736,6 +736,167 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to get valid Zoho access token (refreshes if expired)
+  async function getValidZohoAccessToken(): Promise<string> {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+    const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
+    const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
+
+    const { data: tokens } = await supabase
+      .from('zoho_token')
+      .select('*')
+      .limit(1);
+
+    if (!tokens || tokens.length === 0) {
+      throw new Error('No Zoho tokens found. Admin needs to authenticate first.');
+    }
+
+    const token = tokens[0];
+    const now = new Date();
+    const expiresAt = new Date(token.expires_at);
+
+    // If token is still valid, return it
+    if (expiresAt > now) {
+      return token.access_token;
+    }
+
+    // Token expired, need to refresh
+    const accountsDomain = ZOHO_CRM_API_DOMAIN.includes('.eu') 
+      ? 'https://accounts.zoho.eu' 
+      : ZOHO_CRM_API_DOMAIN.includes('.com.au')
+        ? 'https://accounts.zoho.com.au'
+        : 'https://accounts.zoho.com';
+
+    const refreshResponse = await fetch(`${accountsDomain}/oauth/v2/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        client_id: ZOHO_CLIENT_ID!,
+        client_secret: ZOHO_CLIENT_SECRET!,
+        refresh_token: token.refresh_token,
+      }),
+    });
+
+    const refreshData = await refreshResponse.json();
+
+    if (refreshData.error) {
+      throw new Error(`Failed to refresh token: ${refreshData.error}`);
+    }
+
+    const newExpiresAt = new Date(Date.now() + (refreshData.expires_in * 1000)).toISOString();
+
+    await supabase
+      .from('zoho_token')
+      .update({
+        access_token: refreshData.access_token,
+        expires_at: newExpiresAt,
+      })
+      .eq('id', token.id);
+
+    return refreshData.access_token;
+  }
+
+  // Refresh Member Balance from Zoho CRM
+  app.post('/api/functions/refreshMemberBalance', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email required' });
+      }
+
+      const accessToken = await getValidZohoAccessToken();
+
+      // Get all members and find by email
+      const { data: allMembers } = await supabase
+        .from('member')
+        .select('*');
+
+      const member = allMembers?.find((m: any) => m.email === email);
+
+      if (!member) {
+        return res.status(404).json({
+          error: 'Member not found',
+          searchedEmail: email
+        });
+      }
+
+      // Fetch fresh contact data from Zoho
+      const contactResponse = await fetch(
+        `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts/${member.zoho_contact_id}`,
+        { headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}` } }
+      );
+
+      if (!contactResponse.ok) {
+        return res.status(500).json({ error: 'Failed to fetch contact' });
+      }
+
+      const contactData = await contactResponse.json();
+      const contact = contactData.data[0];
+
+      // Update member last synced
+      await supabase
+        .from('member')
+        .update({ last_synced: new Date().toISOString() })
+        .eq('id', member.id);
+
+      let trainingFundBalance = 0;
+      let purchaseOrderEnabled = false;
+
+      if (member.organization_id && contact.Account_Name?.id) {
+        const accountResponse = await fetch(
+          `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts/${contact.Account_Name.id}`,
+          { headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}` } }
+        );
+
+        if (accountResponse.ok) {
+          const accountData = await accountResponse.json();
+          const account = accountData.data[0];
+
+          trainingFundBalance = account.Training_fund_balance || 0;
+          purchaseOrderEnabled = account.Purchase_Order_Enabled || false;
+
+          // Find and update organization
+          const { data: allOrgs } = await supabase
+            .from('organization')
+            .select('*');
+
+          const org = allOrgs?.find((o: any) => o.zoho_account_id === contact.Account_Name.id);
+
+          if (org) {
+            await supabase
+              .from('organization')
+              .update({
+                training_fund_balance: trainingFundBalance,
+                purchase_order_enabled: purchaseOrderEnabled,
+                last_synced: new Date().toISOString()
+              })
+              .eq('id', org.id);
+          }
+        }
+      }
+
+      res.json({
+        success: true,
+        training_fund_balance: trainingFundBalance,
+        purchase_order_enabled: purchaseOrderEnabled
+      });
+
+    } catch (error: any) {
+      console.error('Refresh member balance error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Sync Events from Zoho Backstage
   app.post('/api/functions/syncEventsFromBackstage', async (req: Request, res: Response) => {
     if (!supabase) {

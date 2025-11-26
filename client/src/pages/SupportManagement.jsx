@@ -289,10 +289,12 @@ export default function SupportManagementPage() {
                         <p className="text-sm text-slate-600 mb-2 line-clamp-2">{ticket.description}</p>
                         <div className="flex items-center gap-4 text-xs text-slate-500">
                           <span>From: {ticket.submitter_name}</span>
-                          <div className="flex items-center gap-1">
-                            <Clock className="w-3 h-3" />
-                            {format(new Date(ticket.created_date), 'MMM d, yyyy h:mm a')}
-                          </div>
+                          {ticket.created_date && (
+                            <div className="flex items-center gap-1">
+                              <Clock className="w-3 h-3" />
+                              {format(new Date(ticket.created_date), 'MMM d, yyyy h:mm a')}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -347,9 +349,11 @@ export default function SupportManagementPage() {
                       <p className="text-sm text-slate-500 mt-2">
                         From: {selectedTicket.submitter_name} ({selectedTicket.submitter_email})
                       </p>
-                      <p className="text-sm text-slate-500">
-                        Submitted {format(new Date(selectedTicket.created_date), 'MMM d, yyyy h:mm a')}
-                      </p>
+                      {selectedTicket.created_date && (
+                        <p className="text-sm text-slate-500">
+                          Submitted {format(new Date(selectedTicket.created_date), 'MMM d, yyyy h:mm a')}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </DialogHeader>
@@ -422,9 +426,11 @@ export default function SupportManagementPage() {
                                 <Badge className="ml-2 bg-blue-600 text-white">Developer</Badge>
                               )}
                             </span>
-                            <span className="text-xs text-slate-500">
-                              {format(new Date(response.created_date), 'MMM d, h:mm a')}
-                            </span>
+                            {response.created_date && (
+                              <span className="text-xs text-slate-500">
+                                {format(new Date(response.created_date), 'MMM d, h:mm a')}
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-slate-700 whitespace-pre-wrap">{response.message}</p>
                           {response.attachments && response.attachments.length > 0 && (

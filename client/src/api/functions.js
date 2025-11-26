@@ -136,7 +136,10 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const getStripePublishableKey = notImplemented("getStripePublishableKey");
+  export const getStripePublishableKey = async () => {
+    const response = await fetch('/api/functions/getStripePublishableKey');
+    return response.json();
+  };
   export const getXeroAuthUrl = notImplemented("getXeroAuthUrl");
   export const xeroOAuthCallback = notImplemented("xeroOAuthCallback");
   export const refreshXeroToken = notImplemented("refreshXeroToken");

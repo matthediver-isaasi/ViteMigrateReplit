@@ -2834,6 +2834,31 @@ AGCAS Events Team
     }
   });
 
+  // Get Stripe Publishable Key (safe to expose to frontend)
+  app.get('/api/functions/getStripePublishableKey', async (req: Request, res: Response) => {
+    try {
+      const publishableKey = process.env.STRIPE_PUBLISHABLE_KEY;
+
+      if (!publishableKey) {
+        return res.status(500).json({
+          error: 'Stripe publishable key not configured'
+        });
+      }
+
+      res.json({
+        success: true,
+        publishableKey
+      });
+
+    } catch (error: any) {
+      console.error('Error fetching publishable key:', error);
+      res.status(500).json({
+        error: 'Failed to fetch publishable key',
+        details: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

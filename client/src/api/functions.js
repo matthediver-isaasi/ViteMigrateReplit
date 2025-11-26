@@ -22,7 +22,14 @@ const notImplemented = (name) => () => {
     return response.json();
   };
   
-  export const syncEventsFromBackstage = notImplemented("syncEventsFromBackstage");
+  export const syncEventsFromBackstage = async (params) => {
+    const response = await fetch('/api/functions/syncEventsFromBackstage', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   
   export const getZohoAuthUrl = async (params) => {
     const response = await fetch('/api/functions/getZohoAuthUrl', {

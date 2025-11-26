@@ -645,6 +645,114 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync Events from Zoho Backstage
+  app.post('/api/functions/syncEventsFromBackstage', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const ZOHO_BACKSTAGE_PORTAL_NAME = process.env.ZOHO_BACKSTAGE_PORTAL_NAME;
+
+    if (!ZOHO_BACKSTAGE_PORTAL_NAME) {
+      return res.status(503).json({ error: 'ZOHO_BACKSTAGE_PORTAL_NAME not configured' });
+    }
+
+    try {
+      const { accessToken } = req.body;
+
+      if (!accessToken) {
+        return res.status(400).json({ error: 'Missing access token' });
+      }
+
+      // Fetch events from Zoho Backstage V3 API
+      const eventsResponse = await fetch(
+        `https://backstage.zoho.com/api/v3/${ZOHO_BACKSTAGE_PORTAL_NAME}/events`,
+        {
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!eventsResponse.ok) {
+        const errorData = await eventsResponse.text();
+        return res.status(eventsResponse.status).json({
+          error: 'Failed to fetch events from Backstage',
+          details: errorData
+        });
+      }
+
+      const eventsData = await eventsResponse.json();
+      const events = eventsData.data || [];
+
+      let syncedCount = 0;
+      let errorCount = 0;
+
+      // Get all existing events once
+      const { data: allExistingEvents } = await supabase
+        .from('event')
+        .select('*');
+
+      // Sync each event to Supabase
+      for (const event of events) {
+        try {
+          // Extract program tag (first tag in the list)
+          const programTag = event.tags && event.tags.length > 0 ? event.tags[0] : null;
+
+          const eventData = {
+            title: event.name,
+            description: event.description || '',
+            program_tag: programTag,
+            start_date: event.start_time,
+            end_date: event.end_time,
+            location: event.venue?.name || 'Online',
+            ticket_price: event.tickets?.[0]?.price || 0,
+            available_seats: event.tickets?.[0]?.quantity_available || 0,
+            backstage_event_id: event.id,
+            image_url: event.banner_url || null,
+            last_synced: new Date().toISOString()
+          };
+
+          // Check if event already exists
+          const existingEvent = allExistingEvents?.find(
+            (e: any) => e.backstage_event_id === event.id
+          );
+
+          if (existingEvent) {
+            await supabase
+              .from('event')
+              .update(eventData)
+              .eq('id', existingEvent.id);
+          } else {
+            await supabase
+              .from('event')
+              .insert(eventData);
+          }
+
+          syncedCount++;
+        } catch (error: any) {
+          console.error(`Error syncing event ${event.id}:`, error);
+          errorCount++;
+        }
+      }
+
+      res.json({
+        success: true,
+        synced: syncedCount,
+        errors: errorCount,
+        total: events.length
+      });
+
+    } catch (error: any) {
+      console.error('Sync events from Backstage error:', error);
+      res.status(500).json({
+        error: 'Failed to sync events',
+        message: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

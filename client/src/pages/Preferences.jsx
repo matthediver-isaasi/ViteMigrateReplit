@@ -80,50 +80,33 @@ export default function PreferencesPage() {
 
   const queryClient = useQueryClient();
 
-  // --- Get current user from /api/auth/me (magic link auth) ---
-  const {
-    data: currentUser,
-    isLoading: userLoading,
-    error: authError,
-  } = useQuery({
-    queryKey: ["currentUser"],
-    queryFn: async () => {
+  // --- Get current user from sessionStorage (set by TestLogin/VerifyMagicLink) ---
+  const [sessionMember, setSessionMember] = useState(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
+
+  useEffect(() => {
+    const storedMember = sessionStorage.getItem('agcas_member');
+    if (storedMember) {
       try {
-        const response = await fetch('/api/auth/me', { credentials: 'include' });
-        if (!response.ok) {
-          return null;
+        const parsed = JSON.parse(storedMember);
+        // Check if session is still valid
+        if (parsed.sessionExpiry && new Date(parsed.sessionExpiry) > new Date()) {
+          setSessionMember(parsed);
         }
-        const data = await response.json();
-        return data || null;
       } catch {
-        return null;
+        // Ignore parse errors
       }
-    },
-    staleTime: 30 * 1000,
-  });
+    }
+    setSessionLoading(false);
+  }, []);
 
-  // --- Member record (by member ID from session) ---
-  const {
-    data: memberRecord,
-    isLoading: memberLoading,
-    error: memberError,
-  } = useQuery({
-    queryKey: ["memberRecord", currentUser?.id],
-    enabled: !!currentUser?.id,
-    staleTime: 30 * 1000,
-    queryFn: async () => {
-      if (!currentUser?.id) return null;
-
-      const { data, error } = await supabase
-        .from("member")
-        .select("*")
-        .eq("id", currentUser.id)
-        .limit(1);
-
-      if (error) throw error;
-      return data?.[0] || null;
-    },
-  });
+  // Use session member directly as the member record (it already contains full member data)
+  const currentUser = sessionMember;
+  const memberRecord = sessionMember;
+  const userLoading = sessionLoading;
+  const memberLoading = false;
+  const authError = null;
+  const memberError = null;
 
   // --- Organization (from memberRecord.organization_id) ---
   const {

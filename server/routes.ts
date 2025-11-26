@@ -3119,6 +3119,144 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Handle Job Posting Payment Webhook - Stripe webhook for job posting payments
+  app.post('/api/functions/handleJobPostingPaymentWebhook', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+      const stripeWebhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+
+      if (!stripeSecretKey) {
+        throw new Error('Stripe secret key not configured');
+      }
+
+      const stripe = new Stripe(stripeSecretKey, {
+        apiVersion: '2023-10-16' as any,
+      });
+
+      const sig = req.headers['stripe-signature'] as string;
+      const body = req.body;
+
+      let event;
+      try {
+        // Verify webhook signature if secret is configured
+        if (stripeWebhookSecret) {
+          event = stripe.webhooks.constructEvent(body, sig, stripeWebhookSecret);
+        } else {
+          // If no webhook secret, parse the body directly (less secure, for development)
+          event = typeof body === 'string' ? JSON.parse(body) : body;
+        }
+      } catch (err: any) {
+        console.error('Webhook signature verification failed:', err.message);
+        return res.status(400).json({ error: 'Webhook signature verification failed' });
+      }
+
+      // Handle checkout.session.completed event
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const jobPostingId = session.metadata?.job_posting_id;
+
+        if (jobPostingId) {
+          // Update job posting status
+          await supabase
+            .from('job_posting')
+            .update({
+              status: 'pending_approval',
+              payment_status: 'paid',
+              stripe_payment_intent_id: session.payment_intent
+            })
+            .eq('id', jobPostingId);
+
+          // Get job posting details
+          const { data: jobPostings } = await supabase.from('job_posting').select('*');
+          const jobPosting = jobPostings?.find((j: any) => j.id === jobPostingId);
+
+          if (jobPosting) {
+            // Send confirmation email to poster via Mailgun
+            const mailgunApiKey = process.env.MAILGUN_API_KEY;
+            const mailgunDomain = process.env.MAILGUN_DOMAIN;
+            const mailgunFromEmail = process.env.MAILGUN_FROM_EMAIL;
+
+            if (mailgunApiKey && mailgunDomain) {
+              const FormData = require('form-data');
+              const Mailgun = require('mailgun.js');
+              const mailgun = new Mailgun(FormData);
+              const mg = mailgun.client({
+                username: 'api',
+                key: mailgunApiKey
+              });
+
+              // Send to poster
+              await mg.messages.create(mailgunDomain, {
+                from: mailgunFromEmail,
+                to: jobPosting.contact_email,
+                subject: 'Job Posting Payment Confirmed - Pending Approval',
+                html: `
+                  <h2>Payment Confirmed!</h2>
+                  <p>Dear ${jobPosting.contact_name},</p>
+                  <p>Your payment of £${jobPosting.amount_paid} for the job posting <strong>${jobPosting.title}</strong> at <strong>${jobPosting.company_name}</strong> has been received successfully.</p>
+                  <p>Your job posting is now pending approval from our team. You'll receive another email once it's approved and live on the job board.</p>
+                  <p><strong>Job Details:</strong></p>
+                  <ul>
+                    <li>Title: ${jobPosting.title}</li>
+                    <li>Company: ${jobPosting.company_name}</li>
+                    <li>Location: ${jobPosting.location}</li>
+                    <li>Type: ${jobPosting.job_type}</li>
+                  </ul>
+                  <p>Best regards,<br>AGCAS Team</p>
+                `
+              });
+
+              // Notify admins
+              const { data: adminRoles } = await supabase
+                .from('role')
+                .select('*')
+                .eq('is_admin', true);
+
+              if (adminRoles && adminRoles.length > 0) {
+                const adminRoleIds = adminRoles.map((r: any) => r.id);
+                const { data: adminMembers } = await supabase.from('member').select('*');
+                const admins = adminMembers?.filter((m: any) => adminRoleIds.includes(m.role_id)) || [];
+
+                for (const admin of admins) {
+                  await mg.messages.create(mailgunDomain, {
+                    from: mailgunFromEmail,
+                    to: admin.email,
+                    subject: 'New Paid Job Posting Awaiting Approval',
+                    html: `
+                      <h2>New Paid Job Posting Submitted</h2>
+                      <p>A non-member has paid and submitted a new job posting that requires approval:</p>
+                      <p><strong>Job Details:</strong></p>
+                      <ul>
+                        <li>Title: ${jobPosting.title}</li>
+                        <li>Company: ${jobPosting.company_name}</li>
+                        <li>Location: ${jobPosting.location}</li>
+                        <li>Posted by: ${jobPosting.contact_name} (${jobPosting.contact_email})</li>
+                        <li>Amount Paid: £${jobPosting.amount_paid}</li>
+                      </ul>
+                      <p>Please log in to the admin portal to review and approve this posting.</p>
+                    `
+                  });
+                }
+              }
+            } else {
+              console.warn('[handleJobPostingPaymentWebhook] Mailgun not configured, skipping emails');
+            }
+          }
+        }
+      }
+
+      res.json({ received: true });
+
+    } catch (error: any) {
+      console.error('Error processing webhook:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Create Job Posting Non-Member - creates paid job posting with Stripe checkout
   app.post('/api/functions/createJobPostingNonMember', async (req: Request, res: Response) => {
     if (!supabase) {

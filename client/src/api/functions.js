@@ -278,7 +278,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const handleJobPostingPaymentWebhook = notImplemented("handleJobPostingPaymentWebhook");
+  export const handleJobPostingPaymentWebhook = async (params) => {
+    const response = await fetch('/api/functions/handleJobPostingPaymentWebhook', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const createJobPostingPaymentIntent = notImplemented("createJobPostingPaymentIntent");
   export const renameResourceSubcategory = notImplemented("renameResourceSubcategory");
   export const generateMemberHandles = notImplemented("generateMemberHandles");

@@ -146,7 +146,40 @@ The application is transitioning from Base44 (previous platform) to Replit while
 3. **API Translation**: Express routes translate between Base44-style requests and Supabase queries
 4. **Environment Configuration**: Secrets management via Replit Secrets for database URLs, API keys, OAuth credentials
 5. **Build Process**: Vite builds to `dist/public` for production deployment
-6. **Routing Configuration**: `vercel.json` preserved for potential Vercel deployment compatibility
+6. **Routing Configuration**: `vercel.json` configured for Vercel production deployment
+
+## Deployment Architecture
+
+**Development (Replit):**
+- Express.js server with Vite middleware integration
+- Full API functionality including Zoho Backstage sync
+- Hot module replacement for frontend development
+- Server runs on port 5000
+
+**Production (Vercel):**
+- Serverless functions in `/api` directory
+- `api/functions/[functionName].js` - Main function dispatcher (validateMember, createBooking, etc.)
+- `api/entities/[entity]/index.js` - Entity list/create operations
+- `api/entities/[entity]/[id].js` - Entity get/update/delete operations
+- Static frontend served from Vite build output
+
+**Deployment Parity Status (Updated Nov 2024):**
+All critical functions now have parity between Express and Vercel serverless:
+- validateMember with Zoho CRM sync
+- Magic link generation/verification
+- createBooking with program ticket deduction
+- validateColleague with organization validation
+- processProgramTicketPurchase/cancel/reinstate
+- Job posting functions (member and non-member)
+- Discount code application
+- Training fund balance sync
+
+**Table Name Mappings:**
+Entity names map to Supabase table names using singular form:
+- `IEditPage` → `i_edit_page` (note underscore between i and edit)
+- `IEditPageElement` → `i_edit_page_element`
+- `IEditElementTemplate` → `i_edit_element_template`
+- All other entities use snake_case conversion
 
 **Critical Constraints:**
 - No visual or UX modifications permitted

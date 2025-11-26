@@ -9,7 +9,7 @@ import EventCard from "../components/events/EventCard";
 import ProgramFilter from "../components/events/ProgramFilter";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
-import { supabase } from "@/api/supabaseClient";
+import { base44 } from "@/api/base44Client";
 
 export default function EventsPage({
   organizationInfo,
@@ -57,7 +57,7 @@ export default function EventsPage({
     }
   }, [shouldShowTours, hasSeenTour, memberInfo]);
 
-  // ✅ Load events from Supabase instead of Base44
+  // Load events using base44 client proxy
   const {
     data: events = [],
     isLoading,
@@ -65,18 +65,14 @@ export default function EventsPage({
   } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
-      console.log("[Events] Fetching events from Supabase");
-      const { data, error } = await supabase
-        .from("event") // assumes your events table is named "event"
-        .select("*")
-        .order("start_date", { ascending: true });
-
-      if (error) {
-        console.error("[Events] Error loading events from Supabase:", error);
+      console.log("[Events] Fetching events via base44 client");
+      try {
+        const data = await base44.entities.Event.list({ sort: { start_date: 'asc' } });
+        return data || [];
+      } catch (error) {
+        console.error("[Events] Error loading events:", error);
         throw error;
       }
-
-      return data || [];
     },
     initialData: [],
   });
@@ -106,7 +102,7 @@ export default function EventsPage({
     return dateA.getTime() - dateB.getTime();
   });
 
-  // ✅ Update member tour status in Supabase instead of Base44
+  // Update member tour status via base44 client
   const updateMemberTourStatus = async (tourKey) => {
     console.log("[Events] updateMemberTourStatus called for:", tourKey);
 
@@ -116,7 +112,7 @@ export default function EventsPage({
 
     if (!memberInfo.id) {
       console.warn(
-        "[Events] memberInfo.id is missing; cannot update tour status in Supabase.",
+        "[Events] memberInfo.id is missing; cannot update tour status.",
         memberInfo
       );
       return;
@@ -128,19 +124,11 @@ export default function EventsPage({
         [tourKey]: true,
       };
 
-      const { error } = await supabase
-        .from("member")
-        .update({ page_tours_seen: updatedTours })
-        .eq("id", memberInfo.id);
-
-      if (error) {
-        console.error("[Events] Failed to update tour status in Supabase:", error);
-        return;
-      }
+      await base44.entities.Member.update(memberInfo.id, { page_tours_seen: updatedTours });
 
       const updatedMemberInfo = { ...memberInfo, page_tours_seen: updatedTours };
       sessionStorage.setItem("agcas_member", JSON.stringify(updatedMemberInfo));
-      console.log("[Events] Tour status updated successfully in Supabase");
+      console.log("[Events] Tour status updated successfully");
 
       // Notify Layout to reload memberInfo
       if (typeof reloadMemberInfo === "function") {

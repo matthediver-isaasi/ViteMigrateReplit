@@ -205,20 +205,34 @@ class Base44Client {
   }
 
   async _apiRequest(url, options = {}) {
-    const response = await fetch(url, {
-      ...options,
-      credentials: 'include',
-      headers: {
-        ...options.headers,
+    try {
+      const response = await fetch(url, {
+        ...options,
+        credentials: 'include',
+        headers: {
+          ...options.headers,
+        }
+      });
+
+      if (!response.ok) {
+        const errorBody = await response.text();
+        let errorMessage;
+        try {
+          const errorJson = JSON.parse(errorBody);
+          errorMessage = errorJson.message || errorJson.error || response.statusText;
+        } catch {
+          errorMessage = errorBody || response.statusText;
+        }
+        throw new Error(`API Error (${response.status}): ${errorMessage}`);
       }
-    });
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: response.statusText }));
-      throw new Error(error.message || error.error || 'Request failed');
+      return response.json();
+    } catch (error) {
+      if (error.message && error.message.startsWith('API Error')) {
+        throw error;
+      }
+      throw new Error(`Network Error: ${error.message || 'Failed to fetch'}`);
     }
-
-    return response.json();
   }
 }
 

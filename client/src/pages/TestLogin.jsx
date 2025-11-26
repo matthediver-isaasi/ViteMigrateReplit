@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
-import { supabase } from "@/api/supabaseClient";
+import { base44 } from "@/api/base44Client";
 
 export default function TestLoginPage() {
   const [email, setEmail] = useState("");
@@ -22,7 +22,7 @@ export default function TestLoginPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
 
-  // ✅ Load roles from Supabase instead of Base44
+  // Load roles via base44 client
   const {
     data: roles = [],
     isLoading: rolesLoading,
@@ -30,16 +30,13 @@ export default function TestLoginPage() {
   } = useQuery({
     queryKey: ["roles"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("role") // table name from our generated schema
-        .select("*")
-        .order("name", { ascending: true });
-
-      if (error) {
-        console.error("[TestLogin] Error loading roles from Supabase:", error);
+      try {
+        const data = await base44.entities.Role.list({ sort: { name: 'asc' } });
+        return data || [];
+      } catch (error) {
+        console.error("[TestLogin] Error loading roles:", error);
         throw error;
       }
-      return data || [];
     },
     initialData: [],
   });
@@ -51,29 +48,20 @@ export default function TestLoginPage() {
     setSuccess(false);
 
     try {
-      console.log("[TestLogin] Looking up member by email in Supabase:", email);
+      console.log("[TestLogin] Looking up member by email:", email);
 
-      // ✅ 1. Find member by email in Supabase
-      const {
-        data: member,
-        error: memberError,
-      } = await supabase
-        .from("member")
-        .select("*")
-        .eq("email", email)
-        .maybeSingle();
-
-      if (memberError) {
-        console.error("[TestLogin] Error fetching member:", memberError);
-        throw memberError;
-      }
+      // 1. Find member by email via base44 client
+      const members = await base44.entities.Member.list({ 
+        filter: { email: email } 
+      });
+      const member = members && members.length > 0 ? members[0] : null;
 
       if (!member) {
         setError("No member found with that email in the portal database.");
         return;
       }
 
-      // ✅ 2. Build memberData with a 24h session expiry
+      // 2. Build memberData with a 24h session expiry
       const memberData = {
         ...member,
         sessionExpiry: new Date(
@@ -84,69 +72,36 @@ export default function TestLoginPage() {
       // Store in sessionStorage
       sessionStorage.setItem("agcas_member", JSON.stringify(memberData));
 
-      // ✅ 3. Update last_login in Supabase (only for non-team-members if you keep that flag)
+      // 3. Update last_login (only for non-team-members)
       try {
-        // If you have an is_team_member flag in your member table, keep this check.
-        // Otherwise, remove `!memberData.is_team_member` from the condition.
         if (!memberData.is_team_member && memberData.id) {
-          const { error: updateError } = await supabase
-            .from("member")
-            .update({ last_login: new Date().toISOString() })
-            .eq("id", memberData.id);
-
-          if (updateError) {
-            console.warn(
-              "[TestLogin] Failed to update last_login in Supabase:",
-              updateError.message
-            );
-          } else {
-            console.log(
-              "[TestLogin] Updated last_login for member:",
-              memberData.email
-            );
-          }
+          await base44.entities.Member.update(memberData.id, { 
+            last_login: new Date().toISOString() 
+          });
+          console.log("[TestLogin] Updated last_login for member:", memberData.email);
         }
       } catch (updateErr) {
-        console.warn(
-          "[TestLogin] Exception updating last_login:",
-          updateErr.message
-        );
+        console.warn("[TestLogin] Exception updating last_login:", updateErr.message);
       }
 
       setSuccess(true);
 
-      // ✅ 4. Determine landing page based on role from Supabase
+      // 4. Determine landing page based on role
       let landingPage = "Events"; // default fallback
 
       if (memberData.role_id) {
         try {
-          const { data: role, error: roleError } = await supabase
-            .from("role")
-            .select("*")
-            .eq("id", memberData.role_id)
-            .maybeSingle();
-
-          if (roleError) {
-            console.warn(
-              "[TestLogin] Error fetching role for landing page:",
-              roleError
-            );
-          } else if (role && role.default_landing_page) {
+          const role = await base44.entities.Role.get(memberData.role_id);
+          if (role && role.default_landing_page) {
             landingPage = role.default_landing_page;
-            console.log(
-              "[TestLogin] Using role default landing page:",
-              landingPage
-            );
+            console.log("[TestLogin] Using role default landing page:", landingPage);
           }
         } catch (roleErr) {
-          console.warn(
-            "[TestLogin] Exception determining role landing page:",
-            roleErr
-          );
+          console.warn("[TestLogin] Exception determining role landing page:", roleErr);
         }
       }
 
-      // ✅ 5. Redirect after a brief delay
+      // 5. Redirect after a brief delay
       setTimeout(() => {
         window.location.href = createPageUrl(landingPage);
       }, 1000);

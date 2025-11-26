@@ -29,7 +29,7 @@ import FloaterDisplay from "@/components/floaters/FloaterDisplay";
 import NewsTickerBar from "@/components/news/NewsTickerBar";
 
 import { useQuery } from '@tanstack/react-query';
-import { supabase } from "@/api/supabaseClient";
+import { base44 } from "@/api/base44Client";
 
 
 
@@ -417,29 +417,25 @@ export default function Layout({ children, currentPageName }) {
 const { data: borderRadiusSetting = DEFAULT_BORDER_RADIUS } = useQuery({
   queryKey: ['borderRadiusSetting'],
   queryFn: async () => {
-    const { data, error } = await supabase
-      .from('system_settings')
-      .select('setting_value')
-      .eq('setting_key', 'global_border_radius')
-      .maybeSingle(); // or .single() depending on your setup
-
-    if (error) {
+    try {
+      const data = await base44.entities.SystemSettings.list({ 
+        filter: { setting_key: 'global_border_radius' } 
+      });
+      if (data && data.length > 0 && data[0].setting_value) {
+        return String(data[0].setting_value);
+      }
+      return DEFAULT_BORDER_RADIUS;
+    } catch (error) {
       console.error('Error loading SystemSettings:', error);
       return DEFAULT_BORDER_RADIUS;
     }
-
-    if (data && data.setting_value) {
-      return String(data.setting_value);
-    }
-
-    return DEFAULT_BORDER_RADIUS;
   },
   staleTime: 5 * 60 * 1000,
   refetchOnWindowFocus: false,
 });
 
 
-  // 🔹 Fetch member record for profile photo
+  // Fetch member record for profile photo
 const { data: memberRecord } = useQuery({
   queryKey: ['memberRecord', memberInfo && memberInfo.email],
   enabled: !!(memberInfo && memberInfo.email),
@@ -447,22 +443,19 @@ const { data: memberRecord } = useQuery({
   refetchOnWindowFocus: false,
   refetchOnMount: false,
   queryFn: async () => {
-    const { data, error } = await supabase
-      .from('member')          // or 'members'
-      .select('*')
-      .eq('email', memberInfo.email)
-      .maybeSingle();          // returns single row or null
-
-    if (error) {
+    try {
+      const data = await base44.entities.Member.list({ 
+        filter: { email: memberInfo.email } 
+      });
+      return data && data.length > 0 ? data[0] : null;
+    } catch (error) {
       console.error('Error loading memberRecord:', error);
       return null;
     }
-
-    return data || null;
   },
 });
 
-// 🔹 Fetch member role
+// Fetch member role
 const { data: memberRole } = useQuery({
   queryKey: ['memberRole', memberInfo && memberInfo.role_id],
   enabled: !!(memberInfo && memberInfo.role_id),
@@ -471,40 +464,32 @@ const { data: memberRole } = useQuery({
   refetchOnMount: false,
   queryFn: async () => {
     if (!memberInfo || !memberInfo.role_id) return null;
-
-    const { data, error } = await supabase
-      .from('role')            // or 'roles'
-      .select('*')
-      .eq('id', memberInfo.role_id)
-      .maybeSingle();
-
-    if (error) {
+    try {
+      const data = await base44.entities.Role.get(memberInfo.role_id);
+      return data || null;
+    } catch (error) {
       console.error('Error loading memberRole:', error);
       return null;
     }
-
-    return data || null;
   },
 });
 
-// 🔹 Fetch dynamic navigation items from database
+// Fetch dynamic navigation items from database
 const { data: dynamicNavItems = [] } = useQuery({
   queryKey: ['portal-menu'],
   staleTime: Infinity,
   refetchOnWindowFocus: false,
   refetchOnMount: false,
   queryFn: async () => {
-    const { data, error } = await supabase
-      .from('portal_menu')      // or 'portal_menu'
-      .select('*')
-      .order('display_order', { ascending: true });
-
-    if (error) {
+    try {
+      const data = await base44.entities.PortalMenu.list({ 
+        sort: { display_order: 'asc' } 
+      });
+      return data || [];
+    } catch (error) {
       console.error('Error loading PortalMenu:', error);
       return [];
     }
-
-    return data || [];
   },
 });
 

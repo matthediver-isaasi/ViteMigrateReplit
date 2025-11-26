@@ -546,13 +546,9 @@ const { data: dynamicNavItems = [] } = useQuery({
   };
 
   const fetchOrganizationInfo = async (orgId) => {
-    // No orgId → nothing to do
     if (!orgId) return;
-  
-    // Skip if already loaded into state
     if (organizationInfo) return;
-  
-    // Try to load from sessionStorage first
+
     const cachedOrg = sessionStorage.getItem('agcas_organization');
     if (cachedOrg) {
       try {
@@ -561,46 +557,22 @@ const { data: dynamicNavItems = [] } = useQuery({
         return;
       } catch (e) {
         console.warn('Failed to parse cached organization, ignoring cache:', e);
-        // fall through to fresh load
       }
     }
-  
+
     try {
-      // 1️⃣ Try lookup by primary id
-      let org = null;
-  
-      const { data: orgById, error: errorById } = await supabase
-        .from('Organization')              // or 'organizations' if that’s your table name
-        .select('*')
-        .eq('id', orgId)
-        .maybeSingle();
-  
-      if (errorById) {
-        console.error('Error fetching organization by id:', errorById);
-      }
-  
-      if (orgById) {
-        org = orgById;
-      } else {
-        // 2️⃣ Fallback: try lookup by zoho_account_id
-        const { data: orgByZoho, error: errorByZoho } = await supabase
-          .from('Organization')            // same table
-          .select('*')
-          .eq('zoho_account_id', orgId)
-          .maybeSingle();
-  
-        if (errorByZoho) {
-          console.error('Error fetching organization by zoho_account_id:', errorByZoho);
-        }
-  
-        if (orgByZoho) {
-          org = orgByZoho;
-        }
-      }
-  
+      const allOrgs = await base44.entities.Organization.list();
+      const org = allOrgs.find(o => 
+        o.id === orgId || 
+        o.base44_id === orgId || 
+        o.zoho_account_id === orgId
+      );
+
       if (org) {
         sessionStorage.setItem('agcas_organization', JSON.stringify(org));
         setOrganizationInfo(org);
+      } else {
+        console.warn('Organization not found for id:', orgId);
       }
     } catch (error) {
       console.error('Unexpected error fetching organization:', error);
@@ -680,43 +652,26 @@ const { data: dynamicNavItems = [] } = useQuery({
       }
     
       try {
-        // 1️⃣ Find member by email
-        const { data: member, error: lookupError } = await supabase
-          .from('member')   // or 'members' depending on your schema
-          .select('id')
-          .eq('email', memberInfo.email)
-          .maybeSingle();
-    
-        if (lookupError) {
-          console.error('Supabase lookup error (Member):', lookupError);
-          return;
-        }
+        // Find member by email using base44 client
+        const members = await base44.entities.Member.list({ filter: { email: memberInfo.email } });
+        const member = members && members.length > 0 ? members[0] : null;
     
         if (!member) {
           console.warn('Member not found for email:', memberInfo.email);
           return;
         }
     
-        // 2️⃣ Update last_activity timestamp
-        const { error: updateError } = await supabase
-          .from('member')
-          .update({
-            last_activity: new Date().toISOString()
-          })
-          .eq('id', member.id);
+        // Update last_activity timestamp using base44 client
+        await base44.entities.Member.update(member.id, {
+          last_activity: new Date().toISOString()
+        });
     
-        if (updateError) {
-          console.error('Supabase update error (Member.last_activity):', updateError);
-          return;
-        }
-    
-        // 3️⃣ Update throttling ref
+        // Update throttling ref
         lastActivityUpdateRef.current = now;
       } catch (error) {
         console.error('Unexpected error updating last_activity:', error);
       }
     };
-    
     
     updateLastActivity();
   }, [location.pathname, memberInfo?.email]);

@@ -4168,9 +4168,12 @@ AGCAS Events Team
         });
       }
 
-      // Check if requesting member is admin
+      // Check if requesting member is admin (case-insensitive email comparison)
       const { data: members } = await supabase.from('member').select('*');
-      const currentMember = members?.find((m: any) => m.email === member_email);
+      const normalizedEmail = member_email.toLowerCase().trim();
+      const currentMember = members?.find((m: any) => m.email?.toLowerCase().trim() === normalizedEmail);
+      
+      console.log('[generateMemberHandles] Looking for member with email:', normalizedEmail, 'Found:', !!currentMember);
 
       if (!currentMember) {
         return res.status(403).json({

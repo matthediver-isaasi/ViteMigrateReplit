@@ -3119,6 +3119,173 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Export All Data - admin export of all entities to ZIP
+  app.post('/api/functions/exportAllData', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    // Helper function to convert array of objects to CSV
+    function arrayToCSV(data: any[]): string {
+      if (!data || data.length === 0) return '';
+
+      const allKeys = new Set<string>();
+      data.forEach(obj => {
+        Object.keys(obj).forEach(key => allKeys.add(key));
+      });
+
+      const headers = Array.from(allKeys);
+      const csvRows = [headers.join(',')];
+
+      data.forEach(obj => {
+        const values = headers.map(header => {
+          const value = obj[header];
+
+          if (value === null || value === undefined) {
+            return '';
+          }
+
+          if (typeof value === 'object') {
+            return `"${JSON.stringify(value).replace(/"/g, '""')}"`;
+          }
+
+          if (typeof value === 'string') {
+            if (value.includes(',') || value.includes('\n') || value.includes('"')) {
+              return `"${value.replace(/"/g, '""')}"`;
+            }
+          }
+
+          return value;
+        });
+
+        csvRows.push(values.join(','));
+      });
+
+      return csvRows.join('\n');
+    }
+
+    try {
+      const { memberEmail } = req.body;
+
+      if (!memberEmail) {
+        return res.status(400).json({ error: 'Member email required' });
+      }
+
+      console.log('Validating member:', memberEmail);
+
+      // Check both Member and TeamMember entities
+      const [rolesResult, membersResult, teamMembersResult] = await Promise.all([
+        supabase.from('role').select('*'),
+        supabase.from('member').select('*'),
+        supabase.from('team_member').select('*')
+      ]);
+
+      const roles = rolesResult.data || [];
+      const members = membersResult.data || [];
+      const teamMembers = teamMembersResult.data || [];
+
+      const member = members.find((m: any) => m.email === memberEmail);
+      const teamMember = teamMembers.find((tm: any) => tm.email === memberEmail);
+
+      let userRole = null;
+
+      if (member?.role_id) {
+        userRole = roles.find((r: any) => r.id === member.role_id);
+      } else if (teamMember?.role_id) {
+        userRole = roles.find((r: any) => r.id === teamMember.role_id);
+      }
+
+      if (!userRole || !userRole.is_admin) {
+        console.log('Access denied - not an admin');
+        return res.status(403).json({ error: 'Admin access required' });
+      }
+
+      console.log('Admin access confirmed, starting export...');
+
+      // List of all table names to export (snake_case for Supabase)
+      const tableNames = [
+        'member', 'organization', 'event', 'booking', 'program_ticket_transaction',
+        'magic_link', 'organization_contact', 'program', 'voucher', 'blog_post',
+        'role', 'team_member', 'discount_code', 'discount_code_usage', 'system_settings',
+        'resource', 'resource_category', 'resource_folder', 'file_repository', 'file_repository_folder',
+        'job_posting', 'page_banner', 'iedit_page', 'iedit_page_element', 'iedit_element_template',
+        'navigation_item', 'article_category', 'article_comment', 'comment_reaction',
+        'article_reaction', 'article_view', 'button_style', 'award', 'offline_award',
+        'offline_award_assignment', 'wall_of_fame_section', 'wall_of_fame_category', 'wall_of_fame_person',
+        'floater', 'form', 'form_submission', 'tour_group', 'tour_step', 'news_post',
+        'resource_author_settings', 'zoho_token', 'xero_token'
+      ];
+
+      // Create a new ZIP file
+      const JSZip = require('jszip');
+      const zip = new JSZip();
+
+      // Export each entity
+      for (const tableName of tableNames) {
+        try {
+          const { data: records, error } = await supabase.from(tableName).select('*');
+
+          if (!error && records && records.length > 0) {
+            const csv = arrayToCSV(records);
+            zip.file(`${tableName}.csv`, csv);
+            console.log(`Exported ${records.length} records from ${tableName}`);
+          }
+        } catch (error: any) {
+          console.warn(`Failed to export ${tableName}:`, error.message);
+        }
+      }
+
+      // Generate ZIP file
+      const zipBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+
+      // Create a file name with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('T')[0];
+      const fileName = `data-export-${timestamp}.zip`;
+
+      // Upload to Supabase storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('exports')
+        .upload(fileName, zipBuffer, {
+          contentType: 'application/zip',
+          upsert: true
+        });
+
+      if (uploadError) {
+        // If exports bucket doesn't exist, try creating it or use a different approach
+        console.error('Upload error:', uploadError);
+        
+        // Return the file as base64 as a fallback
+        const base64Data = zipBuffer.toString('base64');
+        return res.json({
+          success: true,
+          file_name: fileName,
+          data: base64Data,
+          encoding: 'base64',
+          message: 'Download the file using the base64 data'
+        });
+      }
+
+      // Create signed URL (expires in 1 hour)
+      const { data: signedUrlData } = await supabase.storage
+        .from('exports')
+        .createSignedUrl(fileName, 3600);
+
+      res.json({
+        success: true,
+        download_url: signedUrlData?.signedUrl,
+        file_name: fileName,
+        expires_in: 3600
+      });
+
+    } catch (error: any) {
+      console.error('Export error:', error);
+      res.status(500).json({
+        error: 'Failed to export data',
+        details: error.message
+      });
+    }
+  });
+
   // Send Team Member Invite - sends invitation via webhook
   app.post('/api/functions/sendTeamMemberInvite', async (req: Request, res: Response) => {
     if (!supabase) {

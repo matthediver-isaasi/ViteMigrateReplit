@@ -320,6 +320,13 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const exportAllData = notImplemented("exportAllData");
+  export const exportAllData = async (params) => {
+    const response = await fetch('/api/functions/exportAllData', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const generateSitemap = notImplemented("generateSitemap");
   

@@ -775,25 +775,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(503).json({ error: 'Zoho OAuth not configured - missing ZOHO_CLIENT_ID' });
     }
 
-    const accountsDomain = getZohoAccountsDomain(ZOHO_CRM_API_DOMAIN);
-    const redirectUri = `${req.protocol}://${req.get('host')}/api/functions/zohoOAuthCallback`;
-    
-    const scopes = [
-      'ZohoCRM.modules.ALL',
-      'ZohoCRM.settings.ALL',
-      'ZohoBackstage.event.READ',
-      'ZohoBackstage.order.ALL'
-    ].join(',');
+    try {
+      const accountsDomain = getZohoAccountsDomain(ZOHO_CRM_API_DOMAIN);
+      const redirectUri = `${req.protocol}://${req.get('host')}/api/functions/zohoOAuthCallback`;
+      
+      // Build Zoho OAuth authorization URL with CRM and Backstage scopes
+      const authUrl = `${accountsDomain}/oauth/v2/auth?` + new URLSearchParams({
+        scope: 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.accounts.ALL,zohobackstage.portal.READ,zohobackstage.event.READ,zohobackstage.eventticket.READ,zohobackstage.order.READ,zohobackstage.order.CREATE,zohobackstage.attendee.READ',
+        client_id: ZOHO_CLIENT_ID,
+        response_type: 'code',
+        access_type: 'offline',
+        redirect_uri: redirectUri,
+        prompt: 'consent'
+      }).toString();
 
-    const authUrl = `${accountsDomain}/oauth/v2/auth?` +
-      `scope=${encodeURIComponent(scopes)}` +
-      `&client_id=${ZOHO_CLIENT_ID}` +
-      `&response_type=code` +
-      `&access_type=offline` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}` +
-      `&prompt=consent`;
-
-    res.json({ authUrl });
+      res.json({ authUrl });
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Failed to generate auth URL',
+        message: error.message
+      });
+    }
   });
 
   // Zoho OAuth Callback (GET - browser redirect)

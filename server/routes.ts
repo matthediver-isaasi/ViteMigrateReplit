@@ -2859,6 +2859,40 @@ AGCAS Events Team
     }
   });
 
+  // ============ Xero Integration Routes ============
+
+  // Get Xero Auth URL
+  app.get('/api/functions/getXeroAuthUrl', async (req: Request, res: Response) => {
+    try {
+      const XERO_CLIENT_ID = process.env.XERO_CLIENT_ID;
+      const XERO_REDIRECT_URI = process.env.XERO_REDIRECT_URI;
+
+      if (!XERO_CLIENT_ID || !XERO_REDIRECT_URI) {
+        return res.status(500).json({
+          error: 'Xero not configured',
+          message: 'Missing XERO_CLIENT_ID or XERO_REDIRECT_URI'
+        });
+      }
+
+      // Xero OAuth authorization URL
+      const authUrl = `https://login.xero.com/identity/connect/authorize?` + new URLSearchParams({
+        response_type: 'code',
+        client_id: XERO_CLIENT_ID,
+        redirect_uri: XERO_REDIRECT_URI,
+        scope: 'offline_access accounting.transactions accounting.contacts openid profile email',
+        state: 'xero_auth'
+      }).toString();
+
+      res.json({ authUrl });
+
+    } catch (error: any) {
+      res.status(500).json({
+        error: 'Failed to generate auth URL',
+        message: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

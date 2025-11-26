@@ -140,7 +140,10 @@ const notImplemented = (name) => () => {
     const response = await fetch('/api/functions/getStripePublishableKey');
     return response.json();
   };
-  export const getXeroAuthUrl = notImplemented("getXeroAuthUrl");
+  export const getXeroAuthUrl = async () => {
+    const response = await fetch('/api/functions/getXeroAuthUrl');
+    return response.json();
+  };
   export const xeroOAuthCallback = notImplemented("xeroOAuthCallback");
   export const refreshXeroToken = notImplemented("refreshXeroToken");
   export const createXeroInvoice = notImplemented("createXeroInvoice");

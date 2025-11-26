@@ -181,16 +181,6 @@ export default function AwardManagementPage() {
     enabled: assignDialogOpen && !!selectedOrganizationId,
   });
   
-  // Also fetch all members for viewing assignments (uses a separate query with all members)
-  const { data: allMembersForAssignments = [], isLoading: allMembersLoading } = useQuery({
-    queryKey: ['all-members-for-assignments'],
-    queryFn: async () => {
-      return await base44.entities.Member.list({ limit: 10000 });
-    },
-    staleTime: 60 * 1000,
-    enabled: viewAssignmentsDialogOpen,
-  });
-
   // Fetch offline award assignments
   const { data: assignments = [] } = useQuery({
     queryKey: ['offlineAwardAssignments'],
@@ -198,6 +188,28 @@ export default function AwardManagementPage() {
       return await base44.entities.OfflineAwardAssignment.list();
     },
     staleTime: 30 * 1000,
+  });
+
+  // Get the member IDs from assignments for the viewing award
+  const viewingAwardAssignments = viewingAward 
+    ? assignments.filter(a => a.offline_award_id === viewingAward.id)
+    : [];
+  const assignedMemberIds = [...new Set(viewingAwardAssignments.map(a => a.member_id))];
+
+  // Fetch only the specific members that are assigned to this award
+  const { data: assignedMembersData = [], isLoading: allMembersLoading } = useQuery({
+    queryKey: ['assigned-members', viewingAward?.id, assignedMemberIds.join(',')],
+    queryFn: async () => {
+      if (assignedMemberIds.length === 0) return [];
+      // Fetch each member by ID individually (more efficient than fetching all)
+      const memberPromises = assignedMemberIds.map(id => 
+        base44.entities.Member.get(id).catch(() => null)
+      );
+      const members = await Promise.all(memberPromises);
+      return members.filter(m => m !== null);
+    },
+    staleTime: 60 * 1000,
+    enabled: viewAssignmentsDialogOpen && assignedMemberIds.length > 0,
   });
 
   // Fetch classifications
@@ -794,8 +806,8 @@ export default function AwardManagementPage() {
   const getAssignedMembers = (awardId) => {
     const awardAssignments = assignments.filter(a => a.offline_award_id === awardId);
     return awardAssignments.map(assignment => {
-      // Use allMembersForAssignments for viewing assignments (it fetches more members)
-      const member = allMembersForAssignments.find(m => m.id === assignment.member_id);
+      // Use assignedMembersData which fetches only the specific members we need
+      const member = assignedMembersData.find(m => m.id === assignment.member_id);
       return { ...assignment, member };
     }).filter(item => item.member);
   };

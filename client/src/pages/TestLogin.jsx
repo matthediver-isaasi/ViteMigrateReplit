@@ -48,22 +48,45 @@ export default function TestLoginPage() {
     setSuccess(false);
 
     try {
-      console.log("[TestLogin] Looking up member by email:", email);
+      console.log("[TestLogin] Validating member by email:", email);
 
-      // 1. Find member by email via base44 client
+      // 1. Use validateMember endpoint which syncs from Zoho CRM if needed
+      const validateResponse = await fetch('/api/functions/validateMember', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: email.toLowerCase().trim() })
+      });
+
+      const validateResult = await validateResponse.json();
+
+      if (!validateResponse.ok || !validateResult.success) {
+        setError(validateResult.error || "No member found with that email.");
+        return;
+      }
+
+      console.log("[TestLogin] Member validated:", validateResult.member.email);
+
+      // 2. Fetch the full member record from database (to get id and all fields)
       const members = await base44.entities.Member.list({ 
-        filter: { email: email } 
+        filter: { email: email.toLowerCase().trim() } 
       });
       const member = members && members.length > 0 ? members[0] : null;
 
       if (!member) {
-        setError("No member found with that email in the portal database.");
+        // This shouldn't happen after successful validation, but handle it
+        setError("Member validation succeeded but record not found. Please try again.");
         return;
       }
 
-      // 2. Build memberData with a 24h session expiry
+      // 3. Build memberData with a 24h session expiry, merging validated data
       const memberData = {
         ...member,
+        // Override with validated data from CRM
+        organization_name: validateResult.member.organization_name,
+        training_fund_balance: validateResult.member.training_fund_balance,
+        purchase_order_enabled: validateResult.member.purchase_order_enabled,
+        program_ticket_balances: validateResult.member.program_ticket_balances,
+        is_team_member: validateResult.member.is_team_member,
         sessionExpiry: new Date(
           Date.now() + 24 * 60 * 60 * 1000
         ).toISOString(),
@@ -72,7 +95,7 @@ export default function TestLoginPage() {
       // Store in sessionStorage
       sessionStorage.setItem("agcas_member", JSON.stringify(memberData));
 
-      // 3. Update last_login (only for non-team-members)
+      // 4. Update last_login (only for non-team-members)
       try {
         if (!memberData.is_team_member && memberData.id) {
           await base44.entities.Member.update(memberData.id, { 
@@ -86,7 +109,7 @@ export default function TestLoginPage() {
 
       setSuccess(true);
 
-      // 4. Determine landing page based on role
+      // 5. Determine landing page based on role
       let landingPage = "Events"; // default fallback
 
       if (memberData.role_id) {
@@ -101,7 +124,7 @@ export default function TestLoginPage() {
         }
       }
 
-      // 5. Redirect after a brief delay
+      // 6. Redirect after a brief delay
       setTimeout(() => {
         window.location.href = createPageUrl(landingPage);
       }, 1000);

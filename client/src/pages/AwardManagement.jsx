@@ -76,6 +76,7 @@ export default function AwardManagementPage() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [selectedMemberId, setSelectedMemberId] = useState("");
   const [selectedSublevelId, setSelectedSublevelId] = useState("");
+  const [selectedOrganizationId, setSelectedOrganizationId] = useState("");
   const [assignmentNotes, setAssignmentNotes] = useState("");
   const [memberSearchQuery, setMemberSearchQuery] = useState("");
   const [assignedMembersSearchQuery, setAssignedMembersSearchQuery] = useState("");
@@ -148,13 +149,46 @@ export default function AwardManagementPage() {
     staleTime: 30 * 1000,
   });
 
-  // Fetch members for assignment
-  const { data: members = [] } = useQuery({
-    queryKey: ['members'],
+  // Fetch organizations for the assign dialog
+  const { data: organizations = [], isLoading: organizationsLoading } = useQuery({
+    queryKey: ['organizations'],
     queryFn: async () => {
-      return await base44.entities.Member.list();
+      const orgs = await base44.entities.Organization.list({ limit: 5000 });
+      return orgs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     },
     staleTime: 60 * 1000,
+    enabled: assignDialogOpen,
+  });
+
+  // Fetch members for assignment - filter by selected organization
+  const { data: members = [], isLoading: membersLoading } = useQuery({
+    queryKey: ['members-for-assignment', selectedOrganizationId],
+    queryFn: async () => {
+      if (selectedOrganizationId === '__no_org__') {
+        // Fetch members without an organization
+        const allMembers = await base44.entities.Member.list({ limit: 5000 });
+        return allMembers.filter(m => !m.organization_id);
+      } else if (selectedOrganizationId) {
+        // Fetch members for the selected organization
+        return await base44.entities.Member.list({ 
+          filter: { organization_id: selectedOrganizationId },
+          limit: 1000
+        });
+      }
+      return [];
+    },
+    staleTime: 60 * 1000,
+    enabled: assignDialogOpen && !!selectedOrganizationId,
+  });
+  
+  // Also fetch all members for viewing assignments (uses a separate query with all members)
+  const { data: allMembersForAssignments = [] } = useQuery({
+    queryKey: ['all-members-for-assignments'],
+    queryFn: async () => {
+      return await base44.entities.Member.list({ limit: 10000 });
+    },
+    staleTime: 60 * 1000,
+    enabled: viewAssignmentsDialogOpen,
   });
 
   // Fetch offline award assignments
@@ -554,6 +588,7 @@ export default function AwardManagementPage() {
     setAssigningAward(award);
     setSelectedMemberId("");
     setSelectedSublevelId("");
+    setSelectedOrganizationId("");
     setAssignmentNotes("");
     setMemberSearchQuery("");
     setAssignDialogOpen(true);
@@ -564,6 +599,7 @@ export default function AwardManagementPage() {
     setAssigningAward(null);
     setSelectedMemberId("");
     setSelectedSublevelId("");
+    setSelectedOrganizationId("");
     setAssignmentNotes("");
     setMemberSearchQuery("");
   };
@@ -758,7 +794,8 @@ export default function AwardManagementPage() {
   const getAssignedMembers = (awardId) => {
     const awardAssignments = assignments.filter(a => a.offline_award_id === awardId);
     return awardAssignments.map(assignment => {
-      const member = members.find(m => m.id === assignment.member_id);
+      // Use allMembersForAssignments for viewing assignments (it fetches more members)
+      const member = allMembersForAssignments.find(m => m.id === assignment.member_id);
       return { ...assignment, member };
     }).filter(item => item.member);
   };
@@ -1586,54 +1623,90 @@ export default function AwardManagementPage() {
             </DialogHeader>
 
             <div className="space-y-4 py-4 flex-1 overflow-hidden flex flex-col">
+              {/* Step 1: Select Organization */}
               <div className="space-y-2">
-                <Label htmlFor="member-search">Search Members</Label>
-                <Input
-                  id="member-search"
-                  value={memberSearchQuery}
-                  onChange={(e) => setMemberSearchQuery(e.target.value)}
-                  placeholder="Search by name or email..."
-                />
+                <Label htmlFor="organization-select">Step 1: Select Organisation *</Label>
+                <Select 
+                  value={selectedOrganizationId} 
+                  onValueChange={(val) => {
+                    setSelectedOrganizationId(val);
+                    setSelectedMemberId("");
+                    setMemberSearchQuery("");
+                  }}
+                >
+                  <SelectTrigger data-testid="select-organization">
+                    <SelectValue placeholder={organizationsLoading ? "Loading organisations..." : "Select an organisation..."} />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-[300px]">
+                    <SelectItem value="__no_org__">Members without organisation</SelectItem>
+                    {organizations.map(org => (
+                      <SelectItem key={org.id} value={org.id}>
+                        {org.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
-              <div className="space-y-2 flex-1 overflow-hidden flex flex-col">
-                <Label>Select Member *</Label>
-                <div className="border border-slate-200 rounded-lg overflow-y-auto flex-1">
-                  {filteredMembers.length === 0 ? (
-                    <div className="p-8 text-center text-slate-500">
-                      No members found
-                    </div>
-                  ) : (
-                    <div className="divide-y divide-slate-200">
-                      {filteredMembers.map(member => (
-                        <button
-                          key={member.id}
-                          onClick={() => setSelectedMemberId(member.id)}
-                          className={`w-full p-3 text-left hover:bg-slate-50 transition-colors ${
-                            selectedMemberId === member.id ? 'bg-blue-50 hover:bg-blue-100' : ''
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <div className="font-medium text-slate-900">
-                                {member.first_name} {member.last_name}
+              {/* Step 2: Select Member (only shown after organization is selected) */}
+              {selectedOrganizationId && (
+                <>
+                  <div className="space-y-2">
+                    <Label htmlFor="member-search">Step 2: Search Members</Label>
+                    <Input
+                      id="member-search"
+                      value={memberSearchQuery}
+                      onChange={(e) => setMemberSearchQuery(e.target.value)}
+                      placeholder="Search by name or email..."
+                      data-testid="input-member-search"
+                    />
+                  </div>
+
+                  <div className="space-y-2 flex-1 overflow-hidden flex flex-col">
+                    <Label>Select Member * {membersLoading && <span className="text-slate-500">(Loading...)</span>}</Label>
+                    <div className="border border-slate-200 rounded-lg overflow-y-auto flex-1">
+                      {membersLoading ? (
+                        <div className="p-8 text-center text-slate-500">
+                          Loading members...
+                        </div>
+                      ) : filteredMembers.length === 0 ? (
+                        <div className="p-8 text-center text-slate-500">
+                          {memberSearchQuery ? 'No members match your search' : 'No members found in this organisation'}
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-200">
+                          {filteredMembers.map(member => (
+                            <button
+                              key={member.id}
+                              onClick={() => setSelectedMemberId(member.id)}
+                              className={`w-full p-3 text-left hover:bg-slate-50 transition-colors ${
+                                selectedMemberId === member.id ? 'bg-blue-50 hover:bg-blue-100' : ''
+                              }`}
+                              data-testid={`button-select-member-${member.id}`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <div className="font-medium text-slate-900">
+                                    {member.first_name} {member.last_name}
+                                  </div>
+                                  <div className="text-sm text-slate-600">{member.email}</div>
+                                </div>
+                                {selectedMemberId === member.id && (
+                                  <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+                                    <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  </div>
+                                )}
                               </div>
-                              <div className="text-sm text-slate-600">{member.email}</div>
-                            </div>
-                            {selectedMemberId === member.id && (
-                              <div className="w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                                </svg>
-                              </div>
-                            )}
-                          </div>
-                        </button>
-                      ))}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                </>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="sublevel">Award Level</Label>

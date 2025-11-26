@@ -82,28 +82,24 @@ export default function ResourceManagementPage() {
       return cats.filter(c => c.is_active).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     },
     initialData: [],
-    refetchOnWindowFocus: false
   });
 
   const { data: repositoryFiles } = useQuery({
     queryKey: ['file-repository'],
     queryFn: () => base44.entities.FileRepository.list('-created_date'),
     initialData: [],
-    refetchOnWindowFocus: false
   });
 
   const { data: fileRepositoryFolders } = useQuery({
     queryKey: ['file-repository-folders'],
     queryFn: () => base44.entities.FileRepositoryFolder.list('display_order'),
     initialData: [],
-    refetchOnWindowFocus: false
   });
 
   const { data: roles } = useQuery({
     queryKey: ['roles'],
     queryFn: () => base44.entities.Role.list(),
     initialData: [],
-    refetchOnWindowFocus: false
   });
 
   const { data: authorSettings } = useQuery({
@@ -112,28 +108,24 @@ export default function ResourceManagementPage() {
       const settings = await base44.entities.ResourceAuthorSettings.list();
       return settings.length > 0 ? settings[0] : null;
     },
-    refetchOnWindowFocus: false
   });
 
   const { data: members } = useQuery({
     queryKey: ['members'],
     queryFn: () => base44.entities.Member.list(),
     initialData: [],
-    refetchOnWindowFocus: false
   });
 
   const { data: teamMembers } = useQuery({
     queryKey: ['team-members'],
     queryFn: () => base44.entities.TeamMember.list(),
     initialData: [],
-    refetchOnWindowFocus: false
   });
 
   const { data: folders, isLoading: foldersLoading } = useQuery({
     queryKey: ['resource-folders'],
     queryFn: () => base44.entities.ResourceFolder.list('display_order'),
     initialData: [],
-    refetchOnWindowFocus: false
   });
 
   // Get available authors based on selected roles in settings

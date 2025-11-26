@@ -26,8 +26,7 @@ export default function MyNewsPage() {
       return allNews;
     },
     enabled: isAdmin,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    staleTime: 0, // Admin views need instant freshness after edits
   });
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -38,8 +37,6 @@ export default function MyNewsPage() {
         .filter(c => c.is_active && c.applies_to_content_types?.includes("News"))
         .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
   });
 
   const { data: buttonStyles = [] } = useQuery({
@@ -48,8 +45,6 @@ export default function MyNewsPage() {
       const allStyles = await base44.entities.ButtonStyle.list();
       return allStyles.filter(s => s.is_active && s.card_type === 'article');
     },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
   });
 
   const filteredNews = useMemo(() => {

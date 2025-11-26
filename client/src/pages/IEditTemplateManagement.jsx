@@ -34,10 +34,10 @@ export default function IEditTemplateManagementPage() {
 
   const queryClient = useQueryClient();
 
-  const { data: templates, isLoading } = useQuery({
+  const { data: templates = [], isLoading } = useQuery({
     queryKey: ['iedit-templates'],
-    queryFn: () => base44.entities.IEditElementTemplate.list('display_order'),
-    initialData: []
+    queryFn: () => base44.entities.IEditElementTemplate.list({ sort: { display_order: 'asc' } }),
+    staleTime: 0
   });
 
   const createTemplateMutation = useMutation({

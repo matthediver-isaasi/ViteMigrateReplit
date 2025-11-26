@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Users, Search, Shield, CheckCircle2, CalendarIcon } from "lucide-react";
+import { Users, Search, Shield, CheckCircle2, CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { format } from "date-fns";
@@ -22,6 +22,8 @@ export default function MemberRoleAssignmentPage() {
   const [pendingRoleChange, setPendingRoleChange] = useState(null); // { memberId, roleId, requiresDate }
   const [effectiveFromDate, setEffectiveFromDate] = useState(null);
   const [accessChecked, setAccessChecked] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(25);
   const queryClient = useQueryClient();
 
   // Redirect non-admins or those without access to this feature
@@ -112,6 +114,50 @@ export default function MemberRoleAssignmentPage() {
     return matchesSearch && matchesRole;
   });
 
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredMembers.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedMembers = filteredMembers.slice(startIndex, endIndex);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, roleFilter]);
+
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        if (totalPages > 5) pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        if (totalPages > 5) pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   const getRoleName = (roleId) => {
     const role = roles.find(r => r.id === roleId);
     return role?.name || 'No Role';
@@ -197,13 +243,14 @@ export default function MemberRoleAssignmentPage() {
             </CardContent>
           </Card>
         ) : (
+          <>
           <Card className="border-slate-200 shadow-sm">
             <CardHeader className="border-b border-slate-200">
               <CardTitle>Members ({filteredMembers.length})</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <div className="divide-y divide-slate-200">
-                {filteredMembers.map((member) => (
+                {paginatedMembers.map((member) => (
                   <div
                     key={member.id}
                     className="flex items-center gap-4 p-4 hover:bg-slate-50 transition-colors"
@@ -316,6 +363,81 @@ export default function MemberRoleAssignmentPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Pagination Controls */}
+          {totalPages > 1 && (
+            <Card className="border-slate-200 shadow-sm mt-6">
+              <CardContent className="p-4">
+                <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+                  {/* Items per page selector */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-slate-600">Items per page:</span>
+                    <Select value={itemsPerPage.toString()} onValueChange={(val) => {
+                      setItemsPerPage(Number(val));
+                      setCurrentPage(1);
+                    }}>
+                      <SelectTrigger className="w-20" data-testid="select-items-per-page">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="10">10</SelectItem>
+                        <SelectItem value="25">25</SelectItem>
+                        <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Page info */}
+                  <div className="text-sm text-slate-600" data-testid="text-page-info">
+                    Page {currentPage} of {totalPages}
+                  </div>
+
+                  {/* Page navigation */}
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage - 1)}
+                      disabled={currentPage === 1}
+                      data-testid="button-prev-page"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+
+                    {getPageNumbers().map((page, idx) => (
+                      <React.Fragment key={idx}>
+                        {page === '...' ? (
+                          <span className="px-2 text-slate-400">...</span>
+                        ) : (
+                          <Button
+                            variant={currentPage === page ? "default" : "outline"}
+                            size="sm"
+                            onClick={() => handlePageChange(page)}
+                            className={currentPage === page ? "bg-blue-600 hover:bg-blue-700" : ""}
+                            data-testid={`button-page-${page}`}
+                          >
+                            {page}
+                          </Button>
+                        )}
+                      </React.Fragment>
+                    ))}
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handlePageChange(currentPage + 1)}
+                      disabled={currentPage === totalPages}
+                      data-testid="button-next-page"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+          </>
         )}
       </div>
     </div>

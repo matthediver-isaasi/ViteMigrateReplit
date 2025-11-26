@@ -493,9 +493,156 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Sync Member from CRM (Zoho)
   app.post('/api/functions/syncMemberFromCRM', async (req: Request, res: Response) => {
-    // This would connect to Zoho CRM API
-    // For now, return a placeholder
-    res.json({ success: true, message: 'Zoho CRM sync not yet implemented' });
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+
+    try {
+      const { email, accessToken } = req.body;
+
+      if (!email || !accessToken) {
+        return res.status(400).json({
+          error: 'Missing required parameters',
+          required: ['email', 'accessToken']
+        });
+      }
+
+      // Search for contact in Zoho CRM by email
+      const searchResponse = await fetch(
+        `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts/search?email=${encodeURIComponent(email)}`,
+        {
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+          },
+        }
+      );
+
+      const searchData = await searchResponse.json();
+
+      if (!searchResponse.ok || !searchData.data || searchData.data.length === 0) {
+        return res.status(404).json({
+          error: 'Member not found in CRM',
+          email: email
+        });
+      }
+
+      const contact = searchData.data[0];
+
+      // Get associated Account (Organization) details
+      let organizationName = null;
+      let organizationId = null;
+      let trainingFundBalance = 0;
+      let purchaseOrderEnabled = false;
+      let domain = null;
+      let additionalVerifiedDomains: string[] = [];
+
+      if (contact.Account_Name?.id) {
+        const accountResponse = await fetch(
+          `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts/${contact.Account_Name.id}`,
+          {
+            headers: {
+              'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            },
+          }
+        );
+
+        if (accountResponse.ok) {
+          const accountData = await accountResponse.json();
+          const account = accountData.data[0];
+
+          organizationName = account.Account_Name;
+          organizationId = account.id;
+          trainingFundBalance = account.Training_Fund_Balance || 0;
+          purchaseOrderEnabled = account.Purchase_Order_Enabled || false;
+          domain = account.Domain || null;
+          additionalVerifiedDomains = account.Additional_verified_domains || [];
+
+          // Create or update Organization in Supabase
+          const { data: existingOrgs } = await supabase
+            .from('organization')
+            .select('id')
+            .eq('zoho_account_id', organizationId);
+
+          if (existingOrgs && existingOrgs.length > 0) {
+            await supabase
+              .from('organization')
+              .update({
+                name: organizationName,
+                domain: domain,
+                additional_verified_domains: additionalVerifiedDomains,
+                training_fund_balance: trainingFundBalance,
+                purchase_order_enabled: purchaseOrderEnabled,
+                last_synced: new Date().toISOString()
+              })
+              .eq('id', existingOrgs[0].id);
+          } else {
+            await supabase
+              .from('organization')
+              .insert({
+                name: organizationName,
+                zoho_account_id: organizationId,
+                domain: domain,
+                additional_verified_domains: additionalVerifiedDomains,
+                training_fund_balance: trainingFundBalance,
+                purchase_order_enabled: purchaseOrderEnabled,
+                last_synced: new Date().toISOString()
+              });
+          }
+        }
+      }
+
+      // Create or update Member in Supabase
+      const { data: existingMembers } = await supabase
+        .from('member')
+        .select('*')
+        .eq('email', email);
+
+      const memberData = {
+        email: email,
+        first_name: contact.First_Name,
+        last_name: contact.Last_Name,
+        zoho_contact_id: contact.id,
+        organization_id: organizationId,
+        last_synced: new Date().toISOString()
+      };
+
+      let member;
+      if (existingMembers && existingMembers.length > 0) {
+        const { data: updatedMember } = await supabase
+          .from('member')
+          .update(memberData)
+          .eq('id', existingMembers[0].id)
+          .select()
+          .single();
+        member = updatedMember || { ...existingMembers[0], ...memberData };
+      } else {
+        const { data: newMember } = await supabase
+          .from('member')
+          .insert(memberData)
+          .select()
+          .single();
+        member = newMember;
+      }
+
+      res.json({
+        success: true,
+        member: {
+          ...member,
+          organization_name: organizationName,
+          training_fund_balance: trainingFundBalance,
+          purchase_order_enabled: purchaseOrderEnabled
+        }
+      });
+
+    } catch (error: any) {
+      console.error('Sync member from CRM error:', error);
+      res.status(500).json({
+        error: 'Failed to sync member data',
+        message: error.message
+      });
+    }
   });
 
   // ============ Zoho OAuth Routes ============

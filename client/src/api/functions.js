@@ -328,5 +328,8 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const generateSitemap = notImplemented("generateSitemap");
+  export const generateSitemap = async () => {
+    const response = await fetch('/api/functions/generateSitemap');
+    return response.text();
+  };
   

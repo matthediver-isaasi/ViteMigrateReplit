@@ -3119,6 +3119,123 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Generate Sitemap - creates XML sitemap for SEO
+  app.get('/api/functions/generateSitemap', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      // Get the base URL from request or environment
+      const protocol = req.headers['x-forwarded-proto'] || 'https';
+      const host = req.headers['host'] || req.headers['x-forwarded-host'];
+      const appBaseUrl = process.env.APP_BASE_URL || `${protocol}://${host}`;
+
+      // Fetch all published articles
+      const { data: allArticles } = await supabase.from('blog_post').select('*');
+      const publishedArticles = (allArticles || []).filter(
+        (a: any) => a.status === 'published' && a.published_date && new Date(a.published_date) <= new Date()
+      );
+
+      // Fetch all published news
+      const { data: allNews } = await supabase.from('news_post').select('*');
+      const publishedNews = (allNews || []).filter(
+        (n: any) => n.status === 'published' && n.published_date && new Date(n.published_date) <= new Date()
+      );
+
+      // Fetch all active job postings
+      const { data: allJobs } = await supabase.from('job_posting').select('*');
+      const activeJobs = (allJobs || []).filter((j: any) => j.status === 'active');
+
+      // Fetch all public custom pages
+      const { data: allPages } = await supabase.from('iedit_page').select('*');
+      const publicPages = (allPages || []).filter((p: any) => p.is_public);
+
+      // Static public pages
+      const staticPages = [
+        { loc: '/', priority: '1.0' },
+        { loc: '/PublicEvents', priority: '0.8' },
+        { loc: '/PublicArticles', priority: '0.8' },
+        { loc: '/PublicNews', priority: '0.8' },
+        { loc: '/PublicResources', priority: '0.8' },
+        { loc: '/JobBoard', priority: '0.8' },
+        { loc: '/PostJob', priority: '0.7' },
+        { loc: '/OrganisationDirectory', priority: '0.7' },
+      ];
+
+      // Build XML sitemap
+      let xml = '<?xml version="1.0" encoding="UTF-8"?>\n';
+      xml += `<!-- Sitemap generated at ${new Date().toISOString()} -->\n`;
+      xml += `<!-- Articles: ${publishedArticles.length}, News: ${publishedNews.length}, Jobs: ${activeJobs.length}, Pages: ${publicPages.length} -->\n`;
+      xml += '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n';
+
+      // Add static pages
+      staticPages.forEach(page => {
+        xml += '  <url>\n';
+        xml += `    <loc>${appBaseUrl}${page.loc}</loc>\n`;
+        xml += `    <priority>${page.priority}</priority>\n`;
+        xml += '    <changefreq>weekly</changefreq>\n';
+        xml += '  </url>\n';
+      });
+
+      // Add articles
+      publishedArticles.forEach((article: any) => {
+        xml += '  <url>\n';
+        xml += `    <loc>${appBaseUrl}/ArticleView?slug=${encodeURIComponent(article.slug)}</loc>\n`;
+        xml += `    <lastmod>${new Date(article.updated_date || article.published_date).toISOString()}</lastmod>\n`;
+        xml += '    <priority>0.7</priority>\n';
+        xml += '    <changefreq>monthly</changefreq>\n';
+        xml += '  </url>\n';
+      });
+
+      // Add news posts
+      publishedNews.forEach((post: any) => {
+        xml += '  <url>\n';
+        xml += `    <loc>${appBaseUrl}/NewsView?slug=${encodeURIComponent(post.slug)}</loc>\n`;
+        xml += `    <lastmod>${new Date(post.updated_date || post.published_date).toISOString()}</lastmod>\n`;
+        xml += '    <priority>0.6</priority>\n';
+        xml += '    <changefreq>weekly</changefreq>\n';
+        xml += '  </url>\n';
+      });
+
+      // Add job postings
+      activeJobs.forEach((job: any) => {
+        xml += '  <url>\n';
+        xml += `    <loc>${appBaseUrl}/JobDetails?id=${job.id}</loc>\n`;
+        xml += `    <lastmod>${new Date(job.updated_date || job.created_date).toISOString()}</lastmod>\n`;
+        xml += '    <priority>0.6</priority>\n';
+        xml += '    <changefreq>daily</changefreq>\n';
+        xml += '  </url>\n';
+      });
+
+      // Add custom public pages
+      publicPages.forEach((page: any) => {
+        xml += '  <url>\n';
+        xml += `    <loc>${appBaseUrl}/ViewPage?slug=${encodeURIComponent(page.slug)}</loc>\n`;
+        xml += `    <lastmod>${new Date(page.updated_date).toISOString()}</lastmod>\n`;
+        xml += '    <priority>0.7</priority>\n';
+        xml += '    <changefreq>monthly</changefreq>\n';
+        xml += '  </url>\n';
+      });
+
+      xml += '</urlset>';
+
+      res.set('Content-Type', 'application/xml');
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.send(xml);
+
+    } catch (error: any) {
+      console.error('[generateSitemap] Error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Also expose sitemap at standard /sitemap.xml path
+  app.get('/sitemap.xml', async (req: Request, res: Response) => {
+    // Redirect to the function endpoint
+    res.redirect('/api/functions/generateSitemap');
+  });
+
   // Export All Data - admin export of all entities to ZIP
   app.post('/api/functions/exportAllData', async (req: Request, res: Response) => {
     if (!supabase) {

@@ -109,23 +109,33 @@ const AVAILABLE_FEATURES = [
   { id: "payment_training_fund", label: "Use Training Fund for Purchases", category: "Payment Options" }
   ];
 
-export default function RoleManagementPage({ isAdmin, memberRole, isFeatureExcluded }) {
+export default function RoleManagementPage({ isAdmin, memberRole, isFeatureExcluded, memberInfo }) {
   const [editingRole, setEditingRole] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [roleToDelete, setRoleToDelete] = useState(null);
+  const [accessChecked, setAccessChecked] = useState(false);
 
   const queryClient = useQueryClient();
 
   // Redirect non-super-admins (check both isAdmin and feature exclusion)
+  // Handle case where member has no role assigned (memberInfo exists but role_id is null)
   useEffect(() => {
-    if (memberRole !== null && memberRole !== undefined) {
-      // Not an admin at all, or this specific feature is excluded for their role
-      if (!isAdmin || isFeatureExcluded('page_RoleManagement')) {
+    // Wait for memberInfo to be loaded before checking access
+    if (memberInfo !== null && memberInfo !== undefined) {
+      // If member has a role_id, wait for memberRole to load
+      if (memberInfo.role_id && (memberRole === null || memberRole === undefined)) {
+        return; // Still waiting for role to load
+      }
+      
+      // Now we can check access - either role is loaded or member has no role
+      if (!isAdmin || (isFeatureExcluded && isFeatureExcluded('page_RoleManagement'))) {
         window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
       }
     }
-  }, [isAdmin, memberRole, isFeatureExcluded]);
+  }, [isAdmin, memberRole, isFeatureExcluded, memberInfo]);
 
   const { data: roles, isLoading } = useQuery({
     queryKey: ['roles'],
@@ -251,17 +261,12 @@ export default function RoleManagementPage({ isAdmin, memberRole, isFeatureExclu
   }, {});
 
   // Show loading state while determining access
-  if (memberRole === null || memberRole === undefined) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
-  }
-
-  // Don't render anything for users without access (will redirect)
-  if (!isAdmin || isFeatureExcluded('page_RoleManagement')) {
-    return null;
   }
 
   return (

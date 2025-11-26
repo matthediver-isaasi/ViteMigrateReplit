@@ -1082,6 +1082,451 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to generate booking reference
+  function generateBookingReference(): string {
+    return 'BK-' + Date.now() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  }
+
+  // Helper function to check existing Backstage registrations
+  async function checkExistingBackstageRegistrations(
+    accessToken: string,
+    backstageEventId: string,
+    attendeeEmails: string[]
+  ): Promise<{ hasDuplicates: boolean; duplicateEmails: string[] }> {
+    const portalId = process.env.ZOHO_BACKSTAGE_PORTAL_ID || '20108049755';
+    const baseUrl = 'https://www.zohoapis.eu/backstage/v3';
+
+    console.log(`[checkExistingBackstageRegistrations] Checking ${attendeeEmails.length} emails for event ${backstageEventId}`);
+
+    try {
+      const ordersUrl = `${baseUrl}/portals/${portalId}/events/${backstageEventId}/orders`;
+      const ordersResponse = await fetch(ordersUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Zoho-oauthtoken ${accessToken}`
+        }
+      });
+
+      if (!ordersResponse.ok) {
+        console.error('[checkExistingBackstageRegistrations] Failed to fetch orders:', ordersResponse.status);
+        return { hasDuplicates: false, duplicateEmails: [] };
+      }
+
+      const ordersData = await ordersResponse.json();
+      const orders = ordersData.orders || [];
+
+      console.log(`[checkExistingBackstageRegistrations] Found ${orders.length} existing orders`);
+
+      const registeredEmails = new Set<string>();
+
+      for (const order of orders) {
+        const tickets = order.tickets || [];
+
+        if (Array.isArray(tickets)) {
+          for (const ticket of tickets) {
+            const ticketStatus = ticket.status_string || '';
+
+            if (ticketStatus === 'cancelled' || ticketStatus === 'refunded') {
+              continue;
+            }
+
+            if (ticket.contact?.email) {
+              registeredEmails.add(ticket.contact.email.toLowerCase());
+            }
+          }
+        }
+      }
+
+      const duplicateEmails: string[] = [];
+      for (const email of attendeeEmails) {
+        if (registeredEmails.has(email.toLowerCase())) {
+          duplicateEmails.push(email);
+        }
+      }
+
+      if (duplicateEmails.length > 0) {
+        return { hasDuplicates: true, duplicateEmails };
+      }
+
+      return { hasDuplicates: false, duplicateEmails: [] };
+
+    } catch (error) {
+      console.error('[checkExistingBackstageRegistrations] Error:', error);
+      return { hasDuplicates: false, duplicateEmails: [] };
+    }
+  }
+
+  // Create Booking
+  app.post('/api/functions/createBooking', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const portalId = process.env.ZOHO_BACKSTAGE_PORTAL_ID || '20108049755';
+    const baseUrl = 'https://www.zohoapis.eu/backstage/v3';
+
+    try {
+      const {
+        eventId,
+        memberEmail,
+        attendees,
+        registrationMode,
+        numberOfLinks = 0,
+        ticketsRequired,
+        programTag
+      } = req.body;
+
+      if (!eventId || !memberEmail) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters: eventId and memberEmail'
+        });
+      }
+
+      if (registrationMode === 'colleagues' && (!attendees || attendees.length === 0)) {
+        return res.status(400).json({
+          success: false,
+          error: 'No attendees provided for colleagues registration'
+        });
+      }
+
+      if (registrationMode === 'links' && numberOfLinks < 1) {
+        return res.status(400).json({
+          success: false,
+          error: 'Number of links must be at least 1'
+        });
+      }
+
+      if (registrationMode === 'self' && (!attendees || attendees.length === 0)) {
+        return res.status(400).json({
+          success: false,
+          error: 'No attendee information provided for self registration'
+        });
+      }
+
+      // Get member details
+      const { data: allMembers } = await supabase.from('member').select('*');
+      const member = allMembers?.find((m: any) => m.email === memberEmail);
+
+      if (!member) {
+        return res.status(404).json({
+          success: false,
+          error: 'Member not found'
+        });
+      }
+
+      // Get event details
+      const { data: allEvents } = await supabase.from('event').select('*');
+      const event = allEvents?.find((e: any) => e.id === eventId);
+
+      if (!event) {
+        return res.status(404).json({
+          success: false,
+          error: 'Event not found'
+        });
+      }
+
+      // Check if event requires program tickets
+      if (!programTag || !event.program_tag) {
+        return res.status(400).json({
+          success: false,
+          error: 'This event does not have a program association and cannot be booked'
+        });
+      }
+
+      // Get organization and verify program ticket balance
+      if (!member.organization_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'Member does not have an associated organization'
+        });
+      }
+
+      const { data: allOrgs } = await supabase.from('organization').select('*');
+      let org = allOrgs?.find((o: any) => o.id === member.organization_id);
+
+      if (!org) {
+        org = allOrgs?.find((o: any) => o.zoho_account_id === member.organization_id);
+      }
+
+      if (!org) {
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found'
+        });
+      }
+
+      // Check program ticket balance
+      const currentBalances = org.program_ticket_balances || {};
+      const currentBalance = currentBalances[programTag] || 0;
+
+      if (currentBalance < ticketsRequired) {
+        return res.status(400).json({
+          success: false,
+          error: `Insufficient program tickets. Required: ${ticketsRequired}, Available: ${currentBalance}`
+        });
+      }
+
+      // Check for duplicate registrations in Backstage
+      if ((registrationMode === 'self' || registrationMode === 'colleagues') && event.backstage_event_id && attendees) {
+        console.log('[createBooking] Checking for duplicate registrations in Backstage...');
+
+        const accessToken = await getValidZohoAccessToken();
+        const attendeeEmails = attendees.map((a: any) => a.email).filter(Boolean);
+
+        const duplicateCheck = await checkExistingBackstageRegistrations(
+          accessToken,
+          event.backstage_event_id,
+          attendeeEmails
+        );
+
+        if (duplicateCheck.hasDuplicates) {
+          const emailList = duplicateCheck.duplicateEmails.join(', ');
+          return res.status(409).json({
+            success: false,
+            error: `The following email address(es) are already registered for this event: ${emailList}. Please remove them and try again.`,
+            duplicateEmails: duplicateCheck.duplicateEmails
+          });
+        }
+      }
+
+      // Create bookings
+      const bookingReference = generateBookingReference();
+      const createdBookings: any[] = [];
+      let anyBackstageSyncFailed = false;
+      const backstageSyncErrors: string[] = [];
+      const individualBackstageOrderDetails: Array<{
+        attendeeEmail: string;
+        backstageOrderId?: string;
+        success: boolean;
+        error?: string;
+      }> = [];
+
+      // For self/colleagues mode, provision tickets in Backstage
+      if ((registrationMode === 'self' || registrationMode === 'colleagues') && event.backstage_event_id) {
+        try {
+          console.log('[createBooking] Attempting to provision tickets in Backstage...');
+          const accessToken = await getValidZohoAccessToken();
+
+          // Fetch ticket classes
+          const ticketClassesUrl = `${baseUrl}/portals/${portalId}/events/${event.backstage_event_id}/ticket_classes`;
+          const ticketClassesResponse = await fetch(ticketClassesUrl, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Zoho-oauthtoken ${accessToken}`
+            }
+          });
+
+          if (!ticketClassesResponse.ok) {
+            const errorText = await ticketClassesResponse.text();
+            console.error('[createBooking] Failed to fetch ticket classes:', errorText);
+            anyBackstageSyncFailed = true;
+            backstageSyncErrors.push(`Failed to fetch ticket classes: ${errorText}`);
+            throw new Error(`Failed to fetch ticket classes: ${errorText}`);
+          }
+
+          const ticketClassesData = await ticketClassesResponse.json();
+          const ticketClasses = ticketClassesData.ticket_classes || [];
+
+          // Find member ticket class
+          let memberTicket = ticketClasses.find((tc: any) =>
+            tc.ticket_class_type_string === 'free' &&
+            tc.translation?.name?.toLowerCase() === 'member'
+          );
+
+          if (!memberTicket) {
+            memberTicket = ticketClasses.find((tc: any) => tc.ticket_class_type_string === 'free');
+          }
+
+          if (!memberTicket && ticketClasses.length > 0) {
+            memberTicket = ticketClasses[0];
+          }
+
+          if (!memberTicket) {
+            anyBackstageSyncFailed = true;
+            backstageSyncErrors.push('No ticket classes available for this event');
+            throw new Error('No ticket classes available for this event');
+          }
+
+          const ticketClassId = memberTicket.id.toString();
+
+          // Create order for each attendee
+          const backstageApiUrl = `${baseUrl}/portals/${portalId}/events/${event.backstage_event_id}/orders`;
+
+          for (const attendee of attendees) {
+            const buyerDetails: any = {};
+            if (member.first_name) buyerDetails.purchaser_first_name = member.first_name;
+            if (member.last_name) buyerDetails.purchaser_last_name = member.last_name;
+            if (member.email) buyerDetails.purchaser_email = member.email;
+            if (org.name) buyerDetails.purchaser_company = org.name;
+
+            const singleOrderPayload = {
+              buyer_details: buyerDetails,
+              tickets: [{
+                ticketclass_id: ticketClassId,
+                data: {
+                  first_name: attendee.first_name,
+                  last_name: attendee.last_name,
+                  email: attendee.email
+                }
+              }]
+            };
+
+            try {
+              const individualBackstageResponse = await fetch(backstageApiUrl, {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Zoho-oauthtoken ${accessToken}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(singleOrderPayload)
+              });
+
+              if (individualBackstageResponse.ok) {
+                const backstageData = await individualBackstageResponse.json();
+                const individualBackstageOrderId = backstageData.order?.id || backstageData.id;
+                individualBackstageOrderDetails.push({
+                  attendeeEmail: attendee.email,
+                  backstageOrderId: individualBackstageOrderId,
+                  success: true
+                });
+                console.log(`[createBooking] ✓ Backstage order created for ${attendee.email}: ${individualBackstageOrderId}`);
+              } else {
+                const errorText = await individualBackstageResponse.text();
+                console.error(`[createBooking] ✗ Backstage API error for ${attendee.email}: ${errorText}`);
+                anyBackstageSyncFailed = true;
+                backstageSyncErrors.push(`Backstage API Error for ${attendee.email}: ${errorText}`);
+                individualBackstageOrderDetails.push({
+                  attendeeEmail: attendee.email,
+                  success: false,
+                  error: `API Error: ${errorText}`
+                });
+              }
+            } catch (individualError: any) {
+              console.error(`[createBooking] ✗ Backstage failed for ${attendee.email}:`, individualError);
+              anyBackstageSyncFailed = true;
+              backstageSyncErrors.push(`Backstage Failed for ${attendee.email}: ${individualError.message}`);
+              individualBackstageOrderDetails.push({
+                attendeeEmail: attendee.email,
+                success: false,
+                error: individualError.message
+              });
+            }
+          }
+
+        } catch (backstageError: any) {
+          console.error('[createBooking] ✗ Backstage provisioning failed:', backstageError);
+          anyBackstageSyncFailed = true;
+          backstageSyncErrors.push(`Backstage Provisioning Error: ${backstageError.message}`);
+        }
+      } else if ((registrationMode === 'self' || registrationMode === 'colleagues') && !event.backstage_event_id) {
+        console.warn('[createBooking] Backstage provisioning skipped: Missing backstage_event_id');
+        anyBackstageSyncFailed = true;
+        backstageSyncErrors.push('Backstage provisioning skipped due to missing event configuration.');
+      }
+
+      // Create booking records
+      if (registrationMode === 'self' || registrationMode === 'colleagues') {
+        for (const attendee of attendees) {
+          const correspondingOrder = individualBackstageOrderDetails.find(d => d.attendeeEmail === attendee.email);
+
+          const { data: booking } = await supabase
+            .from('booking')
+            .insert({
+              event_id: eventId,
+              member_id: member.id,
+              attendee_email: attendee.email,
+              attendee_first_name: attendee.first_name,
+              attendee_last_name: attendee.last_name,
+              ticket_price: event.ticket_price || 0,
+              booking_reference: bookingReference,
+              status: correspondingOrder?.success ? 'confirmed' : 'pending_backstage_sync',
+              payment_method: 'program_ticket',
+              backstage_order_id: correspondingOrder?.backstageOrderId || null
+            })
+            .select()
+            .single();
+
+          if (booking) createdBookings.push(booking);
+        }
+      } else if (registrationMode === 'links') {
+        for (let i = 0; i < numberOfLinks; i++) {
+          const confirmationToken = crypto.randomUUID();
+
+          const { data: booking } = await supabase
+            .from('booking')
+            .insert({
+              event_id: eventId,
+              member_id: member.id,
+              attendee_email: '',
+              attendee_first_name: '',
+              attendee_last_name: '',
+              ticket_price: event.ticket_price || 0,
+              booking_reference: bookingReference,
+              status: 'pending',
+              payment_method: 'program_ticket',
+              confirmation_token: confirmationToken
+            })
+            .select()
+            .single();
+
+          if (booking) createdBookings.push(booking);
+        }
+      }
+
+      // Deduct program tickets from organization balance
+      const newBalance = currentBalance - ticketsRequired;
+      const updatedBalances = {
+        ...currentBalances,
+        [programTag]: newBalance
+      };
+
+      await supabase
+        .from('organization')
+        .update({
+          program_ticket_balances: updatedBalances,
+          last_synced: new Date().toISOString()
+        })
+        .eq('id', org.id);
+
+      // Create program ticket transaction record
+      await supabase
+        .from('program_ticket_transaction')
+        .insert({
+          organization_id: org.id,
+          program_name: programTag,
+          transaction_type: 'usage',
+          quantity: ticketsRequired,
+          booking_reference: bookingReference,
+          event_name: event.title || 'Unknown Event',
+          member_email: memberEmail,
+          notes: `Used ${ticketsRequired} ${programTag} ticket${ticketsRequired > 1 ? 's' : ''} for ${event.title || 'event'}${registrationMode === 'links' ? ' (link generation)' : registrationMode === 'self' ? ' (self registration)' : ''}${anyBackstageSyncFailed ? ' - Backstage sync failed for some tickets' : ''}`
+        });
+
+      const response: any = {
+        success: true,
+        booking_reference: bookingReference,
+        bookings: createdBookings,
+        tickets_used: ticketsRequired,
+        remaining_balance: newBalance
+      };
+
+      if (anyBackstageSyncFailed) {
+        response.warning = 'Some bookings created successfully, but Backstage provisioning failed for one or more tickets. An admin may need to manually sync these.';
+        response.backstage_sync_errors = backstageSyncErrors;
+      }
+
+      res.json(response);
+
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Validate Colleague (check if email belongs to same organization)
   app.post('/api/functions/validateColleague', async (req: Request, res: Response) => {
     if (!supabase) {

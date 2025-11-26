@@ -72,7 +72,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const createBooking = notImplemented("createBooking");
+  export const createBooking = async (params) => {
+    const response = await fetch('/api/functions/createBooking', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const processProgramTicketPurchase = notImplemented("processProgramTicketPurchase");
   export const sendMagicLink = notImplemented("sendMagicLink");
   export const verifyMagicLink = notImplemented("verifyMagicLink");

@@ -754,26 +754,14 @@ const { data: dynamicNavItems = [] } = useQuery({
 
   // Build navigation structure from dynamic items
   const buildNavigationFromDB = (section) => {
-    // Debug: Log all items and their sections
-    console.log('[Layout] buildNavigationFromDB called for section:', section);
-    console.log('[Layout] All dynamicNavItems:', dynamicNavItems);
-    
     const items = dynamicNavItems.filter(item => item.is_active && item.section === section);
-    console.log('[Layout] Filtered items for section', section, ':', items);
-    
     const topLevelItems = items.filter(item => !item.parent_id);
-    console.log('[Layout] Top level items:', topLevelItems);
-    
-    // Also find all items that have a parent_id (child items)
-    const childItems = dynamicNavItems.filter(item => item.parent_id);
-    console.log('[Layout] All items with parent_id:', childItems);
     
     return topLevelItems.sort((a, b) => a.display_order - b.display_order).map(parent => {
       // Find children - look in ALL items, not just section-filtered ones
       const children = dynamicNavItems.filter(child => 
         child.is_active && child.parent_id === parent.id
       );
-      console.log('[Layout] Parent:', parent.title, 'id:', parent.id, 'found children:', children);
       
       const IconComponent = iconMap[parent.icon] || Menu;
       

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
+import { useNavigationRealtime } from "@/hooks/useNavigationRealtime";
 import { Search, User, ArrowUpRight, LogOut, ChevronDown, ChevronRight, Calendar, Building, Briefcase, FileText, Users, Sparkles, Home, Mail, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,53 +50,49 @@ export default function PublicHeader() {
     };
   }, []);
 
-  // Fetch navigation items
+  // Function to fetch navigation items
+  const fetchNavItems = useCallback(async () => {
+    try {
+      // Fetch all items and filter client-side to bypass any SDK caching
+      const allItems = await base44.entities.NavigationItem.list('display_order');
+      const items = allItems.filter(item => item.is_active);
+      
+      // Build hierarchy
+      const buildTree = (parentId, location) => {
+        return items
+          .filter(item => item.parent_id === parentId && item.location === location)
+          .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
+          .map(item => ({
+            ...item,
+            children: buildTree(item.id, location)
+          }));
+      };
+
+      const topNav = buildTree(null, 'top_nav');
+      const mainNav = buildTree(null, 'main_nav');
+
+      setNavItems({ topNav, mainNav });
+    } catch (error) {
+      console.error('Failed to fetch navigation items:', error);
+      setNavItems({ topNav: [], mainNav: [] });
+    }
+  }, []);
+
+  // Subscribe to realtime navigation changes
+  useNavigationRealtime(fetchNavItems);
+
+  // Fetch navigation items on mount and route changes
   useEffect(() => {
-    const fetchNavItems = async () => {
-      try {
-        // Fetch all items and filter client-side to bypass any SDK caching
-        const allItems = await base44.entities.NavigationItem.list('display_order');
-        const items = allItems.filter(item => item.is_active);
-        
-        // Build hierarchy
-        const buildTree = (parentId, location) => {
-          return items
-            .filter(item => item.parent_id === parentId && item.location === location)
-            .sort((a, b) => (a.display_order || 0) - (b.display_order || 0))
-            .map(item => ({
-              ...item,
-              children: buildTree(item.id, location)
-            }));
-        };
-
-        const topNav = buildTree(null, 'top_nav');
-        const mainNav = buildTree(null, 'main_nav');
-
-        setNavItems({ topNav, mainNav });
-      } catch (error) {
-        console.error('Failed to fetch navigation items:', error);
-        setNavItems({ topNav: [], mainNav: [] });
-      }
-    };
-
     fetchNavItems();
     
-    // Refetch on window focus and route changes
+    // Refetch on window focus
     const handleFocus = () => fetchNavItems();
     window.addEventListener('focus', handleFocus);
     
-    // Poll for changes every 5 seconds when page is visible
-    const pollInterval = setInterval(() => {
-      if (document.visibilityState === 'visible') {
-        fetchNavItems();
-      }
-    }, 5000);
-    
     return () => {
       window.removeEventListener('focus', handleFocus);
-      clearInterval(pollInterval);
     };
-  }, [location.pathname]);
+  }, [location.pathname, fetchNavItems]);
 
   // Fetch social icons configuration
   useEffect(() => {

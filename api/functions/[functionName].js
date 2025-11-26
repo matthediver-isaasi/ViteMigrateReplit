@@ -1160,6 +1160,661 @@ const functionHandlers = {
       reinstated_quantity: transaction.quantity,
       new_balance: newBalance
     };
+  },
+
+  async syncBackstageEvents(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { accessToken } = params;
+    const ZOHO_BACKSTAGE_PORTAL_ID = process.env.ZOHO_BACKSTAGE_PORTAL_ID || '20108049755';
+
+    if (!accessToken) {
+      return { error: 'Missing access token' };
+    }
+
+    const baseUrl = 'https://www.zohoapis.eu/backstage/v3';
+    const url = `${baseUrl}/portals/${ZOHO_BACKSTAGE_PORTAL_ID}/events?status=live`;
+
+    const eventsResponse = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}` }
+    });
+
+    if (!eventsResponse.ok) {
+      const errorText = await eventsResponse.text();
+      return { error: 'Failed to fetch events from Backstage', details: errorText };
+    }
+
+    const eventsData = await eventsResponse.json();
+    const events = eventsData.events || [];
+
+    if (events.length === 0) {
+      return { success: true, synced: 0, errors: 0, total: 0, message: 'No events found' };
+    }
+
+    let syncedCount = 0;
+    let errorCount = 0;
+    const errors = [];
+
+    const { data: allExistingEvents } = await supabase.from('event').select('*');
+
+    for (const event of events) {
+      try {
+        const programTag = event.tags && event.tags.length > 0 ? event.tags[0] : null;
+
+        const ticketClassesUrl = `${baseUrl}/portals/${ZOHO_BACKSTAGE_PORTAL_ID}/events/${event.id}/ticket_classes`;
+        const ticketClassesResponse = await fetch(ticketClassesUrl, {
+          headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}` }
+        });
+
+        let ticketTypeId = null;
+        let ticketPrice = 0;
+        let availableSeats = 0;
+
+        if (ticketClassesResponse.ok) {
+          const ticketClassesData = await ticketClassesResponse.json();
+          const ticketClasses = ticketClassesData.ticket_classes || [];
+
+          let memberTicket = ticketClasses.find(tc =>
+            tc.translation?.name?.toLowerCase() === 'member' || tc.ticket_class_type_string === 'free'
+          );
+
+          if (!memberTicket && ticketClasses.length > 0) {
+            memberTicket = ticketClasses[0];
+          }
+
+          if (memberTicket) {
+            ticketTypeId = memberTicket.id.toString();
+            ticketPrice = parseFloat(memberTicket.amount || 0);
+            availableSeats = parseInt((memberTicket.quantity || 0) - (memberTicket.sold || 0));
+          }
+        }
+
+        const eventData = {
+          title: event.name,
+          description: event.description || '',
+          program_tag: programTag,
+          start_date: event.start_time,
+          end_date: event.end_time,
+          location: event.venue?.name || 'Online',
+          ticket_price: ticketPrice,
+          available_seats: availableSeats,
+          backstage_event_id: event.id.toString(),
+          backstage_ticket_type_id: ticketTypeId,
+          image_url: event.banner_url || event.thumbnail_url || null,
+          last_synced: new Date().toISOString()
+        };
+
+        const existingEvent = allExistingEvents?.find(e => e.backstage_event_id === eventData.backstage_event_id);
+
+        if (existingEvent) {
+          await supabase.from('event').update(eventData).eq('id', existingEvent.id);
+        } else {
+          await supabase.from('event').insert(eventData);
+        }
+
+        syncedCount++;
+      } catch (error) {
+        errors.push({ eventId: event.id, error: error.message });
+        errorCount++;
+      }
+    }
+
+    return { success: true, synced: syncedCount, errors: errorCount, total: events.length, errorDetails: errors.length > 0 ? errors : undefined };
+  },
+
+  async syncEventsFromBackstage(params) {
+    return this.syncBackstageEvents(params);
+  },
+
+  async syncOrganizationContacts(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { organizationId } = params;
+
+    if (!organizationId) {
+      return { success: false, error: 'Organization ID is required' };
+    }
+
+    const { data: allOrgs } = await supabase.from('organization').select('*');
+    let org = allOrgs?.find(o => o.id === organizationId);
+    if (!org) {
+      org = allOrgs?.find(o => o.zoho_account_id === organizationId);
+    }
+
+    if (!org || !org.zoho_account_id) {
+      return { success: false, error: 'Organization not found or not linked to Zoho' };
+    }
+
+    const accessToken = await getValidZohoAccessToken();
+
+    let allContacts = [];
+    let page = 1;
+    const perPage = 200;
+    let hasMore = true;
+
+    while (hasMore) {
+      const criteria = `(Account_Name:equals:${org.name})`;
+      const searchUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts/search?criteria=${encodeURIComponent(criteria)}&page=${page}&per_page=${perPage}`;
+
+      const response = await fetch(searchUrl, {
+        headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}` }
+      });
+
+      if (!response.ok) break;
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        break;
+      }
+
+      if (data.data && data.data.length > 0) {
+        allContacts = allContacts.concat(data.data);
+        hasMore = data.info?.more_records || false;
+        page++;
+      } else {
+        hasMore = false;
+      }
+    }
+
+    if (allContacts.length === 0) {
+      await supabase.from('organization').update({ contacts_synced_at: new Date().toISOString() }).eq('id', org.id);
+      return { success: true, synced_count: 0, created: 0, updated: 0, deactivated: 0 };
+    }
+
+    const { data: existingContacts } = await supabase.from('organization_contact').select('*').eq('organization_id', org.id);
+
+    const existingByZohoId = {};
+    (existingContacts || []).forEach(contact => { existingByZohoId[contact.zoho_contact_id] = contact; });
+
+    const contactsToCreate = [];
+    const contactsToUpdate = [];
+    const zohoIdsFound = new Set();
+
+    for (const zohoContact of allContacts) {
+      zohoIdsFound.add(zohoContact.id);
+      if (!zohoContact.Email) continue;
+
+      const contactData = {
+        organization_id: org.id,
+        zoho_contact_id: zohoContact.id,
+        email: zohoContact.Email,
+        first_name: zohoContact.First_Name || '',
+        last_name: zohoContact.Last_Name || '',
+        is_active: true,
+        last_synced: new Date().toISOString()
+      };
+
+      if (existingByZohoId[zohoContact.id]) {
+        contactsToUpdate.push({ id: existingByZohoId[zohoContact.id].id, ...contactData });
+      } else {
+        contactsToCreate.push(contactData);
+      }
+    }
+
+    const contactsToDeactivate = (existingContacts || []).filter(c => !zohoIdsFound.has(c.zoho_contact_id) && c.is_active);
+
+    if (contactsToCreate.length > 0) {
+      await supabase.from('organization_contact').insert(contactsToCreate);
+    }
+
+    for (const contact of contactsToUpdate) {
+      const { id, ...updateData } = contact;
+      await supabase.from('organization_contact').update(updateData).eq('id', id);
+    }
+
+    for (const contact of contactsToDeactivate) {
+      await supabase.from('organization_contact').update({ is_active: false, last_synced: new Date().toISOString() }).eq('id', contact.id);
+    }
+
+    await supabase.from('organization').update({ contacts_synced_at: new Date().toISOString() }).eq('id', org.id);
+
+    return { success: true, synced_count: allContacts.length, created: contactsToCreate.length, updated: contactsToUpdate.length, deactivated: contactsToDeactivate.length };
+  },
+
+  async cancelTicketViaFlow(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { orderId, cancelReason = "Cancelled by member via iConnect", memberId } = params;
+
+    if (!orderId || !memberId) {
+      return { success: false, error: 'Missing required parameters: orderId and memberId' };
+    }
+
+    const { data: allBookings } = await supabase.from('booking').select('*');
+    const booking = allBookings?.find(b => b.backstage_order_id === orderId);
+
+    if (!booking) {
+      return { success: false, error: 'Booking not found with this order ID' };
+    }
+
+    if (booking.member_id !== memberId) {
+      return { success: false, error: 'Unauthorized: You can only cancel your own bookings' };
+    }
+
+    if (booking.status === 'cancelled') {
+      return { success: true, message: 'Ticket already cancelled' };
+    }
+
+    const { data: allEvents } = await supabase.from('event').select('*');
+    const event = allEvents?.find(e => e.id === booking.event_id);
+
+    const { data: allMembers } = await supabase.from('member').select('*');
+    const member = allMembers?.find(m => m.id === booking.member_id);
+
+    let organizationId = member?.organization_id;
+
+    if (organizationId && event?.program_tag) {
+      const { data: allOrgs } = await supabase.from('organization').select('*');
+      let org = allOrgs?.find(o => o.id === organizationId);
+      if (!org) org = allOrgs?.find(o => o.zoho_account_id === organizationId);
+
+      if (org) {
+        const currentBalances = org.program_ticket_balances || {};
+        const currentBalance = currentBalances[event.program_tag] || 0;
+        const newBalance = currentBalance + 1;
+
+        await supabase.from('organization').update({
+          program_ticket_balances: { ...currentBalances, [event.program_tag]: newBalance },
+          last_synced: new Date().toISOString()
+        }).eq('id', org.id);
+
+        await supabase.from('program_ticket_transaction').insert({
+          organization_id: org.id,
+          program_name: event.program_tag,
+          transaction_type: 'refund',
+          quantity: 1,
+          booking_reference: booking.booking_reference || orderId,
+          event_name: event.title || 'Unknown Event',
+          member_email: member?.email || booking.attendee_email || 'unknown',
+          notes: `Ticket refunded due to cancellation: ${cancelReason}`
+        });
+      }
+    }
+
+    await supabase.from('booking').update({ status: 'cancelled' }).eq('id', booking.id);
+
+    const ZOHO_FLOW_WEBHOOK_URL = process.env.ZOHO_FLOW_CANCEL_WEBHOOK_URL ||
+      'https://flow.zoho.eu/20108063378/flow/webhook/incoming?zapikey=1001.ee25c218c557d7dddb0eed4f3e0e981a.70bb4e51162d59156ab4899ad8bcc38c&isdebug=false';
+
+    try {
+      const response = await fetch(ZOHO_FLOW_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ order_id: orderId, cancel_reason: cancelReason })
+      });
+
+      if (response.ok) {
+        return { success: true, message: 'Ticket cancelled successfully' };
+      }
+    } catch (e) {}
+
+    return { success: true, message: 'Ticket marked as cancelled. Backstage sync may take a moment.', warning: 'Backstage API call failed but local status updated' };
+  },
+
+  async cancelBackstageOrder(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { orderId, cancelReason = "Cancelled by member" } = params;
+
+    if (!orderId) {
+      return { success: false, error: 'Missing required parameter: orderId' };
+    }
+
+    const { data: allBookings } = await supabase.from('booking').select('*');
+    const booking = allBookings?.find(b => b.backstage_order_id === orderId);
+
+    if (!booking) {
+      return { success: false, error: 'No booking found with this Backstage order ID' };
+    }
+
+    const { data: allEvents } = await supabase.from('event').select('*');
+    const event = allEvents?.find(e => e.id === booking.event_id);
+
+    if (!event || !event.backstage_event_id) {
+      return { success: false, error: 'Event not found or missing Backstage event ID' };
+    }
+
+    const accessToken = await getValidZohoAccessToken();
+    const portalId = process.env.ZOHO_BACKSTAGE_PORTAL_ID || "20108049755";
+    const baseUrl = "https://www.zohoapis.eu/backstage/v3";
+    const orderUrl = `${baseUrl}/portals/${portalId}/events/${event.backstage_event_id}/orders/${orderId}`;
+
+    const attempts = [];
+
+    try {
+      const response1 = await fetch(orderUrl, {
+        method: 'PUT',
+        headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'cancelled', cancel_reason: cancelReason })
+      });
+
+      attempts.push({ method: 'PUT', status: response1.status, success: response1.ok });
+
+      if (response1.ok) {
+        await supabase.from('booking').update({ status: 'cancelled' }).eq('id', booking.id);
+        return { success: true, method: 'PUT', message: 'Order cancelled successfully' };
+      }
+    } catch (e) {
+      attempts.push({ method: 'PUT', error: e.message });
+    }
+
+    try {
+      const response2 = await fetch(orderUrl, {
+        method: 'POST',
+        headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', cancel_reason: cancelReason })
+      });
+
+      attempts.push({ method: 'POST', status: response2.status, success: response2.ok });
+
+      if (response2.ok) {
+        await supabase.from('booking').update({ status: 'cancelled' }).eq('id', booking.id);
+        return { success: true, method: 'POST', message: 'Order cancelled successfully' };
+      }
+    } catch (e) {
+      attempts.push({ method: 'POST', error: e.message });
+    }
+
+    return { success: false, message: 'All cancellation attempts failed', attempts, recommendation: 'Consider using Zoho Flow webhook' };
+  },
+
+  async processBackstageCancellation(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const webhookData = params;
+    const action = webhookData.action;
+    const resourceType = webhookData.resource;
+    const backstageOrderId = webhookData.resource_id;
+
+    if (action === 'cancel' && resourceType === 'eventorder') {
+      if (!backstageOrderId) {
+        return { success: false, error: 'Missing order ID in payload' };
+      }
+
+      const { data: allBookings } = await supabase.from('booking').select('*');
+      const bookingToCancel = allBookings?.find(b => b.backstage_order_id === backstageOrderId && b.status !== 'cancelled');
+
+      if (bookingToCancel) {
+        await supabase.from('booking').update({ status: 'cancelled' }).eq('id', bookingToCancel.id);
+        return { success: true, message: `Cancelled booking for Backstage Order ID: ${backstageOrderId}`, booking_id: bookingToCancel.id };
+      }
+
+      return { success: true, message: `No active booking found for Backstage Order ID: ${backstageOrderId}` };
+    }
+
+    return { success: true, message: 'Webhook received but not an expected order cancellation event' };
+  },
+
+  async zohoContactWebhook(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const contactData = params.data || params;
+
+    if (!contactData.id || !contactData.Email) {
+      return { success: false, error: 'Missing required contact data' };
+    }
+
+    let organizationId = null;
+    if (contactData.Account_Name?.id) {
+      const { data: allOrgs } = await supabase.from('organization').select('*');
+      const org = allOrgs?.find(o => o.zoho_account_id === contactData.Account_Name.id);
+      if (org) organizationId = org.id;
+    }
+
+    if (!organizationId) {
+      return { success: true, message: 'Contact not associated with a synced organization' };
+    }
+
+    const { data: existingContacts } = await supabase.from('organization_contact').select('*').eq('zoho_contact_id', contactData.id);
+
+    const contactRecord = {
+      organization_id: organizationId,
+      zoho_contact_id: contactData.id,
+      email: contactData.Email,
+      first_name: contactData.First_Name || '',
+      last_name: contactData.Last_Name || '',
+      is_active: true,
+      last_synced: new Date().toISOString()
+    };
+
+    if (existingContacts && existingContacts.length > 0) {
+      await supabase.from('organization_contact').update(contactRecord).eq('id', existingContacts[0].id);
+      return { success: true, action: 'updated', contact_id: existingContacts[0].id };
+    } else {
+      const { data: newContact } = await supabase.from('organization_contact').insert(contactRecord).select().single();
+      return { success: true, action: 'created', contact_id: newContact?.id };
+    }
+  },
+
+  async checkMemberStatusByEmail(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { email } = params;
+
+    if (!email) {
+      return { is_member: false, error: 'Email is required' };
+    }
+
+    const { data: allMembers } = await supabase.from('member').select('*');
+    const member = allMembers?.find(m => m.email?.toLowerCase() === email.toLowerCase());
+
+    if (member) {
+      return {
+        is_member: true,
+        member_id: member.id,
+        organization_id: member.organization_id,
+        first_name: member.first_name,
+        last_name: member.last_name
+      };
+    }
+
+    return { is_member: false };
+  },
+
+  async createStripePaymentIntent(params) {
+    if (!stripe) throw new Error('Stripe not configured');
+    
+    const { amount, currency = 'gbp', metadata = {}, memberEmail } = params;
+
+    if (!amount || amount <= 0) {
+      return { error: 'Invalid amount' };
+    }
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amount * 100),
+      currency,
+      metadata: { ...metadata, member_email: memberEmail }
+    });
+
+    return { clientSecret: paymentIntent.client_secret, paymentIntentId: paymentIntent.id };
+  },
+
+  async getStripePublishableKey() {
+    const key = process.env.STRIPE_PUBLISHABLE_KEY || process.env.VITE_STRIPE_PUBLISHABLE_KEY;
+    if (!key) {
+      return { error: 'Stripe publishable key not configured' };
+    }
+    return { publishableKey: key };
+  },
+
+  async validateUser(params) {
+    return this.validateMember(params);
+  },
+
+  async syncAllOrganizationsFromZoho() {
+    return { success: false, error: 'Organization sync should be triggered from admin panel in development environment' };
+  },
+
+  async syncAllMembersFromZoho() {
+    return { success: false, error: 'Member sync should be triggered from admin panel in development environment' };
+  },
+
+  async exportAllData() {
+    return { success: false, error: 'Data export should be triggered from admin panel in development environment' };
+  },
+
+  async sendTeamMemberInvite() {
+    return { success: false, error: 'Team member invites require email configuration' };
+  },
+
+  async renameResourceSubcategory(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { oldName, newName, category } = params;
+
+    if (!oldName || !newName) {
+      return { success: false, error: 'Both oldName and newName are required' };
+    }
+
+    const { data: resources } = await supabase.from('resource').select('*').eq('subcategory', oldName);
+
+    if (!resources || resources.length === 0) {
+      return { success: true, message: 'No resources found with that subcategory', updated: 0 };
+    }
+
+    for (const resource of resources) {
+      await supabase.from('resource').update({ subcategory: newName }).eq('id', resource.id);
+    }
+
+    return { success: true, updated: resources.length };
+  },
+
+  async handleJobPostingPaymentWebhook(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { paymentIntentId, status } = params;
+
+    if (!paymentIntentId) {
+      return { success: false, error: 'Missing payment intent ID' };
+    }
+
+    if (status === 'succeeded') {
+      const { data: jobPostings } = await supabase.from('job_posting').select('*').eq('stripe_payment_intent_id', paymentIntentId);
+
+      if (jobPostings && jobPostings.length > 0) {
+        await supabase.from('job_posting').update({ payment_status: 'paid', status: 'active' }).eq('id', jobPostings[0].id);
+        return { success: true, job_posting_id: jobPostings[0].id };
+      }
+    }
+
+    return { success: true, message: 'Webhook processed' };
+  },
+
+  async clearProgramTicketTransactions(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { organizationId, programName, confirmClear } = params;
+
+    if (!confirmClear) {
+      return { success: false, error: 'Confirmation required to clear transactions' };
+    }
+
+    let query = supabase.from('program_ticket_transaction').delete();
+
+    if (organizationId) {
+      query = query.eq('organization_id', organizationId);
+    }
+
+    if (programName) {
+      query = query.eq('program_name', programName);
+    }
+
+    const { error } = await query;
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, message: 'Transactions cleared' };
+  },
+
+  async clearBookings(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { eventId, confirmClear } = params;
+
+    if (!confirmClear) {
+      return { success: false, error: 'Confirmation required to clear bookings' };
+    }
+
+    let query = supabase.from('booking').delete();
+
+    if (eventId) {
+      query = query.eq('event_id', eventId);
+    }
+
+    const { error } = await query;
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, message: 'Bookings cleared' };
+  },
+
+  async updateProgramDetails(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { programId, ...updateData } = params;
+
+    if (!programId) {
+      return { success: false, error: 'Program ID is required' };
+    }
+
+    const { data, error } = await supabase.from('program').update(updateData).eq('id', programId).select().single();
+
+    if (error) {
+      return { success: false, error: error.message };
+    }
+
+    return { success: true, program: data };
+  },
+
+  async updateEventImage(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { eventId, imageUrl, thumbnailUrl } = params;
+
+    if (!eventId) {
+      return { success: false, error: 'Event ID is required' };
+    }
+
+    const updatePayload = {};
+    if (imageUrl !== undefined) updatePayload.image_url = imageUrl;
+    if (thumbnailUrl !== undefined) updatePayload.thumbnail_url = thumbnailUrl;
+
+    if (Object.keys(updatePayload).length === 0) {
+      return { success: false, error: 'No update data provided' };
+    }
+
+    await supabase.from('event').update(updatePayload).eq('id', eventId);
+
+    return { success: true, ...updatePayload };
+  },
+
+  async getZohoAuthUrl(params, req) {
+    const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
+    
+    if (!ZOHO_CLIENT_ID) {
+      return { error: 'Zoho OAuth not configured' };
+    }
+
+    const accountsDomain = ZOHO_CRM_API_DOMAIN.includes('.eu') ? 'https://accounts.zoho.eu' : 'https://accounts.zoho.com';
+    const redirectUri = req ? `${req.headers.origin || `https://${req.headers.host}`}/api/functions/zohoOAuthCallback` : '';
+
+    const authUrl = `${accountsDomain}/oauth/v2/auth?` + new URLSearchParams({
+      scope: 'ZohoCRM.modules.contacts.ALL,ZohoCRM.modules.accounts.ALL,zohobackstage.portal.READ,zohobackstage.event.READ,zohobackstage.eventticket.READ,zohobackstage.order.READ,zohobackstage.order.CREATE,zohobackstage.attendee.READ',
+      client_id: ZOHO_CLIENT_ID,
+      response_type: 'code',
+      access_type: 'offline',
+      redirect_uri: redirectUri,
+      prompt: 'consent'
+    }).toString();
+
+    return { authUrl };
   }
 };
 

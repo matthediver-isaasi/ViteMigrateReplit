@@ -1,16 +1,30 @@
-import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useCallback, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '../api/base44Client';
 
 export function useMemberAccess() {
-  const memberInfo = useMemo(() => {
+  const queryClient = useQueryClient();
+  
+  const [memberInfo, setMemberInfo] = useState(() => {
     const stored = sessionStorage.getItem('agcas_member');
     return stored ? JSON.parse(stored) : null;
-  }, []);
+  });
 
-  const organizationInfo = useMemo(() => {
+  const [organizationInfo, setOrganizationInfo] = useState(() => {
     const stored = sessionStorage.getItem('agcas_organization');
     return stored ? JSON.parse(stored) : null;
+  });
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const storedMember = sessionStorage.getItem('agcas_member');
+      const storedOrg = sessionStorage.getItem('agcas_organization');
+      setMemberInfo(storedMember ? JSON.parse(storedMember) : null);
+      setOrganizationInfo(storedOrg ? JSON.parse(storedOrg) : null);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const { data: memberRole, isLoading: isRoleLoading } = useQuery({
@@ -31,36 +45,41 @@ export function useMemberAccess() {
 
   const isAdmin = memberRole?.is_admin === true;
 
-  const isFeatureExcluded = (featureId) => {
+  const isFeatureExcluded = useCallback((featureId) => {
     if (!memberInfo || !featureId) return false;
     const roleExclusions = memberRole?.excluded_features || [];
     const memberExclusions = memberInfo.member_excluded_features || [];
     return roleExclusions.includes(featureId) || memberExclusions.includes(featureId);
-  };
+  }, [memberInfo, memberRole]);
 
-  const reloadMemberInfo = async () => {
+  const reloadMemberInfo = useCallback(async () => {
     if (!memberInfo?.id) return;
     try {
       const updatedMember = await base44.entities.Member.get(memberInfo.id);
       if (updatedMember) {
         sessionStorage.setItem('agcas_member', JSON.stringify(updatedMember));
+        setMemberInfo(updatedMember);
+        if (updatedMember.role_id !== memberInfo.role_id) {
+          queryClient.invalidateQueries({ queryKey: ['memberRole'] });
+        }
       }
     } catch (error) {
       console.error('Error reloading member info:', error);
     }
-  };
+  }, [memberInfo?.id, memberInfo?.role_id, queryClient]);
 
-  const refreshOrganizationInfo = async () => {
+  const refreshOrganizationInfo = useCallback(async () => {
     if (!organizationInfo?.id) return;
     try {
       const updatedOrg = await base44.entities.Organization.get(organizationInfo.id);
       if (updatedOrg) {
         sessionStorage.setItem('agcas_organization', JSON.stringify(updatedOrg));
+        setOrganizationInfo(updatedOrg);
       }
     } catch (error) {
       console.error('Error refreshing organization info:', error);
     }
-  };
+  }, [organizationInfo?.id]);
 
   const isAccessReady = memberInfo !== null && (!memberInfo.role_id || memberRole !== undefined);
 

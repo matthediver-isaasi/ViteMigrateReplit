@@ -44,7 +44,6 @@ export default function SocialIconsConfig() {
       }
       return null;
     },
-    staleTime: 0,
     refetchOnMount: true
   });
 

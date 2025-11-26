@@ -52,16 +52,14 @@ export default function FormSubmissionsPage() {
     queryFn: async () => {
       const allSubmissions = await base44.entities.FormSubmission.list();
       return allSubmissions.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-    },
-    staleTime: 30 * 1000,
+    }
   });
 
   const { data: forms = [] } = useQuery({
     queryKey: ['forms'],
     queryFn: async () => {
       return await base44.entities.Form.list();
-    },
-    staleTime: 60 * 1000,
+    }
   });
 
   const { data: viewingForm } = useQuery({

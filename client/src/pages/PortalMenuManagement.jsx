@@ -136,8 +136,6 @@ export default function PortalMenuManagementPage() {
   const { data: menuItems = [], isLoading } = useQuery({
     queryKey: ['portal-menu'],
     queryFn: () => base44.entities.PortalMenu.list('display_order'),
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
     refetchOnMount: false
   });
 

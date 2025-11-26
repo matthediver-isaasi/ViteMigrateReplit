@@ -78,15 +78,14 @@ export default function FloaterManagementPage() {
       const allFloaters = await base44.entities.Floater.list();
       return allFloaters.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     },
-    staleTime: 30 * 1000,
+    staleTime: 0, // Admin views need instant freshness after edits
   });
 
   const { data: forms = [] } = useQuery({
     queryKey: ['forms'],
     queryFn: async () => {
       return await base44.entities.Form.list();
-    },
-    staleTime: 60 * 1000,
+    }
   });
 
   const createFloaterMutation = useMutation({

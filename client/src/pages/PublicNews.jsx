@@ -26,8 +26,7 @@ export default function PublicNewsPage() {
         (!n.published_date || new Date(n.published_date) <= now)
       );
     },
-    staleTime: 0,
-    refetchOnWindowFocus: true
+    staleTime: 0, // Always fetch fresh content for news feed
   });
 
   // Fetch categories
@@ -39,7 +38,6 @@ export default function PublicNewsPage() {
         .filter(c => c.is_active && c.applies_to_content_types?.includes("News"))
         .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     },
-    staleTime: 0,
     refetchOnWindowFocus: true
   });
 
@@ -50,7 +48,6 @@ export default function PublicNewsPage() {
       const allStyles = await base44.entities.ButtonStyle.list();
       return allStyles.filter(s => s.is_active && s.card_type === 'article');
     },
-    staleTime: 0,
     refetchOnWindowFocus: true
   });
 

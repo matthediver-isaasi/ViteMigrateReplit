@@ -23,29 +23,25 @@ export default function TeamEngagementReportPage() {
       const allMembers = await base44.entities.Member.list();
       return allMembers.filter(m => m.organization_id === memberInfo.organization_id && m.login_enabled !== false);
     },
-    enabled: !!memberInfo?.organization_id,
-    staleTime: 60 * 1000,
+    enabled: !!memberInfo?.organization_id
   });
 
   // Fetch all articles
   const { data: allArticles = [] } = useQuery({
     queryKey: ['all-articles-report'],
-    queryFn: () => base44.entities.BlogPost.list(),
-    staleTime: 60 * 1000,
+    queryFn: () => base44.entities.BlogPost.list()
   });
 
   // Fetch all bookings
   const { data: allBookings = [] } = useQuery({
     queryKey: ['all-bookings-report'],
-    queryFn: () => base44.entities.Booking.list(),
-    staleTime: 60 * 1000,
+    queryFn: () => base44.entities.Booking.list()
   });
 
   // Fetch all job postings
   const { data: allJobPostings = [] } = useQuery({
     queryKey: ['all-job-postings-report'],
-    queryFn: () => base44.entities.JobPosting.list(),
-    staleTime: 60 * 1000,
+    queryFn: () => base44.entities.JobPosting.list()
   });
 
   // Fetch online awards
@@ -54,15 +50,13 @@ export default function TeamEngagementReportPage() {
     queryFn: async () => {
       const allAwards = await base44.entities.Award.list();
       return allAwards.filter(a => a.is_active);
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   // Fetch offline award assignments
   const { data: offlineAssignments = [] } = useQuery({
     queryKey: ['offline-assignments-report'],
-    queryFn: () => base44.entities.OfflineAwardAssignment.list(),
-    staleTime: 60 * 1000,
+    queryFn: () => base44.entities.OfflineAwardAssignment.list()
   });
 
   // Calculate engagement data for all members

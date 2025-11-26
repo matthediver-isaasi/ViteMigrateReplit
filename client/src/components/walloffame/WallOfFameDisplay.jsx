@@ -43,8 +43,7 @@ export default function WallOfFameDisplay({ sectionId }) {
       const allSettings = await base44.entities.SystemSettings.list();
       const setting = allSettings.find(s => s.setting_key === 'wall_of_fame_photo_size');
       return setting?.setting_value || 'medium';
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   const photoSize = photoSizeSetting || 'medium';

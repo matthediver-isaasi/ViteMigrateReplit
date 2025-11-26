@@ -29,8 +29,7 @@ export default function SiteMapPage() {
     queryFn: async () => {
       const allArticles = await base44.entities.BlogPost.list();
       return allArticles.filter(a => a.status === 'published' && new Date(a.published_date) <= new Date());
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   const { data: news = [] } = useQuery({
@@ -38,8 +37,7 @@ export default function SiteMapPage() {
     queryFn: async () => {
       const allNews = await base44.entities.NewsPost.list();
       return allNews.filter(n => n.status === 'published' && new Date(n.published_date) <= new Date());
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   const { data: jobPostings = [] } = useQuery({
@@ -47,8 +45,7 @@ export default function SiteMapPage() {
     queryFn: async () => {
       const allJobs = await base44.entities.JobPosting.list();
       return allJobs.filter(j => j.status === 'active');
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   const { data: customPages = [] } = useQuery({
@@ -56,8 +53,7 @@ export default function SiteMapPage() {
     queryFn: async () => {
       const allPages = await base44.entities.IEditPage.list();
       return allPages.filter(p => p.is_public);
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   const staticPublicPages = [

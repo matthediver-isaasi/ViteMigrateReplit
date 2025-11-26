@@ -70,7 +70,6 @@ export default function NavigationManagementPage() {
     queryKey: ['navigation-items'],
     queryFn: () => base44.entities.NavigationItem.list('display_order'),
     initialData: [],
-    staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true
   });

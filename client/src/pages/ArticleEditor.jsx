@@ -66,8 +66,7 @@ export default function ArticleEditorPage() {
       }
       return null;
     },
-    enabled: !!memberInfo?.id || !!memberInfo?.handle,
-    staleTime: 5 * 60 * 1000,
+    enabled: !!memberInfo?.id || !!memberInfo?.handle
   });
 
   // Fetch categories from ResourceCategory (shared with Resources)
@@ -81,9 +80,7 @@ export default function ArticleEditorPage() {
         c.applies_to_content_types.includes("Articles")
       );
       return articleCategories.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   // Fetch guest writers
@@ -92,9 +89,7 @@ export default function ArticleEditorPage() {
     queryFn: async () => {
       const writers = await base44.entities.GuestWriter.list();
       return writers.filter(w => w.is_active);
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   // Fetch existing article if editing

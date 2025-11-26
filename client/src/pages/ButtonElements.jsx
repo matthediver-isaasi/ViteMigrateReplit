@@ -69,9 +69,7 @@ export default function ButtonElementsPage() {
       const styles = await base44.entities.ButtonStyle.list();
       return styles.find(s => s.id === editId);
     },
-    enabled: !!editId && mode === 'edit',
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    enabled: !!editId && mode === 'edit'
   });
 
   useEffect(() => {

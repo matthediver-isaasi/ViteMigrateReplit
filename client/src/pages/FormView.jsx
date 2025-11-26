@@ -26,8 +26,7 @@ export default function FormViewPage() {
       const allMembers = await base44.entities.Member.list();
       return allMembers.find(m => m.email === memberInfo?.email);
     },
-    enabled: !!memberInfo?.email,
-    staleTime: 30 * 1000,
+    enabled: !!memberInfo?.email
   });
 
   const { data: form, isLoading } = useQuery({
@@ -36,8 +35,7 @@ export default function FormViewPage() {
       const allForms = await base44.entities.Form.list();
       return allForms.find(f => f.slug === formSlug && f.is_active);
     },
-    enabled: !!formSlug,
-    staleTime: 30 * 1000,
+    enabled: !!formSlug
   });
 
   const submitFormMutation = useMutation({

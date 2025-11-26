@@ -43,7 +43,7 @@ export default function FormManagementPage() {
     queryFn: async () => {
       return await base44.entities.Form.list();
     },
-    staleTime: 30 * 1000,
+    staleTime: 0, // Admin views need instant freshness after edits
   });
 
   const deleteFormMutation = useMutation({

@@ -136,7 +136,7 @@ export default function AwardManagementPage() {
         return (a.level || 0) - (b.level || 0);
       });
     },
-    staleTime: 30 * 1000,
+    staleTime: 0, // Admin views need instant freshness after edits
   });
 
   // Fetch offline awards
@@ -145,8 +145,7 @@ export default function AwardManagementPage() {
     queryFn: async () => {
       const allAwards = await base44.entities.OfflineAward.list();
       return allAwards.sort((a, b) => (a.level || 0) - (b.level || 0));
-    },
-    staleTime: 30 * 1000,
+    }
   });
 
   // Fetch organizations for the assign dialog
@@ -156,8 +155,7 @@ export default function AwardManagementPage() {
       const orgs = await base44.entities.Organization.list({ limit: 5000 });
       return orgs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
     },
-    staleTime: 60 * 1000,
-    enabled: assignDialogOpen,
+    enabled: assignDialogOpen
   });
 
   // Fetch members for assignment - filter by selected organization
@@ -177,8 +175,7 @@ export default function AwardManagementPage() {
       }
       return [];
     },
-    staleTime: 60 * 1000,
-    enabled: assignDialogOpen && !!selectedOrganizationId,
+    enabled: assignDialogOpen && !!selectedOrganizationId
   });
   
   // Fetch offline award assignments
@@ -186,8 +183,7 @@ export default function AwardManagementPage() {
     queryKey: ['offlineAwardAssignments'],
     queryFn: async () => {
       return await base44.entities.OfflineAwardAssignment.list();
-    },
-    staleTime: 30 * 1000,
+    }
   });
 
   // Get the member IDs from assignments for the viewing award
@@ -208,8 +204,7 @@ export default function AwardManagementPage() {
       const members = await Promise.all(memberPromises);
       return members.filter(m => m !== null);
     },
-    staleTime: 60 * 1000,
-    enabled: viewAssignmentsDialogOpen && assignedMemberIds.length > 0,
+    enabled: viewAssignmentsDialogOpen && assignedMemberIds.length > 0
   });
 
   // Fetch classifications
@@ -218,8 +213,7 @@ export default function AwardManagementPage() {
     queryFn: async () => {
       const allClassifications = await base44.entities.AwardClassification.list();
       return allClassifications.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-    },
-    staleTime: 30 * 1000,
+    }
   });
 
   // Fetch sublevels
@@ -228,8 +222,7 @@ export default function AwardManagementPage() {
     queryFn: async () => {
       const allSublevels = await base44.entities.AwardSublevel.list();
       return allSublevels.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-    },
-    staleTime: 30 * 1000,
+    }
   });
 
   // Create online award

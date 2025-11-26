@@ -71,8 +71,8 @@ export default function ResourceManagementPage() {
   const { data: resources, isLoading } = useQuery({
     queryKey: ['admin-resources'],
     queryFn: () => base44.entities.Resource.list('-created_date'),
+    staleTime: 0, // Admin views need instant freshness after edits
     initialData: [],
-    refetchOnWindowFocus: false
   });
 
   const { data: categories } = useQuery({

@@ -33,8 +33,7 @@ export default function ButtonStyleSelector({
     queryFn: async () => {
       const styles = await base44.entities.ButtonStyle.list('-created_date');
       return styles.filter(s => s.is_active);
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   const renderButtonPreview = (style) => {

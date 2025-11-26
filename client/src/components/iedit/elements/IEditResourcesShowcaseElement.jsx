@@ -62,15 +62,13 @@ export function IEditResourcesShowcaseElementEditor({ element, onChange }) {
   // Fetch available resources
   const { data: resources = [] } = useQuery({
     queryKey: ['resources-list'],
-    queryFn: () => base44.entities.Resource.list('-created_date'),
-    staleTime: 60 * 1000,
+    queryFn: () => base44.entities.Resource.list('-created_date')
   });
 
   // Fetch button styles
   const { data: buttonStyles = [] } = useQuery({
     queryKey: ['button-styles'],
-    queryFn: () => base44.entities.ButtonStyle.list(),
-    staleTime: 5 * 60 * 1000,
+    queryFn: () => base44.entities.ButtonStyle.list()
   });
 
   const updateContent = (key, value) => {
@@ -843,8 +841,7 @@ export function IEditResourcesShowcaseElementRenderer({ element, settings }) {
   const { data: allResources = [] } = useQuery({
     queryKey: ['resources-showcase'],
     queryFn: () => base44.entities.Resource.list(),
-    enabled: Array.isArray(content.resourceIds) && content.resourceIds.some(id => id),
-    staleTime: 60 * 1000,
+    enabled: Array.isArray(content.resourceIds) && content.resourceIds.some(id => id)
   });
 
   const selectedResources = React.useMemo(() => {

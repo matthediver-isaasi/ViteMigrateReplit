@@ -23,8 +23,7 @@ export default function NewsTickerBar() {
         console.error("Error loading news ticker settings:", error);
         return [];
       }
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   const tickerEnabled =
@@ -68,8 +67,7 @@ export default function NewsTickerBar() {
         return [];
       }
     },
-    staleTime: 2 * 60 * 1000,
-    refetchInterval: 2 * 60 * 1000,
+    refetchInterval: 2 * 60 * 1000
   });
 
   // Cycle through news items

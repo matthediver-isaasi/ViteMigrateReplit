@@ -16,7 +16,6 @@ export default function OrganisationDirectoryPage() {
     queryFn: async () => {
       return await base44.entities.Organization.list('name');
     },
-    staleTime: 0,
     refetchOnMount: true
   });
 
@@ -52,7 +51,6 @@ export default function OrganisationDirectoryPage() {
       showMemberCount: true,
       excludedOrgIds: []
     },
-    staleTime: 0,
     refetchOnMount: true
   });
 
@@ -60,8 +58,7 @@ export default function OrganisationDirectoryPage() {
     queryKey: ['all-members'],
     queryFn: async () => {
       return await base44.entities.Member.list();
-    },
-    staleTime: 5 * 60 * 1000
+    }
   });
 
   const organizationMemberCounts = useMemo(() => {

@@ -27,8 +27,7 @@ export default function ArticleManagementPage() {
     queryFn: async () => {
       return await base44.entities.BlogPost.list('-created_date');
     },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    staleTime: 0, // Admin views need instant freshness after edits
   });
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -41,9 +40,7 @@ export default function ArticleManagementPage() {
         c.applies_to_content_types.includes("Articles")
       );
       return articleCategories.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   const { data: buttonStyles = [] } = useQuery({
@@ -51,27 +48,21 @@ export default function ArticleManagementPage() {
     queryFn: async () => {
       const allStyles = await base44.entities.ButtonStyle.list();
       return allStyles.filter(s => s.is_active && s.card_type === 'article');
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   const { data: allViews = [] } = useQuery({
     queryKey: ['all-article-views'],
     queryFn: async () => {
       return await base44.entities.ArticleView.list();
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   const { data: allReactions = [] } = useQuery({
     queryKey: ['all-article-reactions'],
     queryFn: async () => {
       return await base44.entities.ArticleReaction.list();
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   const { data: articleDisplayName = 'Articles' } = useQuery({
@@ -80,9 +71,7 @@ export default function ArticleManagementPage() {
       const allSettings = await base44.entities.SystemSettings.list();
       const setting = allSettings.find(s => s.setting_key === 'article_display_name');
       return setting?.setting_value || 'Articles';
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   const articleStats = useMemo(() => {

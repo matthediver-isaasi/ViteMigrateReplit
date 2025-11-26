@@ -40,8 +40,8 @@ export default function PublicResourcesPage() {
       // Return all active resources (both public and non-public), but filter out drafts
       return allResources.filter(r => r.status !== 'draft');
     },
-    initialData: [],
-    refetchOnWindowFocus: false
+    staleTime: 0, // Always fetch fresh content for resources feed
+    initialData: []
   });
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -55,7 +55,6 @@ export default function PublicResourcesPage() {
       );
       return resourceCategories.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     },
-    staleTime: 0,
     refetchOnWindowFocus: true
   });
 
@@ -66,7 +65,6 @@ export default function PublicResourcesPage() {
       const styles = await base44.entities.ButtonStyle.list();
       return styles.filter(s => s.card_type === 'resource' && s.is_active);
     },
-    staleTime: 0,
     refetchOnWindowFocus: true
   });
 

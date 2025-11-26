@@ -226,7 +226,29 @@ export default function MyPage() {
 }
 ```
 
+**Data Freshness & Caching Strategy:**
+The application uses a hybrid approach to ensure data freshness while maintaining good performance:
+
+1. **Global Default (5 seconds)**: React Query is configured with `staleTime: 5000` and `refetchOnMount: true` in `client/src/main.jsx`. This means:
+   - Data is considered fresh for 5 seconds
+   - When returning to a page after 5+ seconds, React Query shows cached data immediately then refetches in the background
+   - Users always see instant page loads with seamless freshness checks
+
+2. **Real-time Content Feeds (staleTime: 0)**: Critical content pages use `staleTime: 0` to always fetch fresh data:
+   - Articles, PublicArticles, MyArticles - main articles feed
+   - News, PublicNews - news listings
+   - Resources, PublicResources - resources feed
+   - Admin management pages (ArticleManagement, ResourceManagement, FormManagement, FloaterManagement, AwardManagement)
+   - Content pages also have Supabase Realtime subscriptions for live updates while on the page
+
+3. **Supabase Realtime Subscriptions**: Implemented for live updates while user is on the page:
+   - `useBlogPostRealtime` - blog_post table changes
+   - `useResourceRealtime` - resource table changes
+   - `useNavigationRealtime` - navigation_item and portal_menu changes
+   - All hooks use a single shared Supabase client from `client/src/api/supabaseClient.js`
+
+This approach was chosen because Base44's SDK had multi-minute cache delays that were unacceptable for the client.
+
 **Testing Notes:**
 - Use `/testlogin` page with `mat@isaasi.co.uk` as authentication backdoor for testing admin features
 - Magic link authentication stores member data in sessionStorage key `agcas_member`
-- React Query uses `staleTime: Infinity`, requiring manual cache invalidation to see updated data

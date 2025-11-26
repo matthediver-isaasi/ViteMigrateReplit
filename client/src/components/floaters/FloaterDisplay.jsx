@@ -18,7 +18,6 @@ export default function FloaterDisplay({ location = "portal", memberInfo, organi
   const { data: memberRecord } = useQuery({
     queryKey: ["member-record", memberInfo?.email],
     enabled: !!memberInfo?.email,
-    staleTime: 30 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("Member") // or "members"
@@ -38,7 +37,6 @@ export default function FloaterDisplay({ location = "portal", memberInfo, organi
   // Fetch floaters (was base44.entities.Floater.list)
   const { data: floaters = [] } = useQuery({
     queryKey: ["floaters", location],
-    staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("Floater") // or "floaters"
@@ -61,7 +59,6 @@ export default function FloaterDisplay({ location = "portal", memberInfo, organi
   // Fetch forms (was base44.entities.Form.list)
   const { data: forms = [] } = useQuery({
     queryKey: ["forms"],
-    staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("Form") // or "forms"

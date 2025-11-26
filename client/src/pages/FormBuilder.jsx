@@ -67,8 +67,7 @@ export default function FormBuilderPage() {
       const allForms = await base44.entities.Form.list();
       return allForms.find(f => f.id === formId);
     },
-    enabled: !!formId,
-    staleTime: 30 * 1000,
+    enabled: !!formId
   });
 
   useEffect(() => {

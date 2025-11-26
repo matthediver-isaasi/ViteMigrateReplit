@@ -32,8 +32,7 @@ export default function VoucherSelector({ organizationId, selectedVouchers, onVo
       return activeVouchers;
     },
     enabled: !!organizationId,
-    initialData: [],
-    staleTime: 5000,
+    initialData: []
   });
 
   // Apply sorting as derived state using useMemo - this runs on EVERY render

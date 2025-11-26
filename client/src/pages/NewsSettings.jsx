@@ -42,8 +42,7 @@ export default function NewsSettingsPage() {
         s.setting_key === 'news_show_author'
       );
     },
-    enabled: accessChecked,
-    staleTime: 5 * 60 * 1000,
+    enabled: accessChecked
   });
 
   useEffect(() => {

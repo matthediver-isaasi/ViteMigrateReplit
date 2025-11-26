@@ -98,8 +98,7 @@ export default function MemberGroupManagementPage() {
       const orgs = await base44.entities.Organization.list('name');
       return orgs;
     },
-    staleTime: 60 * 1000,
-    enabled: showAssignDialog,
+    enabled: showAssignDialog
   });
 
   // Members filtered by organization (only fetch when dialog is open and organization selected)
@@ -119,8 +118,7 @@ export default function MemberGroupManagementPage() {
       }
       return [];
     },
-    staleTime: 60 * 1000,
-    enabled: showAssignDialog && assignMode === 'organization' && !!selectedOrganizationId,
+    enabled: showAssignDialog && assignMode === 'organization' && !!selectedOrganizationId
   });
 
   const createGroupMutation = useMutation({

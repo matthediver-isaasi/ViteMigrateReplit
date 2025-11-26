@@ -20,8 +20,7 @@ function CardSlotEditor({ index, card, onUpdate }) {
       const allSettings = await base44.entities.SystemSettings.list();
       const setting = allSettings.find(s => s.setting_key === 'article_display_name');
       return setting?.setting_value || 'Articles';
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   // Fetch items based on content type
@@ -43,8 +42,7 @@ function CardSlotEditor({ index, card, onUpdate }) {
         default:
           return [];
       }
-    },
-    staleTime: 60 * 1000,
+    }
   });
 
   const getDefaultLabel = (contentType) => {
@@ -891,8 +889,7 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
       const allSettings = await base44.entities.SystemSettings.list();
       const setting = allSettings.find(s => s.setting_key === 'article_display_name');
       return setting?.setting_value || 'Articles';
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   // Fetch all items for selected cards
@@ -902,15 +899,13 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
       const news = await base44.entities.NewsPost.list();
       return news.filter(n => n.status === 'published');
     },
-    enabled: content.cards?.some(c => c.contentType === 'news' && c.itemId),
-    staleTime: 60 * 1000,
+    enabled: content.cards?.some(c => c.contentType === 'news' && c.itemId)
   });
 
   const { data: allResources = [] } = useQuery({
     queryKey: ['showcase-resources'],
     queryFn: () => base44.entities.Resource.list(),
-    enabled: content.cards?.some(c => c.contentType === 'resources' && c.itemId),
-    staleTime: 60 * 1000,
+    enabled: content.cards?.some(c => c.contentType === 'resources' && c.itemId)
   });
 
   const { data: allArticles = [] } = useQuery({
@@ -919,8 +914,7 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
       const articles = await base44.entities.BlogPost.list();
       return articles.filter(a => a.status === 'published');
     },
-    enabled: content.cards?.some(c => c.contentType === 'articles' && c.itemId),
-    staleTime: 60 * 1000,
+    enabled: content.cards?.some(c => c.contentType === 'articles' && c.itemId)
   });
 
   const { data: allJobs = [] } = useQuery({
@@ -929,8 +923,7 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
       const jobs = await base44.entities.JobPosting.list();
       return jobs.filter(j => j.status === 'active');
     },
-    enabled: content.cards?.some(c => c.contentType === 'jobs' && c.itemId),
-    staleTime: 60 * 1000,
+    enabled: content.cards?.some(c => c.contentType === 'jobs' && c.itemId)
   });
 
   // Build items array from selected cards with metadata

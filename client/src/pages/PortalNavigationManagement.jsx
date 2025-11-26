@@ -48,7 +48,6 @@ export default function PortalNavigationManagementPage() {
     queryKey: ['portal-navigation-items'],
     queryFn: () => base44.entities.PortalNavigationItem.list('display_order'),
     initialData: [],
-    staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: true
   });

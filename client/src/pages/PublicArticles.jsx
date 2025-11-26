@@ -24,8 +24,7 @@ export default function PublicArticlesPage() {
       const allArticles = await base44.entities.BlogPost.list('-published_date');
       return allArticles.filter(article => article.status === 'published');
     },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    staleTime: 0, // Always fetch fresh content for articles feed
   });
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -39,7 +38,6 @@ export default function PublicArticlesPage() {
       );
       return articleCategories.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     },
-    staleTime: 0,
     refetchOnMount: true
   });
 
@@ -48,8 +46,7 @@ export default function PublicArticlesPage() {
     queryKey: ['all-article-views'],
     queryFn: async () => {
       return await base44.entities.ArticleView.list();
-    },
-    staleTime: 30 * 1000,
+    }
   });
 
   // Fetch all reactions for sorting
@@ -57,8 +54,7 @@ export default function PublicArticlesPage() {
     queryKey: ['all-article-reactions'],
     queryFn: async () => {
       return await base44.entities.ArticleReaction.list();
-    },
-    staleTime: 30 * 1000,
+    }
   });
 
   const { data: articleDisplayName = 'Articles' } = useQuery({
@@ -67,9 +63,7 @@ export default function PublicArticlesPage() {
       const allSettings = await base44.entities.SystemSettings.list();
       const setting = allSettings.find(s => s.setting_key === 'article_display_name');
       return setting?.setting_value || 'Articles';
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   // Calculate view and like counts per article

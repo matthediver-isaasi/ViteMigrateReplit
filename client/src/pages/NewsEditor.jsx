@@ -50,8 +50,7 @@ export default function NewsEditorPage() {
       const allMembers = await base44.entities.Member.list();
       return allMembers.find(m => m.email === memberInfo?.email);
     },
-    enabled: !!memberInfo,
-    staleTime: 5 * 60 * 1000,
+    enabled: !!memberInfo
   });
 
   // Fetch categories
@@ -62,9 +61,7 @@ export default function NewsEditorPage() {
       return cats
         .filter(c => c.is_active && c.applies_to_content_types?.includes("News"))
         .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   // Fetch existing news if editing

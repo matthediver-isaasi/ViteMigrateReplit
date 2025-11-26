@@ -116,7 +116,6 @@ export default function PreferencesPage() {
   } = useQuery({
     queryKey: ["organization", memberRecord?.organization_id],
     enabled: !!memberRecord?.organization_id,
-    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       if (!memberRecord?.organization_id) return null;
       const { data, error } = await supabase
@@ -144,7 +143,6 @@ export default function PreferencesPage() {
   } = useQuery({
     queryKey: ["engagementStats", memberRecord?.id],
     enabled: !!memberRecord?.id,
-    staleTime: 60 * 1000,
     queryFn: async () => {
       if (!memberRecord?.id) {
         return { eventsAttended: 0, articlesWritten: 0, jobsPosted: 0 };
@@ -187,7 +185,6 @@ export default function PreferencesPage() {
   // --- Online awards ---
   const { data: awards = [], isLoading: awardsLoading } = useQuery({
     queryKey: ["awards"],
-    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("award")
@@ -206,7 +203,6 @@ export default function PreferencesPage() {
   } = useQuery({
     queryKey: ["offlineAssignments", memberRecord?.id],
     enabled: !!memberRecord?.id,
-    staleTime: 60 * 1000,
     queryFn: async () => {
       if (!memberRecord?.id) return [];
       const { data, error } = await supabase
@@ -221,7 +217,6 @@ export default function PreferencesPage() {
   // --- Award sublevels ---
   const { data: awardSublevels = [] } = useQuery({
     queryKey: ["awardSublevels"],
-    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("award_sublevel")
@@ -238,7 +233,6 @@ export default function PreferencesPage() {
   } = useQuery({
     queryKey: ["groupAssignments", memberRecord?.id],
     enabled: !!memberRecord?.id,
-    staleTime: 60 * 1000,
     queryFn: async () => {
       if (!memberRecord?.id) return [];
       const { data, error } = await supabase
@@ -254,7 +248,6 @@ export default function PreferencesPage() {
   const { data: memberGroups = [], isLoading: groupsLoading } = useQuery({
     queryKey: ["memberGroups"],
     enabled: groupAssignments.length > 0,
-    staleTime: 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("member_group")
@@ -269,7 +262,6 @@ export default function PreferencesPage() {
   const { data: offlineAwards = [], isLoading: offlineAwardsLoading2 } =
     useQuery({
       queryKey: ["offlineAwards"],
-      staleTime: 5 * 60 * 1000,
       queryFn: async () => {
         const { data, error } = await supabase
           .from("offline_award")
@@ -283,7 +275,6 @@ export default function PreferencesPage() {
   // --- Award classifications ---
   const { data: awardClassifications = [] } = useQuery({
     queryKey: ["awardClassifications"],
-    staleTime: 5 * 60 * 1000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("award_classification")
@@ -296,8 +287,6 @@ export default function PreferencesPage() {
   // --- Resource categories ---
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
     queryKey: ["resourceCategories"],
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
     queryFn: async () => {
       const { data, error } = await supabase
         .from("resource_category")

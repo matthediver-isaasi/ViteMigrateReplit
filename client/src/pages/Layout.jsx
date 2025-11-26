@@ -429,9 +429,7 @@ const { data: borderRadiusSetting = DEFAULT_BORDER_RADIUS } = useQuery({
       console.error('Error loading SystemSettings:', error);
       return DEFAULT_BORDER_RADIUS;
     }
-  },
-  staleTime: 5 * 60 * 1000,
-  refetchOnWindowFocus: false,
+  }
 });
 
 
@@ -439,8 +437,6 @@ const { data: borderRadiusSetting = DEFAULT_BORDER_RADIUS } = useQuery({
 const { data: memberRecord } = useQuery({
   queryKey: ['memberRecord', memberInfo && memberInfo.email],
   enabled: !!(memberInfo && memberInfo.email),
-  staleTime: Infinity,
-  refetchOnWindowFocus: false,
   refetchOnMount: false,
   queryFn: async () => {
     try {
@@ -459,8 +455,6 @@ const { data: memberRecord } = useQuery({
 const { data: memberRole } = useQuery({
   queryKey: ['memberRole', memberInfo && memberInfo.role_id],
   enabled: !!(memberInfo && memberInfo.role_id),
-  staleTime: Infinity,
-  refetchOnWindowFocus: false,
   refetchOnMount: false,
   queryFn: async () => {
     if (!memberInfo || !memberInfo.role_id) return null;
@@ -477,8 +471,6 @@ const { data: memberRole } = useQuery({
 // Fetch dynamic navigation items from database
 const { data: dynamicNavItems = [] } = useQuery({
   queryKey: ['portal-menu'],
-  staleTime: Infinity,
-  refetchOnWindowFocus: false,
   refetchOnMount: false,
   queryFn: async () => {
     try {

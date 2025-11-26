@@ -30,7 +30,6 @@ export function useMemberAccess() {
   const { data: memberRole, isLoading: isRoleLoading } = useQuery({
     queryKey: ['memberRole', memberInfo?.role_id],
     enabled: !!(memberInfo && memberInfo.role_id),
-    staleTime: Infinity,
     queryFn: async () => {
       if (!memberInfo || !memberInfo.role_id) return null;
       try {

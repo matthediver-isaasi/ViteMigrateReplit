@@ -28,8 +28,7 @@ export default function MyArticlesPage() {
       const allSettings = await base44.entities.SystemSettings.list();
       const setting = allSettings.find(s => s.setting_key === 'article_display_name');
       return setting?.setting_value || 'Articles';
-    },
-    staleTime: 0
+    }
   });
 
   // Ensure displayName is always a string to prevent flicker
@@ -45,9 +44,8 @@ export default function MyArticlesPage() {
       
       return allArticles.filter(article => article.author_id === currentMember?.id);
     },
-    enabled: !!memberInfo,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    staleTime: 0, // Always fetch fresh content for my articles
+    enabled: !!memberInfo
   });
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -60,9 +58,7 @@ export default function MyArticlesPage() {
         c.applies_to_content_types.includes("Articles")
       );
       return articleCategories.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   // Fetch button styles for articles
@@ -71,9 +67,7 @@ export default function MyArticlesPage() {
     queryFn: async () => {
       const allStyles = await base44.entities.ButtonStyle.list();
       return allStyles.filter(s => s.is_active && s.card_type === 'article');
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   // Fetch all views for sorting
@@ -81,9 +75,7 @@ export default function MyArticlesPage() {
     queryKey: ['all-article-views'],
     queryFn: async () => {
       return await base44.entities.ArticleView.list();
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   // Fetch all reactions for sorting
@@ -91,9 +83,7 @@ export default function MyArticlesPage() {
     queryKey: ['all-article-reactions'],
     queryFn: async () => {
       return await base44.entities.ArticleReaction.list();
-    },
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    }
   });
 
   // Calculate view and like counts per article

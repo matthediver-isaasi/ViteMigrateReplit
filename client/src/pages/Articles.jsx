@@ -30,9 +30,7 @@ export default function ArticlesPage() {
       const user = await base44.auth.me();
       return user;
     },
-    enabled: !!memberInfo,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    enabled: !!memberInfo
   });
 
   const { data: articles = [], isLoading: articlesLoading } = useQuery({
@@ -41,8 +39,7 @@ export default function ArticlesPage() {
       const allArticles = await base44.entities.BlogPost.list('-published_date');
       return allArticles.filter(article => article.status === 'published');
     },
-    staleTime: 0,
-    refetchOnWindowFocus: true
+    staleTime: 0, // Always fetch fresh content for articles feed
   });
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -57,7 +54,6 @@ export default function ArticlesPage() {
       );
       return articleCategories.sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     },
-    staleTime: 0,
     refetchOnWindowFocus: true
   });
 
@@ -66,8 +62,7 @@ export default function ArticlesPage() {
     queryKey: ['all-article-views'],
     queryFn: async () => {
       return await base44.entities.ArticleView.list();
-    },
-    staleTime: 30 * 1000,
+    }
   });
 
   // Fetch all reactions for sorting
@@ -75,8 +70,7 @@ export default function ArticlesPage() {
     queryKey: ['all-article-reactions'],
     queryFn: async () => {
       return await base44.entities.ArticleReaction.list();
-    },
-    staleTime: 30 * 1000,
+    }
   });
 
   // Fetch button styles once at page level
@@ -86,7 +80,6 @@ export default function ArticlesPage() {
       const styles = await base44.entities.ButtonStyle.list();
       return styles.filter(s => s.card_type === 'article' && s.is_active);
     },
-    staleTime: 0,
     refetchOnWindowFocus: true
   });
 
@@ -96,8 +89,7 @@ export default function ArticlesPage() {
       const allSettings = await base44.entities.SystemSettings.list();
       const setting = allSettings.find(s => s.setting_key === 'article_display_name');
       return setting?.setting_value || 'Articles';
-    },
-    staleTime: 0
+    }
   });
 
   // Load saved preferences once

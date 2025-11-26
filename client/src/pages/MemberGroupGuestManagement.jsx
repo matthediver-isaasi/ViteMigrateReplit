@@ -27,8 +27,7 @@ export default function MemberGroupGuestManagementPage() {
 
   const { data: guests = [], isLoading } = useQuery({
     queryKey: ['member-group-guests'],
-    queryFn: () => base44.entities.MemberGroupGuest.list(),
-    staleTime: 60 * 1000,
+    queryFn: () => base44.entities.MemberGroupGuest.list()
   });
 
   const createMutation = useMutation({

@@ -31,9 +31,7 @@ export default function ResourcesPage() {
       const user = await base44.auth.me();
       return user;
     },
-    enabled: !!memberInfo,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false
+    enabled: !!memberInfo
   });
 
   // Fetch resources with role-based filtering - match ResourceManagement pattern
@@ -74,9 +72,9 @@ export default function ResourcesPage() {
       console.log('[Resources Debug] Filtered resources:', filtered.length);
       return filtered;
     },
+    staleTime: 0, // Always fetch fresh content for resources feed
     enabled: !!memberRole || isAdmin === true, // Wait for role data to load before fetching
-    initialData: [],
-    refetchOnWindowFocus: false
+    initialData: []
   });
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
@@ -94,7 +92,6 @@ export default function ResourcesPage() {
       console.log('[Resources Debug] Active sorted resource categories:', sortedCats.length, sortedCats); // Updated log message
       return sortedCats;
     },
-    staleTime: 0,
     refetchOnWindowFocus: true
   });
 
@@ -105,7 +102,6 @@ export default function ResourcesPage() {
       const styles = await base44.entities.ButtonStyle.list();
       return styles.filter(s => s.card_type === 'resource' && s.is_active);
     },
-    staleTime: 0,
     refetchOnWindowFocus: true
   });
 

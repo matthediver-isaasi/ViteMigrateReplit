@@ -36,8 +36,7 @@ export default function TeamPage() {
       const allMembers = await base44.entities.Member.list();
       return allMembers.filter(m => m.organization_id === memberInfo.organization_id);
     },
-    enabled: !!memberInfo?.organization_id,
-    staleTime: 60 * 1000,
+    enabled: !!memberInfo?.organization_id
   });
 
   // Fetch all articles to count posts
@@ -45,8 +44,7 @@ export default function TeamPage() {
     queryKey: ['all-articles'],
     queryFn: async () => {
       return await base44.entities.BlogPost.list();
-    },
-    staleTime: 60 * 1000,
+    }
   });
 
   // Fetch roles
@@ -54,8 +52,7 @@ export default function TeamPage() {
     queryKey: ['roles'],
     queryFn: async () => {
       return await base44.entities.Role.list();
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   // Fetch online awards
@@ -64,8 +61,7 @@ export default function TeamPage() {
     queryFn: async () => {
       const allAwards = await base44.entities.Award.list();
       return allAwards.filter(a => a.is_active);
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   // Fetch offline award assignments
@@ -73,8 +69,7 @@ export default function TeamPage() {
     queryKey: ['offline-assignments'],
     queryFn: async () => {
       return await base44.entities.OfflineAwardAssignment.list();
-    },
-    staleTime: 60 * 1000,
+    }
   });
 
   // Fetch award sublevels
@@ -82,8 +77,7 @@ export default function TeamPage() {
     queryKey: ['award-sublevels'],
     queryFn: async () => {
       return await base44.entities.AwardSublevel.list();
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   // Fetch award classifications
@@ -91,8 +85,7 @@ export default function TeamPage() {
     queryKey: ['award-classifications'],
     queryFn: async () => {
       return await base44.entities.AwardClassification.list();
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   // Fetch offline awards
@@ -101,8 +94,7 @@ export default function TeamPage() {
     queryFn: async () => {
       const allAwards = await base44.entities.OfflineAward.list();
       return allAwards.filter(a => a.is_active);
-    },
-    staleTime: 5 * 60 * 1000,
+    }
   });
 
   // Fetch all bookings for engagement stats
@@ -110,8 +102,7 @@ export default function TeamPage() {
     queryKey: ['all-bookings'],
     queryFn: async () => {
       return await base44.entities.Booking.list();
-    },
-    staleTime: 60 * 1000,
+    }
   });
 
   // Toggle login mutation

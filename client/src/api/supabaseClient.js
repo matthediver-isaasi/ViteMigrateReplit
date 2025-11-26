@@ -10,8 +10,15 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 // Export a flag to check if Supabase is configured
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
 
+// Single shared Supabase client instance - prevents "Multiple GoTrueClient instances" warning
 export const supabase = isSupabaseConfigured 
-  ? createClient(supabaseUrl, supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      realtime: {
+        params: {
+          eventsPerSecond: 2
+        }
+      }
+    })
   : null;
 
 // Log configuration status (non-blocking)

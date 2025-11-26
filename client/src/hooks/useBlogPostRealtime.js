@@ -1,23 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-let sharedSupabaseClient = null;
-function getSupabaseClient() {
-  if (!sharedSupabaseClient && supabaseUrl && supabaseAnonKey) {
-    sharedSupabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
-      realtime: {
-        params: {
-          eventsPerSecond: 2
-        }
-      }
-    });
-  }
-  return sharedSupabaseClient;
-}
+import { supabase, isSupabaseConfigured } from '@/api/supabaseClient';
 
 export function useBlogPostRealtime(queryKeys = ['articles', 'blog-posts', 'public-articles', 'my-articles']) {
   const queryClient = useQueryClient();
@@ -25,9 +8,7 @@ export function useBlogPostRealtime(queryKeys = ['articles', 'blog-posts', 'publ
   keysRef.current = queryKeys;
 
   useEffect(() => {
-    const supabaseClient = getSupabaseClient();
-    
-    if (!supabaseClient) {
+    if (!isSupabaseConfigured || !supabase) {
       console.log('[useBlogPostRealtime] Supabase not configured, skipping realtime subscription');
       return;
     }
@@ -35,7 +16,7 @@ export function useBlogPostRealtime(queryKeys = ['articles', 'blog-posts', 'publ
     console.log('[useBlogPostRealtime] Setting up realtime subscription for blog_post table');
 
     const channelName = 'blog-post-changes-' + Math.random().toString(36).substr(2, 9);
-    const channel = supabaseClient
+    const channel = supabase
       .channel(channelName)
       .on(
         'postgres_changes',
@@ -58,7 +39,7 @@ export function useBlogPostRealtime(queryKeys = ['articles', 'blog-posts', 'publ
 
     return () => {
       console.log('[useBlogPostRealtime] Cleaning up realtime subscription');
-      supabaseClient.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
   }, [queryClient]);
 }

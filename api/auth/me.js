@@ -8,16 +8,30 @@ const supabase = supabaseUrl && supabaseServiceKey
   : null;
 
 export default async function handler(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  // For Vercel, we use cookies/JWT for auth
-  // This is a simplified version - in production you'd verify a JWT or session token
+  // For Vercel serverless, we don't use traditional sessions
+  // The frontend stores member info in sessionStorage after validateMember
+  // This endpoint returns null to indicate "check sessionStorage"
+  // If a memberId cookie is present (from possible future JWT auth), we can look it up
+  
   const memberId = req.cookies?.memberId;
   
   if (!memberId) {
-    return res.status(401).json({ error: 'Not authenticated' });
+    // Not an error - frontend should check sessionStorage
+    return res.status(200).json(null);
   }
 
   if (!supabase) {
@@ -26,13 +40,14 @@ export default async function handler(req, res) {
 
   try {
     const { data, error } = await supabase
-      .from('members')
+      .from('member')
       .select('*')
       .eq('id', memberId)
       .single();
 
     if (error || !data) {
-      return res.status(401).json({ error: 'User not found' });
+      // Member not found, return null (not authenticated)
+      return res.status(200).json(null);
     }
 
     return res.json(data);

@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Plus, MessageSquare, Bug, Lightbulb, HelpCircle, Mail, Clock, CheckCircle, AlertCircle, Upload, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 const typeIcons = {
   bug: Bug,
@@ -48,7 +49,8 @@ const severityColors = {
   critical: "bg-red-100 text-red-700"
 };
 
-export default function SupportPage({ memberInfo }) {
+export default function SupportPage() {
+  const { memberInfo } = useMemberAccess();
   const [showNewTicket, setShowNewTicket] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState(null);
   const [newTicket, setNewTicket] = useState({

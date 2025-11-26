@@ -18,13 +18,15 @@ import RegistrationModeSelector from "../components/booking/RegistrationModeSele
 import ColleagueSelector from "../components/booking/ColleagueSelector";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function EventDetailsPage({ memberInfo: memberInfoFromProps, organizationInfo, refreshOrganizationInfo, isFeatureExcluded, memberRole, reloadMemberInfo }) {
+export default function EventDetailsPage() {
+  const { memberInfo, organizationInfo, memberRole, isFeatureExcluded, reloadMemberInfo, refreshOrganizationInfo } = useMemberAccess();
   const [memberInfoState, setMemberInfoState] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const [tourAutoShow, setTourAutoShow] = useState(false);
 
-  const currentMemberInfo = memberInfoFromProps || memberInfoState;
+  const currentMemberInfo = memberInfo || memberInfoState;
 
   const [attendees, setAttendees] = useState([]);
   const [submitting, setSubmitting] = useState(false);
@@ -81,7 +83,7 @@ export default function EventDetailsPage({ memberInfo: memberInfoFromProps, orga
   }, [isFeatureExcluded]);
 
   useEffect(() => {
-    if (!memberInfoFromProps) {
+    if (!memberInfo) {
       const storedMember = sessionStorage.getItem('agcas_member');
       if (storedMember) {
         setMemberInfoState(JSON.parse(storedMember));
@@ -89,7 +91,7 @@ export default function EventDetailsPage({ memberInfo: memberInfoFromProps, orga
         setMemberInfoState(null);
       }
     }
-  }, [memberInfoFromProps]);
+  }, [memberInfo]);
 
   // Initialization useEffect - now only runs once per eventId change
   useEffect(() => {

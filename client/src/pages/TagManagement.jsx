@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,14 +9,28 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tag, Plus, Trash2, AlertCircle, Search, X } from "lucide-react";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function TagManagementPage({ isAdmin }) {
+export default function TagManagementPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [newTagName, setNewTagName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [tagToDelete, setTagToDelete] = useState(null);
 
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   const { data: resources, isLoading } = useQuery({
     queryKey: ['admin-resources'],
@@ -114,12 +128,12 @@ export default function TagManagementPage({ isAdmin }) {
     }
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-red-200">
+        <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-red-600">You need administrator privileges to access this page.</p>
+            <p className="text-slate-600">Loading...</p>
           </CardContent>
         </Card>
       </div>

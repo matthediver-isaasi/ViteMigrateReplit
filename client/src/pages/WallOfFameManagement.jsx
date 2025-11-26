@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +12,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Trophy, Plus, Pencil, Trash2, Users, Folder, User, Upload, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function WallOfFameManagementPage({ isAdmin, isFeatureExcluded }) {
+export default function WallOfFameManagementPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [activeTab, setActiveTab] = useState("sections");
   const [editingSection, setEditingSection] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
@@ -60,7 +64,17 @@ export default function WallOfFameManagementPage({ isAdmin, isFeatureExcluded })
     refetchOnMount: true
   });
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_WallOfFameManagement')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
+
+  useEffect(() => {
     if (photoSizeSetting?.value) {
       setProfilePhotoSize(photoSizeSetting.value);
     }
@@ -140,16 +154,10 @@ export default function WallOfFameManagementPage({ isAdmin, isFeatureExcluded })
     },
   });
 
-  if (!isAdmin || isFeatureExcluded?.('page_WallOfFameManagement')) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-slate-200">
-          <CardContent className="p-8 text-center">
-            <Trophy className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-slate-900 mb-2">Access Denied</h3>
-            <p className="text-slate-600">You don't have permission to access this page.</p>
-          </CardContent>
-        </Card>
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }

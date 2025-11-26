@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -8,8 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Save, Plus, X, Settings } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function JobBoardSettingsPage({ isAdmin, memberRole, isFeatureExcluded }) {
+export default function JobBoardSettingsPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [price, setPrice] = useState('50');
   const [jobTypes, setJobTypes] = useState(['Full-time', 'Part-time', 'Contract', 'Temporary', 'Internship']);
   const [hours, setHours] = useState(['Full-time', 'Part-time', 'Flexible']);
@@ -18,19 +21,15 @@ export default function JobBoardSettingsPage({ isAdmin, memberRole, isFeatureExc
   
   const queryClient = useQueryClient();
 
-  // Compute access permission once
-  const hasAccess = useMemo(() => {
-    return isAdmin && !isFeatureExcluded('page_JobBoardSettings');
-  }, [isAdmin, isFeatureExcluded]);
-
-  // Redirect non-admins
   useEffect(() => {
-    if (memberRole !== null && memberRole !== undefined) {
-      if (!hasAccess) {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_JobBoardSettings')) {
         window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
       }
     }
-  }, [memberRole, hasAccess]);
+  }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
   const { data: priceSettings } = useQuery({
     queryKey: ['job-board-price-settings'],
@@ -194,18 +193,12 @@ export default function JobBoardSettingsPage({ isAdmin, memberRole, isFeatureExc
     saveHoursMutation.mutate(updated);
   };
 
-  // Show loading state while determining access
-  if (memberRole === null || memberRole === undefined) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
-  }
-
-  // Don't render anything for users without access (will redirect)
-  if (!hasAccess) {
-    return null;
   }
 
   return (

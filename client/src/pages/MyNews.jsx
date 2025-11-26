@@ -10,8 +10,10 @@ import { Link } from "react-router-dom";
 import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function MyNewsPage({ memberInfo, isAdmin }) {
+export default function MyNewsPage() {
+  const { memberInfo, isAdmin } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);

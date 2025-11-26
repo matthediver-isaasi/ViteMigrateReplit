@@ -8,8 +8,10 @@ import { ArrowLeft, Calendar, Edit, Tag, Linkedin, Mail } from "lucide-react";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function NewsViewPage({ memberInfo, isAdmin }) {
+export default function NewsViewPage() {
+  const { memberInfo, isAdmin } = useMemberAccess();
   const urlParams = new URLSearchParams(window.location.search);
   const slug = urlParams.get('slug');
 

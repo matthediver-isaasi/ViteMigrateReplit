@@ -14,8 +14,12 @@ import { Plus, Pencil, Trash2, FileText, Search, X, Image as ImageIcon, Shield, 
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function ResourceManagementPage({ isAdmin }) {
+export default function ResourceManagementPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [editingResource, setEditingResource] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -53,6 +57,16 @@ export default function ResourceManagementPage({ isAdmin }) {
   const [itemsPerPage, setItemsPerPage] = useState(9);
 
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   const { data: resources, isLoading } = useQuery({
     queryKey: ['admin-resources'],
@@ -1144,12 +1158,12 @@ export default function ResourceManagementPage({ isAdmin }) {
     });
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-red-200">
+        <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-red-600">You need administrator privileges to access this page.</p>
+            <p className="text-slate-600">Loading...</p>
           </CardContent>
         </Card>
       </div>

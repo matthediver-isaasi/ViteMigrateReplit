@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
 const availableIcons = {
   Menu, Calendar, CreditCard, Ticket, Wallet, ShoppingCart, History, Sparkles, FileText, Briefcase, Settings, 
@@ -98,13 +100,25 @@ const availablePages = [
   ].sort((a, b) => a.label.localeCompare(b.label)))
 ];
 
-export default function PortalMenuManagementPage({ isAdmin }) {
+export default function PortalMenuManagementPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [expandedItems, setExpandedItems] = useState({});
   const [pageSelectOpen, setPageSelectOpen] = useState(false);
 
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   const { data: menuItems = [], isLoading } = useQuery({
     queryKey: ['portal-menu'],
@@ -373,12 +387,12 @@ export default function PortalMenuManagementPage({ isAdmin }) {
     );
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-red-200">
+        <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-red-600">Administrator access required</p>
+            <p className="text-slate-600">Loading...</p>
           </CardContent>
         </Card>
       </div>

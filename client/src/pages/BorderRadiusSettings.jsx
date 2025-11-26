@@ -1,16 +1,30 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Save } from "lucide-react";
+import { Save, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function BorderRadiusSettingsPage({ isAdmin, isFeatureExcluded }) {
+export default function BorderRadiusSettingsPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const queryClient = useQueryClient();
   const [borderRadius, setBorderRadius] = useState("");
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_BorderRadiusSettings')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['borderRadiusSettings'],
@@ -51,17 +65,10 @@ export default function BorderRadiusSettingsPage({ isAdmin, isFeatureExcluded })
     },
   });
 
-  if (!isAdmin || isFeatureExcluded('page_BorderRadiusSettings')) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-12 text-center">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">Access Denied</h2>
-            <p className="text-slate-600">
-              You don't have permission to access this page.
-            </p>
-          </CardContent>
-        </Card>
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }

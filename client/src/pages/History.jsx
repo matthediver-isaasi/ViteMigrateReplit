@@ -11,8 +11,10 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function HistoryPage({ memberInfo, organizationInfo, refreshOrganizationInfo, memberRole, reloadMemberInfo }) {
+export default function HistoryPage() {
+  const { memberInfo, organizationInfo, memberRole, isFeatureExcluded, reloadMemberInfo, refreshOrganizationInfo } = useMemberAccess();
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [downloadingInvoice, setDownloadingInvoice] = useState(null);
   const [invoiceModalOpen, setInvoiceModalOpen] = useState(false);

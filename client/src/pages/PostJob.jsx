@@ -14,6 +14,7 @@ import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 // Load Stripe outside component to avoid recreating on every render
 let stripePromise = null;
@@ -108,7 +109,9 @@ function StripePaymentForm({ clientSecret, onSuccess, onCancel, amount }) {
 
 }
 
-export default function PostJobPage({ memberInfo, organizationInfo }) {
+export default function PostJobPage() {
+  const { memberInfo, organizationInfo } = useMemberAccess();
+
   const [step, setStep] = useState('email'); // 'email', 'form', 'submitting'
   const [email, setEmail] = useState('');
   const [checkingEmail, setCheckingEmail] = useState(false);

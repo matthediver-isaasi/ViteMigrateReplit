@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,9 +13,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Ticket, Plus, Pencil, Copy, Trash2, AlertCircle, Building2, Globe } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function DiscountCodeManagementPage({ isAdmin, memberRole, isFeatureExcluded }) {
+export default function DiscountCodeManagementPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [editingCode, setEditingCode] = useState(null);
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_DiscountCodeManagement')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady, isFeatureExcluded]);
   const [showDialog, setShowDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [codeToDelete, setCodeToDelete] = useState(null);
@@ -217,8 +231,12 @@ export default function DiscountCodeManagementPage({ isAdmin, memberRole, isFeat
     }
   };
 
-  if (!isAdmin || isFeatureExcluded('page_DiscountCodeManagement')) {
-    return null;
+  if (!accessChecked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+        <div className="animate-pulse text-slate-600">Loading...</div>
+      </div>
+    );
   }
 
   return (

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,14 +6,28 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Mail, Save, AlertCircle } from "lucide-react";
+import { Mail, Save, AlertCircle, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function TeamInviteSettingsPage({ isAdmin, isFeatureExcluded }) {
+export default function TeamInviteSettingsPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [webhookUrl, setWebhookUrl] = useState("");
   const [hasLoaded, setHasLoaded] = useState(false);
 
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_TeamInviteSettings')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   const { data: settings, isLoading } = useQuery({
     queryKey: ['teamInviteSettings'],
@@ -53,19 +67,7 @@ export default function TeamInviteSettingsPage({ isAdmin, isFeatureExcluded }) {
     }
   });
 
-  if (!isAdmin || isFeatureExcluded('page_TeamInviteSettings')) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-6 text-center">
-            <p className="text-slate-600">Access denied. Administrator privileges required.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (isLoading) {
+  if (!accessChecked || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="text-slate-600">Loading...</div>

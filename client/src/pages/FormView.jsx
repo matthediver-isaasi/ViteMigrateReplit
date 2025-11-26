@@ -6,8 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Loader2, ChevronLeft, ChevronRight, CheckCircle2 } from "lucide-react";
 import FormRenderer from "../components/forms/FormRenderer";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function FormViewPage({ memberInfo, organizationInfo }) {
+export default function FormViewPage() {
+  const { memberInfo, organizationInfo } = useMemberAccess();
+
   const [currentStep, setCurrentStep] = useState(0);
   const [formValues, setFormValues] = useState({});
   const [submitted, setSubmitted] = useState(false);

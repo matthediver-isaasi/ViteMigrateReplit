@@ -13,8 +13,11 @@ import { Loader2, User, Mail, FileText, Trophy, Search, Users, Shield, Calendar,
 import { formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { sendTeamMemberInvite } from "@/api/functions";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function TeamPage({ memberInfo, organizationInfo, isAdmin }) {
+export default function TeamPage() {
+  const { memberInfo, organizationInfo, isAdmin } = useMemberAccess();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [showDisabled, setShowDisabled] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);

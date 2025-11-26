@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,8 +15,21 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function IEditPageManagementPage({ isAdmin }) {
+export default function IEditPageManagementPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
   const [searchQuery, setSearchQuery] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -140,14 +153,10 @@ Please create a physical page file for this slug to enable top-level routing.
     return createPageUrl('content') + `?page=${slug}`;
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-12 text-center">
-            <p className="text-slate-600">You don't have permission to access this page.</p>
-          </CardContent>
-        </Card>
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +11,22 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Layers, Plus, Pencil, Trash2, GripVertical } from "lucide-react";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function IEditTemplateManagementPage({ isAdmin }) {
+export default function IEditTemplateManagementPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
   const [showDialog, setShowDialog] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -112,14 +126,10 @@ export default function IEditTemplateManagementPage({ isAdmin }) {
     return variants[category] || variants.content;
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-12 text-center">
-            <p className="text-slate-600">You don't have permission to access this page.</p>
-          </CardContent>
-        </Card>
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }

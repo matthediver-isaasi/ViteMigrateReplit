@@ -7,14 +7,28 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Save, Settings, Search, Building } from "lucide-react";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function OrganisationDirectorySettingsPage({ isAdmin }) {
+export default function OrganisationDirectorySettingsPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const queryClient = useQueryClient();
   const [showLogo, setShowLogo] = useState(true);
   const [showDomains, setShowDomains] = useState(true);
   const [showMemberCount, setShowMemberCount] = useState(true);
   const [excludedOrgIds, setExcludedOrgIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   // Fetch all organizations
   const { data: organizations = [] } = useQuery({
@@ -136,13 +150,13 @@ export default function OrganisationDirectorySettingsPage({ isAdmin }) {
   org.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-8">
         <div className="max-w-4xl mx-auto">
-          <Card className="border-amber-200 bg-amber-50">
+          <Card>
             <CardContent className="p-8 text-center">
-              <p className="text-amber-800">You do not have permission to access this page.</p>
+              <p className="text-slate-600">Loading...</p>
             </CardContent>
           </Card>
         </div>

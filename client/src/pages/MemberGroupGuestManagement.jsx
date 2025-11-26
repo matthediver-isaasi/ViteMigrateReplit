@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Plus, Pencil, Trash2, Search, UserPlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function MemberGroupGuestManagementPage({ isAdmin, isFeatureExcluded }) {
+export default function MemberGroupGuestManagementPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [showDialog, setShowDialog] = useState(false);
   const [editingGuest, setEditingGuest] = useState(null);
@@ -116,6 +119,16 @@ export default function MemberGroupGuestManagementPage({ isAdmin, isFeatureExclu
     }
   };
 
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_MemberGroupGuestManagement')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
+
   const filteredGuests = guests.filter(guest => {
     const searchLower = searchQuery.toLowerCase();
     return (
@@ -126,14 +139,10 @@ export default function MemberGroupGuestManagementPage({ isAdmin, isFeatureExclu
     );
   });
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-red-200">
-          <CardContent className="p-8 text-center">
-            <p className="text-red-600">Administrator access required</p>
-          </CardContent>
-        </Card>
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }

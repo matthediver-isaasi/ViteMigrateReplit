@@ -1,17 +1,20 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Eye, FileQuestion, Plus, SlidersHorizontal, User } from "lucide-react";
+import { Edit, Eye, FileQuestion, Plus, SlidersHorizontal, User, Loader2 } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
 import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function ArticleManagementPage({ isAdmin, isFeatureExcluded }) {
+export default function ArticleManagementPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
@@ -143,6 +146,16 @@ export default function ArticleManagementPage({ isAdmin, isFeatureExcluded }) {
     });
   };
 
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_ArticleManagement')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
+
   const getStatusColor = (status) => {
     switch (status) {
       case 'published': return 'bg-green-100 text-green-700 border-green-200';
@@ -154,14 +167,10 @@ export default function ArticleManagementPage({ isAdmin, isFeatureExcluded }) {
 
   const isLoading = articlesLoading || categoriesLoading;
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-red-200">
-          <CardContent className="p-8 text-center">
-            <p className="text-red-600">Administrator access required</p>
-          </CardContent>
-        </Card>
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }

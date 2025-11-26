@@ -14,8 +14,11 @@ import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function JobPostingManagementPage({ isAdmin, memberRole, isFeatureExcluded }) {
+export default function JobPostingManagementPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedJob, setSelectedJob] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
@@ -29,19 +32,15 @@ export default function JobPostingManagementPage({ isAdmin, memberRole, isFeatur
   
   const queryClient = useQueryClient();
 
-  // Compute access permission once
-  const hasAccess = useMemo(() => {
-    return isAdmin && !isFeatureExcluded('page_JobPostingManagement');
-  }, [isAdmin, isFeatureExcluded]);
-
-  // Redirect non-admins
   useEffect(() => {
-    if (memberRole !== null && memberRole !== undefined) {
-      if (!hasAccess) {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_JobPostingManagement')) {
         window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
       }
     }
-  }, [memberRole, hasAccess]);
+  }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
   const { data: jobs, isLoading } = useQuery({
     queryKey: ['admin-job-postings'],
@@ -303,16 +302,12 @@ export default function JobPostingManagementPage({ isAdmin, memberRole, isFeatur
     return organizations.filter(org => orgIds.includes(org.id));
   }, [jobs, organizations]);
 
-  if (memberRole === null || memberRole === undefined) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
-  }
-
-  if (!hasAccess) {
-    return null;
   }
 
   return (

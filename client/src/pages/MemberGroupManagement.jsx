@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,8 +14,12 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Calendar as CalendarComponent } from "@/components/ui/calendar";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function MemberGroupManagementPage({ isAdmin }) {
+export default function MemberGroupManagementPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [showGroupDialog, setShowGroupDialog] = useState(false);
   const [showAssignDialog, setShowAssignDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -50,6 +54,16 @@ export default function MemberGroupManagementPage({ isAdmin }) {
   const [memberSearchQuery, setMemberSearchQuery] = useState('');
 
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   const { data: groups, isLoading: loadingGroups } = useQuery({
     queryKey: ['member-groups'],
@@ -427,12 +441,12 @@ export default function MemberGroupManagementPage({ isAdmin }) {
     });
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-8 flex items-center justify-center">
         <Card className="max-w-md">
           <CardContent className="p-12 text-center">
-            <p className="text-slate-600">You don't have permission to access this page.</p>
+            <p className="text-slate-600">Loading...</p>
           </CardContent>
         </Card>
       </div>

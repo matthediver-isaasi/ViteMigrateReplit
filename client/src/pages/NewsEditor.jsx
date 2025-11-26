@@ -17,8 +17,10 @@ import TagInput from "../components/blog/TagInput";
 import SubcategorySelector from "../components/blog/SubcategorySelector";
 import StatusSelector from "../components/blog/StatusSelector";
 import SEOSettings from "../components/blog/SEOSettings";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function NewsEditorPage({ memberInfo, isAdmin }) {
+export default function NewsEditorPage() {
+  const { memberInfo, isAdmin } = useMemberAccess();
   const urlParams = new URLSearchParams(window.location.search);
   const newsId = urlParams.get('id');
   const isEditing = !!newsId;

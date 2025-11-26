@@ -6,8 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Wallet, Ticket, Calendar, AlertCircle } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function BalancesPage({ memberInfo, organizationInfo }) {
+export default function BalancesPage() {
+  const { memberInfo, organizationInfo } = useMemberAccess();
   const { data: vouchers, isLoading } = useQuery({
     queryKey: ['vouchers', organizationInfo?.id],
     queryFn: async () => {

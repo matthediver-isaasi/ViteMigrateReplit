@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 const iconMap = {
   ArrowUpRight,
@@ -32,7 +33,19 @@ const iconMap = {
   Plus,
 };
 
-export default function ButtonElementsPage({ isAdmin }) {
+export default function ButtonElementsPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
   // Memoize URL params to prevent re-reading on every render
   const urlParams = useMemo(() => new URLSearchParams(window.location.search), []);
   const mode = urlParams.get('mode');
@@ -160,6 +173,14 @@ export default function ButtonElementsPage({ isAdmin }) {
       );
     }
   };
+
+  if (!accessChecked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+        <div className="animate-pulse text-slate-600">Loading...</div>
+      </div>
+    );
+  }
 
   // If in creation/edit mode, show the style builder
   if (isCreating && isAdmin) {

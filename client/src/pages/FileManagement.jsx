@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -10,12 +9,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Upload, FileText, Image, Video, File, Trash2, Search, X, Copy, ExternalLink, Folder, FolderOpen, FolderPlus, MoveHorizontal, ChevronRight, Home, GripVertical, Pencil, ChevronDown, ChevronLeft } from "lucide-react";
+import { Upload, FileText, Image, Video, File, Trash2, Search, X, Copy, ExternalLink, Folder, FolderOpen, FolderPlus, MoveHorizontal, ChevronRight, Home, GripVertical, Pencil, ChevronDown, ChevronLeft, Loader2 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function FileManagementPage({ isAdmin, memberInfo }) {
+export default function FileManagementPage() {
+  const { isAdmin, memberInfo, isAccessReady } = useMemberAccess();
   const [uploadingFile, setUploadingFile] = useState(false);
   const [editingFile, setEditingFile] = useState(null);
   const [showEditDialog, setShowEditDialog] = useState(false);

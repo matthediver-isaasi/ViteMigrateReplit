@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -6,22 +6,25 @@ import { Button } from "@/components/ui/button";
 import { AtSign, AlertCircle, CheckCircle2, Loader2, PlayCircle, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function MemberHandleManagementPage({ isAdmin, memberInfo }) {
+export default function MemberHandleManagementPage() {
+  const { isAdmin, memberInfo, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [generationResult, setGenerationResult] = useState(null);
 
-  // Fetch members without handles
   const { data: membersWithoutHandles = [], isLoading, refetch } = useQuery({
     queryKey: ['members-without-handles'],
     queryFn: async () => {
       const members = await base44.entities.Member.list();
       return members.filter(m => !m.handle);
     },
+    enabled: accessChecked
   });
 
   const generateHandlesMutation = useMutation({
     mutationFn: async () => {
-      // Pass member email for authentication in the custom Member system
       return await base44.functions.invoke('generateMemberHandles', { 
         generate_all: true,
         member_email: memberInfo?.email 
@@ -45,6 +48,24 @@ export default function MemberHandleManagementPage({ isAdmin, memberInfo }) {
     }
   });
 
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
+
+  if (!accessChecked) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
+
   const handleGenerateAll = () => {
     if (!memberInfo?.email) {
       toast.error('Member information not available');
@@ -55,27 +76,6 @@ export default function MemberHandleManagementPage({ isAdmin, memberInfo }) {
       generateHandlesMutation.mutate();
     }
   };
-
-  // Check if user is admin
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
-        <div className="max-w-4xl mx-auto">
-          <Card className="border-red-200 shadow-sm">
-            <CardContent className="p-12 text-center">
-              <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                Access Denied
-              </h3>
-              <p className="text-slate-600">
-                This page is only accessible to administrators.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">

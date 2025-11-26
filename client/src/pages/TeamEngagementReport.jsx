@@ -6,8 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, Search, ArrowUpDown, ArrowUp, ArrowDown, User, Trophy, Calendar, FileText, Briefcase, Users, Clock } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function TeamEngagementReportPage({ memberInfo, organizationInfo }) {
+export default function TeamEngagementReportPage() {
+  const { memberInfo, organizationInfo } = useMemberAccess();
+
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState("totalScore");
   const [sortDirection, setSortDirection] = useState("desc");

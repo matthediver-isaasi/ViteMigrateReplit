@@ -13,8 +13,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { UserPlus, Users, Pencil, Trash2, AlertCircle, Shield, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function TeamMemberManagementPage({ isAdmin, memberRole, isFeatureExcluded }) {
+export default function TeamMemberManagementPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [editingTeamMember, setEditingTeamMember] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -23,14 +26,15 @@ export default function TeamMemberManagementPage({ isAdmin, memberRole, isFeatur
   
   const queryClient = useQueryClient();
 
-  // Redirect non-super-admins (check both isAdmin and feature exclusion)
   useEffect(() => {
-    if (memberRole !== null && memberRole !== undefined) {
+    if (isAccessReady) {
       if (!isAdmin || isFeatureExcluded('page_TeamMemberManagement')) {
         window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
       }
     }
-  }, [isAdmin, memberRole, isFeatureExcluded]);
+  }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
   const { data: teamMembers, isLoading: loadingTeamMembers } = useQuery({
     queryKey: ['team-members'],
@@ -164,18 +168,12 @@ export default function TeamMemberManagementPage({ isAdmin, memberRole, isFeatur
 
   const isLoading = loadingTeamMembers || loadingRoles;
 
-  // Show loading state while determining access
-  if (memberRole === null || memberRole === undefined) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
-  }
-
-  // Don't render anything for users without access (will redirect)
-  if (!isAdmin || isFeatureExcluded('page_TeamMemberManagement')) {
-    return null;
   }
 
   return (

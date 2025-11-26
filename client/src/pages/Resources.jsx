@@ -8,8 +8,10 @@ import ResourceFilter from "../components/resources/ResourceFilter";
 import ResourceCard from "../components/resources/ResourceCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function ResourcesPage({ memberInfo, memberRole, isAdmin }) {
+export default function ResourcesPage() {
+  const { memberInfo, memberRole, isAdmin } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);

@@ -8,8 +8,10 @@ import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function ArticlesPage({ memberInfo, memberRole }) {
+export default function ArticlesPage() {
+  const { memberInfo, memberRole } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);

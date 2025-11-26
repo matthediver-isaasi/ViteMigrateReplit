@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,9 +7,22 @@ import { ExternalLink, FileText, Newspaper, Briefcase, Sparkles, Copy } from "lu
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function SiteMapPage({ isAdmin }) {
+export default function SiteMapPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const appBaseUrl = window.location.origin;
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   const { data: articles = [] } = useQuery({
     queryKey: ['published-articles'],
@@ -102,12 +115,12 @@ export default function SiteMapPage({ isAdmin }) {
     toast.success('URL copied to clipboard');
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-red-200">
+        <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-red-600">Administrator access required</p>
+            <p className="text-slate-600">Loading...</p>
           </CardContent>
         </Card>
       </div>

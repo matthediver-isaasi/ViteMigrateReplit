@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,8 +13,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/ui/select";
 import { Sparkles, Plus, Edit, Trash2, GripVertical, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function TourManagementPage({ isAdmin }) {
+export default function TourManagementPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [editingGroup, setEditingGroup] = useState(null);
   const [editingStep, setEditingStep] = useState(null);
@@ -22,13 +26,23 @@ export default function TourManagementPage({ isAdmin }) {
   const [showStepDialog, setShowStepDialog] = useState(false);
   const [customSelector, setCustomSelector] = useState('');
   const [selectedSelector, setSelectedSelector] = useState('');
-  const [isWelcomeStep, setIsWelcomeStep] = useState(false); // New state for welcome step checkbox
+  const [isWelcomeStep, setIsWelcomeStep] = useState(false);
 
   // New states for group mandatory selector
   const [groupMandatorySelector, setGroupMandatorySelector] = useState('');
   const [groupCustomMandatorySelector, setGroupCustomMandatorySelector] = useState('');
 
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   // Define available pages for the dropdown
   const availablePages = [
@@ -229,14 +243,13 @@ export default function TourManagementPage({ isAdmin }) {
   });
 
   // Now safe to do conditional rendering after all hooks are called
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
-          <Card className="border-red-200">
+          <Card>
             <CardContent className="p-12 text-center">
-              <h3 className="text-xl font-semibold text-red-900 mb-2">Access Denied</h3>
-              <p className="text-red-700">Only administrators can manage tours.</p>
+              <p className="text-slate-600">Loading...</p>
             </CardContent>
           </Card>
         </div>

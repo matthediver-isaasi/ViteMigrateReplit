@@ -13,8 +13,10 @@ import { Briefcase, MapPin, Building2, Clock, Star, AlertCircle, Pencil, FileTex
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function MyJobPostingsPage({ memberInfo }) {
+export default function MyJobPostingsPage() {
+  const { memberInfo } = useMemberAccess();
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
   const [uploadingFiles, setUploadingFiles] = useState(false);

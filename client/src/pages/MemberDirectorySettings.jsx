@@ -7,8 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function MemberDirectorySettingsPage({ isAdmin, isFeatureExcluded }) {
+export default function MemberDirectorySettingsPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [settings, setSettings] = useState({
     show_profile_photo: true,
     show_events: true,
@@ -64,6 +68,16 @@ export default function MemberDirectorySettingsPage({ isAdmin, isFeatureExcluded
   });
 
   useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_MemberDirectorySettings')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
+
+  useEffect(() => {
     if (displaySettings) {
       setSettings(displaySettings);
     }
@@ -104,19 +118,7 @@ export default function MemberDirectorySettingsPage({ isAdmin, isFeatureExcluded
     saveSettingsMutation.mutate(settings);
   };
 
-  if (!isAdmin || isFeatureExcluded('page_MemberDirectorySettings')) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-6 text-center">
-            <p className="text-slate-600">Access denied. Administrator privileges required.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (isLoading) {
+  if (!accessChecked || isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />

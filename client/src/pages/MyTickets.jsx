@@ -21,10 +21,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 const ZOHO_PUBLIC_BACKSTAGE_SUBDOMAIN = "agcasevents";
 
-export default function MyTicketsPage({ memberInfo, memberRole, reloadMemberInfo }) {
+export default function MyTicketsPage() {
+  const { memberInfo, memberRole, reloadMemberInfo } = useMemberAccess();
   const [cancellingTicketId, setCancellingTicketId] = React.useState(null);
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
   const [ticketToCancel, setTicketToCancel] = React.useState(null);

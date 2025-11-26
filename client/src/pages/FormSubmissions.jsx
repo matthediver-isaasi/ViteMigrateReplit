@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -22,9 +22,23 @@ import {
 import { Loader2, FileText, Search, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import moment from "moment";
 import { toast } from "sonner";
+import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function FormSubmissionsPage({ isAdmin, isFeatureExcluded, memberInfo }) {
+export default function FormSubmissionsPage() {
+  const { isAdmin, memberInfo, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_FormSubmissions')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady, isFeatureExcluded]);
   const [selectedForm, setSelectedForm] = useState("all");
   const [selectedStatus, setSelectedStatus] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,14 +145,10 @@ export default function FormSubmissionsPage({ isAdmin, isFeatureExcluded, member
     return field?.label || fieldId;
   };
 
-  if (!isAdmin || isFeatureExcluded('page_FormSubmissions')) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-6 text-center">
-            <p className="text-slate-600">Access denied. Administrator privileges required.</p>
-          </CardContent>
-        </Card>
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }

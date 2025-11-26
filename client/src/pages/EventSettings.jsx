@@ -14,40 +14,43 @@ import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function EventSettingsPage({ isAdmin, memberRole, isFeatureExcluded }) {
+export default function EventSettingsPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [cancellationDeadlineHours, setCancellationDeadlineHours] = useState(24);
   const [isSaving, setIsSaving] = useState(false);
   const [editingEventImage, setEditingEventImage] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [editingEventDescription, setEditingEventDescription] = useState("");
-  const [editingEventPublicUrl, setEditingEventPublicUrl] = useState(""); // New state for public URL
+  const [editingEventPublicUrl, setEditingEventPublicUrl] = useState("");
   const [uploadingImage, setUploadingImage] = useState(false);
   
-  // Program editing state
   const [editingProgram, setEditingProgram] = useState(null);
   const [selectedProgramImage, setSelectedProgramImage] = useState(null);
   const [programImagePreview, setProgramImagePreview] = useState(null);
   const [editingProgramDescription, setEditingProgramDescription] = useState("");
-  const [editingOfferType, setEditingOfferType] = useState("none"); // New state for general offer type
+  const [editingOfferType, setEditingOfferType] = useState("none");
   const [editingBogoLogicType, setEditingBogoLogicType] = useState("buy_x_get_y_free");
-  const [editingBogoBuyQty, setEditingBogoBuyQty] = useState(""); // New state for BOGO Buy Quantity
-  const [editingBogoGetFreeQty, setEditingBogoGetFreeQty] = useState(""); // New state for BOGO Get Free Quantity
-  const [editingBulkThreshold, setEditingBulkThreshold] = useState(""); // New state for Bulk Discount Threshold
-  const [editingBulkPercentage, setEditingBulkPercentage] = useState(""); // New state for Bulk Discount Percentage
+  const [editingBogoBuyQty, setEditingBogoBuyQty] = useState("");
+  const [editingBogoGetFreeQty, setEditingBogoGetFreeQty] = useState("");
+  const [editingBulkThreshold, setEditingBulkThreshold] = useState("");
+  const [editingBulkPercentage, setEditingBulkPercentage] = useState("");
   const [uploadingProgram, setUploadingProgram] = useState(false);
   
   const queryClient = useQueryClient();
 
-  // Redirect non-admins
   useEffect(() => {
-    if (memberRole !== null && memberRole !== undefined) {
+    if (isAccessReady) {
       if (!isAdmin || isFeatureExcluded('page_EventSettings')) {
         window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
       }
     }
-  }, [isAdmin, memberRole, isFeatureExcluded]);
+  }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
   const { data: events, isLoading: loadingEvents } = useQuery({
     queryKey: ['events'],
@@ -443,18 +446,12 @@ export default function EventSettingsPage({ isAdmin, memberRole, isFeatureExclud
 
   const isLoading = loadingEvents || loadingSettings || loadingPrograms;
 
-  // Show loading state while determining access
-  if (memberRole === null || memberRole === undefined) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
-  }
-
-  // Don't render anything for users without access (will redirect)
-  if (!isAdmin || isFeatureExcluded('page_EventSettings')) {
-    return null;
   }
 
   const upcomingEvents = events.filter(e => {

@@ -11,8 +11,10 @@ import { Link } from "react-router-dom";
 import ArticleComments from "../components/blog/ArticleComments";
 import ArticleReactions from "../components/blog/ArticleReactions";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function ArticleViewPage({ memberInfo }) {
+export default function ArticleViewPage() {
+  const { memberInfo } = useMemberAccess();
   console.log('[ArticleView] Component initialized');
   console.log('[ArticleView] window.location.href:', window.location.href);
   console.log('[ArticleView] window.location.search:', window.location.search);

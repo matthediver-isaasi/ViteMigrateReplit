@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import { Switch } from "@/components/ui/switch";
 import { Navigation, Plus, Pencil, Trash2, ChevronRight, ChevronDown, Menu, Sparkles, Calendar, Building, Briefcase, FileText, Users, Home, Mail, Phone, X } from "lucide-react";
 import SocialIconsConfig from "../components/navigation/SocialIconsConfig";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
 // Available Lucide icons for navigation
 const availableIcons = [
@@ -43,7 +45,9 @@ const hardcodedPublicPages = [
   { name: "OrganisationDirectory", label: "Organisation Directory" }
 ];
 
-export default function NavigationManagementPage({ isAdmin }) {
+export default function NavigationManagementPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [filterLocation, setFilterLocation] = useState("all");
@@ -51,6 +55,16 @@ export default function NavigationManagementPage({ isAdmin }) {
   const [expandedItems, setExpandedItems] = useState({});
 
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   const { data: navItems, isLoading } = useQuery({
     queryKey: ['navigation-items'],
@@ -337,12 +351,12 @@ export default function NavigationManagementPage({ isAdmin }) {
     });
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-red-200">
+        <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-red-600">You need administrator privileges to access this page.</p>
+            <p className="text-slate-600">Loading...</p>
           </CardContent>
         </Card>
       </div>

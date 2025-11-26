@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text Input' },
@@ -39,7 +40,9 @@ const FIELD_TYPES = [
   { value: 'user_job_title', label: 'User Job Title (Auto)' },
 ];
 
-export default function FormBuilderPage({ isAdmin, isFeatureExcluded }) {
+export default function FormBuilderPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -67,6 +70,16 @@ export default function FormBuilderPage({ isAdmin, isFeatureExcluded }) {
     enabled: !!formId,
     staleTime: 30 * 1000,
   });
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_FormBuilder')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   useEffect(() => {
     if (existingForm) {
@@ -114,18 +127,6 @@ export default function FormBuilderPage({ isAdmin, isFeatureExcluded }) {
       toast.error('Failed to update form');
     }
   });
-
-  if (!isAdmin || isFeatureExcluded('page_FormBuilder')) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-6 text-center">
-            <p className="text-slate-600">Access denied. Administrator privileges required.</p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   const addField = () => {
     const newField = {
@@ -179,7 +180,7 @@ export default function FormBuilderPage({ isAdmin, isFeatureExcluded }) {
     }
   };
 
-  if (formLoading) {
+  if (!accessChecked || formLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />

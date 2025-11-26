@@ -8,8 +8,22 @@ import { Label } from "@/components/ui/label";
 import { Settings, Save } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function NewsSettingsPage({ isAdmin }) {
+export default function NewsSettingsPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
   const [tickerCount, setTickerCount] = useState(3);
   const [cycleSeconds, setCycleSeconds] = useState(5);
   const [tickerEnabled, setTickerEnabled] = useState(true);
@@ -28,7 +42,7 @@ export default function NewsSettingsPage({ isAdmin }) {
         s.setting_key === 'news_show_author'
       );
     },
-    enabled: isAdmin,
+    enabled: accessChecked,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -142,14 +156,10 @@ export default function NewsSettingsPage({ isAdmin }) {
     saveMutation.mutate();
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-red-200">
-          <CardContent className="p-8 text-center">
-            <p className="text-red-600">Administrator access required</p>
-          </CardContent>
-        </Card>
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }

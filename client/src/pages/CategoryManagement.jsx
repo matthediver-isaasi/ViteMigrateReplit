@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import { FolderTree, Plus, Pencil, Trash2, AlertCircle, Tag, GripVertical } from
 import { toast } from "sonner";
 import { renameResourceSubcategory } from "@/api/functions";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
 const CONTENT_TYPE_OPTIONS = [
   { value: 'Articles', label: 'Articles' },
@@ -20,7 +22,19 @@ const CONTENT_TYPE_OPTIONS = [
   { value: 'News', label: 'News' }
 ];
 
-export default function CategoryManagementPage({ isAdmin }) {
+export default function CategoryManagementPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
   const [editingCategory, setEditingCategory] = useState(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -223,14 +237,10 @@ export default function CategoryManagementPage({ isAdmin }) {
     }
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-red-200">
-          <CardContent className="p-8 text-center">
-            <p className="text-red-600">Administrator access required</p>
-          </CardContent>
-        </Card>
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -36,9 +36,23 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
+import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function AwardManagementPage({ isAdmin, isFeatureExcluded, memberInfo }) {
+export default function AwardManagementPage() {
+  const { isAdmin, memberInfo, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [activeTab, setActiveTab] = useState("online");
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_AwardManagement')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady, isFeatureExcluded]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [classificationDialogOpen, setClassificationDialogOpen] = useState(false);
   const [sublevelDialogOpen, setSublevelDialogOpen] = useState(false);
@@ -400,14 +414,10 @@ export default function AwardManagementPage({ isAdmin, isFeatureExcluded, member
     }
   });
 
-  if (!isAdmin || isFeatureExcluded('page_AwardManagement')) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-6 text-center">
-            <p className="text-slate-600">Access denied. Administrator privileges required.</p>
-          </CardContent>
-        </Card>
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }

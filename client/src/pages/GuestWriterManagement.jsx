@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,8 +25,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
-export default function GuestWriterManagementPage({ isAdmin }) {
+export default function GuestWriterManagementPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [editingWriter, setEditingWriter] = useState(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -168,16 +182,10 @@ export default function GuestWriterManagementPage({ isAdmin }) {
     toast.success('Photo uploaded');
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-8">
-        <div className="max-w-4xl mx-auto">
-          <Card className="border-amber-200 bg-amber-50">
-            <CardContent className="p-8 text-center">
-              <p className="text-amber-800">You do not have permission to access this page.</p>
-            </CardContent>
-          </Card>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }

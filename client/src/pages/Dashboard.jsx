@@ -5,8 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Calendar, CreditCard, Ticket, Wallet, ArrowRight, CheckCircle2 } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function DashboardPage({ memberInfo, organizationInfo }) {
+export default function DashboardPage() {
+  const { memberInfo, organizationInfo } = useMemberAccess();
+
   if (!memberInfo || !organizationInfo) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">

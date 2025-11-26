@@ -10,9 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Bug, Lightbulb, HelpCircle, Mail, Search, Clock, CheckCircle, Upload } from "lucide-react";
+import { Bug, Lightbulb, HelpCircle, Mail, Search, Clock, CheckCircle, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 const typeIcons = {
   bug: Bug,
@@ -49,7 +50,8 @@ const severityColors = {
   critical: "bg-red-100 text-red-700"
 };
 
-export default function SupportManagementPage({ isAdmin, memberInfo }) {
+export default function SupportManagementPage() {
+  const { isAdmin, memberInfo, isAccessReady } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
@@ -66,7 +68,7 @@ export default function SupportManagementPage({ isAdmin, memberInfo }) {
   const { data: tickets = [], isLoading } = useQuery({
     queryKey: ['all-support-tickets'],
     queryFn: () => base44.entities.SupportTicket.list("-created_date"),
-    enabled: hasAccess
+    enabled: hasAccess && isAccessReady
   });
 
   const { data: responses = [] } = useQuery({
@@ -97,6 +99,14 @@ export default function SupportManagementPage({ isAdmin, memberInfo }) {
     },
     onError: () => toast.error('Failed to add response')
   });
+
+  if (!isAccessReady) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+      </div>
+    );
+  }
 
   const handleUpdateTicket = (updates) => {
     updateTicketMutation.mutate({

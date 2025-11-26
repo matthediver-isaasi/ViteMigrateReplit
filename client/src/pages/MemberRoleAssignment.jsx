@@ -13,22 +13,27 @@ import { Users, Search, Shield, CheckCircle2, CalendarIcon } from "lucide-react"
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { format } from "date-fns";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function MemberRoleAssignmentPage({ isAdmin, memberRole, isFeatureExcluded }) {
+export default function MemberRoleAssignmentPage() {
+  const { memberRole, isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [pendingRoleChange, setPendingRoleChange] = useState(null); // { memberId, roleId, requiresDate }
   const [effectiveFromDate, setEffectiveFromDate] = useState(null);
+  const [accessChecked, setAccessChecked] = useState(false);
   const queryClient = useQueryClient();
 
   // Redirect non-admins or those without access to this feature
   useEffect(() => {
-    if (memberRole !== null && memberRole !== undefined) {
+    if (isAccessReady) {
       if (!isAdmin || isFeatureExcluded('page_MemberRoleAssignment')) {
         window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
       }
     }
-  }, [isAdmin, memberRole, isFeatureExcluded]);
+  }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
   const { data: members, isLoading: loadingMembers } = useQuery({
     queryKey: ['members'],
@@ -115,7 +120,7 @@ export default function MemberRoleAssignmentPage({ isAdmin, memberRole, isFeatur
   const isLoading = loadingMembers || loadingRoles;
 
   // Show loading state while determining access
-  if (memberRole === null || memberRole === undefined) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading...</div>

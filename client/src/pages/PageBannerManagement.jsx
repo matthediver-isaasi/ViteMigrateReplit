@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Image, Plus, Pencil, Trash2, Upload, Loader2, AlertCircle, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-// List of available public pages
 const PUBLIC_PAGES = [
   { value: "Home", label: "Home Page" },
   { value: "JobBoard", label: "Job Board" },
@@ -25,7 +25,9 @@ const PUBLIC_PAGES = [
   { value: "PublicResources", label: "Public Resources" }
 ];
 
-export default function PageBannerManagementPage({ isAdmin, memberRole, isFeatureExcluded }) {
+export default function PageBannerManagementPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
   const [editingBanner, setEditingBanner] = useState(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -35,19 +37,15 @@ export default function PageBannerManagementPage({ isAdmin, memberRole, isFeatur
 
   const queryClient = useQueryClient();
 
-  // Compute access permission once
-  const hasAccess = useMemo(() => {
-    return isAdmin && !isFeatureExcluded('page_PageBannerManagement');
-  }, [isAdmin, isFeatureExcluded]);
-
-  // Redirect non-admins
   useEffect(() => {
-    if (memberRole !== null && memberRole !== undefined) {
-      if (!hasAccess) {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_PageBannerManagement')) {
         window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
       }
     }
-  }, [memberRole, hasAccess]);
+  }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
   const { data: banners, isLoading } = useQuery({
     queryKey: ['page-banners'],
@@ -184,17 +182,12 @@ export default function PageBannerManagementPage({ isAdmin, memberRole, isFeatur
     setEditingBanner({ ...editingBanner, associated_pages: newPages });
   };
 
-  // Show loading state while determining access
-  if (memberRole === null || memberRole === undefined) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
-  }
-
-  if (!hasAccess) {
-    return null;
   }
 
   return (

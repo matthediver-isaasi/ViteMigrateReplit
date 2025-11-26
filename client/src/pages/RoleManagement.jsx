@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Shield, Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 // List of all available feature IDs in the system
 // Note: Feature IDs now include section prefixes (page_user_* or page_admin_*) to match PortalMenu structure
@@ -110,6 +111,7 @@ const AVAILABLE_FEATURES = [
   ];
 
 export default function RoleManagementPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
   const [editingRole, setEditingRole] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -118,57 +120,16 @@ export default function RoleManagementPage() {
 
   const queryClient = useQueryClient();
 
-  // Get member info from sessionStorage (same source as Layout)
-  const memberInfo = React.useMemo(() => {
-    const stored = sessionStorage.getItem('agcas_member');
-    return stored ? JSON.parse(stored) : null;
-  }, []);
-
-  // Fetch member role if member has a role_id
-  const { data: memberRole } = useQuery({
-    queryKey: ['memberRole', memberInfo?.role_id],
-    enabled: !!(memberInfo && memberInfo.role_id),
-    staleTime: Infinity,
-    queryFn: async () => {
-      if (!memberInfo || !memberInfo.role_id) return null;
-      try {
-        const data = await base44.entities.Role.get(memberInfo.role_id);
-        return data || null;
-      } catch (error) {
-        console.error('Error loading memberRole:', error);
-        return null;
-      }
-    },
-  });
-
-  // Determine if user is admin
-  const isAdmin = memberRole?.is_admin === true;
-
-  // Check if feature is excluded for the user's role
-  const isFeatureExcluded = (featureId) => {
-    if (!memberInfo || !featureId) return false;
-    const roleExclusions = memberRole?.excluded_features || [];
-    const memberExclusions = memberInfo.member_excluded_features || [];
-    return roleExclusions.includes(featureId) || memberExclusions.includes(featureId);
-  };
-
   // Redirect non-super-admins (check both isAdmin and feature exclusion)
   useEffect(() => {
-    // Wait for memberInfo to be loaded before checking access
-    if (memberInfo !== null && memberInfo !== undefined) {
-      // If member has a role_id, wait for memberRole to load
-      if (memberInfo.role_id && (memberRole === null || memberRole === undefined)) {
-        return; // Still waiting for role to load
-      }
-      
-      // Now we can check access - either role is loaded or member has no role
+    if (isAccessReady) {
       if (!isAdmin || isFeatureExcluded('page_RoleManagement')) {
         window.location.href = createPageUrl('Events');
       } else {
         setAccessChecked(true);
       }
     }
-  }, [isAdmin, memberRole, memberInfo]);
+  }, [isAdmin, isAccessReady]);
 
   const { data: roles, isLoading } = useQuery({
     queryKey: ['roles'],

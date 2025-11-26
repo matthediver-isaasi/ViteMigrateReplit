@@ -13,8 +13,11 @@ import IEditElementCard from "../components/iedit/IEditElementCard";
 import IEditElementEditor from "../components/iedit/IEditElementEditor";
 import IEditPageSettings from "../components/iedit/IEditPageSettings";
 import IEditElementRenderer from "../components/iedit/IEditElementRenderer";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function IEditPageEditorPage({ isAdmin }) {
+export default function IEditPageEditorPage() {
+  const { isAdmin, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [pageId, setPageId] = useState(null);
   const [elements, setElements] = useState([]);
   const [showPalette, setShowPalette] = useState(false);
@@ -24,6 +27,16 @@ export default function IEditPageEditorPage({ isAdmin }) {
 
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   // Get pageId from URL
   useEffect(() => {
@@ -175,14 +188,10 @@ export default function IEditPageEditorPage({ isAdmin }) {
     setShowSettings(false);
   };
 
-  if (!isAdmin) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="max-w-md">
-          <CardContent className="p-12 text-center">
-            <p className="text-slate-600">You don't have permission to access this page.</p>
-          </CardContent>
-        </Card>
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }

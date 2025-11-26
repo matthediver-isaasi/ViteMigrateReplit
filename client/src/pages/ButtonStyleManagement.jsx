@@ -1,14 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Edit, Trash2, Check, X } from "lucide-react";
+import { Plus, Edit, Trash2, Check, X, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import AGCASButton from "../components/ui/AGCASButton";
 import AGCASSquareButton from "../components/ui/AGCASSquareButton";
 import { ArrowUpRight, Download, ExternalLink, PlayCircle, Eye, FileText, Mail, Plus as PlusIcon } from "lucide-react";
 import { createPageUrl } from "@/utils";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 const iconMap = {
   ArrowUpRight,
@@ -21,8 +22,20 @@ const iconMap = {
   Plus: PlusIcon,
 };
 
-export default function ButtonStyleManagementPage({ isAdmin, isFeatureExcluded }) {
+export default function ButtonStyleManagementPage() {
+  const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (isAccessReady) {
+      if (!isAdmin || isFeatureExcluded('page_ButtonStyleManagement')) {
+        window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
+      }
+    }
+  }, [isAdmin, isAccessReady]);
 
   const { data: buttonStyles = [], isLoading } = useQuery({
     queryKey: ['buttonStyles'],
@@ -40,18 +53,10 @@ export default function ButtonStyleManagementPage({ isAdmin, isFeatureExcluded }
     },
   });
 
-  // Check access
-  if (!isAdmin || isFeatureExcluded('page_ButtonStyleManagement')) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <Card className="border-slate-200 shadow-sm">
-          <CardContent className="p-12 text-center">
-            <h2 className="text-2xl font-bold text-slate-900 mb-4">Access Denied</h2>
-            <p className="text-slate-600">
-              You don't have permission to access this page.
-            </p>
-          </CardContent>
-        </Card>
+        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }

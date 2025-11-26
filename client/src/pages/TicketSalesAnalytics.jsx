@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,21 +10,25 @@ import { BarChart3, Search, Download, TrendingUp, DollarSign, Ticket, Building2 
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import OrganizationTransactionsModal from "../components/analytics/OrganizationTransactionsModal";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function TicketSalesAnalyticsPage({ isAdmin, memberRole, memberInfo, isFeatureExcluded }) {
+export default function TicketSalesAnalyticsPage() {
+  const { isAdmin, memberInfo, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const [accessChecked, setAccessChecked] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
   const [sortBy, setSortBy] = useState("tickets_desc");
   const [selectedOrganization, setSelectedOrganization] = useState(null);
 
-  // Redirect non-admins
-  React.useEffect(() => {
-    if (memberRole !== null && memberRole !== undefined) {
+  useEffect(() => {
+    if (isAccessReady) {
       if (!isAdmin || isFeatureExcluded('page_TicketSalesAnalytics')) {
         window.location.href = createPageUrl('Events');
+      } else {
+        setAccessChecked(true);
       }
     }
-  }, [isAdmin, memberRole, isFeatureExcluded]);
+  }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
   const { data: transactions, isLoading: loadingTransactions } = useQuery({
     queryKey: ['all-transactions'],
@@ -177,18 +181,12 @@ export default function TicketSalesAnalyticsPage({ isAdmin, memberRole, memberIn
     a.remove();
   };
 
-  // Show loading state while determining access
-  if (memberRole === null || memberRole === undefined) {
+  if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
-  }
-
-  // Don't render for non-admins (will redirect)
-  if (!isAdmin || isFeatureExcluded('page_TicketSalesAnalytics')) {
-    return null;
   }
 
   return (

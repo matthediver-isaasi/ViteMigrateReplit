@@ -61,10 +61,13 @@ export default function IEditPageEditorPage() {
   });
 
   // Fetch page elements
-  const { data: pageElements, isLoading: elementsLoading } = useQuery({
+  const { data: pageElements = [], isLoading: elementsLoading } = useQuery({
     queryKey: ['iedit-page-elements', pageId],
-    queryFn: () => base44.entities.IEditPageElement.filter({ page_id: pageId }, 'display_order'),
-    initialData: [],
+    queryFn: () => base44.entities.IEditPageElement.list({ 
+      filter: { page_id: pageId }, 
+      sort: { display_order: 'asc' } 
+    }),
+    staleTime: 0,
     enabled: !!pageId
   });
 

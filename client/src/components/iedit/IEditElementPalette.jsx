@@ -10,10 +10,13 @@ export default function IEditElementPalette({ onClose, onSelectTemplate }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
 
-  const { data: templates, isLoading } = useQuery({
+  const { data: templates = [], isLoading } = useQuery({
     queryKey: ['iedit-templates'],
-    queryFn: () => base44.entities.IEditElementTemplate.filter({ is_active: true }, 'display_order'),
-    initialData: []
+    queryFn: () => base44.entities.IEditElementTemplate.list({ 
+      filter: { is_active: true }, 
+      sort: { display_order: 'asc' } 
+    }),
+    staleTime: 0
   });
 
   const categories = [

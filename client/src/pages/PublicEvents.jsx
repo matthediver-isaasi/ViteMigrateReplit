@@ -9,10 +9,14 @@ import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 
 export default function PublicEventsPage() {
-  const { data: events, isLoading } = useQuery({
+  const { data: events = [], isLoading } = useQuery({
     queryKey: ['public-events'],
-    queryFn: () => base44.entities.Event.filter({ status: 'published' }, '-start_date', 50),
-    initialData: [],
+    queryFn: () => base44.entities.Event.list({ 
+      filter: { status: 'published' }, 
+      sort: { start_date: 'desc' },
+      limit: 50 
+    }),
+    staleTime: 0
   });
 
   return (

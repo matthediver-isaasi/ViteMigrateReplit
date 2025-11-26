@@ -128,7 +128,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const createStripePaymentIntent = notImplemented("createStripePaymentIntent");
+  export const createStripePaymentIntent = async (params) => {
+    const response = await fetch('/api/functions/createStripePaymentIntent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const getStripePublishableKey = notImplemented("getStripePublishableKey");
   export const getXeroAuthUrl = notImplemented("getXeroAuthUrl");
   export const xeroOAuthCallback = notImplemented("xeroOAuthCallback");

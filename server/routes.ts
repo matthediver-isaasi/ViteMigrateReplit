@@ -2779,6 +2779,61 @@ AGCAS Events Team
     }
   });
 
+  // Create Stripe Payment Intent
+  app.post('/api/functions/createStripePaymentIntent', async (req: Request, res: Response) => {
+    const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
+
+    if (!stripeSecretKey) {
+      return res.status(503).json({ error: 'Stripe not configured' });
+    }
+
+    try {
+      const Stripe = require('stripe');
+      const stripe = new Stripe(stripeSecretKey);
+
+      const { amount, currency = 'gbp', metadata = {}, memberEmail } = req.body;
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({
+          error: 'Invalid amount',
+          details: 'Amount must be greater than 0'
+        });
+      }
+
+      if (!memberEmail) {
+        return res.status(400).json({
+          error: 'Member email is required'
+        });
+      }
+
+      // Create a Payment Intent with Stripe
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: Math.round(amount * 100), // Stripe expects amount in pence/cents
+        currency: currency,
+        metadata: {
+          member_email: memberEmail,
+          ...metadata
+        },
+        automatic_payment_methods: {
+          enabled: true,
+        },
+      });
+
+      res.json({
+        success: true,
+        clientSecret: paymentIntent.client_secret,
+        paymentIntentId: paymentIntent.id
+      });
+
+    } catch (error: any) {
+      console.error('Stripe Payment Intent Error:', error);
+      res.status(500).json({
+        error: 'Failed to create payment intent',
+        details: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

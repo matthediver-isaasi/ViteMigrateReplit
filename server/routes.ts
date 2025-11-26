@@ -2106,6 +2106,163 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Helper function to generate magic link token
+  function generateMagicLinkToken(): string {
+    const bytes = new Uint8Array(32);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes)
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('');
+  }
+
+  // Helper function to send email via Mailgun
+  async function sendEmailViaMailgun(to: string, subject: string, body: string): Promise<any> {
+    const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
+    const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN;
+    const MAILGUN_FROM_EMAIL = process.env.MAILGUN_FROM_EMAIL;
+
+    if (!MAILGUN_API_KEY || !MAILGUN_DOMAIN || !MAILGUN_FROM_EMAIL) {
+      throw new Error('Mailgun not configured');
+    }
+
+    const apiBase = 'https://api.eu.mailgun.net/v3';
+    const formData = new URLSearchParams();
+    formData.append('from', `AGCAS Events <${MAILGUN_FROM_EMAIL}>`);
+    formData.append('to', to);
+    formData.append('subject', subject);
+    formData.append('text', body);
+
+    const url = `${apiBase}/${MAILGUN_DOMAIN}/messages`;
+
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Basic ' + Buffer.from(`api:${MAILGUN_API_KEY}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: formData.toString()
+    });
+
+    const responseText = await response.text();
+
+    if (!response.ok) {
+      throw new Error(`Mailgun API error (${response.status}): ${responseText}`);
+    }
+
+    return JSON.parse(responseText);
+  }
+
+  // Send Magic Link
+  app.post('/api/functions/sendMagicLink', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      console.log('[sendMagicLink] Processing magic link request for:', email);
+
+      // Validate user - check both TeamMember and Member tables
+      const { data: teamMembers } = await supabase
+        .from('team_member')
+        .select('*')
+        .eq('email', email);
+
+      const { data: members } = await supabase
+        .from('member')
+        .select('*')
+        .eq('email', email);
+
+      const teamMember = teamMembers?.[0];
+      const member = members?.[0];
+
+      // Check if user exists and has login enabled
+      let isValid = false;
+      let userType = '';
+
+      if (teamMember) {
+        isValid = true;
+        userType = 'team_member';
+      } else if (member && member.login_enabled !== false) {
+        isValid = true;
+        userType = 'member';
+      }
+
+      if (!isValid) {
+        return res.status(404).json({
+          success: false,
+          error: 'User not found or login not enabled'
+        });
+      }
+
+      console.log('[sendMagicLink] User validated successfully:', userType);
+
+      // Generate magic link token
+      const token = generateMagicLinkToken();
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
+      // Clean up old/expired magic links for this email
+      await supabase
+        .from('magic_link')
+        .delete()
+        .eq('email', email);
+
+      // Create new magic link
+      await supabase.from('magic_link').insert({
+        email,
+        token,
+        expires_at: expiresAt,
+        used: false
+      });
+
+      console.log('[sendMagicLink] Magic link created in database');
+
+      // Generate the magic link URL
+      const baseUrl = process.env.MAGIC_LINK_BASE_URL || 'https://agcas.isaasi.co.uk';
+      const magicLinkUrl = `${baseUrl}/VerifyMagicLink?token=${token}`;
+
+      // Send email with magic link via Mailgun
+      await sendEmailViaMailgun(
+        email,
+        'Your AGCAS Events Login Link',
+        `
+Hello,
+
+Click the link below to access the AGCAS Events portal:
+
+${magicLinkUrl}
+
+This link will expire in 30 minutes.
+
+If you didn't request this login link, please ignore this email.
+
+Best regards,
+AGCAS Events Team
+        `.trim()
+      );
+
+      console.log('[sendMagicLink] Email sent successfully via Mailgun');
+
+      res.json({
+        success: true,
+        message: 'Magic link sent to your email'
+      });
+
+    } catch (error: any) {
+      console.error('[sendMagicLink] error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to send magic link',
+        details: error.message
+      });
+    }
+  });
+
   // ============ Zoho OAuth Routes ============
   
   // Helper to get Zoho accounts domain from API domain

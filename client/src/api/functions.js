@@ -88,7 +88,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const sendMagicLink = notImplemented("sendMagicLink");
+  export const sendMagicLink = async (params) => {
+    const response = await fetch('/api/functions/sendMagicLink', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const verifyMagicLink = notImplemented("verifyMagicLink");
   export const syncOrganizationContacts = notImplemented("syncOrganizationContacts");
   export const zohoContactWebhook = notImplemented("zohoContactWebhook");

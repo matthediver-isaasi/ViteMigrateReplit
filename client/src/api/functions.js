@@ -197,7 +197,14 @@ const notImplemented = (name) => () => {
     });
     return response.json();
   };
-  export const cancelTicketViaFlow = notImplemented("cancelTicketViaFlow");
+  export const cancelTicketViaFlow = async (params) => {
+    const response = await fetch('/api/functions/cancelTicketViaFlow', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(params)
+    });
+    return response.json();
+  };
   export const updateEventImage = notImplemented("updateEventImage");
   export const updateProgramDetails = notImplemented("updateProgramDetails");
   export const testEmailAddressInBackstage = notImplemented("testEmailAddressInBackstage");

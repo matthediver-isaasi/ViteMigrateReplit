@@ -3119,6 +3119,185 @@ AGCAS Events Team
     return createData.Contacts[0].ContactID;
   }
 
+  // Cancel Ticket Via Zoho Flow - cancels ticket and returns to organization balance
+  app.post('/api/functions/cancelTicketViaFlow', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { orderId, cancelReason = "Cancelled by member via iConnect", memberId } = req.body;
+
+      if (!orderId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameter: orderId'
+        });
+      }
+
+      if (!memberId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameter: memberId'
+        });
+      }
+
+      console.log('Cancelling order:', orderId, 'for member:', memberId);
+
+      // STEP 1: Find the booking and verify authorization
+      const { data: allBookings } = await supabase
+        .from('booking')
+        .select('*');
+
+      const booking = allBookings?.find((b: any) => b.backstage_order_id === orderId);
+
+      if (!booking) {
+        return res.status(404).json({
+          success: false,
+          error: 'Booking not found with this order ID'
+        });
+      }
+
+      // Authorization check: Verify the requesting member owns this booking
+      if (booking.member_id !== memberId) {
+        console.error('Authorization failed: Member', memberId, 'attempted to cancel booking belonging to', booking.member_id);
+        return res.status(403).json({
+          success: false,
+          error: 'Unauthorized: You can only cancel your own bookings'
+        });
+      }
+
+      // Check if already cancelled
+      if (booking.status === 'cancelled') {
+        return res.json({
+          success: true,
+          message: 'Ticket already cancelled'
+        });
+      }
+
+      // Get the event to find the program tag
+      const { data: allEvents } = await supabase
+        .from('event')
+        .select('*');
+
+      const event = allEvents?.find((e: any) => e.id === booking.event_id);
+
+      if (!event || !event.program_tag) {
+        console.warn('Event not found or missing program tag, proceeding with cancellation anyway');
+      }
+
+      // Get the member to find organization
+      const { data: allMembers } = await supabase
+        .from('member')
+        .select('*');
+
+      const member = allMembers?.find((m: any) => m.id === booking.member_id);
+
+      let organizationId = null;
+      if (member && member.organization_id) {
+        organizationId = member.organization_id;
+      }
+
+      // STEP 2: Return the program ticket to the organization's balance
+      if (organizationId && event && event.program_tag) {
+        const { data: allOrgs } = await supabase
+          .from('organization')
+          .select('*');
+
+        let org = allOrgs?.find((o: any) => o.id === organizationId);
+
+        if (!org) {
+          org = allOrgs?.find((o: any) => o.zoho_account_id === organizationId);
+        }
+
+        if (org) {
+          const currentBalances = org.program_ticket_balances || {};
+          const currentBalance = currentBalances[event.program_tag] || 0;
+          const newBalance = currentBalance + 1; // Return 1 ticket
+
+          const updatedBalances = {
+            ...currentBalances,
+            [event.program_tag]: newBalance
+          };
+
+          await supabase
+            .from('organization')
+            .update({
+              program_ticket_balances: updatedBalances,
+              last_synced: new Date().toISOString()
+            })
+            .eq('id', org.id);
+
+          console.log(`Returned 1 ticket to ${event.program_tag}. New balance: ${newBalance}`);
+
+          // STEP 3: Create a refund transaction record
+          await supabase
+            .from('program_ticket_transaction')
+            .insert({
+              organization_id: org.id,
+              program_name: event.program_tag,
+              transaction_type: 'refund',
+              quantity: 1,
+              booking_reference: booking.booking_reference || orderId,
+              event_name: event.title || 'Unknown Event',
+              member_email: member?.email || booking.attendee_email || 'unknown',
+              notes: `Ticket refunded due to cancellation: ${cancelReason}`
+            });
+
+          console.log('Created refund transaction record');
+        }
+      }
+
+      // STEP 4: Update booking status to cancelled in our database
+      await supabase
+        .from('booking')
+        .update({ status: 'cancelled' })
+        .eq('id', booking.id);
+
+      console.log('Updated booking status to cancelled in database');
+
+      // STEP 5: Call Zoho Flow webhook to cancel in Backstage
+      const ZOHO_FLOW_WEBHOOK_URL = process.env.ZOHO_FLOW_CANCEL_WEBHOOK_URL ||
+        'https://flow.zoho.eu/20108063378/flow/webhook/incoming?zapikey=1001.ee25c218c557d7dddb0eed4f3e0e981a.70bb4e51162d59156ab4899ad8bcc38c&isdebug=false';
+
+      const response = await fetch(ZOHO_FLOW_WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          order_id: orderId,
+          cancel_reason: cancelReason
+        })
+      });
+
+      if (response.ok) {
+        console.log('Zoho Flow webhook called successfully');
+        return res.json({
+          success: true,
+          message: 'Ticket cancelled successfully'
+        });
+      } else {
+        const errorText = await response.text();
+        console.error('Zoho Flow webhook error:', errorText);
+
+        // Even if Flow webhook fails, we've already marked it as cancelled locally
+        return res.json({
+          success: true,
+          message: 'Ticket marked as cancelled. Backstage sync may take a moment.',
+          warning: 'Backstage API call failed but local status updated'
+        });
+      }
+
+    } catch (error: any) {
+      console.error('Cancellation error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Cancel Backstage Order - tries multiple API approaches
   app.post('/api/functions/cancelBackstageOrder', async (req: Request, res: Response) => {
     if (!supabase) {

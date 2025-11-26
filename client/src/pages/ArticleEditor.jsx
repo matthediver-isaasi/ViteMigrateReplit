@@ -46,7 +46,7 @@ export default function ArticleEditorPage() {
   const [selectedGuestWriterId, setSelectedGuestWriterId] = useState(null);
 
   // Fetch current member's full record to get the handle
-  const { data: currentMember } = useQuery({
+  const { data: currentMember, isLoading: memberLoading } = useQuery({
     queryKey: ['current-member', memberInfo?.email],
     queryFn: async () => {
       const allMembers = await base44.entities.Member.list();
@@ -341,10 +341,19 @@ export default function ArticleEditorPage() {
   }
 
   // Show loading while fetching article data or member data
-  if (isEditing && (articleLoading || !currentMember)) {
+  if (isEditing && (articleLoading || memberLoading)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading article...</div>
+      </div>
+    );
+  }
+  
+  // Also show loading for new articles if member data is still loading
+  if (!isEditing && memberLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }

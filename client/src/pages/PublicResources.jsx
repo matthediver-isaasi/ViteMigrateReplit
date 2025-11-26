@@ -7,6 +7,7 @@ import { FileQuestion, ChevronLeft, ChevronRight, SlidersHorizontal } from "luci
 import ResourceFilter from "../components/resources/ResourceFilter";
 import ResourceCard from "../components/resources/ResourceCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useResourceRealtime } from "@/hooks/useResourceRealtime";
 
 export default function PublicResourcesPage() {
   const [selectedCategory, setSelectedCategory] = useState("all");
@@ -15,6 +16,8 @@ export default function PublicResourcesPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [sortBy, setSortBy] = useState("newest");
   const [itemsPerPage, setItemsPerPage] = useState(6);
+
+  useResourceRealtime(['public-resources']);
 
   // Check if user is logged in
   const isLoggedIn = useMemo(() => {

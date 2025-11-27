@@ -4,8 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { FileQuestion, Search, X } from "lucide-react";
+import { FileQuestion, Search, X, Filter } from "lucide-react";
 import NewsCard from "../components/news/NewsCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
@@ -318,36 +317,6 @@ export default function NewsPage() {
               )}
             </div>
 
-            {allSubcategories.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {allSubcategories.map((sub) => (
-                  <Badge
-                    key={sub}
-                    variant={selectedSubcategories.includes(sub) ? "default" : "outline"}
-                    className={`cursor-pointer transition-colors ${
-                      selectedSubcategories.includes(sub) 
-                        ? "bg-blue-600 hover:bg-blue-700" 
-                        : "hover:bg-slate-100"
-                    }`}
-                    onClick={() => handleSubcategoryToggle(sub)}
-                    data-testid={`badge-category-${sub}`}
-                  >
-                    {sub}
-                  </Badge>
-                ))}
-                {selectedSubcategories.length > 0 && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedSubcategories([])}
-                    className="text-xs h-6 px-2"
-                    data-testid="button-clear-categories"
-                  >
-                    Clear all
-                  </Button>
-                )}
-              </div>
-            )}
           </div>
         </div>
 
@@ -384,7 +353,37 @@ export default function NewsPage() {
                 Showing {startIndex + 1}-{Math.min(endIndex, sortedNews.length)} of {sortedNews.length} {sortedNews.length === 1 ? 'article' : 'articles'}
               </div>
               
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
+                {allSubcategories.length > 0 && (
+                  <Select 
+                    value={selectedSubcategories.length === 1 ? selectedSubcategories[0] : selectedSubcategories.length > 1 ? "multiple" : "all"} 
+                    onValueChange={(val) => {
+                      if (val === "all") {
+                        setSelectedSubcategories([]);
+                      } else if (val !== "multiple") {
+                        setSelectedSubcategories([val]);
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-44" data-testid="select-category-filter">
+                      <Filter className="w-4 h-4 mr-2" />
+                      <span className="truncate">
+                        {selectedSubcategories.length === 0 
+                          ? "All Types" 
+                          : selectedSubcategories.length === 1 
+                            ? selectedSubcategories[0]
+                            : `${selectedSubcategories.length} selected`}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Types</SelectItem>
+                      {allSubcategories.map((sub) => (
+                        <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+                
                 <Select value={String(itemsPerPage)} onValueChange={(val) => setItemsPerPage(Number(val))}>
                   <SelectTrigger className="w-32" data-testid="select-items-per-page">
                     <SelectValue />

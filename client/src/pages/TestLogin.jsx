@@ -31,14 +31,17 @@ export default function TestLoginPage() {
     queryKey: ["roles"],
     queryFn: async () => {
       try {
+        console.log("[TestLogin] Fetching roles...");
         const data = await base44.entities.Role.list({ sort: { name: 'asc' } });
+        console.log("[TestLogin] Roles fetched:", data?.length || 0, "roles", data);
         return data || [];
       } catch (error) {
         console.error("[TestLogin] Error loading roles:", error);
         throw error;
       }
     },
-    initialData: [],
+    staleTime: 0, // Always fetch fresh data
+    refetchOnMount: true,
   });
 
   const handleLogin = async (e) => {

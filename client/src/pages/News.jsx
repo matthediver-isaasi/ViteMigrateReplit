@@ -27,8 +27,9 @@ export default function NewsPage() {
 
   const queryClient = useQueryClient();
 
-  const canEditNews = isAdmin && !isFeatureExcluded('action_news_edit');
-  const canDeleteNews = isAdmin && !isFeatureExcluded('action_news_delete');
+  // Admin permissions - can edit/delete any article
+  const hasAdminEditPermission = isAdmin && !isFeatureExcluded('action_news_edit');
+  const hasAdminDeletePermission = isAdmin && !isFeatureExcluded('action_news_delete');
 
   // Fetch current user's preferences
   const { data: currentMember } = useQuery({
@@ -416,8 +417,9 @@ export default function NewsPage() {
                 <NewsCard 
                   key={item.id} 
                   article={item} 
-                  canEdit={canEditNews}
-                  canDelete={canDeleteNews}
+                  hasAdminEditPermission={hasAdminEditPermission}
+                  hasAdminDeletePermission={hasAdminDeletePermission}
+                  currentMemberId={currentMember?.id}
                   onEdit={handleEditNews}
                   onDelete={handleDeleteNews}
                   showImage={showImage}

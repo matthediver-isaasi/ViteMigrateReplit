@@ -11,11 +11,20 @@ export default function NewsCard({
   article, 
   onEdit,
   onDelete,
-  canEdit = false,
-  canDelete = false,
+  hasAdminEditPermission = false,
+  hasAdminDeletePermission = false,
+  currentMemberId = null,
   showImage = true
 }) {
   const articleUrl = `${createPageUrl('NewsView')}?slug=${article.slug}`;
+
+  // Check if current user is the author of this article
+  const isAuthor = currentMemberId && article.author_id === currentMemberId;
+  
+  // Can edit if admin with permission OR if user is the author
+  const canEdit = hasAdminEditPermission || isAuthor;
+  // Can delete if admin with permission OR if user is the author
+  const canDelete = hasAdminDeletePermission || isAuthor;
 
   const ActionButtons = () => {
     if (!canEdit && !canDelete) return null;

@@ -1,35 +1,20 @@
 // NewsCard component for displaying news articles with optional edit/delete actions
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, User, ArrowUpRight, Download, ExternalLink, PlayCircle, Eye, FileText, Mail, Plus, Pencil, Trash2 } from "lucide-react";
+import { Calendar, User, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
-import AGCASButton from "../ui/AGCASButton";
-import AGCASSquareButton from "../ui/AGCASSquareButton";
-
-const iconMap = {
-  ArrowUpRight,
-  Download,
-  ExternalLink,
-  PlayCircle,
-  Eye,
-  FileText,
-  Mail,
-  Plus,
-};
 
 export default function NewsCard({ 
   article, 
-  buttonStyles = [], 
   onEdit,
   onDelete,
   canEdit = false,
   canDelete = false,
   showImage = true
 }) {
-  const buttonStyle = buttonStyles.find(s => s.card_type === 'article') || null;
   const articleUrl = `${createPageUrl('NewsView')}?slug=${article.slug}`;
 
   const ActionButtons = () => {
@@ -69,57 +54,6 @@ export default function NewsCard({
         )}
       </div>
     );
-  };
-
-  const renderButton = () => {
-    if (!buttonStyle) {
-      return (
-        <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
-          <Link to={articleUrl}>
-            <ArrowUpRight className="w-4 h-4 mr-2" />
-            Read Article
-          </Link>
-        </Button>
-      );
-    }
-
-    let buttonText = buttonStyle.button_text || 'Read Article';
-    if (buttonText.includes('Article')) {
-      buttonText = buttonText.replace('Article', 'Article');
-    }
-    const buttonType = buttonStyle.button_type;
-    const IconComponent = buttonStyle.icon_name && iconMap[buttonStyle.icon_name];
-
-    if (buttonType === "square_agcas") {
-      return (
-        <Link to={articleUrl}>
-          <AGCASSquareButton />
-        </Link>
-      );
-    } else if (buttonType === "rectangular_agcas") {
-      return (
-        <Link to={articleUrl}>
-          <AGCASButton 
-            icon={buttonStyle.icon_name !== 'none' ? IconComponent : undefined}
-            className="w-full"
-          >
-            {buttonText}
-          </AGCASButton>
-        </Link>
-      );
-    } else {
-      return (
-        <Button 
-          asChild
-          className="w-full bg-blue-600 hover:bg-blue-700"
-        >
-          <Link to={articleUrl}>
-            {IconComponent && buttonStyle.icon_name !== 'none' && <IconComponent className="w-4 h-4 mr-2" />}
-            {buttonText}
-          </Link>
-        </Button>
-      );
-    }
   };
 
   return (
@@ -182,9 +116,15 @@ export default function NewsCard({
         )}
       </CardHeader>
 
-      <CardContent className="pt-0 pb-4 mt-auto">
-        {renderButton()}
-      </CardContent>
+      <div className="mt-auto flex justify-end">
+        <Link 
+          to={articleUrl}
+          className="inline-flex items-center justify-center w-12 h-12 bg-black hover:bg-gray-800 transition-colors duration-200"
+          data-testid={`button-read-news-${article.id}`}
+        >
+          <ArrowUpRight className="w-6 h-6 text-white" strokeWidth={2} />
+        </Link>
+      </div>
     </Card>
   );
 }

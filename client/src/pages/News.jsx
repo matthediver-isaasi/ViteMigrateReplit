@@ -84,16 +84,6 @@ export default function NewsPage() {
     refetchOnWindowFocus: true
   });
 
-  // Fetch button styles
-  const { data: buttonStyles = [] } = useQuery({
-    queryKey: ['article-button-styles'],
-    queryFn: async () => {
-      const allStyles = await base44.entities.ButtonStyle.list();
-      return allStyles.filter(s => s.is_active && s.card_type === 'article');
-    },
-    refetchOnWindowFocus: true
-  });
-
   // Get all subcategories from categories
   const allSubcategories = useMemo(() => {
     const subs = new Set();
@@ -426,7 +416,6 @@ export default function NewsPage() {
                 <NewsCard 
                   key={item.id} 
                   article={item} 
-                  buttonStyles={buttonStyles}
                   canEdit={canEditNews}
                   canDelete={canDeleteNews}
                   onEdit={handleEditNews}

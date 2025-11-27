@@ -123,7 +123,7 @@ export default function NewsPage() {
   });
 
   const handleEditNews = (article) => {
-    window.location.href = `${createPageUrl('NewsEditor')}?id=${article.id}`;
+    window.location.href = `/NewsEditor?id=${article.id}`;
   };
 
   const handleDeleteNews = (article) => {

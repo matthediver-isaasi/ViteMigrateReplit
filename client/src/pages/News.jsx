@@ -3,8 +3,9 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileQuestion } from "lucide-react";
-import ArticleFilter from "../components/blog/ArticleFilter";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { FileQuestion, Search, X } from "lucide-react";
 import NewsCard from "../components/news/NewsCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
@@ -39,6 +40,24 @@ export default function NewsPage() {
     enabled: !!memberInfo
   });
 
+  // Fetch news display settings
+  const { data: displaySettings } = useQuery({
+    queryKey: ['news-display-settings'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const cardsPerRowSetting = allSettings.find(s => s.setting_key === 'news_cards_per_row');
+      const showImageSetting = allSettings.find(s => s.setting_key === 'news_show_image');
+      
+      return {
+        cardsPerRow: parseInt(cardsPerRowSetting?.setting_value) || 3,
+        showImage: showImageSetting?.setting_value !== 'false'
+      };
+    }
+  });
+
+  const cardsPerRow = displaySettings?.cardsPerRow || 3;
+  const showImage = displaySettings?.showImage ?? true;
+
   // Fetch published news
   const { data: news = [], isLoading: newsLoading } = useQuery({
     queryKey: ['published-news'],
@@ -50,7 +69,7 @@ export default function NewsPage() {
         (!n.published_date || new Date(n.published_date) <= now)
       );
     },
-    staleTime: 0, // Always fetch fresh content for news feed
+    staleTime: 0,
   });
 
   // Fetch categories
@@ -74,6 +93,15 @@ export default function NewsPage() {
     },
     refetchOnWindowFocus: true
   });
+
+  // Get all subcategories from categories
+  const allSubcategories = useMemo(() => {
+    const subs = new Set();
+    categories.forEach(cat => {
+      cat.subcategories?.forEach(sub => subs.add(sub));
+    });
+    return Array.from(subs).sort();
+  }, [categories]);
 
   // Load saved preferences
   useEffect(() => {
@@ -242,6 +270,19 @@ export default function NewsPage() {
     });
   }, [currentMember, selectedSubcategories, sortBy, itemsPerPage]);
 
+  // Generate grid class based on cardsPerRow setting
+  const getGridClass = () => {
+    switch (cardsPerRow) {
+      case 2:
+        return "grid md:grid-cols-2 gap-6";
+      case 4:
+        return "grid md:grid-cols-2 lg:grid-cols-4 gap-6";
+      case 3:
+      default:
+        return "grid md:grid-cols-2 lg:grid-cols-3 gap-6";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
@@ -250,150 +291,195 @@ export default function NewsPage() {
           <p className="text-slate-600">Stay updated with our latest news</p>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8">
-          <div className="lg:w-64 flex-shrink-0">
-            <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-6 sticky top-8">
-              <ArticleFilter
-                categories={categories}
-                selectedSubcategories={selectedSubcategories}
-                onSubcategoryToggle={handleSubcategoryToggle}
-                searchQuery={searchQuery}
-                onSearchChange={setSearchQuery}
-                onClearSearch={() => setSearchQuery("")}
-              />
+        <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-4 mb-6">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Search news..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9"
+                  data-testid="input-search-news"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    data-testid="button-clear-search"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
               
               {hasUnsavedChanges && (
                 <Button
                   onClick={handleSavePreferences}
                   disabled={savePreferencesMutation.isPending}
-                  className="w-full mt-4 bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700"
                   size="sm"
+                  data-testid="button-save-preferences"
                 >
                   {savePreferencesMutation.isPending ? 'Saving...' : 'Save as Default'}
                 </Button>
               )}
             </div>
-          </div>
 
-          <div className="flex-1">
-            {isLoading ? (
-              <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {Array(6).fill(0).map((_, i) => (
-                  <Card key={i} className="animate-pulse border-slate-200">
-                    <div className="h-48 bg-slate-200" />
-                    <div className="p-6">
-                      <div className="h-6 bg-slate-200 rounded w-3/4 mb-2" />
-                      <div className="h-4 bg-slate-200 rounded w-full" />
-                    </div>
-                  </Card>
+            {allSubcategories.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {allSubcategories.map((sub) => (
+                  <Badge
+                    key={sub}
+                    variant={selectedSubcategories.includes(sub) ? "default" : "outline"}
+                    className={`cursor-pointer transition-colors ${
+                      selectedSubcategories.includes(sub) 
+                        ? "bg-blue-600 hover:bg-blue-700" 
+                        : "hover:bg-slate-100"
+                    }`}
+                    onClick={() => handleSubcategoryToggle(sub)}
+                    data-testid={`badge-category-${sub}`}
+                  >
+                    {sub}
+                  </Badge>
                 ))}
-              </div>
-            ) : paginatedNews.length === 0 ? (
-              <Card className="border-slate-200 shadow-sm">
-                <CardContent className="p-12 text-center">
-                  <FileQuestion className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                    {searchQuery || selectedSubcategories.length > 0 ? 'No news found' : 'No news available'}
-                  </h3>
-                  <p className="text-slate-600">
-                    {searchQuery || selectedSubcategories.length > 0
-                      ? 'Try adjusting your search or filters'
-                      : 'Check back soon for updates'}
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
-                  <div className="text-sm text-slate-600">
-                    Showing {startIndex + 1}-{Math.min(endIndex, sortedNews.length)} of {sortedNews.length} {sortedNews.length === 1 ? 'article' : 'articles'}
-                  </div>
-                  
-                  <div className="flex gap-2">
-                    <Select value={String(itemsPerPage)} onValueChange={(val) => setItemsPerPage(Number(val))}>
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="6">6 per page</SelectItem>
-                        <SelectItem value="12">12 per page</SelectItem>
-                        <SelectItem value="24">24 per page</SelectItem>
-                        <SelectItem value="48">48 per page</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger className="w-48">
-                        <SlidersHorizontal className="w-4 h-4 mr-2" />
-                        <SelectValue placeholder="Sort By" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="newest">Newest First</SelectItem>
-                        <SelectItem value="oldest">Oldest First</SelectItem>
-                        <SelectItem value="title-asc">Title A-Z</SelectItem>
-                        <SelectItem value="title-desc">Title Z-A</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {paginatedNews.map(item => (
-                    <NewsCard 
-                      key={item.id} 
-                      article={item} 
-                      buttonStyles={buttonStyles}
-                      canEdit={canEditNews}
-                      canDelete={canDeleteNews}
-                      onEdit={handleEditNews}
-                      onDelete={handleDeleteNews}
-                    />
-                  ))}
-                </div>
-
-                {totalPages > 1 && (
-                  <div className="mt-8 flex justify-center">
-                    <div className="flex items-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                      >
-                        <ChevronLeft className="w-4 h-4" />
-                      </Button>
-                      
-                      {getPageNumbers().map((page, idx) => (
-                        page === '...' ? (
-                          <span key={`ellipsis-${idx}`} className="px-2 text-slate-400">...</span>
-                        ) : (
-                          <Button
-                            key={page}
-                            variant={currentPage === page ? "default" : "outline"}
-                            size="sm"
-                            onClick={() => setCurrentPage(page)}
-                            className="min-w-[40px]"
-                          >
-                            {page}
-                          </Button>
-                        )
-                      ))}
-                      
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        <ChevronRight className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+                {selectedSubcategories.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSelectedSubcategories([])}
+                    className="text-xs h-6 px-2"
+                    data-testid="button-clear-categories"
+                  >
+                    Clear all
+                  </Button>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
+
+        {isLoading ? (
+          <div className={getGridClass()}>
+            {Array(6).fill(0).map((_, i) => (
+              <Card key={i} className="animate-pulse border-slate-200">
+                <div className="h-48 bg-slate-200" />
+                <div className="p-6">
+                  <div className="h-6 bg-slate-200 rounded w-3/4 mb-2" />
+                  <div className="h-4 bg-slate-200 rounded w-full" />
+                </div>
+              </Card>
+            ))}
+          </div>
+        ) : paginatedNews.length === 0 ? (
+          <Card className="border-slate-200 shadow-sm">
+            <CardContent className="p-12 text-center">
+              <FileQuestion className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+              <h3 className="text-xl font-semibold text-slate-900 mb-2">
+                {searchQuery || selectedSubcategories.length > 0 ? 'No news found' : 'No news available'}
+              </h3>
+              <p className="text-slate-600">
+                {searchQuery || selectedSubcategories.length > 0
+                  ? 'Try adjusting your search or filters'
+                  : 'Check back soon for updates'}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+              <div className="text-sm text-slate-600">
+                Showing {startIndex + 1}-{Math.min(endIndex, sortedNews.length)} of {sortedNews.length} {sortedNews.length === 1 ? 'article' : 'articles'}
+              </div>
+              
+              <div className="flex gap-2">
+                <Select value={String(itemsPerPage)} onValueChange={(val) => setItemsPerPage(Number(val))}>
+                  <SelectTrigger className="w-32" data-testid="select-items-per-page">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="6">6 per page</SelectItem>
+                    <SelectItem value="12">12 per page</SelectItem>
+                    <SelectItem value="24">24 per page</SelectItem>
+                    <SelectItem value="48">48 per page</SelectItem>
+                  </SelectContent>
+                </Select>
+                
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-48" data-testid="select-sort-by">
+                    <SlidersHorizontal className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Sort By" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="title-asc">Title A-Z</SelectItem>
+                    <SelectItem value="title-desc">Title Z-A</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            
+            <div className={getGridClass()}>
+              {paginatedNews.map(item => (
+                <NewsCard 
+                  key={item.id} 
+                  article={item} 
+                  buttonStyles={buttonStyles}
+                  canEdit={canEditNews}
+                  canDelete={canDeleteNews}
+                  onEdit={handleEditNews}
+                  onDelete={handleDeleteNews}
+                  showImage={showImage}
+                />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="mt-8 flex justify-center">
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                    data-testid="button-prev-page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  
+                  {getPageNumbers().map((page, idx) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${idx}`} className="px-2 text-slate-400">...</span>
+                    ) : (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                        className="min-w-[40px]"
+                        data-testid={`button-page-${page}`}
+                      >
+                        {page}
+                      </Button>
+                    )
+                  ))}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                    data-testid="button-next-page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>

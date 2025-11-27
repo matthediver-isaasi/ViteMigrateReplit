@@ -26,7 +26,8 @@ export default function NewsCard({
   onEdit,
   onDelete,
   canEdit = false,
-  canDelete = false
+  canDelete = false,
+  showImage = true
 }) {
   const buttonStyle = buttonStyles.find(s => s.card_type === 'article') || null;
   const articleUrl = `${createPageUrl('NewsView')}?slug=${article.slug}`;
@@ -126,7 +127,7 @@ export default function NewsCard({
       className="border-slate-200 hover:shadow-lg transition-shadow duration-300 overflow-hidden h-full flex flex-col relative"
       data-testid={`card-news-${article.id}`}
     >
-      {article.feature_image_url ? (
+      {showImage && article.feature_image_url ? (
         <>
           <div className="h-48 overflow-hidden bg-slate-100 relative">
             <img 

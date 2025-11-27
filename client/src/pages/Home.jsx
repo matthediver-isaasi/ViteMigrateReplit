@@ -1,12 +1,14 @@
 
-import React, { useState } from "react";
+import { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Mail, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { useTenant } from "@/contexts/TenantContext";
 
 export default function HomePage() {
+  const { tenant, isLoading: tenantLoading } = useTenant();
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -39,14 +41,16 @@ export default function HomePage() {
       <div className="w-full max-w-md">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4 p-2">
-            <img 
-              src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68efc20f3e0a30fafad6dde7/6cfe73a57_agcasRoundall.jpg"
-              alt="AGCAS"
-              className="w-full h-full object-contain"
-            />
-          </div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-2">AGCAS Events</h1>
+          {tenant.logoUrl && (
+            <div className="inline-flex items-center justify-center w-16 h-16 bg-white rounded-2xl shadow-lg mb-4 p-2">
+              <img 
+                src={tenant.logoUrl}
+                alt={tenant.name || 'Portal'}
+                className="w-full h-full object-contain"
+              />
+            </div>
+          )}
+          <h1 className="text-3xl font-bold text-slate-900 mb-2">{tenant.displayName || tenant.name || 'Member Portal'}</h1>
           <p className="text-slate-600">Professional Development & Training Portal</p>
         </div>
 
@@ -55,7 +59,7 @@ export default function HomePage() {
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-2xl font-bold text-center">Member Access</CardTitle>
             <CardDescription className="text-center">
-              Enter your AGCAS member email to receive a secure login link
+              Enter your member email to receive a secure login link
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -128,7 +132,7 @@ export default function HomePage() {
 
             <div className="mt-6 pt-6 border-t border-slate-200">
               <p className="text-xs text-slate-500 text-center">
-                Only AGCAS members can access this portal. If you're having trouble logging in, 
+                Only registered members can access this portal. If you're having trouble logging in, 
                 please contact your membership administrator.
               </p>
             </div>
@@ -137,7 +141,7 @@ export default function HomePage() {
 
         {/* Footer */}
         <p className="text-center text-sm text-slate-500 mt-6">
-          © {new Date().getFullYear()} AGCAS. All rights reserved.
+          © {new Date().getFullYear()} isaasi ltd. All rights reserved.
         </p>
       </div>
     </div>

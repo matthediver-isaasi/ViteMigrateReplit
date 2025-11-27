@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import PublicHeader from "./PublicHeader";
 import PageBannerDisplay from "../banners/PageBannerDisplay";
 import FloaterDisplay from "../floaters/FloaterDisplay";
+import { useTenant } from "@/contexts/TenantContext";
 
 export default function PublicLayout({ children, currentPageName }) {
+  const { tenant } = useTenant();
   const [banners, setBanners] = useState([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
   const [showNewsletterDialog, setShowNewsletterDialog] = useState(false);
@@ -93,15 +95,17 @@ export default function PublicLayout({ children, currentPageName }) {
               {/* About Section */}
               <div className="md:col-span-2">
                 <div className="flex items-center gap-3 mb-4">
-                  <img
-                    src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68efc20f3e0a30fafad6dde7/6cfe73a57_agcasRoundall.jpg"
-                    alt="AGCAS"
-                    className="w-10 h-10 object-contain"
-                  />
-                  <h3 className="text-xl font-bold">AGCAS</h3>
+                  {tenant.logoUrl && (
+                    <img
+                      src={tenant.logoUrl}
+                      alt={tenant.name || 'Portal'}
+                      className="w-10 h-10 object-contain"
+                    />
+                  )}
+                  <h3 className="text-xl font-bold">{tenant.name || 'Member Portal'}</h3>
                 </div>
                 <p className="text-slate-300 mb-4 text-sm">
-                  The Association of Graduate Careers Advisory Services represents careers and employability services in higher education across the UK and Ireland.
+                  {tenant.displayName || tenant.name || 'Professional development and training portal for members.'}
                 </p>
                 
                 {/* Newsletter Button */}
@@ -184,7 +188,7 @@ export default function PublicLayout({ children, currentPageName }) {
             <div className="border-t border-slate-800 mt-8 pt-8">
               <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                 <p className="text-sm text-slate-400">
-                  © {new Date().getFullYear()} AGCAS. All rights reserved.
+                  © {new Date().getFullYear()} isaasi ltd. All rights reserved.
                 </p>
                 <div className="flex gap-6 text-sm text-slate-400">
                   <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>

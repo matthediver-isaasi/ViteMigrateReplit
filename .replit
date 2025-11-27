@@ -20,7 +20,7 @@ localPort = 33497
 externalPort = 3002
 
 [[ports]]
-localPort = 34323
+localPort = 41673
 externalPort = 3000
 
 [[ports]]
@@ -58,3 +58,4 @@ SUPABASE_URL_DEV = "https://bdjbfsnmmjobvtszppuh.supabase.co"
 SUPABASE_SERVICE_KEY_DEV = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkamJmc25tbWpvYnZ0c3pwcHVoIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2NDI1NTkwMCwiZXhwIjoyMDc5ODMxOTAwfQ.GnASHvQshYtRKwaLOIva8GQ1CNVbMZ7TTur__ULJxGw"
 VITE_SUPABASE_URL_DEV = "https://bdjbfsnmmjobvtszppuh.supabase.co"
 VITE_SUPABASE_ANON_KEY_DEV = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJkamJmc25tbWpvYnZ0c3pwcHVoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNTU5MDAsImV4cCI6MjA3OTgzMTkwMH0.doD0v3UgFR0JOAqBmn7A8oBpf0uYUoxc0xtu_mX2-TA"
+USE_SUPABASE_DEV = "true"

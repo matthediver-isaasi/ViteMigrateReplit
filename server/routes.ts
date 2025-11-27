@@ -3,10 +3,17 @@ import { createServer, type Server } from "http";
 import { createClient } from "@supabase/supabase-js";
 import session from "express-session";
 import MemoryStore from "memorystore";
+import { createTenantMiddleware, getTenantFromRequest, type Tenant } from "./tenantMiddleware";
 
 // Supabase client for server-side operations
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+// Use USE_SUPABASE_DEV=true to connect to dev branch for testing
+const useDevBranch = process.env.USE_SUPABASE_DEV === 'true';
+const supabaseUrl = useDevBranch 
+  ? (process.env.SUPABASE_URL_DEV || process.env.SUPABASE_URL)
+  : process.env.SUPABASE_URL;
+const supabaseServiceKey = useDevBranch 
+  ? (process.env.SUPABASE_SERVICE_KEY_DEV || process.env.SUPABASE_SERVICE_KEY)
+  : process.env.SUPABASE_SERVICE_KEY;
 
 const supabase = supabaseUrl && supabaseServiceKey 
   ? createClient(supabaseUrl, supabaseServiceKey)
@@ -99,9 +106,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
     })
   }));
 
+  // Tenant detection middleware - detects tenant from hostname
+  app.use(createTenantMiddleware(supabase));
+
+  // ============ Tenant Bootstrap API ============
+  // Returns current tenant configuration for frontend theming
+  app.get('/api/tenant/bootstrap', async (req: Request, res: Response) => {
+    const { tenant, tenantId } = getTenantFromRequest(req);
+    
+    if (tenant) {
+      // Return full tenant config for theming
+      res.json({
+        id: tenant.id,
+        slug: tenant.slug,
+        name: tenant.name,
+        displayName: tenant.display_name,
+        logoUrl: tenant.logo_url,
+        faviconUrl: tenant.favicon_url,
+        primaryColor: tenant.primary_color,
+        secondaryColor: tenant.secondary_color,
+        accentColor: tenant.accent_color,
+        settings: tenant.settings
+      });
+    } else {
+      // Return minimal info if tenant not found
+      res.json({
+        id: tenantId,
+        slug: 'default',
+        name: 'Default',
+        displayName: null,
+        logoUrl: null,
+        faviconUrl: null,
+        primaryColor: '#1e40af',
+        secondaryColor: '#3b82f6',
+        accentColor: '#f59e0b',
+        settings: {}
+      });
+    }
+  });
+
+  // Get tenant theme (extended styling)
+  app.get('/api/tenant/theme', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const { tenantId } = getTenantFromRequest(req);
+    
+    const { data, error } = await supabase
+      .from('tenant_theme')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('is_active', true)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      console.error('Error fetching tenant theme:', error);
+      return res.status(500).json({ error: 'Failed to fetch theme' });
+    }
+
+    res.json(data || {
+      cssVariables: {},
+      fontFamily: 'Inter, system-ui, sans-serif',
+      borderRadius: '0.5rem'
+    });
+  });
+
   // Helper to get table name from entity (uses singular form for Base44 compatibility)
   const getTableName = (entity: string): string => {
     return entityToTable[entity] || entity.toLowerCase().replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
+  };
+
+  // Tables that should NOT be filtered by tenant_id (global/system tables)
+  const globalTables = new Set([
+    'tenant', 'tenant_domain', 'tenant_theme', 'tenant_integration'
+  ]);
+
+  // Check if a table should be scoped by tenant
+  const shouldScopeByTenant = (tableName: string): boolean => {
+    return !globalTables.has(tableName);
   };
 
   // ============ Entity Routes ============
@@ -116,8 +199,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { entity } = req.params;
       const tableName = getTableName(entity);
       const { filter, sort, limit, offset, expand } = req.query;
+      const { tenantId } = getTenantFromRequest(req);
 
       let query = supabase.from(tableName).select(expand as string || '*');
+
+      // Apply tenant scoping for multi-tenant tables
+      // Note: tenant_id filter is applied but will be ignored if column doesn't exist yet
+      if (shouldScopeByTenant(tableName) && tenantId) {
+        query = query.eq('tenant_id', tenantId);
+      }
 
       // Apply filters
       if (filter) {
@@ -161,6 +251,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { data, error } = await query;
 
       if (error) {
+        // If error is about tenant_id column not existing, retry without tenant filter
+        if (error.message?.includes('tenant_id')) {
+          console.warn(`Table ${tableName} does not have tenant_id column yet, skipping tenant filter`);
+          let retryQuery = supabase.from(tableName).select(expand as string || '*');
+          // Re-apply all filters except tenant
+          if (filter) {
+            const filterObj = JSON.parse(filter as string);
+            Object.entries(filterObj).forEach(([key, value]) => {
+              if (Array.isArray(value)) {
+                retryQuery = retryQuery.in(key, value);
+              } else if (typeof value === 'object' && value !== null) {
+                const filterOp = value as Record<string, unknown>;
+                if ('eq' in filterOp) retryQuery = retryQuery.eq(key, filterOp.eq);
+                if ('neq' in filterOp) retryQuery = retryQuery.neq(key, filterOp.neq);
+                if ('gt' in filterOp) retryQuery = retryQuery.gt(key, filterOp.gt);
+                if ('gte' in filterOp) retryQuery = retryQuery.gte(key, filterOp.gte);
+                if ('lt' in filterOp) retryQuery = retryQuery.lt(key, filterOp.lt);
+                if ('lte' in filterOp) retryQuery = retryQuery.lte(key, filterOp.lte);
+                if ('like' in filterOp) retryQuery = retryQuery.like(key, filterOp.like as string);
+                if ('ilike' in filterOp) retryQuery = retryQuery.ilike(key, filterOp.ilike as string);
+                if ('is' in filterOp) retryQuery = retryQuery.is(key, filterOp.is as null);
+                if ('in' in filterOp) retryQuery = retryQuery.in(key, filterOp.in as unknown[]);
+              } else {
+                retryQuery = retryQuery.eq(key, value);
+              }
+            });
+          }
+          if (sort) {
+            const sortObj = JSON.parse(sort as string);
+            Object.entries(sortObj).forEach(([key, direction]) => {
+              retryQuery = retryQuery.order(key, { ascending: direction === 'asc' });
+            });
+          }
+          if (limit) retryQuery = retryQuery.limit(parseInt(limit as string));
+          if (offset) retryQuery = retryQuery.range(
+            parseInt(offset as string), 
+            parseInt(offset as string) + parseInt(limit as string || '100') - 1
+          );
+          const retryResult = await retryQuery;
+          if (retryResult.error) {
+            console.error(`Error listing ${entity}:`, retryResult.error);
+            return res.status(500).json({ error: retryResult.error.message });
+          }
+          return res.json(retryResult.data || []);
+        }
         console.error(`Error listing ${entity}:`, error);
         return res.status(500).json({ error: error.message });
       }
@@ -182,16 +317,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { entity, id } = req.params;
       const tableName = getTableName(entity);
       const { expand } = req.query;
+      const { tenantId } = getTenantFromRequest(req);
 
-      const { data, error } = await supabase
+      let query = supabase
         .from(tableName)
         .select(expand as string || '*')
-        .eq('id', id)
-        .single();
+        .eq('id', id);
+
+      // Apply tenant scoping
+      if (shouldScopeByTenant(tableName) && tenantId) {
+        query = query.eq('tenant_id', tenantId);
+      }
+
+      const { data, error } = await query.single();
 
       if (error) {
         if (error.code === 'PGRST116') {
           return res.status(404).json({ error: 'Not found' });
+        }
+        // Handle tenant_id column not existing
+        if (error.message?.includes('tenant_id')) {
+          const retryResult = await supabase
+            .from(tableName)
+            .select(expand as string || '*')
+            .eq('id', id)
+            .single();
+          if (retryResult.error) {
+            if (retryResult.error.code === 'PGRST116') {
+              return res.status(404).json({ error: 'Not found' });
+            }
+            return res.status(500).json({ error: retryResult.error.message });
+          }
+          return res.json(retryResult.data);
         }
         return res.status(500).json({ error: error.message });
       }
@@ -212,14 +369,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { entity } = req.params;
       const tableName = getTableName(entity);
+      const { tenantId } = getTenantFromRequest(req);
+
+      // Add tenant_id to the body for multi-tenant tables
+      let insertData = { ...req.body };
+      if (shouldScopeByTenant(tableName) && tenantId) {
+        insertData.tenant_id = tenantId;
+      }
 
       const { data, error } = await supabase
         .from(tableName)
-        .insert(req.body)
+        .insert(insertData)
         .select()
         .single();
 
       if (error) {
+        // Handle tenant_id column not existing - retry without tenant_id
+        if (error.message?.includes('tenant_id')) {
+          console.warn(`Table ${tableName} does not have tenant_id column yet`);
+          const retryResult = await supabase
+            .from(tableName)
+            .insert(req.body)
+            .select()
+            .single();
+          if (retryResult.error) {
+            return res.status(500).json({ error: retryResult.error.message });
+          }
+          return res.status(201).json(retryResult.data);
+        }
         return res.status(500).json({ error: error.message });
       }
 
@@ -239,15 +416,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { entity, id } = req.params;
       const tableName = getTableName(entity);
+      const { tenantId } = getTenantFromRequest(req);
 
-      const { data, error } = await supabase
+      // SECURITY: Strip tenant_id from update payload to prevent tenant reassignment attacks
+      // Records cannot be moved between tenants through API updates
+      const { tenant_id: _, ...updateData } = req.body;
+
+      let query = supabase
         .from(tableName)
-        .update(req.body)
-        .eq('id', id)
-        .select()
-        .single();
+        .update(updateData)
+        .eq('id', id);
+
+      // Apply tenant scoping to ensure we only update entities belonging to this tenant
+      if (shouldScopeByTenant(tableName) && tenantId) {
+        query = query.eq('tenant_id', tenantId);
+      }
+
+      const { data, error } = await query.select().single();
 
       if (error) {
+        // Handle tenant_id column not existing
+        if (error.message?.includes('tenant_id')) {
+          const retryResult = await supabase
+            .from(tableName)
+            .update(updateData)
+            .eq('id', id)
+            .select()
+            .single();
+          if (retryResult.error) {
+            return res.status(500).json({ error: retryResult.error.message });
+          }
+          return res.json(retryResult.data);
+        }
         return res.status(500).json({ error: error.message });
       }
 
@@ -267,13 +467,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { entity, id } = req.params;
       const tableName = getTableName(entity);
+      const { tenantId } = getTenantFromRequest(req);
 
-      const { error } = await supabase
+      let query = supabase
         .from(tableName)
         .delete()
         .eq('id', id);
 
+      // Apply tenant scoping to ensure we only delete entities belonging to this tenant
+      if (shouldScopeByTenant(tableName) && tenantId) {
+        query = query.eq('tenant_id', tenantId);
+      }
+
+      const { error } = await query;
+
       if (error) {
+        // Handle tenant_id column not existing
+        if (error.message?.includes('tenant_id')) {
+          const retryResult = await supabase
+            .from(tableName)
+            .delete()
+            .eq('id', id);
+          if (retryResult.error) {
+            return res.status(500).json({ error: retryResult.error.message });
+          }
+          return res.json({ success: true });
+        }
         return res.status(500).json({ error: error.message });
       }
 

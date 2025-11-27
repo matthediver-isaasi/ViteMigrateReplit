@@ -6,12 +6,12 @@
 import { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
-// Default tenant configuration (AGCAS)
+// Default tenant configuration (fallback when tenant not found)
 const DEFAULT_TENANT = {
-  id: 'a0000000-0000-0000-0000-000000000001',
-  slug: 'agcas',
-  name: 'AGCAS',
-  displayName: 'Association of Graduate Careers Advisory Services',
+  id: null,
+  slug: 'default',
+  name: 'Member Portal',
+  displayName: 'Member Portal',
   logoUrl: null,
   faviconUrl: null,
   primaryColor: '#1e3a5f',

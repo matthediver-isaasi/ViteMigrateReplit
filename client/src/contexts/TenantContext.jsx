@@ -149,6 +149,13 @@ export function TenantProvider({ children }) {
   // Fetch tenant configuration from API
   const { data: tenantData, isLoading, error } = useQuery({
     queryKey: ['/api/tenant/bootstrap'],
+    queryFn: async () => {
+      const response = await fetch('/api/tenant/bootstrap');
+      if (!response.ok) {
+        throw new Error('Failed to fetch tenant configuration');
+      }
+      return response.json();
+    },
     staleTime: 5 * 60 * 1000, // Cache for 5 minutes
     refetchOnWindowFocus: false,
     retry: 2

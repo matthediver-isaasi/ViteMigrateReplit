@@ -42,19 +42,21 @@ export default function JobPostingManagementPage() {
     }
   }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
-  const { data: jobs, isLoading } = useQuery({
+  const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['admin-job-postings'],
     queryFn: () => base44.entities.JobPosting.list('-created_date'),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: organizations } = useQuery({
+  const { data: organizations = [] } = useQuery({
     queryKey: ['organizations'],
     queryFn: () => base44.entities.Organization.list(),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: jobTypeSettings } = useQuery({
+  const { data: jobTypeSettings = [] } = useQuery({
     queryKey: ['job-type-settings'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
@@ -68,10 +70,11 @@ export default function JobPostingManagementPage() {
       }
       return ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Internship'];
     },
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: hoursSettings } = useQuery({
+  const { data: hoursSettings = [] } = useQuery({
     queryKey: ['hours-settings'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
@@ -85,7 +88,8 @@ export default function JobPostingManagementPage() {
       }
       return ['Full-time', 'Part-time', 'Flexible'];
     },
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const approveMutation = useMutation({

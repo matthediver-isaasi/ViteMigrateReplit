@@ -17,7 +17,7 @@ export default function JobBoardPage() {
   const [hoursFilter, setHoursFilter] = useState("all");
   const [sortBy, setSortBy] = useState("posted-newest");
 
-  const { data: jobs, isLoading } = useQuery({
+  const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['public-jobs'],
     queryFn: async () => {
       const allJobs = await base44.entities.JobPosting.filter({ status: 'active' });
@@ -28,11 +28,12 @@ export default function JobBoardPage() {
         return new Date(job.closing_date) > now;
       });
     },
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Fetch job type options from settings
-  const { data: jobTypeSettings } = useQuery({
+  const { data: jobTypeSettings = [] } = useQuery({
     queryKey: ['job-type-settings'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
@@ -46,11 +47,12 @@ export default function JobBoardPage() {
       }
       return ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Internship'];
     },
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Fetch hours options from settings
-  const { data: hoursSettings } = useQuery({
+  const { data: hoursSettings = [] } = useQuery({
     queryKey: ['hours-settings'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
@@ -64,7 +66,8 @@ export default function JobBoardPage() {
       }
       return ['Full-time', 'Part-time', 'Flexible'];
     },
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const filteredJobs = useMemo(() => {

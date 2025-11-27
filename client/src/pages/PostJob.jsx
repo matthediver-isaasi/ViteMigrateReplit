@@ -162,7 +162,7 @@ export default function PostJobPage() {
   }, []);
 
   // Fetch job type options from settings
-  const { data: jobTypeSettings } = useQuery({
+  const { data: jobTypeSettings = [] } = useQuery({
     queryKey: ['job-type-settings'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
@@ -176,11 +176,12 @@ export default function PostJobPage() {
       }
       return ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Internship'];
     },
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Fetch hours options from settings
-  const { data: hoursSettings } = useQuery({
+  const { data: hoursSettings = [] } = useQuery({
     queryKey: ['hours-settings'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
@@ -194,11 +195,12 @@ export default function PostJobPage() {
       }
       return ['Full-time', 'Part-time', 'Flexible'];
     },
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Fetch job posting price from settings
-  const { data: jobPostingPrice } = useQuery({
+  const { data: jobPostingPrice = 50.00 } = useQuery({
     queryKey: ['job-posting-price'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
@@ -212,7 +214,8 @@ export default function PostJobPage() {
       }
       return 50.00;
     },
-    initialData: 50.00
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Update payment amount when jobPostingPrice changes

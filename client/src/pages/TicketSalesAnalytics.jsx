@@ -30,16 +30,18 @@ export default function TicketSalesAnalyticsPage() {
     }
   }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
-  const { data: transactions, isLoading: loadingTransactions } = useQuery({
+  const { data: transactions = [], isLoading: loadingTransactions } = useQuery({
     queryKey: ['all-transactions'],
     queryFn: () => base44.entities.ProgramTicketTransaction.list(),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: organizations, isLoading: loadingOrganizations } = useQuery({
+  const { data: organizations = [], isLoading: loadingOrganizations } = useQuery({
     queryKey: ['all-organizations'],
     queryFn: () => base44.entities.Organization.list(),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const isLoading = loadingTransactions || loadingOrganizations;

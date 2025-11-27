@@ -20,12 +20,13 @@ export default function TestPageView() {
   });
 
   // Fetch page elements
-  const { data: elements, isLoading: elementsLoading } = useQuery({
+  const { data: elements = [], isLoading: elementsLoading } = useQuery({
     queryKey: ['iedit-public-elements', page?.id],
     queryFn: () => base44.entities.IEditPageElement.filter({ 
       page_id: page.id 
     }, 'display_order'),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
     enabled: !!page?.id
   });
 

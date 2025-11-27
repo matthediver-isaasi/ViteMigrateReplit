@@ -107,7 +107,11 @@ const AVAILABLE_FEATURES = [
   
   // Payment Options
   { id: "payment_training_vouchers", label: "Use Training Vouchers for Purchases", category: "Payment Options" },
-  { id: "payment_training_fund", label: "Use Training Fund for Purchases", category: "Payment Options" }
+  { id: "payment_training_fund", label: "Use Training Fund for Purchases", category: "Payment Options" },
+  
+  // Content Actions
+  { id: "action_news_edit", label: "Edit News Articles", category: "Content Actions" },
+  { id: "action_news_delete", label: "Delete News Articles", category: "Content Actions" }
   ];
 
 export default function RoleManagementPage() {
@@ -131,10 +135,11 @@ export default function RoleManagementPage() {
     }
   }, [isAdmin, isAccessReady]);
 
-  const { data: roles, isLoading } = useQuery({
+  const { data: roles = [], isLoading } = useQuery({
     queryKey: ['roles'],
     queryFn: () => base44.entities.Role.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const createRoleMutation = useMutation({

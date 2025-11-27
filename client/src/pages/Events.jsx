@@ -74,7 +74,8 @@ export default function EventsPage({
         throw error;
       }
     },
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   if (eventsError) {

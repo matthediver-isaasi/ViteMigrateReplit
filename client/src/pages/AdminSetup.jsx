@@ -16,17 +16,19 @@ export default function AdminSetupPage() {
   const [authWindow, setAuthWindow] = useState(null);
   const [xeroAuthWindow, setXeroAuthWindow] = useState(null); // New state for Xero auth window
 
-  const { data: tokens } = useQuery({
+  const { data: tokens = [] } = useQuery({
     queryKey: ['zoho-tokens'],
     queryFn: () => base44.entities.ZohoToken.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // New query for Xero tokens
-  const { data: xeroTokens } = useQuery({
+  const { data: xeroTokens = [] } = useQuery({
     queryKey: ['xero-tokens'],
     queryFn: () => base44.entities.XeroToken.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const isAuthenticated = tokens.length > 0;

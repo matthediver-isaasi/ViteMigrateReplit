@@ -36,28 +36,32 @@ export default function DiscountCodeManagementPage() {
   
   const queryClient = useQueryClient();
 
-  const { data: discountCodes, isLoading: loadingCodes } = useQuery({
+  const { data: discountCodes = [], isLoading: loadingCodes } = useQuery({
     queryKey: ['discount-codes'],
     queryFn: () => base44.entities.DiscountCode.list('-created_date'),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: organizations } = useQuery({
+  const { data: organizations = [] } = useQuery({
     queryKey: ['organizations'],
     queryFn: () => base44.entities.Organization.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: programs } = useQuery({
+  const { data: programs = [] } = useQuery({
     queryKey: ['programs'],
     queryFn: () => base44.entities.Program.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: usageRecords } = useQuery({
+  const { data: usageRecords = [] } = useQuery({
     queryKey: ['discount-usage'],
     queryFn: () => base44.entities.DiscountCodeUsage.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const createCodeMutation = useMutation({

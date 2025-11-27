@@ -46,17 +46,19 @@ export default function FileManagementPage() {
 
   const queryClient = useQueryClient();
 
-  const { data: files, isLoading } = useQuery({
+  const { data: files = [], isLoading } = useQuery({
     queryKey: ['file-repository'],
     queryFn: () => base44.entities.FileRepository.list('-created_date'),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Fetch folders (using FileRepositoryFolder entity)
-  const { data: folders, isLoading: foldersLoading } = useQuery({
+  const { data: folders = [], isLoading: foldersLoading } = useQuery({
     queryKey: ['file-repository-folders'],
     queryFn: () => base44.entities.FileRepositoryFolder.list('display_order'),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Build folder hierarchy

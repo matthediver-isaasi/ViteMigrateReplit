@@ -61,17 +61,7 @@ export default function ArticleViewPage() {
       console.log('[ArticleView] Parsed settings:', settings);
       return settings;
     },
-    initialData: {
-      showViewCount: true,
-      showAuthorBio: true,
-      showAwardsLabel: true,
-      showAboutAuthorLabel: true,
-      showAuthorOrganization: true,
-      showAuthorEmail: true,
-      showAuthorPhoto: true,
-      showThumbsUp: true,
-      showThumbsDown: true
-    },
+    staleTime: 0,
     refetchOnMount: true,
   });
 

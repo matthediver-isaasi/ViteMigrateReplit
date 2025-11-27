@@ -5,6 +5,7 @@ import FormRenderer from "../forms/FormRenderer";
 import { Button } from "@/components/ui/button";
 import { Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { supabase } from "@/api/supabaseClient";
 
 export default function FloaterDisplay({ location = "portal", memberInfo, organizationInfo }) {
   const queryClient = useQueryClient();
@@ -20,7 +21,7 @@ export default function FloaterDisplay({ location = "portal", memberInfo, organi
     enabled: !!memberInfo?.email,
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("Member") // or "members"
+        .from("member")
         .select("*")
         .eq("email", memberInfo.email)
         .maybeSingle();
@@ -39,7 +40,7 @@ export default function FloaterDisplay({ location = "portal", memberInfo, organi
     queryKey: ["floaters", location],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("Floater") // or "floaters"
+        .from("floater")
         .select("*")
         .eq("is_active", true)
         .or(
@@ -61,7 +62,7 @@ export default function FloaterDisplay({ location = "portal", memberInfo, organi
     queryKey: ["forms"],
     queryFn: async () => {
       const { data, error } = await supabase
-        .from("Form") // or "forms"
+        .from("form")
         .select("*");
 
       if (error) {
@@ -77,7 +78,7 @@ export default function FloaterDisplay({ location = "portal", memberInfo, organi
   const incrementClickMutation = useMutation({
     mutationFn: async ({ floaterId, currentCount }) => {
       const { error } = await supabase
-        .from("Floater")
+        .from("floater")
         .update({ click_count: (currentCount || 0) + 1 })
         .eq("id", floaterId);
 
@@ -105,7 +106,7 @@ export default function FloaterDisplay({ location = "portal", memberInfo, organi
       };
 
       const { error } = await supabase
-        .from("FormSubmission") // or "form_submissions"
+        .from("form_submission")
         .insert([submissionData]);
 
       if (error) {

@@ -44,11 +44,11 @@ export default function NewsEditorPage() {
   const [lastSaved, setLastSaved] = useState(null);
 
   // Fetch current member
-  const { data: currentMember } = useQuery({
+  const { data: currentMember, isLoading: memberLoading } = useQuery({
     queryKey: ['current-member', memberInfo?.email],
     queryFn: async () => {
       const allMembers = await base44.entities.Member.list();
-      return allMembers.find(m => m.email === memberInfo?.email);
+      return allMembers.find(m => m.email === memberInfo?.email) || null;
     },
     enabled: !!memberInfo
   });
@@ -271,7 +271,7 @@ export default function NewsEditorPage() {
     );
   }
 
-  if (isEditing && (newsLoading || !currentMember)) {
+  if (isEditing && (newsLoading || memberLoading)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading news...</div>

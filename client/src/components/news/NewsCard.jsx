@@ -21,12 +21,12 @@ export default function NewsCard({
     if (!canEdit && !canDelete) return null;
     
     return (
-      <div className="absolute top-2 right-2 flex gap-1 z-10">
+      <div className="flex gap-1">
         {canEdit && (
           <Button
             size="icon"
-            variant="secondary"
-            className="h-8 w-8 bg-white/90 hover:bg-white shadow-sm"
+            variant="ghost"
+            className="h-8 w-8 hover:bg-slate-100"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -40,8 +40,8 @@ export default function NewsCard({
         {canDelete && (
           <Button
             size="icon"
-            variant="secondary"
-            className="h-8 w-8 bg-white/90 hover:bg-red-100 text-red-600 shadow-sm"
+            variant="ghost"
+            className="h-8 w-8 hover:bg-red-100 text-red-600"
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -61,20 +61,17 @@ export default function NewsCard({
       className="border-slate-200 hover:shadow-lg transition-shadow duration-300 overflow-hidden h-full flex flex-col relative"
       data-testid={`card-news-${article.id}`}
     >
-      {showImage && article.feature_image_url ? (
+      {showImage && article.feature_image_url && (
         <>
-          <div className="h-48 overflow-hidden bg-slate-100 relative">
+          <div className="h-48 overflow-hidden bg-slate-100">
             <img 
               src={article.feature_image_url} 
               alt={article.title}
               className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
             />
-            <ActionButtons />
           </div>
           <div className="w-full h-[3px]" style={{ backgroundColor: '#5d0d77' }}></div>
         </>
-      ) : (
-        <ActionButtons />
       )}
       
       <CardHeader className="pb-3 flex-grow">
@@ -116,7 +113,8 @@ export default function NewsCard({
         )}
       </CardHeader>
 
-      <div className="mt-auto flex justify-end">
+      <div className="mt-auto flex items-end justify-between">
+        <ActionButtons />
         <Link 
           to={articleUrl}
           className="inline-flex items-center justify-center w-12 h-12 bg-black hover:bg-gray-800 transition-colors duration-200"

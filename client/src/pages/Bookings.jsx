@@ -51,7 +51,7 @@ export default function BookingsPage() {
     }
   }, [shouldShowTours, hasSeenTour, memberInfo]);
 
-  const { data: bookings, isLoading: loadingBookings } = useQuery({
+  const { data: bookings = [], isLoading: loadingBookings } = useQuery({
     queryKey: ['my-bookings', memberInfo?.email],
     queryFn: async () => {
       if (!memberInfo?.email) return [];
@@ -65,13 +65,15 @@ export default function BookingsPage() {
       return allBookings.filter(b => b.member_id === currentMember.id);
     },
     enabled: !!memberInfo?.email,
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: events, isLoading: loadingEvents } = useQuery({
+  const { data: events = [], isLoading: loadingEvents } = useQuery({
     queryKey: ['events'],
     queryFn: () => base44.entities.Event.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const handleTourComplete = async () => {

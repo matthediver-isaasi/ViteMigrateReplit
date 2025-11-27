@@ -1,25 +1,33 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileQuestion } from "lucide-react";
 import ArticleFilter from "../components/blog/ArticleFilter";
-import ArticleCard from "../components/blog/ArticleCard";
+import NewsCard from "../components/news/NewsCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { createPageUrl } from "@/utils";
+import { toast } from "sonner";
 
 export default function NewsPage() {
-  const { memberInfo } = useMemberAccess();
+  const { memberInfo, isFeatureExcluded, isAdmin } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [sortBy, setSortBy] = useState("newest");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [newsToDelete, setNewsToDelete] = useState(null);
 
   const queryClient = useQueryClient();
+
+  const canEditNews = isAdmin && !isFeatureExcluded('action_news_edit');
+  const canDeleteNews = isAdmin && !isFeatureExcluded('action_news_delete');
 
   // Fetch current user's preferences
   const { data: currentMember } = useQuery({
@@ -97,6 +105,37 @@ export default function NewsPage() {
       queryClient.invalidateQueries({ queryKey: ['current-member'] });
     }
   });
+
+  // Delete news mutation
+  const deleteNewsMutation = useMutation({
+    mutationFn: async (newsId) => {
+      await base44.entities.NewsPost.delete(newsId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['published-news'] });
+      setDeleteDialogOpen(false);
+      setNewsToDelete(null);
+      toast.success('News article deleted successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to delete news article: ' + error.message);
+    }
+  });
+
+  const handleEditNews = (article) => {
+    window.location.href = `${createPageUrl('NewsEditor')}?id=${article.id}`;
+  };
+
+  const handleDeleteNews = (article) => {
+    setNewsToDelete(article);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (newsToDelete) {
+      deleteNewsMutation.mutate(newsToDelete.id);
+    }
+  };
 
   // Filter news
   const filteredNews = useMemo(() => {
@@ -300,11 +339,14 @@ export default function NewsPage() {
                 
                 <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {paginatedNews.map(item => (
-                    <ArticleCard 
+                    <NewsCard 
                       key={item.id} 
                       article={item} 
                       buttonStyles={buttonStyles}
-                      viewPageUrl="NewsView"
+                      canEdit={canEditNews}
+                      canDelete={canDeleteNews}
+                      onEdit={handleEditNews}
+                      onDelete={handleDeleteNews}
                     />
                   ))}
                 </div>
@@ -353,6 +395,35 @@ export default function NewsPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete News Article</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{newsToDelete?.title}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteDialogOpen(false)}
+              disabled={deleteNewsMutation.isPending}
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={deleteNewsMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deleteNewsMutation.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

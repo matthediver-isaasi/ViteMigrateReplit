@@ -107,7 +107,11 @@ const AVAILABLE_FEATURES = [
   
   // Payment Options
   { id: "payment_training_vouchers", label: "Use Training Vouchers for Purchases", category: "Payment Options" },
-  { id: "payment_training_fund", label: "Use Training Fund for Purchases", category: "Payment Options" }
+  { id: "payment_training_fund", label: "Use Training Fund for Purchases", category: "Payment Options" },
+  
+  // Content Actions
+  { id: "action_news_edit", label: "Edit News Articles", category: "Content Actions" },
+  { id: "action_news_delete", label: "Delete News Articles", category: "Content Actions" }
   ];
 
 export default function RoleManagementPage() {

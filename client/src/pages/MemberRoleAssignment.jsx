@@ -37,16 +37,18 @@ export default function MemberRoleAssignmentPage() {
     }
   }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
-  const { data: members, isLoading: loadingMembers } = useQuery({
+  const { data: members = [], isLoading: loadingMembers } = useQuery({
     queryKey: ['members'],
     queryFn: () => base44.entities.Member.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: roles, isLoading: loadingRoles } = useQuery({
+  const { data: roles = [], isLoading: loadingRoles } = useQuery({
     queryKey: ['roles'],
     queryFn: () => base44.entities.Role.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const updateMemberRoleMutation = useMutation({

@@ -47,10 +47,11 @@ export default function CategoryManagementPage() {
 
   const queryClient = useQueryClient();
 
-  const { data: categories, isLoading } = useQuery({
+  const { data: categories = [], isLoading } = useQuery({
     queryKey: ['resource-categories'],
     queryFn: () => base44.entities.ResourceCategory.list('display_order'),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const createCategoryMutation = useMutation({

@@ -47,10 +47,11 @@ export default function PageBannerManagementPage() {
     }
   }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
-  const { data: banners, isLoading } = useQuery({
+  const { data: banners = [], isLoading } = useQuery({
     queryKey: ['page-banners'],
     queryFn: () => base44.entities.PageBanner.list('-display_order'),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const createBannerMutation = useMutation({

@@ -10,7 +10,7 @@ import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 export default function BalancesPage() {
   const { memberInfo, organizationInfo } = useMemberAccess();
-  const { data: vouchers, isLoading } = useQuery({
+  const { data: vouchers = [], isLoading } = useQuery({
     queryKey: ['vouchers', organizationInfo?.id],
     queryFn: async () => {
       if (!organizationInfo?.id) return [];
@@ -24,7 +24,8 @@ export default function BalancesPage() {
       );
     },
     enabled: !!organizationInfo?.id,
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   if (!memberInfo || !organizationInfo) {

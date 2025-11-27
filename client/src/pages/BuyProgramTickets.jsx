@@ -236,21 +236,23 @@ export default function BuyProgramTicketsPage({
 
 
   // Fetch programs
-  const { data: programs, isLoading } = useQuery({
+  const { data: programs = [], isLoading } = useQuery({
     queryKey: ['programs'],
     queryFn: () => base44.entities.Program.filter({ is_active: true }),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Fetch events to show count per program
-  const { data: events } = useQuery({
+  const { data: events = [] } = useQuery({
     queryKey: ['events'],
     queryFn: () => base44.entities.Event.list(),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Fetch vouchers to calculate total value of selected ones
-  const { data: vouchers } = useQuery({
+  const { data: vouchers = [] } = useQuery({
     queryKey: ['vouchers', organizationInfo?.id],
     queryFn: async () => {
       if (!organizationInfo?.id) return [];
@@ -260,7 +262,8 @@ export default function BuyProgramTicketsPage({
       });
     },
     enabled: !!organizationInfo?.id && !isFeatureExcluded('payment_training_vouchers'), // Only fetch if feature is not excluded
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Effect to load saved program purchase data or initialize default states

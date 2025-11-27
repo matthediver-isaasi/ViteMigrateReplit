@@ -10,7 +10,7 @@ import { format } from "date-fns";
 
 export default function VoucherSelector({ organizationId, selectedVouchers, onVoucherToggle, maxAmount }) {
   // Fetch raw vouchers without any sorting in the queryFn
-  const { data: rawVouchers, isLoading, error } = useQuery({
+  const { data: rawVouchers = [], isLoading, error } = useQuery({
     queryKey: ['vouchers', organizationId],
     queryFn: async () => {
       if (!organizationId) return [];
@@ -32,7 +32,8 @@ export default function VoucherSelector({ organizationId, selectedVouchers, onVo
       return activeVouchers;
     },
     enabled: !!organizationId,
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Apply sorting as derived state using useMemo - this runs on EVERY render

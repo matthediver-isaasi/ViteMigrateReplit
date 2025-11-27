@@ -166,13 +166,14 @@ export default function TourManagementPage() {
   };
 
   // All hooks must be called before any conditional returns
-  const { data: tourGroups, isLoading: loadingGroups } = useQuery({
+  const { data: tourGroups = [], isLoading: loadingGroups } = useQuery({
     queryKey: ['tourGroups'],
     queryFn: () => base44.entities.TourGroup.list(),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: tourSteps, isLoading: loadingSteps } = useQuery({
+  const { data: tourSteps = [], isLoading: loadingSteps } = useQuery({
     queryKey: ['tourSteps', selectedGroup?.id],
     queryFn: async () => {
       if (!selectedGroup?.id) return [];
@@ -182,7 +183,8 @@ export default function TourManagementPage() {
         .sort((a, b) => a.step_order - b.step_order);
     },
     enabled: !!selectedGroup?.id,
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const createGroupMutation = useMutation({

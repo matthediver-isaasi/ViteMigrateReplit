@@ -44,10 +44,10 @@ export default function PortalNavigationManagementPage() {
 
   const queryClient = useQueryClient();
 
-  const { data: navItems, isLoading } = useQuery({
+  const { data: navItems = [], isLoading } = useQuery({
     queryKey: ['portal-navigation-items'],
     queryFn: () => base44.entities.PortalNavigationItem.list('display_order'),
-    initialData: [],
+    staleTime: 0,
     refetchOnWindowFocus: true,
     refetchOnMount: true
   });

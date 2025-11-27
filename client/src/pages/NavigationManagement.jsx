@@ -66,22 +66,23 @@ export default function NavigationManagementPage() {
     }
   }, [isAdmin, isAccessReady]);
 
-  const { data: navItems, isLoading } = useQuery({
+  const { data: navItems = [], isLoading } = useQuery({
     queryKey: ['navigation-items'],
     queryFn: () => base44.entities.NavigationItem.list('display_order'),
-    initialData: [],
+    staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true
   });
 
   // Fetch published IEdit pages
-  const { data: ieditPages } = useQuery({
+  const { data: ieditPages = [] } = useQuery({
     queryKey: ['iedit-pages-published'],
     queryFn: async () => {
       const pages = await base44.entities.IEditPage.filter({ status: 'published' });
       return pages.map(page => ({ name: page.slug, label: page.title }));
     },
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Combine hardcoded and dynamic pages

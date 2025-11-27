@@ -131,10 +131,11 @@ export default function RoleManagementPage() {
     }
   }, [isAdmin, isAccessReady]);
 
-  const { data: roles, isLoading } = useQuery({
+  const { data: roles = [], isLoading } = useQuery({
     queryKey: ['roles'],
     queryFn: () => base44.entities.Role.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const createRoleMutation = useMutation({

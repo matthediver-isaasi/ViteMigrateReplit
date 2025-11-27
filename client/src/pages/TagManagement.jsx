@@ -32,10 +32,11 @@ export default function TagManagementPage() {
     }
   }, [isAdmin, isAccessReady]);
 
-  const { data: resources, isLoading } = useQuery({
+  const { data: resources = [], isLoading } = useQuery({
     queryKey: ['admin-resources'],
     queryFn: () => base44.entities.Resource.list('-created_date'),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Extract all unique tags with usage count

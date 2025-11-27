@@ -47,7 +47,7 @@ export default function MyTicketsPage() {
     }
   }, [shouldShowTours, hasSeenTour, memberInfo]);
 
-  const { data: myTickets, isLoading: loadingTickets } = useQuery({
+  const { data: myTickets = [], isLoading: loadingTickets } = useQuery({
     queryKey: ['my-tickets', memberInfo?.email],
     queryFn: async () => {
       if (!memberInfo?.email) return [];
@@ -56,19 +56,22 @@ export default function MyTicketsPage() {
       return allBookings.filter((b) => b.attendee_email === memberInfo.email);
     },
     enabled: !!memberInfo?.email,
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: events, isLoading: loadingEvents } = useQuery({
+  const { data: events = [], isLoading: loadingEvents } = useQuery({
     queryKey: ['events'],
     queryFn: () => base44.entities.Event.list(),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: members, isLoading: loadingMembers } = useQuery({
+  const { data: members = [], isLoading: loadingMembers } = useQuery({
     queryKey: ['members'],
     queryFn: () => base44.entities.Member.list(),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const handleTourComplete = async () => {

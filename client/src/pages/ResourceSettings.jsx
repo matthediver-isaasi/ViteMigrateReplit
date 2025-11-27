@@ -27,10 +27,11 @@ export default function ResourceSettingsPage() {
     }
   }, [isAdmin, isAccessReady]);
 
-  const { data: roles, isLoading: rolesLoading } = useQuery({
+  const { data: roles = [], isLoading: rolesLoading } = useQuery({
     queryKey: ['roles'],
     queryFn: () => base44.entities.Role.list(),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: authorSettings, isLoading: settingsLoading } = useQuery({

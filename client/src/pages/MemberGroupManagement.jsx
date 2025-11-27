@@ -67,28 +67,32 @@ export default function MemberGroupManagementPage() {
     }
   }, [isAdmin, isAccessReady]);
 
-  const { data: groups, isLoading: loadingGroups } = useQuery({
+  const { data: groups = [], isLoading: loadingGroups } = useQuery({
     queryKey: ['member-groups'],
     queryFn: () => base44.entities.MemberGroup.list('-updated_date'),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: members, isLoading: loadingMembers } = useQuery({
+  const { data: members = [], isLoading: loadingMembers } = useQuery({
     queryKey: ['members-list'],
     queryFn: () => base44.entities.Member.list('first_name'),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: assignments, isLoading: loadingAssignments } = useQuery({
+  const { data: assignments = [], isLoading: loadingAssignments } = useQuery({
     queryKey: ['member-group-assignments'],
     queryFn: () => base44.entities.MemberGroupAssignment.list(),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: guests, isLoading: loadingGuests } = useQuery({
+  const { data: guests = [], isLoading: loadingGuests } = useQuery({
     queryKey: ['member-group-guests'],
     queryFn: () => base44.entities.MemberGroupGuest.list(),
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Organizations for the assign dialog

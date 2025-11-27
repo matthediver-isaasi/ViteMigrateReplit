@@ -5,35 +5,48 @@
 -- =====================================================
 
 -- =====================================================
--- 1. CREATE TEST TENANTS
+-- 1. CREATE TEST TENANTS (colors are stored in tenant table)
 -- =====================================================
 
 -- AGCAS (Default Tenant - UK Graduate Careers Association)
-INSERT INTO tenant (id, name, slug, is_active, created_at)
+INSERT INTO tenant (id, name, slug, display_name, logo_url, primary_color, secondary_color, accent_color, is_active, created_at)
 VALUES (
   'a0000000-0000-0000-0000-000000000001',
   'AGCAS',
   'agcas',
+  'AGCAS Member Portal',
+  'https://www.agcas.org.uk/write/MediaUploads/Logos/AGCAS_logo_2018.png',
+  '#1e3a5f',
+  '#2c5282',
+  '#3182ce',
   true,
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Test Tenant 2: Demo University Careers Service
-INSERT INTO tenant (id, name, slug, is_active, created_at)
+INSERT INTO tenant (id, name, slug, display_name, primary_color, secondary_color, accent_color, is_active, created_at)
 VALUES (
   'b0000000-0000-0000-0000-000000000002',
   'Demo University Careers',
   'demo-uni',
+  'Demo University Careers Service',
+  '#276749',
+  '#38a169',
+  '#48bb78',
   true,
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Test Tenant 3: Sample Professional Association
-INSERT INTO tenant (id, name, slug, is_active, created_at)
+INSERT INTO tenant (id, name, slug, display_name, primary_color, secondary_color, accent_color, is_active, created_at)
 VALUES (
   'c0000000-0000-0000-0000-000000000003',
   'Professional Association',
   'pro-assoc',
+  'Professional Association Portal',
+  '#553c9a',
+  '#6b46c1',
+  '#805ad5',
   true,
   NOW()
 ) ON CONFLICT (id) DO NOTHING;
@@ -63,43 +76,46 @@ VALUES
 ON CONFLICT DO NOTHING;
 
 -- =====================================================
--- 3. TENANT THEMES
+-- 3. TENANT THEMES (extended theming - colors are in tenant table)
 -- =====================================================
 
--- AGCAS Theme (Blue/Professional)
-INSERT INTO tenant_theme (id, tenant_id, primary_color, secondary_color, accent_color, logo_url, favicon_url)
+-- AGCAS Theme (Professional fonts)
+INSERT INTO tenant_theme (id, tenant_id, theme_name, font_family, font_heading, border_radius, header_style, is_active)
 VALUES (
   gen_random_uuid(),
   'a0000000-0000-0000-0000-000000000001',
-  '#1e3a5f',
-  '#2c5282',
-  '#3182ce',
-  'https://www.agcas.org.uk/write/MediaUploads/Logos/AGCAS_logo_2018.png',
-  NULL
+  'default',
+  'Inter, system-ui, sans-serif',
+  'Georgia, serif',
+  '0.5rem',
+  'default',
+  true
 ) ON CONFLICT DO NOTHING;
 
--- Demo University Theme (Green/Academic)
-INSERT INTO tenant_theme (id, tenant_id, primary_color, secondary_color, accent_color, logo_url, favicon_url)
+-- Demo University Theme (Academic styling)
+INSERT INTO tenant_theme (id, tenant_id, theme_name, font_family, font_heading, border_radius, header_style, is_active)
 VALUES (
   gen_random_uuid(),
   'b0000000-0000-0000-0000-000000000002',
-  '#276749',
-  '#38a169',
-  '#48bb78',
-  NULL,
-  NULL
+  'default',
+  'Open Sans, system-ui, sans-serif',
+  'Merriweather, serif',
+  '0.375rem',
+  'default',
+  true
 ) ON CONFLICT DO NOTHING;
 
--- Pro Association Theme (Purple/Modern)
-INSERT INTO tenant_theme (id, tenant_id, primary_color, secondary_color, accent_color, logo_url, favicon_url)
+-- Pro Association Theme (Modern styling)
+INSERT INTO tenant_theme (id, tenant_id, theme_name, font_family, font_heading, border_radius, header_style, is_active)
 VALUES (
   gen_random_uuid(),
   'c0000000-0000-0000-0000-000000000003',
-  '#553c9a',
-  '#6b46c1',
-  '#805ad5',
-  NULL,
-  NULL
+  'default',
+  'Poppins, system-ui, sans-serif',
+  'Poppins, sans-serif',
+  '0.75rem',
+  'default',
+  true
 ) ON CONFLICT DO NOTHING;
 
 -- =====================================================

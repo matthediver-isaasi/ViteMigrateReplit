@@ -26,7 +26,7 @@ export default function OrganizationTransactionsModal({
   
   const queryClient = useQueryClient();
 
-  const { data: transactions, isLoading } = useQuery({
+  const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['organization-transactions', organizationId, programNameFilter],
     queryFn: async () => {
       const allTransactions = await base44.entities.ProgramTicketTransaction.list();
@@ -42,7 +42,8 @@ export default function OrganizationTransactionsModal({
       );
     },
     enabled: !!organizationId,
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const cancelTransactionMutation = useMutation({

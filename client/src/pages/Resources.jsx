@@ -74,7 +74,7 @@ export default function ResourcesPage() {
     },
     staleTime: 0, // Always fetch fresh content for resources feed
     enabled: !!memberRole || isAdmin === true, // Wait for role data to load before fetching
-    initialData: []
+    refetchOnMount: true,
   });
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({

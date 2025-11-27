@@ -52,22 +52,25 @@ export default function EventSettingsPage() {
     }
   }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
-  const { data: events, isLoading: loadingEvents } = useQuery({
+  const { data: events = [], isLoading: loadingEvents } = useQuery({
     queryKey: ['events'],
     queryFn: () => base44.entities.Event.list('-start_date'),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: settings, isLoading: loadingSettings } = useQuery({
+  const { data: settings = [], isLoading: loadingSettings } = useQuery({
     queryKey: ['system-settings'],
     queryFn: () => base44.entities.SystemSettings.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: programs, isLoading: loadingPrograms } = useQuery({
+  const { data: programs = [], isLoading: loadingPrograms } = useQuery({
     queryKey: ['programs'],
     queryFn: () => base44.entities.Program.filter({ is_active: true }),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Load current setting value

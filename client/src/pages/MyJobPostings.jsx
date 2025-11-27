@@ -24,7 +24,7 @@ export default function MyJobPostingsPage() {
 
   const queryClient = useQueryClient();
 
-  const { data: jobs, isLoading } = useQuery({
+  const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['my-job-postings', memberInfo?.email],
     queryFn: async () => {
       if (!memberInfo?.email) return [];
@@ -34,10 +34,11 @@ export default function MyJobPostingsPage() {
       return allJobs.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
     enabled: !!memberInfo?.email,
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: jobTypeSettings } = useQuery({
+  const { data: jobTypeSettings = [] } = useQuery({
     queryKey: ['job-type-settings'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
@@ -51,10 +52,11 @@ export default function MyJobPostingsPage() {
       }
       return ['Full-time', 'Part-time', 'Contract', 'Temporary', 'Internship'];
     },
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: hoursSettings } = useQuery({
+  const { data: hoursSettings = [] } = useQuery({
     queryKey: ['hours-settings'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
@@ -68,7 +70,8 @@ export default function MyJobPostingsPage() {
       }
       return ['Full-time', 'Part-time', 'Flexible'];
     },
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const updateJobMutation = useMutation({

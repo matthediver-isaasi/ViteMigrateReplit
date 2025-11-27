@@ -41,7 +41,7 @@ export default function PublicResourcesPage() {
       return allResources.filter(r => r.status !== 'draft');
     },
     staleTime: 0, // Always fetch fresh content for resources feed
-    initialData: []
+    refetchOnMount: true,
   });
 
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({

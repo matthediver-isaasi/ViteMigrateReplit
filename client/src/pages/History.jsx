@@ -37,7 +37,7 @@ export default function HistoryPage() {
     }
   }, [shouldShowTours, hasSeenTour, memberInfo]);
 
-  const { data: transactions, isLoading } = useQuery({
+  const { data: transactions = [], isLoading } = useQuery({
     queryKey: ['program-transactions', organizationInfo?.id],
     queryFn: async () => {
       if (!organizationInfo?.id) return [];
@@ -45,7 +45,8 @@ export default function HistoryPage() {
       return allTransactions.filter((t) => t.organization_id === organizationInfo.id);
     },
     enabled: !!organizationInfo?.id,
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   if (!memberInfo || !organizationInfo) {

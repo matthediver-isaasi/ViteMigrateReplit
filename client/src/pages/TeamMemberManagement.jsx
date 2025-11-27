@@ -36,16 +36,18 @@ export default function TeamMemberManagementPage() {
     }
   }, [isAdmin, isAccessReady, isFeatureExcluded]);
 
-  const { data: teamMembers, isLoading: loadingTeamMembers } = useQuery({
+  const { data: teamMembers = [], isLoading: loadingTeamMembers } = useQuery({
     queryKey: ['team-members'],
     queryFn: () => base44.entities.TeamMember.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: roles, isLoading: loadingRoles } = useQuery({
+  const { data: roles = [], isLoading: loadingRoles } = useQuery({
     queryKey: ['roles'],
     queryFn: () => base44.entities.Role.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const createTeamMemberMutation = useMutation({

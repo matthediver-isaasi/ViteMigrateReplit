@@ -68,38 +68,42 @@ export default function ResourceManagementPage() {
     }
   }, [isAdmin, isAccessReady]);
 
-  const { data: resources, isLoading } = useQuery({
+  const { data: resources = [], isLoading } = useQuery({
     queryKey: ['admin-resources'],
     queryFn: () => base44.entities.Resource.list('-created_date'),
-    staleTime: 0, // Admin views need instant freshness after edits
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: categories } = useQuery({
+  const { data: categories = [] } = useQuery({
     queryKey: ['resourceCategories'],
     queryFn: async () => {
       const cats = await base44.entities.ResourceCategory.list();
       return cats.filter(c => c.is_active).sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
     },
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: repositoryFiles } = useQuery({
+  const { data: repositoryFiles = [] } = useQuery({
     queryKey: ['file-repository'],
     queryFn: () => base44.entities.FileRepository.list('-created_date'),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: fileRepositoryFolders } = useQuery({
+  const { data: fileRepositoryFolders = [] } = useQuery({
     queryKey: ['file-repository-folders'],
     queryFn: () => base44.entities.FileRepositoryFolder.list('display_order'),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: roles } = useQuery({
+  const { data: roles = [] } = useQuery({
     queryKey: ['roles'],
     queryFn: () => base44.entities.Role.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: authorSettings } = useQuery({
@@ -108,24 +112,29 @@ export default function ResourceManagementPage() {
       const settings = await base44.entities.ResourceAuthorSettings.list();
       return settings.length > 0 ? settings[0] : null;
     },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: members } = useQuery({
+  const { data: members = [] } = useQuery({
     queryKey: ['members'],
     queryFn: () => base44.entities.Member.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: teamMembers } = useQuery({
+  const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members'],
     queryFn: () => base44.entities.TeamMember.list(),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
-  const { data: folders, isLoading: foldersLoading } = useQuery({
+  const { data: folders = [], isLoading: foldersLoading } = useQuery({
     queryKey: ['resource-folders'],
     queryFn: () => base44.entities.ResourceFolder.list('display_order'),
-    initialData: [],
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   // Get available authors based on selected roles in settings

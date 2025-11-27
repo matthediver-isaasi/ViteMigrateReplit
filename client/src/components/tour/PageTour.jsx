@@ -52,7 +52,7 @@ export default function PageTour({ tourGroupName, viewId, onComplete, onDismissP
     enabled: !!tourGroupName
   });
 
-  const { data: steps } = useQuery({
+  const { data: steps = [] } = useQuery({
     queryKey: ['tourSteps', tourGroup?.id],
     queryFn: async () => {
       if (!tourGroup?.id) {
@@ -68,7 +68,8 @@ export default function PageTour({ tourGroupName, viewId, onComplete, onDismissP
       return filteredSteps;
     },
     enabled: !!tourGroup?.id,
-    initialData: []
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   console.log('[PageTour] Data - tourGroup:', tourGroup?.id, 'steps:', steps.length);

@@ -45,12 +45,7 @@ export default function OrganisationDirectoryPage() {
         excludedOrgIds: excludedOrgIds
       };
     },
-    initialData: {
-      showLogo: true,
-      showDomains: true,
-      showMemberCount: true,
-      excludedOrgIds: []
-    },
+    staleTime: 0,
     refetchOnMount: true
   });
 

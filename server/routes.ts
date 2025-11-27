@@ -145,6 +145,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Debug endpoint to diagnose tenant detection issues
+  app.get('/api/tenant/debug', async (req: Request, res: Response) => {
+    const { tenant, tenantId } = getTenantFromRequest(req);
+    const hostname = req.headers['x-forwarded-host'] || req.headers.host || 'unknown';
+    
+    res.json({
+      debug: {
+        hostname: hostname,
+        useDevBranch: useDevBranch,
+        supabaseUrlConfigured: !!supabaseUrl,
+        supabaseUrlPrefix: supabaseUrl ? supabaseUrl.substring(0, 40) + '...' : null,
+        envVars: {
+          USE_SUPABASE_DEV: process.env.USE_SUPABASE_DEV || 'not set',
+          SUPABASE_URL_DEV_SET: !!process.env.SUPABASE_URL_DEV,
+          SUPABASE_SERVICE_KEY_DEV_SET: !!process.env.SUPABASE_SERVICE_KEY_DEV,
+          SUPABASE_URL_SET: !!process.env.SUPABASE_URL,
+          SUPABASE_SERVICE_KEY_SET: !!process.env.SUPABASE_SERVICE_KEY
+        }
+      },
+      tenant: tenant ? {
+        id: tenant.id,
+        slug: tenant.slug,
+        name: tenant.name,
+        displayName: tenant.display_name
+      } : null,
+      tenantId: tenantId
+    });
+  });
+
   // Get tenant theme (extended styling)
   app.get('/api/tenant/theme', async (req: Request, res: Response) => {
     if (!supabase) {

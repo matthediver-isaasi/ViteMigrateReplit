@@ -95,6 +95,10 @@ export default function NewsViewPage() {
           )}
           
           <CardContent className="pt-8 pb-12 px-8 md:px-12">
+            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
+              {news.title}
+            </h1>
+
             <div className="flex flex-wrap items-center gap-4 text-sm text-slate-600 mb-6">
               {news.subcategories && news.subcategories.length > 0 && (
                 <>
@@ -117,10 +121,6 @@ export default function NewsViewPage() {
                 </div>
               )}
             </div>
-
-            <h1 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
-              {news.title}
-            </h1>
 
             {news.summary && (
               <p className="text-xl text-slate-600 mb-8 leading-relaxed">

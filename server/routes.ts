@@ -593,77 +593,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Email is required' });
       }
 
-      // Step 1: Check if this is a TeamMember first
-      const { data: allTeamMembers } = await supabase
-        .from('team_member')
-        .select('*');
-
-      const teamMember = allTeamMembers?.find(
-        (tm: any) => tm.email === email && tm.is_active === true
-      );
-
-      if (teamMember) {
-        console.log('[validateMember] Found active TeamMember');
-
-        // Also check for an associated Member record to get organization data
-        let organizationId = null;
-        let organizationName = null;
-        let trainingFundBalance = 0;
-        let purchaseOrderEnabled = false;
-        let programTicketBalances = {};
-
-        // Check if there's a Member record with the same email
-        const { data: memberData } = await supabase
-          .from('member')
-          .select('*')
-          .eq('email', email)
-          .limit(1);
-
-        if (memberData && memberData.length > 0) {
-          const associatedMember = memberData[0];
-          organizationId = associatedMember.organization_id;
-
-          if (organizationId) {
-            // Fetch organization details
-            const { data: orgData } = await supabase
-              .from('organization')
-              .select('*')
-              .eq('id', organizationId)
-              .limit(1);
-
-            if (orgData && orgData.length > 0) {
-              const org = orgData[0];
-              organizationName = org.name;
-              trainingFundBalance = org.training_fund_balance || 0;
-              purchaseOrderEnabled = org.purchase_order_enabled || false;
-              programTicketBalances = org.program_ticket_balances || {};
-              console.log('[validateMember] TeamMember linked to organization:', organizationName);
-            }
-          }
-        }
-
-        return res.json({
-          success: true,
-          member: {
-            email: teamMember.email,
-            first_name: teamMember.first_name,
-            last_name: teamMember.last_name,
-            role_id: teamMember.role_id,
-            organization_id: organizationId,
-            organization_name: organizationName,
-            training_fund_balance: trainingFundBalance,
-            purchase_order_enabled: purchaseOrderEnabled,
-            program_ticket_balances: programTicketBalances,
-            is_team_member: true,
-            member_excluded_features: [],
-            has_seen_onboarding_tour: true // Team members don't need the tour
-          }
-        });
-      }
-
-      console.log('[validateMember] Not a TeamMember, checking Member entity...');
-
-      // Step 2: Check Member entity directly
+      // Check Member entity - all authentication flows through member table
+      // Admin access is controlled via Role Management (member.role_id -> role.is_admin)
       const { data: localMembers } = await supabase
         .from('member')
         .select('*')

@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileQuestion, ChevronLeft, ChevronRight, SlidersHorizontal, Save } from "lucide-react";
+import { FileQuestion, ChevronLeft, ChevronRight, SlidersHorizontal, Save, User } from "lucide-react";
 import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -26,6 +26,7 @@ export default function ArticlesPage() {
   const [sortBy, setSortBy] = useState("newest");
   const [itemsPerPage, setItemsPerPage] = useState(6);
   const [hasLoadedPreferences, setHasLoadedPreferences] = useState(false);
+  const [showMyArticlesOnly, setShowMyArticlesOnly] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -44,7 +45,7 @@ export default function ArticlesPage() {
     queryKey: ['current-member', memberInfo?.email],
     queryFn: async () => {
       const allMembers = await base44.entities.Member.list();
-      return allMembers.find(m => m.email === memberInfo?.email);
+      return allMembers.find(m => m.email === memberInfo?.email) || null;
     },
     enabled: !!memberInfo
   });
@@ -190,9 +191,11 @@ export default function ArticlesPage() {
       const matchesSubcategory = selectedSubcategories.length === 0 ||
         (article.subcategories && article.subcategories.some(sub => selectedSubcategories.includes(sub)));
 
-      return matchesSearch && matchesSubcategory;
+      const matchesAuthor = !showMyArticlesOnly || article.author_id === currentMember?.id;
+
+      return matchesSearch && matchesSubcategory && matchesAuthor;
     });
-  }, [articles, searchQuery, selectedSubcategories]);
+  }, [articles, searchQuery, selectedSubcategories, showMyArticlesOnly, currentMember?.id]);
 
   const sortedArticles = useMemo(() => {
     const sorted = [...filteredArticles];
@@ -256,7 +259,7 @@ export default function ArticlesPage() {
 
   React.useEffect(() => {
     setCurrentPage(1);
-  }, [selectedSubcategories, searchQuery, sortBy, itemsPerPage]);
+  }, [selectedSubcategories, searchQuery, sortBy, itemsPerPage, showMyArticlesOnly]);
 
   const handleSubcategoryToggle = (subcategory) => {
     setSelectedSubcategories(prev => {
@@ -374,10 +377,23 @@ export default function ArticlesPage() {
                     No {articleDisplayName.toLowerCase()} found
                   </h3>
                   <p className="text-slate-600">
-                    {searchQuery || selectedSubcategories.length > 0
-                      ? 'Try adjusting your search or filters'
-                      : 'Check back later for new content'}
+                    {showMyArticlesOnly
+                      ? `You haven't authored any ${articleDisplayName.toLowerCase()} yet`
+                      : searchQuery || selectedSubcategories.length > 0
+                        ? 'Try adjusting your search or filters'
+                        : 'Check back later for new content'}
                   </p>
+                  {showMyArticlesOnly && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowMyArticlesOnly(false)}
+                      className="mt-4"
+                      data-testid="button-show-all-articles"
+                    >
+                      Show all {articleDisplayName.toLowerCase()}
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ) : (
@@ -387,20 +403,34 @@ export default function ArticlesPage() {
                     Showing {startIndex + 1}-{Math.min(endIndex, sortedArticles.length)} of {sortedArticles.length} {articleDisplayName.toLowerCase()}
                   </div>
 
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-48">
-                      <SlidersHorizontal className="w-4 h-4 mr-2" />
-                      <SelectValue placeholder="Sort By" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="newest">Newest First</SelectItem>
-                      <SelectItem value="oldest">Oldest First</SelectItem>
-                      <SelectItem value="most-viewed">Most Viewed</SelectItem>
-                      <SelectItem value="most-liked">Most Liked</SelectItem>
-                      <SelectItem value="title-asc">Title A-Z</SelectItem>
-                      <SelectItem value="title-desc">Title Z-A</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    {currentMember && (
+                      <Button
+                        variant={showMyArticlesOnly ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowMyArticlesOnly(!showMyArticlesOnly)}
+                        className="gap-2"
+                        data-testid="button-my-articles-filter"
+                      >
+                        <User className="w-4 h-4" />
+                        My {articleDisplayName}
+                      </Button>
+                    )}
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className="w-48">
+                        <SlidersHorizontal className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Sort By" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="newest">Newest First</SelectItem>
+                        <SelectItem value="oldest">Oldest First</SelectItem>
+                        <SelectItem value="most-viewed">Most Viewed</SelectItem>
+                        <SelectItem value="most-liked">Most Liked</SelectItem>
+                        <SelectItem value="title-asc">Title A-Z</SelectItem>
+                        <SelectItem value="title-desc">Title Z-A</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
 
                 <div className="grid md:grid-cols-2 gap-6 mb-8">

@@ -3,17 +3,19 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GripVertical, Settings, Loader2, Building2, User, BarChart3, FolderHeart, Save, RotateCcw } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { GripVertical, Settings, Loader2, Building2, User, BarChart3, FolderHeart, Save, RotateCcw, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 const DEFAULT_SECTION_ORDER = [
-  { id: 'organization_logo', label: 'Organization Logo', icon: Building2, description: 'Organization branding and logo upload (shown to org members only)' },
-  { id: 'profile_information', label: 'Profile Information', icon: User, description: 'Personal details, photo, biography and contact information' },
-  { id: 'engagement', label: 'Engagement', icon: BarChart3, description: 'Activity statistics, awards, and group memberships' },
-  { id: 'resource_interests', label: 'Resource Interests', icon: FolderHeart, description: 'Content category preferences and subscriptions' }
+  { id: 'organization_logo', label: 'Organization Logo', icon: Building2, description: 'Organization branding and logo upload (shown to org members only)', visible: true },
+  { id: 'profile_information', label: 'Profile Information', icon: User, description: 'Personal details, photo, biography and contact information', visible: true },
+  { id: 'engagement', label: 'Engagement', icon: BarChart3, description: 'Activity statistics, awards, and group memberships', visible: true },
+  { id: 'resource_interests', label: 'Resource Interests', icon: FolderHeart, description: 'Content category preferences and subscriptions', visible: true }
 ];
 
 export default function PreferenceSettingsPage() {
@@ -62,15 +64,38 @@ export default function PreferenceSettingsPage() {
 
   useEffect(() => {
     if (savedOrder && Array.isArray(savedOrder)) {
-      const orderedSections = savedOrder
-        .map(id => DEFAULT_SECTION_ORDER.find(s => s.id === id))
-        .filter(Boolean);
+      // Handle both old format (array of strings) and new format (array of objects)
+      const isNewFormat = savedOrder.length > 0 && typeof savedOrder[0] === 'object';
       
-      const missingSections = DEFAULT_SECTION_ORDER.filter(
-        s => !savedOrder.includes(s.id)
-      );
-      
-      setSections([...orderedSections, ...missingSections]);
+      if (isNewFormat) {
+        // New format: [{ id: 'section_id', visible: true }, ...]
+        const orderedSections = savedOrder
+          .map(item => {
+            const defaultSection = DEFAULT_SECTION_ORDER.find(s => s.id === item.id);
+            if (defaultSection) {
+              return { ...defaultSection, visible: item.visible !== false };
+            }
+            return null;
+          })
+          .filter(Boolean);
+        
+        const missingSections = DEFAULT_SECTION_ORDER.filter(
+          s => !savedOrder.some(item => item.id === s.id)
+        );
+        
+        setSections([...orderedSections, ...missingSections]);
+      } else {
+        // Old format: ['section_id', ...]
+        const orderedSections = savedOrder
+          .map(id => DEFAULT_SECTION_ORDER.find(s => s.id === id))
+          .filter(Boolean);
+        
+        const missingSections = DEFAULT_SECTION_ORDER.filter(
+          s => !savedOrder.includes(s.id)
+        );
+        
+        setSections([...orderedSections, ...missingSections]);
+      }
     }
   }, [savedOrder]);
 
@@ -113,12 +138,20 @@ export default function PreferenceSettingsPage() {
   };
 
   const handleSave = () => {
-    const orderIds = sections.map(s => s.id);
-    updateOrderMutation.mutate(orderIds);
+    // Save in new format with visibility
+    const orderData = sections.map(s => ({ id: s.id, visible: s.visible !== false }));
+    updateOrderMutation.mutate(orderData);
   };
 
   const handleReset = () => {
     setSections(DEFAULT_SECTION_ORDER);
+    setHasChanges(true);
+  };
+
+  const handleToggleVisibility = (sectionId) => {
+    setSections(prev => prev.map(s => 
+      s.id === sectionId ? { ...s, visible: !s.visible } : s
+    ));
     setHasChanges(true);
   };
 
@@ -163,15 +196,16 @@ export default function PreferenceSettingsPage() {
                   >
                     {sections.map((section, index) => {
                       const IconComponent = section.icon;
+                      const isVisible = section.visible !== false;
                       return (
                         <Draggable key={section.id} draggableId={section.id} index={index}>
                           {(provided, snapshot) => (
                             <div
                               ref={provided.innerRef}
                               {...provided.draggableProps}
-                              className={`flex items-center gap-4 p-5 bg-white border rounded-lg transition-shadow ${
+                              className={`flex items-center gap-4 p-5 bg-white border rounded-lg transition-all ${
                                 snapshot.isDragging ? 'shadow-lg border-blue-300' : 'border-slate-200 hover:border-slate-300'
-                              }`}
+                              } ${!isVisible ? 'opacity-60' : ''}`}
                             >
                               <div
                                 {...provided.dragHandleProps}
@@ -181,18 +215,36 @@ export default function PreferenceSettingsPage() {
                                 <GripVertical className="w-5 h-5 text-slate-400" />
                               </div>
                               
-                              <div className="flex items-center justify-center w-12 h-12 bg-blue-50 rounded-lg flex-shrink-0">
-                                <IconComponent className="w-6 h-6 text-blue-600" />
+                              <div className={`flex items-center justify-center w-12 h-12 rounded-lg flex-shrink-0 ${isVisible ? 'bg-blue-50' : 'bg-slate-100'}`}>
+                                <IconComponent className={`w-6 h-6 ${isVisible ? 'text-blue-600' : 'text-slate-400'}`} />
                               </div>
                               
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-3">
-                                  <span className="font-semibold text-slate-900 text-lg">{section.label}</span>
+                                  <span className={`font-semibold text-lg ${isVisible ? 'text-slate-900' : 'text-slate-500'}`}>{section.label}</span>
                                   <span className="text-sm text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
                                     Position {index + 1}
                                   </span>
+                                  {!isVisible && (
+                                    <span className="text-xs text-orange-600 bg-orange-50 px-2 py-0.5 rounded flex items-center gap-1">
+                                      <EyeOff className="w-3 h-3" />
+                                      Hidden
+                                    </span>
+                                  )}
                                 </div>
                                 <p className="text-sm text-slate-500 mt-1">{section.description}</p>
+                              </div>
+
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <Label htmlFor={`visibility-${section.id}`} className="text-sm text-slate-600 cursor-pointer">
+                                  {isVisible ? <Eye className="w-4 h-4 text-green-600" /> : <EyeOff className="w-4 h-4 text-slate-400" />}
+                                </Label>
+                                <Switch
+                                  id={`visibility-${section.id}`}
+                                  checked={isVisible}
+                                  onCheckedChange={() => handleToggleVisibility(section.id)}
+                                  data-testid={`switch-visibility-${section.id}`}
+                                />
                               </div>
                             </div>
                           )}

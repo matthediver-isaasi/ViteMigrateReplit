@@ -298,10 +298,15 @@ export default function PreferencesPage() {
     },
   });
 
-  // --- Section order for Preferences page layout ---
-  const DEFAULT_SECTION_ORDER = ['organization_logo', 'profile_information', 'engagement', 'resource_interests'];
+  // --- Section order and visibility for Preferences page layout ---
+  const DEFAULT_SECTION_CONFIG = [
+    { id: 'organization_logo', visible: true },
+    { id: 'profile_information', visible: true },
+    { id: 'engagement', visible: true },
+    { id: 'resource_interests', visible: true }
+  ];
   
-  const { data: sectionOrder = DEFAULT_SECTION_ORDER } = useQuery({
+  const { data: sectionConfig = DEFAULT_SECTION_CONFIG } = useQuery({
     queryKey: ['preferences-section-order'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -309,19 +314,33 @@ export default function PreferencesPage() {
         .select('setting_value')
         .eq('setting_key', 'preferences_section_order')
         .limit(1);
-      if (error) return DEFAULT_SECTION_ORDER;
+      if (error) return DEFAULT_SECTION_CONFIG;
       if (data?.[0]?.setting_value) {
         try {
           const parsed = JSON.parse(data[0].setting_value);
-          if (Array.isArray(parsed)) return parsed;
+          if (Array.isArray(parsed)) {
+            // Handle both old format (array of strings) and new format (array of objects)
+            if (parsed.length > 0 && typeof parsed[0] === 'object') {
+              // New format: [{ id: 'section_id', visible: true }, ...]
+              return parsed;
+            } else {
+              // Old format: ['section_id', ...] - convert to new format with all visible
+              return parsed.map(id => ({ id, visible: true }));
+            }
+          }
         } catch {
-          return DEFAULT_SECTION_ORDER;
+          return DEFAULT_SECTION_CONFIG;
         }
       }
-      return DEFAULT_SECTION_ORDER;
+      return DEFAULT_SECTION_CONFIG;
     },
     staleTime: 60000
   });
+
+  // Filter to only visible sections and extract order
+  const sectionOrder = sectionConfig
+    .filter(section => section.visible !== false)
+    .map(section => section.id);
 
   // --- Derived awards from stats ---
   const earnedOnlineAwards = useMemo(() => {

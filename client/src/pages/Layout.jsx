@@ -539,30 +539,37 @@ const { data: dynamicNavItems = [] } = useQuery({
 
   const fetchOrganizationInfo = async (orgId) => {
     if (!orgId) return;
-    if (organizationInfo) return;
-
+    
+    // Check if cached organization matches the requested orgId
     const cachedOrg = sessionStorage.getItem('agcas_organization');
     if (cachedOrg) {
       try {
         const parsed = JSON.parse(cachedOrg);
-        setOrganizationInfo(parsed);
-        return;
+        // Validate that cached org matches the member's organization
+        if (parsed.id === orgId || parsed.base44_id === orgId || parsed.zoho_account_id === orgId) {
+          if (!organizationInfo || organizationInfo.id !== parsed.id) {
+            setOrganizationInfo(parsed);
+          }
+          return;
+        } else {
+          // Cached org doesn't match member's org - clear it
+          console.log('[Layout] Cached organization mismatch, clearing cache');
+          sessionStorage.removeItem('agcas_organization');
+        }
       } catch (e) {
         console.warn('Failed to parse cached organization, ignoring cache:', e);
+        sessionStorage.removeItem('agcas_organization');
       }
     }
 
     try {
-      const allOrgs = await base44.entities.Organization.list();
-      const org = allOrgs.find(o => 
-        o.id === orgId || 
-        o.base44_id === orgId || 
-        o.zoho_account_id === orgId
-      );
+      const orgs = await base44.entities.Organization.list({ filter: { id: orgId } });
+      const org = orgs && orgs.length > 0 ? orgs[0] : null;
 
       if (org) {
         sessionStorage.setItem('agcas_organization', JSON.stringify(org));
         setOrganizationInfo(org);
+        console.log('[Layout] Fetched and cached organization:', org.name);
       } else {
         console.warn('Organization not found for id:', orgId);
       }

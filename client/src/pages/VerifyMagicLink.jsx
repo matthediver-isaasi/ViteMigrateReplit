@@ -33,6 +33,22 @@ export default function VerifyMagicLinkPage() {
             sessionExpiry
           };
           sessionStorage.setItem('agcas_member', JSON.stringify(memberInfo));
+          
+          // Clear old organization cache and fetch new one
+          sessionStorage.removeItem('agcas_organization');
+          if (response.data.user.organization_id) {
+            try {
+              const orgs = await base44.entities.Organization.list({ 
+                filter: { id: response.data.user.organization_id } 
+              });
+              if (orgs && orgs.length > 0) {
+                sessionStorage.setItem('agcas_organization', JSON.stringify(orgs[0]));
+                console.log('[VerifyMagicLink] Cached organization:', orgs[0].name);
+              }
+            } catch (orgErr) {
+              console.warn('[VerifyMagicLink] Could not cache organization:', orgErr.message);
+            }
+          }
 
           // Determine landing page based on role
           let landingPage = 'Events'; // Default fallback

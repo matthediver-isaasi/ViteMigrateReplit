@@ -513,9 +513,72 @@ const { data: dynamicNavItems = [] } = useQuery({
     return allExclusions.includes(featureId);
   };
 
+  // Mapping of page names to their correct feature IDs
+  // This maps currentPageName to the feature ID used in AVAILABLE_FEATURES
+  const pageToFeatureIdMap = {
+    // User navigation pages use page_user_* pattern
+    'BuyProgramTickets': 'page_user_BuyProgramTickets',
+    'Events': 'page_user_Events',
+    'Bookings': 'page_user_Bookings',
+    'MyTickets': 'page_user_MyTickets',
+    'Balances': 'page_user_Balances',
+    'History': 'page_user_History',
+    'Team': 'page_user_Team',
+    'MemberDirectory': 'page_user_MemberDirectory',
+    'OrganisationDirectory': 'page_user_OrganisationDirectory',
+    'Resources': 'page_user_Resources',
+    'MyArticles': 'page_user_MyArticles',
+    'Articles': 'page_user_Articles',
+    'News': 'page_user_News',
+    'MyJobPostings': 'page_user_MyJobPostings',
+    'Preferences': 'page_user_Preferences',
+    'Support': 'page_user_Support',
+    // Admin navigation pages use page_admin_* pattern  
+    'MyNews': 'page_admin_MyNews',
+    'NewsSettings': 'page_admin_NewsSettings',
+    'ArticleManagement': 'page_admin_ArticleManagement',
+    'ArticlesSettings': 'page_admin_ArticlesSettings',
+    'RoleManagement': 'page_admin_RoleManagement',
+    'MemberRoleAssignment': 'page_admin_MemberRoleAssignment',
+    'TeamMemberManagement': 'page_admin_TeamMemberManagement',
+    'MemberHandleManagement': 'page_admin_MemberHandleManagement',
+    'MemberDirectorySettings': 'page_admin_MemberDirectorySettings',
+    'DiscountCodeManagement': 'page_admin_DiscountCodeManagement',
+    'EventSettings': 'page_admin_EventSettings',
+    'TicketSalesAnalytics': 'page_admin_TicketSalesAnalytics',
+    'AwardManagement': 'page_admin_AwardManagement',
+    'CategoryManagement': 'page_admin_CategoryManagement',
+    'ResourceSettings': 'page_admin_ResourceSettings',
+    'ResourceManagement': 'page_admin_ResourceManagement',
+    'TagManagement': 'page_admin_TagManagement',
+    'FileManagement': 'page_admin_FileManagement',
+    'JobPostingManagement': 'page_admin_JobPostingManagement',
+    'JobBoardSettings': 'page_admin_JobBoardSettings',
+    'IEditPageManagement': 'page_admin_IEditPageManagement',
+    'IEditTemplateManagement': 'page_admin_IEditTemplateManagement',
+    'PageBannerManagement': 'page_admin_PageBannerManagement',
+    'NavigationManagement': 'page_admin_NavigationManagement',
+    'ButtonElements': 'page_admin_ButtonElements',
+    'ButtonStyleManagement': 'page_admin_ButtonStyleManagement',
+    'WallOfFameManagement': 'page_admin_WallOfFameManagement',
+    'InstalledFonts': 'page_admin_InstalledFonts',
+    'FormManagement': 'page_admin_FormManagement',
+    'FormSubmissions': 'page_admin_FormSubmissions',
+    'FloaterManagement': 'page_admin_FloaterManagement',
+    'TeamInviteSettings': 'page_admin_TeamInviteSettings',
+    'DataExport': 'page_admin_DataExport',
+    'SiteMap': 'page_admin_SiteMap',
+    'SupportManagement': 'page_admin_SupportManagement',
+    'PortalNavigationManagement': 'page_admin_PortalNavigationManagement',
+    'PortalMenuManagement': 'page_admin_PortalMenuManagement',
+    'TourManagement': 'page_admin_TourManagement',
+    'MemberGroupManagement': 'page_admin_MemberGroupManagement',
+  };
+
   // Helper function to check if current page is excluded
   const isCurrentPageExcluded = () => {
-    const pageFeatureId = `page_${currentPageName}`;
+    // Use the mapped feature ID if available, otherwise fall back to legacy pattern
+    const pageFeatureId = pageToFeatureIdMap[currentPageName] || `page_${currentPageName}`;
     return isFeatureExcluded(pageFeatureId);
   };
 

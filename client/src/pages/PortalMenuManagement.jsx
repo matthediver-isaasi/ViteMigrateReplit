@@ -259,56 +259,36 @@ export default function PortalMenuManagementPage() {
   };
 
   const moveItem = async (itemId, direction) => {
-    console.log('=== MOVE ITEM START ===');
-    console.log('Item ID:', itemId, 'Direction:', direction);
-    
     const item = menuItems.find(i => i.id === itemId);
-    if (!item) {
-      console.log('Item not found');
-      return;
-    }
-    console.log('Item found:', item.title, 'Current display_order:', item.display_order);
+    if (!item) return;
+
+    // Normalize parent_id comparison (treat null, undefined, "" as equivalent)
+    const normalizeParentId = (parentId) => parentId || "";
+    const itemParentId = normalizeParentId(item.parent_id);
 
     const siblings = menuItems
-      .filter(i => i.section === item.section && i.parent_id === item.parent_id)
-      .sort((a, b) => {
-        // Sort by display_order first, then by created_date if orders are equal
-        if (a.display_order === b.display_order) {
-          return new Date(a.created_date) - new Date(b.created_date);
-        }
-        return a.display_order - b.display_order;
-      });
-    
-    console.log('Siblings:', siblings.map(s => ({ title: s.title, display_order: s.display_order })));
+      .filter(i => i.section === item.section && normalizeParentId(i.parent_id) === itemParentId && i.is_active)
+      .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
 
     const currentIndex = siblings.findIndex(i => i.id === itemId);
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+
+    if (newIndex < 0 || newIndex >= siblings.length) return;
+
+    // Simply swap the two items' display_order values
+    const currentItem = siblings[currentIndex];
+    const swapItem = siblings[newIndex];
     
-    console.log('Current index:', currentIndex, 'New index:', newIndex);
+    const currentOrder = currentItem.display_order ?? currentIndex;
+    const swapOrder = swapItem.display_order ?? newIndex;
 
-    if (newIndex < 0 || newIndex >= siblings.length) {
-      console.log('Cannot move - out of bounds');
-      return;
-    }
+    // Update both items with swapped display_order
+    await Promise.all([
+      base44.entities.PortalMenu.update(currentItem.id, { display_order: swapOrder }),
+      base44.entities.PortalMenu.update(swapItem.id, { display_order: currentOrder })
+    ]);
 
-    // Remove item from current position and insert at new position
-    const reorderedSiblings = [...siblings];
-    const [movedItem] = reorderedSiblings.splice(currentIndex, 1);
-    reorderedSiblings.splice(newIndex, 0, movedItem);
-
-    console.log('Reordered siblings:', reorderedSiblings.map(s => s.title));
-
-    // Update all siblings with new display_order values
-    for (let i = 0; i < reorderedSiblings.length; i++) {
-      console.log('Updating', reorderedSiblings[i].title, 'to display_order:', i);
-      await base44.entities.PortalMenu.update(reorderedSiblings[i].id, {
-        display_order: i
-      });
-    }
-
-    console.log('Invalidating queries...');
     await queryClient.invalidateQueries({ queryKey: ['portal-menu'] });
-    console.log('=== MOVE ITEM END ===');
     toast.success('Menu order updated');
   };
 

@@ -126,7 +126,9 @@ export default function IEditHeroElement({ content, variant, settings }) {
                     fontSize: `${heading_font_size}px`,
                     letterSpacing: `${heading_letter_spacing}px`,
                     color: text_color,
-                    marginBottom: heading_underline_enabled ? `${heading_underline_spacing}px` : '24px'
+                    marginBottom: heading_underline_enabled 
+                      ? `${heading_underline_spacing}px` 
+                      : (content.subheading || (button && button.text)) ? '24px' : '0'
                   }}
                 >
                   {content.heading}
@@ -138,7 +140,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
                       height: `${heading_underline_weight}px`,
                       backgroundColor: heading_underline_color,
                       margin: text_align === 'center' ? '0 auto' : text_align === 'right' ? '0 0 0 auto' : '0',
-                      marginBottom: `${heading_underline_to_content_spacing}px`
+                      marginBottom: (content.subheading || (button && button.text)) ? `${heading_underline_to_content_spacing}px` : '0'
                     }}
                   />
                 )}
@@ -146,20 +148,21 @@ export default function IEditHeroElement({ content, variant, settings }) {
             )}
             {content.subheading && (
               <p 
-                className="mb-8 opacity-90"
+                className="opacity-90"
                 style={{ 
                   fontFamily: subheading_font_family,
                   fontSize: `${subheading_font_size}px`,
                   lineHeight: subheading_line_height,
                   color: text_color,
-                  whiteSpace: 'pre-line'
+                  whiteSpace: 'pre-line',
+                  marginBottom: (button && button.text) ? '24px' : '0'
                 }}
               >
                 {content.subheading}
               </p>
             )}
             {button && button.text && (
-              <div style={{ marginTop: `${button_top_margin}px` }}>
+              <div style={{ marginTop: `${button_top_margin}px`, marginBottom: 0 }}>
                 <AGCASButton
                   text={button.text}
                   link={button.link}
@@ -214,7 +217,9 @@ export default function IEditHeroElement({ content, variant, settings }) {
                 fontSize: `${heading_font_size}px`,
                 letterSpacing: `${heading_letter_spacing}px`,
                 color: text_color,
-                marginBottom: heading_underline_enabled ? `${heading_underline_spacing}px` : '24px'
+                marginBottom: heading_underline_enabled 
+                  ? `${heading_underline_spacing}px` 
+                  : (content.subheading || (button && button.text)) ? '24px' : '0'
               }}
             >
               {content.heading}
@@ -226,7 +231,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
                   height: `${heading_underline_weight}px`,
                   backgroundColor: heading_underline_color,
                   margin: text_align === 'center' ? '0 auto' : text_align === 'right' ? '0 0 0 auto' : '0',
-                  marginBottom: `${heading_underline_to_content_spacing}px`
+                  marginBottom: (content.subheading || (button && button.text)) ? `${heading_underline_to_content_spacing}px` : '0'
                 }}
               />
             )}
@@ -234,20 +239,21 @@ export default function IEditHeroElement({ content, variant, settings }) {
         )}
         {content.subheading && (
           <p 
-            className="mb-8 opacity-90"
+            className="opacity-90"
             style={{ 
               fontFamily: subheading_font_family,
               fontSize: `${subheading_font_size}px`,
               lineHeight: subheading_line_height,
               color: text_color,
-              whiteSpace: 'pre-line'
+              whiteSpace: 'pre-line',
+              marginBottom: (button && button.text) ? '24px' : '0'
             }}
           >
             {content.subheading}
           </p>
         )}
         {button && button.text && (
-          <div style={{ marginTop: `${button_top_margin}px` }}>
+          <div style={{ marginTop: `${button_top_margin}px`, marginBottom: 0 }}>
             <AGCASButton
               text={button.text}
               link={button.link}

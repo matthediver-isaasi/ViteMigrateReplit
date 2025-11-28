@@ -69,6 +69,21 @@ export default function ArticleEditorPage() {
     enabled: !!memberInfo?.id || !!memberInfo?.handle
   });
 
+  // Fetch article display name
+  const { data: articleDisplayName = 'Articles' } = useQuery({
+    queryKey: ['article-display-name'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const setting = allSettings.find(s => s.setting_key === 'article_display_name');
+      return setting?.setting_value || 'Articles';
+    }
+  });
+
+  // Get singular form of display name
+  const singularDisplayName = articleDisplayName.endsWith('s') 
+    ? articleDisplayName.slice(0, -1) 
+    : articleDisplayName;
+
   // Fetch categories from ResourceCategory (shared with Resources)
   const { data: categories = [] } = useQuery({
     queryKey: ['resourceCategories-articles'],
@@ -223,7 +238,7 @@ export default function ArticleEditorPage() {
         };
       } else {
         if (!currentMember.handle) {
-          throw new Error('You need a handle to publish articles. Please contact an administrator.');
+          throw new Error(`You need a handle to publish ${articleDisplayName.toLowerCase()}. Please contact an administrator.`);
         }
 
         finalSlug = `${slug}-by-${currentMember.handle}`;
@@ -253,7 +268,7 @@ export default function ArticleEditorPage() {
     },
     onSuccess: (data, publishNow) => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
-      toast.success(publishNow ? 'Article published successfully!' : 'Article saved successfully!');
+      toast.success(publishNow ? `${singularDisplayName} published successfully!` : `${singularDisplayName} saved successfully!`);
       setLastSaved(new Date());
       
       if (!isEditing) {
@@ -261,7 +276,7 @@ export default function ArticleEditorPage() {
       }
     },
     onError: (error) => {
-      toast.error(error.message || 'Failed to save article');
+      toast.error(error.message || `Failed to save ${singularDisplayName.toLowerCase()}`);
     },
   });
 
@@ -269,11 +284,11 @@ export default function ArticleEditorPage() {
     mutationFn: () => base44.entities.BlogPost.delete(articleId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
-      toast.success('Article deleted successfully');
+      toast.success(`${singularDisplayName} deleted successfully`);
       window.location.href = createPageUrl('Articles');
     },
     onError: () => {
-      toast.error('Failed to delete article');
+      toast.error(`Failed to delete ${singularDisplayName.toLowerCase()}`);
     },
   });
 
@@ -335,7 +350,7 @@ export default function ArticleEditorPage() {
   }), []);
 
   const handleDelete = () => {
-    if (window.confirm('Are you sure you want to delete this article? This action cannot be undone.')) {
+    if (window.confirm(`Are you sure you want to delete this ${singularDisplayName.toLowerCase()}? This action cannot be undone.`)) {
       deleteMutation.mutate();
     }
   };
@@ -352,7 +367,7 @@ export default function ArticleEditorPage() {
   if (isEditing && (articleLoading || memberLoading)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="animate-pulse text-slate-600">Loading article...</div>
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }
@@ -375,7 +390,7 @@ export default function ArticleEditorPage() {
             <CardContent className="p-12 text-center">
               <h2 className="text-2xl font-bold text-slate-900 mb-4">Handle Required</h2>
               <p className="text-slate-600 mb-6">
-                You need a unique handle to create or edit articles. This handle will be part of your article URLs.
+                You need a unique handle to create or edit {articleDisplayName.toLowerCase()}. This handle will be part of your {singularDisplayName.toLowerCase()} URLs.
               </p>
               <p className="text-sm text-slate-500">
                 Please contact an administrator to get a handle assigned to your account.
@@ -398,7 +413,7 @@ export default function ArticleEditorPage() {
         <div className="flex items-center justify-between mb-6">
           <Link to={createPageUrl('Articles')} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900">
             <ArrowLeft className="w-4 h-4" />
-            Back to Articles
+            Back to {articleDisplayName}
           </Link>
           
           <div className="flex items-center gap-3">
@@ -442,10 +457,10 @@ export default function ArticleEditorPage() {
               <CardContent className="pt-6 space-y-6">
                 {/* Title */}
                 <div className="space-y-2">
-                  <Label htmlFor="title" className="text-base font-semibold">Article Title</Label>
+                  <Label htmlFor="title" className="text-base font-semibold">{singularDisplayName} Title</Label>
                   <Input
                     id="title"
-                    placeholder="Enter your article title..."
+                    placeholder={`Enter your ${singularDisplayName.toLowerCase()} title...`}
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     className="text-2xl font-bold border-0 px-0 focus-visible:ring-0"
@@ -454,7 +469,7 @@ export default function ArticleEditorPage() {
 
                 {/* Author Type Selector */}
                 <div className="space-y-2">
-                  <Label className="text-sm">Article Author</Label>
+                  <Label className="text-sm">{singularDisplayName} Author</Label>
                   <div className="flex gap-4">
                     <label className="flex items-center gap-2 cursor-pointer">
                       <input
@@ -521,7 +536,7 @@ export default function ArticleEditorPage() {
                       <span className="text-sm text-slate-500">/articles/</span>
                       <Input
                         id="slug"
-                        placeholder="article-url-slug"
+                        placeholder="url-slug"
                         value={slug}
                         onChange={(e) => setSlug(e.target.value)}
                         className="flex-1"
@@ -538,7 +553,7 @@ export default function ArticleEditorPage() {
                   <Label htmlFor="summary">Summary / Excerpt</Label>
                   <Textarea
                     id="summary"
-                    placeholder="Brief description of the article (shown in listings)..."
+                    placeholder={`Brief description of the ${singularDisplayName.toLowerCase()} (shown in listings)...`}
                     value={summary}
                     onChange={(e) => setSummary(e.target.value)}
                     rows={3}
@@ -555,7 +570,7 @@ export default function ArticleEditorPage() {
                       value={content}
                       onChange={setContent}
                       modules={quillModules}
-                      placeholder="Start writing your article content here..."
+                      placeholder={`Start writing your ${singularDisplayName.toLowerCase()} content here...`}
                       style={{ height: '450px' }}
                     />
                   </div>
@@ -648,7 +663,7 @@ export default function ArticleEditorPage() {
                     }}
                   />
                   <p className="text-xs text-slate-500">
-                    Set a future date to schedule the article. Past dates show when it was originally published.
+                    Set a future date to schedule the {singularDisplayName.toLowerCase()}. Past dates show when it was originally published.
                   </p>
                   {publishedDate && new Date(publishedDate) > new Date() && (
                     <div className="flex items-center gap-2 p-3 bg-purple-50 rounded-lg border border-purple-200">
@@ -679,7 +694,7 @@ export default function ArticleEditorPage() {
                 className="w-full gap-2"
               >
                 <Trash2 className="w-4 h-4" />
-                Delete Article
+                Delete {singularDisplayName}
               </Button>
             )}
           </div>

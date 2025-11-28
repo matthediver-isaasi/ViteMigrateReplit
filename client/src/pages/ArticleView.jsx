@@ -65,6 +65,16 @@ export default function ArticleViewPage() {
     refetchOnMount: true,
   });
 
+  // Fetch article display name
+  const { data: articleDisplayName = 'Articles' } = useQuery({
+    queryKey: ['article-display-name'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const setting = allSettings.find(s => s.setting_key === 'article_display_name');
+      return setting?.setting_value || 'Articles';
+    }
+  });
+
   // Determine if user is logged in by checking session storage
   const isLoggedIn = !!sessionStorage.getItem('agcas_member');
 
@@ -271,9 +281,10 @@ export default function ArticleViewPage() {
   };
 
   const handleEmailShare = () => {
-    const subject = encodeURIComponent(article?.title || 'Check out this article');
+    const displayName = articleDisplayName.endsWith('s') ? articleDisplayName.slice(0, -1).toLowerCase() : articleDisplayName.toLowerCase();
+    const subject = encodeURIComponent(article?.title || `Check out this ${displayName}`);
     const body = encodeURIComponent(
-      `I thought you might find this article interesting:\n\n${article?.title || ''}\n\n${article?.summary || ''}\n\n${window.location.href}`
+      `I thought you might find this ${displayName} interesting:\n\n${article?.title || ''}\n\n${article?.summary || ''}\n\n${window.location.href}`
     );
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
@@ -281,18 +292,23 @@ export default function ArticleViewPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
-        <div className="animate-pulse text-slate-600">Loading article...</div>
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }
+
+  // Get singular form of display name for messages
+  const singularDisplayName = articleDisplayName.endsWith('s') 
+    ? articleDisplayName.slice(0, -1) 
+    : articleDisplayName;
 
   if (!article) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
         <div className="max-w-4xl mx-auto text-center py-16">
-          <h2 className="text-2xl font-bold text-slate-900 mb-4">Article not found</h2>
+          <h2 className="text-2xl font-bold text-slate-900 mb-4">{singularDisplayName} not found</h2>
           <Link to={isLoggedIn ? createPageUrl('Articles') : createPageUrl('PublicArticles')}>
-            <Button>Back to Articles</Button>
+            <Button>Back to {articleDisplayName}</Button>
           </Link>
         </div>
       </div>
@@ -312,7 +328,7 @@ export default function ArticleViewPage() {
             className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Articles
+            Back to {articleDisplayName}
           </Link>
           
           {isAuthor && (
@@ -525,7 +541,7 @@ export default function ArticleViewPage() {
                 {/* Reactions Section */}
                 {(articleSettings?.showThumbsUp || articleSettings?.showThumbsDown) && (
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    <p className="text-sm text-slate-600">Was this article helpful?</p>
+                    <p className="text-sm text-slate-600">Was this {singularDisplayName.toLowerCase()} helpful?</p>
                     <ArticleReactions 
                       articleId={article.id} 
                       memberInfo={memberInfo}
@@ -537,7 +553,7 @@ export default function ArticleViewPage() {
                 
                 {/* Share Section */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pt-4 border-t border-slate-200">
-                  <p className="text-sm text-slate-600">Share this article:</p>
+                  <p className="text-sm text-slate-600">Share this {singularDisplayName.toLowerCase()}:</p>
                   <div className="flex items-center gap-3">
                     <Button
                       variant="outline"

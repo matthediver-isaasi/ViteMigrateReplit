@@ -9,11 +9,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Shield, Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { PAGE_NAMES } from "./pageRegistry.js";
 
 // List of all available feature IDs in the system
 // Note: Feature IDs now include section prefixes (page_user_* or page_admin_*) to match PortalMenu structure
@@ -141,6 +142,164 @@ export default function RoleManagementPage() {
     staleTime: 0,
     refetchOnMount: true,
   });
+
+  // Fetch IEdit pages (custom pages) for dynamic landing page options
+  const { data: ieditPages = [] } = useQuery({
+    queryKey: ['iedit-pages-for-roles'],
+    queryFn: () => base44.entities.IEditPage.list(),
+  });
+
+  // Define page label overrides for better display names
+  const PAGE_LABELS = {
+    Events: "Browse Events",
+    BuyProgramTickets: "Buy Program Tickets",
+    MyTickets: "My Tickets",
+    MemberDirectory: "Member Directory",
+    OrganisationDirectory: "Organisation Directory",
+    MyArticles: "My Articles",
+    MyJobPostings: "My Job Postings",
+    JobBoard: "Job Board",
+    PublicEvents: "Public Events",
+    PublicResources: "Public Resources",
+    PublicArticles: "Public Articles",
+    PublicNews: "Public News",
+    PublicAbout: "Public About",
+    PublicContact: "Public Contact",
+    RoleManagement: "Role Management",
+    MemberRoleAssignment: "Member Role Assignment",
+    TeamMemberManagement: "Team Member Management",
+    MemberHandleManagement: "Member Handle Management",
+    MemberDirectorySettings: "Member Directory Settings",
+    MemberGroupManagement: "Member Groups",
+    MemberGroupAssignmentReport: "Member Group Report",
+    MemberGroupGuestManagement: "Member Group Guests",
+    TeamEngagementReport: "Team Engagement Report",
+    TeamInviteSettings: "Team Invite Settings",
+    OrganisationDirectorySettings: "Organisation Directory Settings",
+    EventSettings: "Event Settings",
+    TicketSalesAnalytics: "Ticket Sales Analytics",
+    DiscountCodeManagement: "Discount Codes",
+    ArticleManagement: "Article Management",
+    ArticlesSettings: "Articles Settings",
+    GuestWriterManagement: "Guest Writer Management",
+    MyNews: "News Management",
+    NewsSettings: "News Settings",
+    ResourceManagement: "Resource Management",
+    ResourceSettings: "Resource Settings",
+    CategoryManagement: "Category Management",
+    TagManagement: "Tag Management",
+    FileManagement: "File Management",
+    AwardManagement: "Award Management",
+    JobPostingManagement: "Job Posting Management",
+    JobBoardSettings: "Job Board Settings",
+    IEditPageManagement: "Page Builder",
+    IEditTemplateManagement: "Element Templates",
+    IEditPageEditor: "Page Editor",
+    PageBannerManagement: "Page Banners",
+    NavigationManagement: "Navigation Items",
+    ButtonElements: "Buttons",
+    ButtonStyleManagement: "Button Styles",
+    BorderRadiusSettings: "Border Radius Settings",
+    WallOfFameManagement: "Wall of Fame",
+    InstalledFonts: "Installed Fonts",
+    FloaterManagement: "Floater Management",
+    FormManagement: "Form Management",
+    FormSubmissions: "Form Submissions",
+    FormBuilder: "Form Builder",
+    FormView: "Form View",
+    PortalMenuManagement: "Portal Menu Management",
+    PortalNavigationManagement: "Portal Navigation (Legacy)",
+    TourManagement: "Tour Management",
+    DataExport: "Data Export",
+    SiteMap: "Site Map",
+    SupportManagement: "Support Management",
+    AdminSetup: "Admin Setup",
+    PostJob: "Post Job",
+    JobDetails: "Job Details",
+    JobPostSuccess: "Job Post Success",
+    EventDetails: "Event Details",
+    ArticleEditor: "Article Editor",
+    ArticleView: "Article View",
+    NewsEditor: "News Editor",
+    NewsView: "News View",
+    VerifyMagicLink: "Verify Magic Link",
+    TestLogin: "Test Login",
+    DynamicPage: "Dynamic Page",
+    ViewPage: "View Page",
+    ParamTest: "Parameter Test",
+    UnpackedInternationalEmployability: "Unpacked Int'l Employability",
+  };
+
+  // Define page categories based on page name patterns
+  const getPageCategory = (pageName) => {
+    // Skip internal/test pages
+    if (['testpage', 'sharon', 'content', 'icontent', 'ParamTest'].includes(pageName)) {
+      return null; // Will be filtered out
+    }
+    
+    // Public pages
+    if (pageName.startsWith('Public')) return 'Public Pages';
+    
+    // Member-facing pages (user-facing)
+    const memberPages = ['Events', 'Dashboard', 'Bookings', 'MyTickets', 'Balances', 'History', 
+      'BuyProgramTickets', 'Resources', 'Articles', 'MyArticles', 'News', 'MyJobPostings', 
+      'JobBoard', 'Team', 'MemberDirectory', 'OrganisationDirectory', 'Preferences', 'Support', 
+      'Home', 'EventDetails', 'ArticleEditor', 'ArticleView', 'NewsEditor', 'NewsView', 
+      'PostJob', 'JobDetails', 'JobPostSuccess', 'FormView', 'DynamicPage', 'ViewPage', 
+      'UnpackedInternationalEmployability'];
+    if (memberPages.includes(pageName)) return 'Member Pages';
+    
+    // System pages (auth, setup)
+    const systemPages = ['VerifyMagicLink', 'TestLogin', 'AdminSetup'];
+    if (systemPages.includes(pageName)) return 'System Pages';
+    
+    // Everything else is admin
+    return 'Admin Pages';
+  };
+
+  // Generate BUILT_IN_PAGES dynamically from PAGE_NAMES registry
+  const BUILT_IN_PAGES = PAGE_NAMES
+    .map(pageName => {
+      const category = getPageCategory(pageName);
+      if (!category) return null; // Skip internal pages
+      
+      return {
+        value: pageName,
+        label: PAGE_LABELS[pageName] || pageName.replace(/([A-Z])/g, ' $1').trim(),
+        category
+      };
+    })
+    .filter(Boolean) // Remove null entries
+    .sort((a, b) => {
+      // Sort by category first, then by label
+      if (a.category !== b.category) {
+        const categoryOrder = ['Member Pages', 'Public Pages', 'Admin Pages', 'System Pages'];
+        return categoryOrder.indexOf(a.category) - categoryOrder.indexOf(b.category);
+      }
+      return a.label.localeCompare(b.label);
+    });
+
+  // Create combined page list with IEdit pages
+  const allAvailablePages = [
+    ...BUILT_IN_PAGES,
+    // Add IEdit pages (custom pages) as a separate category
+    ...ieditPages
+      .filter(page => page.status === 'published')
+      .map(page => ({
+        value: page.slug,
+        label: page.title,
+        category: "Custom Pages"
+      }))
+  ];
+
+  // Group pages by category for organized dropdown
+  const pagesByCategory = allAvailablePages.reduce((acc, page) => {
+    if (!acc[page.category]) {
+      acc[page.category] = [];
+    }
+    acc[page.category].push(page);
+    return acc;
+  }, {});
 
   const createRoleMutation = useMutation({
     mutationFn: (roleData) => base44.entities.Role.create(roleData),
@@ -414,20 +573,17 @@ export default function RoleManagementPage() {
                     <SelectTrigger>
                       <SelectValue placeholder="Select landing page" />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Events">Browse Events</SelectItem>
-                      <SelectItem value="Dashboard">Dashboard</SelectItem>
-                      <SelectItem value="Bookings">Bookings</SelectItem>
-                      <SelectItem value="Balances">Balances</SelectItem>
-                      <SelectItem value="BuyProgramTickets">Buy Program Tickets</SelectItem>
-                      <SelectItem value="History">History</SelectItem>
-                      <SelectItem value="Resources">Resources</SelectItem>
-                      <SelectItem value="Articles">Articles</SelectItem>
-                      <SelectItem value="MyArticles">My Articles</SelectItem>
-                      <SelectItem value="MyJobPostings">My Job Postings</SelectItem>
-                      <SelectItem value="Team">Team</SelectItem>
-                      <SelectItem value="MemberDirectory">Member Directory</SelectItem>
-                      <SelectItem value="OrganisationDirectory">Organisation Directory</SelectItem>
+                    <SelectContent className="max-h-[300px]">
+                      {Object.entries(pagesByCategory).map(([category, pages]) => (
+                        <SelectGroup key={category}>
+                          <SelectLabel className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{category}</SelectLabel>
+                          {pages.map(page => (
+                            <SelectItem key={page.value} value={page.value}>
+                              {page.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      ))}
                     </SelectContent>
                   </Select>
                   <p className="text-xs text-slate-500">

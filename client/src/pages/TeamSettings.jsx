@@ -59,7 +59,8 @@ export default function TeamSettingsPage() {
     queryKey: ['team-card-settings-record'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
-      return allSettings.find(s => s.setting_key === 'team_card_display');
+      const found = allSettings.find(s => s.setting_key === 'team_card_display');
+      return found || null;
     },
     staleTime: 0
   });
@@ -74,14 +75,13 @@ export default function TeamSettingsPage() {
     mutationFn: async (newSettings) => {
       const settingValue = JSON.stringify(newSettings);
       if (existingSetting) {
-        await base44.entities.SystemSettings.update(existingSetting.id, {
+        return await base44.entities.SystemSettings.update(existingSetting.id, {
           setting_value: settingValue
         });
       } else {
-        await base44.entities.SystemSettings.create({
+        return await base44.entities.SystemSettings.create({
           setting_key: 'team_card_display',
           setting_value: settingValue,
-          setting_type: 'json',
           description: 'Team card display settings - controls which elements are shown'
         });
       }
@@ -92,6 +92,7 @@ export default function TeamSettingsPage() {
       toast.success('Team card settings updated successfully');
     },
     onError: (error) => {
+      console.error('Failed to save team settings:', error);
       toast.error('Failed to update settings: ' + error.message);
     }
   });

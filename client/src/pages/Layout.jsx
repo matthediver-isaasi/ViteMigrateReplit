@@ -116,7 +116,7 @@ const navigationItems = [
     title: "News",
     url: createPageUrl("News"),
     icon: FileText,
-    featureId: "page_News"
+    featureId: "page_user_News"
   },
   {
     title: "My Job Postings",

@@ -51,7 +51,7 @@ export default function VerifyMagicLinkPage() {
           }
 
           // Determine landing page based on role
-          let landingPage = 'Events'; // Default fallback
+          let landingPage = 'Preferences'; // Default fallback
           
           if (response.data.user.role_id) {
             try {
@@ -64,7 +64,7 @@ export default function VerifyMagicLinkPage() {
               }
             } catch (roleError) {
               console.error('Error fetching role:', roleError);
-              // If there's an error fetching the role, just use default 'Events'
+              // If there's an error fetching the role, use default 'Preferences'
             }
           }
 

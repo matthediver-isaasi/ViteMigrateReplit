@@ -130,7 +130,7 @@ export default function TestLoginPage() {
       setSuccess(true);
 
       // 5. Determine landing page based on role
-      let landingPage = "Events"; // default fallback
+      let landingPage = "Preferences"; // default fallback
 
       if (memberData.role_id) {
         try {

@@ -678,15 +678,18 @@ const { data: dynamicNavItems = [] } = useQuery({
   // Check if current page is excluded or admin-only and redirect if needed
   useEffect(() => {
     if (!isPublicPage() && memberInfo && memberRole) {
+      // Use role's default landing page or fallback to Preferences
+      const fallbackPage = memberRole?.default_landing_page || 'Preferences';
+      
       // Check if page is excluded by role/member settings
       if (isCurrentPageExcluded()) {
-        window.location.href = createPageUrl('Events');
+        window.location.href = createPageUrl(fallbackPage);
         return;
       }
       
       // Check if page requires admin access
       if (isCurrentPageAdminOnly() && !isAdmin()) {
-        window.location.href = createPageUrl('Events');
+        window.location.href = createPageUrl(fallbackPage);
       }
     }
   }, [currentPageName, memberInfo, memberRole]);

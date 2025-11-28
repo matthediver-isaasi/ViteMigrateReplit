@@ -161,7 +161,11 @@ export default function OrganisationDirectoryPage() {
                 <Card 
                   key={org.id} 
                   className="border-slate-200 hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => setLocation(`/memberdirectory?org=${org.id}`)}
+                  onClick={() => {
+                    setLocation(`/memberdirectory?org=${org.id}`);
+                    // Dispatch custom event for URL change detection
+                    window.dispatchEvent(new CustomEvent('urlchange', { detail: { org: org.id } }));
+                  }}
                   data-testid={`card-organisation-${org.id}`}
                 >
                     <CardHeader>

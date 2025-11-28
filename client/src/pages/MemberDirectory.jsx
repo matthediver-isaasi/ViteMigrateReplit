@@ -309,9 +309,9 @@ export default function MemberDirectoryPage() {
                       <Building2 className="w-4 h-4 text-slate-500" />
                       <Label className="text-sm text-slate-700">Organisation:</Label>
                       <Select 
-                        value={selectedOrganization} 
+                        value={selectedOrganization || "all"} 
                         onValueChange={(value) => {
-                          setSelectedOrganization(value);
+                          setSelectedOrganization(value === "all" ? "" : value);
                           setCurrentPage(1);
                         }}
                       >
@@ -319,7 +319,7 @@ export default function MemberDirectoryPage() {
                           <SelectValue placeholder="All Organisations" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Organisations</SelectItem>
+                          <SelectItem value="all">All Organisations</SelectItem>
                           {organizations
                             .filter(org => org.name)
                             .sort((a, b) => a.name.localeCompare(b.name))

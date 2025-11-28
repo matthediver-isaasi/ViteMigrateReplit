@@ -75,24 +75,39 @@ export default function IEditHeroElement({ content, variant, settings }) {
 
   if (isImageSized) {
     return (
-      <div className="relative w-full">
+      <div className="relative w-full" style={{ position: 'relative' }}>
         <img 
           src={image_url} 
           alt={content.heading || 'Hero background'} 
           className="w-full h-auto block"
+          style={{ display: 'block', width: '100%', height: 'auto' }}
         />
         {overlay_enabled && (
           <div 
-            className="absolute inset-0" 
             style={{ 
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
               backgroundColor: overlay_color, 
-              opacity: parseInt(overlay_opacity) / 100 
+              opacity: parseInt(overlay_opacity) / 100,
+              zIndex: 1
             }} 
           />
         )}
         <div 
-          className="absolute inset-0 flex flex-col"
-          style={{ justifyContent: getTextVerticalAlign() }}
+          style={{ 
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: getTextVerticalAlign(),
+            zIndex: 2
+          }}
         >
           <div className="max-w-7xl mx-auto px-4 w-full" style={containerStyle}>
             {content.heading && (

@@ -680,26 +680,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             .eq('zoho_contact_id', contact.id)
             .limit(1);
           
-          if (existingMemberByZohoId && existingMemberByZohoId.length > 0) {
-            console.log('[validateMember] Found existing member by zoho_contact_id, updating email');
-            const existingMember = existingMemberByZohoId[0];
-            // Update the email to match CRM
-            await supabase
-              .from('member')
-              .update({ 
-                email: email,
-                first_name: contact.First_Name,
-                last_name: contact.Last_Name,
-                last_synced: new Date().toISOString()
-              })
-              .eq('id', existingMember.id);
-            
-            member = { ...existingMember, email, first_name: contact.First_Name, last_name: contact.Last_Name };
-          }
-
-          // Get organization details if linked (and member doesn't already exist)
+          // Get organization details if contact is linked to an account
           let organizationId = null;
-          if (!member && contact.Account_Name?.id) {
+          if (contact.Account_Name?.id) {
             const accountUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts/${contact.Account_Name.id}`;
             const accountResponse = await fetch(accountUrl, {
               headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}` }
@@ -743,6 +726,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 organizationId = newOrg?.id;
               }
             }
+          }
+
+          // Check if member exists by zoho_contact_id and update them
+          if (existingMemberByZohoId && existingMemberByZohoId.length > 0) {
+            console.log('[validateMember] Found existing member by zoho_contact_id, updating from CRM');
+            const existingMember = existingMemberByZohoId[0];
+            // Update the member with latest CRM data including organization_id
+            await supabase
+              .from('member')
+              .update({ 
+                email: email,
+                first_name: contact.First_Name,
+                last_name: contact.Last_Name,
+                organization_id: organizationId,
+                last_synced: new Date().toISOString()
+              })
+              .eq('id', existingMember.id);
+            
+            member = { 
+              ...existingMember, 
+              email, 
+              first_name: contact.First_Name, 
+              last_name: contact.Last_Name,
+              organization_id: organizationId
+            };
           }
 
           // Only create member if we didn't find one by zoho_contact_id

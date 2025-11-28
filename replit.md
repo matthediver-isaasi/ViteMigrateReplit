@@ -1,8 +1,6 @@
 # Overview
 
-This is a membership management platform built with React (Vite) and Express.js. The application manages members, organizations, events, bookings, program tickets, resources, blog posts, and various administrative features. It is currently undergoing a platform migration from Base44 to Replit, maintaining 100% visual and functional parity with the existing application while adapting the backend infrastructure.
-
-The system integrates with Supabase for database operations, Zoho CRM for contact/account management, Zoho Backstage for event management, Stripe for payments, and Xero for invoicing.
+This project is a membership management platform developed with React (Vite) and Express.js. It facilitates the management of members, organizations, events, bookings, program tickets, resources, and blog posts, alongside various administrative functionalities. The platform is undergoing a migration from Base44 to Replit, with a strict requirement to maintain 100% visual and functional parity with the existing application, while adapting the backend infrastructure. It integrates with Supabase for data, Zoho CRM for contact management, Zoho Backstage for event handling, Stripe for payments, and Xero for invoicing.
 
 # User Preferences
 
@@ -12,274 +10,71 @@ Preferred communication style: Simple, everyday language.
 
 ## Frontend Architecture
 
-**Technology Stack:**
-- React 18 with TypeScript/JSX
-- Vite as the build tool and development server
-- TanStack Query for server state management
-- shadcn/ui component library built on Radix UI primitives
-- Tailwind CSS for styling with custom design tokens
+**Technology Stack:** React 18 (TypeScript/JSX), Vite, TanStack Query, shadcn/ui (Radix UI), Tailwind CSS.
 
-**Design System:**
-The application uses a "new-york" style variant from shadcn/ui with extensive customization. The design system enforces a strict no-modification policy during migration - all UI components, layouts, spacing, and visual treatments must remain pixel-perfect identical to the Base44 version.
+**Design System:** Uses a customized "new-york" style from shadcn/ui. UI components, layouts, spacing, and visual treatments must be pixel-perfect identical to the Base44 version with no modifications during migration.
 
-**Component Organization:**
-- Components aliased via `@/components` path
-- UI primitives in `@/components/ui` (Radix-based)
-- Shared utilities in `@/lib/utils`
-- Hooks in `@/hooks`
+**Component Organization:** Components are aliased via `@/components`, UI primitives in `@/components/ui`, utilities in `@/lib/utils`, and hooks in `@/hooks`.
 
-**Routing:**
-Client-side routing handled by the frontend framework. All routes fall through to `index.html` for SPA behavior, with special handling for `/api/*` routes going to the backend.
+**Routing:** Client-side routing with all routes falling through to `index.html` for SPA behavior, except `/api/*` routes which go to the backend.
 
 ## Backend Architecture
 
-**Server Framework:**
-- Express.js server with dual entry points:
-  - `server/index-dev.ts` - Development mode with Vite middleware integration
-  - `server/index-prod.ts` - Production mode serving static assets from `dist/public`
+**Server Framework:** Express.js with separate development (`server/index-dev.ts`) and production (`server/index-prod.ts`) entry points.
 
-**Database Layer:**
-- PostgreSQL database via Neon serverless
-- Drizzle ORM configured but schema defined externally in Supabase
-- Connection string via `DATABASE_URL` environment variable
-- Uses singular table names (e.g., `member`, `organization`, `event`)
+**Database Layer:** PostgreSQL via Neon serverless. Uses Drizzle ORM, with schema defined externally in Supabase. Tables are singular (e.g., `member`).
 
-**API Design Pattern:**
-The backend provides a generic entity CRUD API that mirrors the Base44 SDK interface:
-- `GET /api/entities/:entity` - List entities with filtering, sorting, pagination
-- `GET /api/entities/:entity/:id` - Get single entity with optional expand
-- `POST /api/entities/:entity` - Create entity
-- `PATCH /api/entities/:entity/:id` - Update entity
-- `DELETE /api/entities/:entity/:id` - Delete entity
+**API Design Pattern:** Generic entity CRUD API mirroring the Base44 SDK:
+- `GET /api/entities/:entity`
+- `GET /api/entities/:entity/:id`
+- `POST /api/entities/:entity`
+- `PATCH /api/entities/:entity/:id`
+- `DELETE /api/entities/:entity/:id`
 
-This abstraction layer allows frontend code to remain unchanged during migration by providing the same interface the Base44 SDK used, but communicating with Supabase instead.
+**Authentication:** Magic link-based authentication with session management using `express-session`. Endpoints include `/api/auth/me` and `/api/auth/logout`.
 
-**Authentication:**
-- Magic link-based authentication system
-- Session management using express-session with MemoryStore (development) or connect-pg-simple (production)
-- Auth endpoints: `/api/auth/me`, `/api/auth/logout`
-- Member verification via email lookup in Supabase
-
-**Function Handlers:**
-Server-side functions accessible via `/api/functions/:functionName` endpoint for operations like:
-- Magic link generation and verification
-- Stripe payment intent creation
-- Booking creation and management
-- Program ticket purchases
-- Event synchronization
+**Function Handlers:** Server-side functions via `/api/functions/:functionName` for operations like magic link generation, Stripe payments, bookings, and event synchronization.
 
 ## Data Model
 
-**Core Entities:**
-- **Member**: User accounts with roles, organizations, biographies, handles
-- **Organization**: Company/institution accounts with domains, training funds, program ticket balances
-- **Role**: Permission system defining feature access via excluded features list
-- **TeamMember**: Admin/staff accounts separate from members
+**Core Entities:** Member, Organization, Role, TeamMember.
 
-**Events & Bookings:**
-- **Event**: Synced from Zoho Backstage with program tags, dates, pricing
-- **Booking**: Event registrations with payment methods (voucher, training fund, account, program ticket)
-- **Program**: Event categories with special pricing and offers (BOGO, bulk discounts)
-- **ProgramTicketTransaction**: Purchase/usage history for program tickets
+**Events & Bookings:** Event (synced from Zoho Backstage), Booking, Program, ProgramTicketTransaction.
 
-**Content Management:**
-- **BlogPost**: Articles with authors (members or guest writers), categories, tags, reactions
-- **Resource**: Downloadable files, videos, external links with categorization
-- **NewsPost**: News articles (non-member authored)
-- **IEditPage/IEditPageElement**: Dynamic page builder system with element templates
+**Content Management:** BlogPost, Resource, NewsPost, IEditPage/IEditPageElement (dynamic page builder).
 
-**Configuration:**
-- **NavigationItem**: Dynamic navigation menu configuration for top/main nav
-- **PortalMenu**: Internal portal navigation structure
-- **PageBanner**: Configurable banner images for pages
-- **TourGroup/TourStep**: Interactive guided tours for user onboarding
-- **SystemSettings**: Key-value configuration store
-
-## External Dependencies
-
-**Supabase:**
-- Primary database for all application data
-- Used for CRUD operations via service key on backend
-- Anon key exposed to frontend for specific features (realtime subscriptions)
-- Environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
-
-**Zoho CRM:**
-- Contact and account synchronization
-- OAuth-based authentication flow
-- Webhook receivers for real-time updates
-- Token storage in `zoho_token` table with refresh mechanism
-
-**Zoho Backstage:**
-- Event management and ticket sales
-- Bi-directional sync for bookings and cancellations
-- Event data includes program tags, dates, locations, pricing
-- Booking references linked to Backstage ticket types
-
-**Stripe:**
-- Payment processing for program tickets, job postings, and other purchases
-- Payment intent creation via server-side API
-- Webhook handlers for payment confirmation
-- Environment variable: `STRIPE_SECRET_KEY`
-
-**Xero:**
-- Invoice generation for purchases
-- OAuth authentication with token refresh
-- Tenant ID configuration for organization targeting
-- Token storage in `xero_token` table
-
-**File Storage:**
-- File uploads handled via Supabase Storage or Base44 integration layer
-- URLs stored in database for images, documents, videos
-- Support for both public and private file repositories
-
-**Email Delivery:**
-- Magic link authentication emails
-- Notification emails for bookings, cancellations
-- Handled via integration layer (SendEmail function)
-
-## Migration Strategy
-
-The application is transitioning from Base44 (previous platform) to Replit while maintaining zero UI/UX changes:
-
-1. **Frontend Compatibility Layer**: The `base44Client.js` adapter provides the same SDK interface as Base44, proxying requests to the Express backend instead
-2. **Entity Mapping**: Maps Base44 entity names to Supabase singular table names
-3. **API Translation**: Express routes translate between Base44-style requests and Supabase queries
-4. **Environment Configuration**: Secrets management via Replit Secrets for database URLs, API keys, OAuth credentials
-5. **Build Process**: Vite builds to `dist/public` for production deployment
-6. **Routing Configuration**: `vercel.json` configured for Vercel production deployment
+**Configuration:** NavigationItem, PortalMenu, PageBanner, TourGroup/TourStep, SystemSettings.
 
 ## Deployment Architecture
 
-**Development (Replit):**
-- Express.js server with Vite middleware integration
-- Full API functionality including Zoho Backstage sync
-- Hot module replacement for frontend development
-- Server runs on port 5000
+**Development (Replit):** Express.js with Vite middleware, full API functionality, hot module replacement.
 
-**Production (Vercel):**
-- Serverless functions in `/api` directory
-- `api/functions/[functionName].js` - Main function dispatcher (validateMember, createBooking, etc.)
-- `api/entities/[entity]/index.js` - Entity list/create operations
-- `api/entities/[entity]/[id].js` - Entity get/update/delete operations
-- Static frontend served from Vite build output
+**Production (Vercel):** Serverless functions for API endpoints (`/api` directory) and static frontend assets.
 
-**Deployment Parity Status (Updated Nov 2024):**
-All critical functions now have parity between Express and Vercel serverless:
-- validateMember with Zoho CRM sync
-- Magic link generation/verification
-- createBooking with program ticket deduction
-- validateColleague with organization validation
-- processProgramTicketPurchase/cancel/reinstate
-- Job posting functions (member and non-member)
-- Discount code application
-- Training fund balance sync
+**CRM Sync Architecture:** One-way data flow from Zoho CRM to the application. Sync occurs on member login (`validateMember`) and via manual triggers by administrators.
 
-**Table Name Mappings:**
-Entity names map to Supabase table names using singular form:
-- `IEditPage` → `i_edit_page` (note underscore between i and edit)
-- `IEditPageElement` → `i_edit_page_element`
-- `IEditElementTemplate` → `i_edit_element_template`
-- All other entities use snake_case conversion
-
-**Critical Constraints:**
-- No visual or UX modifications permitted
-- All component structures must remain identical
-- Styling and layouts must be pixel-perfect matches
-- Only infrastructure and platform integration changes allowed
-
-**Architecture Pattern for Member/Role Access:**
-React Router's `<Routes>` component doesn't propagate props from parent Layout. All pages requiring member/role data use the centralized `useMemberAccess` hook located at `client/src/hooks/useMemberAccess.js`.
-
-The hook provides:
-- `memberInfo` - Current member data from sessionStorage (reactive to updates)
-- `organizationInfo` - Current organization data from sessionStorage (reactive to updates)
-- `memberRole` - Role data fetched via useQuery
-- `isAdmin` - Boolean indicating if memberRole.is_admin === true
-- `isFeatureExcluded(featureId)` - Function to check if a feature is excluded for the user
-- `isAccessReady` - Boolean indicating if all access data is loaded
-- `reloadMemberInfo()` - Function to refresh member data from API and update state
-- `refreshOrganizationInfo()` - Function to refresh organization data from API and update state
-
-Example usage in pages:
-```javascript
-import { useMemberAccess } from "@/hooks/useMemberAccess";
-
-export default function MyPage() {
-  const { memberInfo, organizationInfo, isAdmin, isAccessReady, reloadMemberInfo } = useMemberAccess();
-  
-  // For admin-only pages, add access control:
-  const [accessChecked, setAccessChecked] = useState(false);
-  
-  useEffect(() => {
-    if (isAccessReady) {
-      if (!isAdmin) {
-        window.location.href = createPageUrl('Events');
-      } else {
-        setAccessChecked(true);
-      }
-    }
-  }, [isAdmin, isAccessReady]);
-  
-  if (!accessChecked) return <LoadingState />;
-  
-  // Rest of component...
-}
-```
-
-**Data Freshness & Caching Strategy:**
-The application uses a hybrid approach to ensure data freshness while maintaining good performance:
-
-1. **Global Default (5 seconds)**: React Query is configured with `staleTime: 5000` and `refetchOnMount: true` in `client/src/main.jsx`. This means:
-   - Data is considered fresh for 5 seconds
-   - When returning to a page after 5+ seconds, React Query shows cached data immediately then refetches in the background
-   - Users always see instant page loads with seamless freshness checks
-
-2. **Real-time Content Feeds (staleTime: 0)**: Critical content pages use `staleTime: 0` to always fetch fresh data:
-   - Articles, PublicArticles, MyArticles - main articles feed
-   - News, PublicNews - news listings
-   - Resources, PublicResources - resources feed
-   - Admin management pages (ArticleManagement, ResourceManagement, FormManagement, FloaterManagement, AwardManagement)
-   - Content pages also have Supabase Realtime subscriptions for live updates while on the page
-
-3. **Supabase Realtime Subscriptions**: Implemented for live updates while user is on the page:
-   - `useBlogPostRealtime` - blog_post table changes
-   - `useResourceRealtime` - resource table changes
-   - `useNavigationRealtime` - navigation_item and portal_menu changes
-   - `useArticleCommentRealtime` - article_comment table changes (filtered by articleId for live comment updates)
-   - `useArticleReactionRealtime` - article_reaction table changes (filtered by articleId for live reaction counts)
-   - `useCommentReactionRealtime` - comment_reaction table changes (for live thumbs up/down on comments)
-   - All hooks use a single shared Supabase client from `client/src/api/supabaseClient.js`
-
-This approach was chosen because Base44's SDK had multi-minute cache delays that were unacceptable for the client.
+**Data Freshness & Caching:** Utilizes TanStack Query with a global `staleTime: 5000` for general data and `staleTime: 0` for critical content feeds. Supabase Realtime Subscriptions are used for live updates on specific tables (e.g., `blog_post`, `resource`, `article_comment`).
 
 ## Runtime Page Provisioning (CMS Feature)
 
-**Overview:**
-The application supports runtime page/route provisioning - a key CMS capability that replaces Base44's limitation of requiring developer intervention to create new page routes. Admins can now publish pages instantly without code deployment.
+**Overview:** Enables administrators to provision pages/routes at runtime without code deployment. A `/:slug` catch-all route renders dynamic IEdit pages.
 
-**How It Works:**
-1. **Catch-All Route**: A `/:slug` route at the end of the router (in `client/src/pages/index.jsx`) catches any URL not matched by explicit routes
-2. **DynamicPage Component**: Located at `client/src/pages/DynamicPage.jsx`, renders IEdit pages based on URL slug
-3. **Publish Toggle**: In IEditPageManagement, admins click "Publish to /{slug}" to make pages live instantly
+**Page Status Flow:** Pages can be `draft` or `published`.
 
-**Page Status Flow:**
-- `draft` status: Page is not publicly accessible (shows "Page Not Available" message)
-- `published` status: Page is live at `/{slug}` URL
+**Access Control:** `public` pages are universally accessible; `member` pages require login.
 
-**Access Control:**
-- Public pages (`layout_type: 'public'`): Accessible to everyone when published
-- Member pages (`layout_type: 'member'`): Require login when published
+# External Dependencies
 
-**Fallback Handling:**
-- Unknown slugs show a 404 page with "Go Home" link
-- Unpublished pages show "Page Not Available" message
-- Member pages show "Members Only" gate for unauthenticated users
+**Supabase:** Primary database for all application data, used for CRUD operations via service key on the backend and anon key on the frontend for specific features (realtime subscriptions). Environment variables: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
 
-**Key Files:**
-- `client/src/pages/DynamicPage.jsx` - Dynamic page renderer
-- `client/src/pages/IEditPageManagement.jsx` - Admin publish/unpublish UI
-- `client/src/pages/index.jsx` - Router with catch-all route
+**Zoho CRM:** Used for contact and account synchronization, employing OAuth-based authentication and webhooks for real-time updates. Tokens are stored in the `zoho_token` table.
 
-**Testing Notes:**
-- Use `/testlogin` page with `mat@isaasi.co.uk` as authentication backdoor for testing admin features
-- Magic link authentication stores member data in sessionStorage key `agcas_member`
+**Zoho Backstage:** Integrates for event management and ticket sales, with bi-directional sync for bookings and cancellations.
+
+**Stripe:** Handles payment processing for various purchases. Payment intent creation occurs via server-side API. Environment variable: `STRIPE_SECRET_KEY`.
+
+**Xero:** Used for invoice generation, utilizing OAuth authentication and token refresh. Tokens are stored in the `xero_token` table.
+
+**File Storage:** Handled by Supabase Storage or a Base44 integration layer, storing URLs for images and documents.
+
+**Email Delivery:** Used for magic link authentication and various notifications via an integration layer (SendEmail function).

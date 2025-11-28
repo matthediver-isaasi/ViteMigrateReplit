@@ -3,18 +3,20 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Shield, Loader2, CheckCircle2, ExternalLink, RefreshCw, Calendar } from "lucide-react";
+import { Shield, Loader2, CheckCircle2, ExternalLink, RefreshCw, Calendar, Users, Building2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
 export default function AdminSetupPage() {
   const [loading, setLoading] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
-  const [xeroLoading, setXeroLoading] = useState(false); // New state for Xero loading
+  const [xeroLoading, setXeroLoading] = useState(false);
   const [syncResult, setSyncResult] = useState(null);
   const [testResult, setTestResult] = useState(null);
   const [authWindow, setAuthWindow] = useState(null);
-  const [xeroAuthWindow, setXeroAuthWindow] = useState(null); // New state for Xero auth window
+  const [xeroAuthWindow, setXeroAuthWindow] = useState(null);
+  const [crmSyncLoading, setCrmSyncLoading] = useState(false);
+  const [crmSyncResult, setCrmSyncResult] = useState(null);
 
   const { data: tokens = [] } = useQuery({
     queryKey: ['zoho-tokens'],
@@ -118,6 +120,28 @@ export default function AdminSetupPage() {
     } catch (error) {
       console.error('Xero auth error:', error);
       setXeroLoading(false);
+    }
+  };
+
+  const handleSyncCrmData = async () => {
+    setCrmSyncLoading(true);
+    setCrmSyncResult(null);
+    try {
+      const orgResponse = await base44.functions.invoke('syncAllOrganizationsFromZoho');
+      const memberResponse = await base44.functions.invoke('syncAllMembersFromZoho');
+      
+      setCrmSyncResult({
+        success: true,
+        organizations: orgResponse.data,
+        members: memberResponse.data
+      });
+    } catch (error) {
+      setCrmSyncResult({ 
+        success: false, 
+        error: error.response?.data?.error || error.message 
+      });
+    } finally {
+      setCrmSyncLoading(false);
     }
   };
 
@@ -425,6 +449,96 @@ export default function AdminSetupPage() {
               <p className="text-xs text-slate-500">
                 This will fetch all events from Backstage and update the portal. Existing events will be updated with latest information.
               </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {isAuthenticated && (
+          <Card className="shadow-xl border-slate-200 mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="w-5 h-5" />
+                CRM Data Sync
+              </CardTitle>
+              <CardDescription>
+                Sync organizations and members from Zoho CRM. This ensures the app has the latest data from your CRM.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {crmSyncResult && (
+                <div className={`flex items-start gap-3 p-4 rounded-lg border ${
+                  crmSyncResult.success 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-red-50 border-red-200'
+                }`}>
+                  {crmSyncResult.success ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                      <div className="w-full">
+                        <h3 className="font-semibold text-green-900 mb-2">Sync Complete</h3>
+                        <div className="space-y-2 text-sm text-green-700">
+                          <div className="flex items-center gap-2">
+                            <Building2 className="w-4 h-4" />
+                            <span>
+                              Organizations: {crmSyncResult.organizations?.total_fetched || 0} fetched, 
+                              {' '}{crmSyncResult.organizations?.created || 0} created, 
+                              {' '}{crmSyncResult.organizations?.updated || 0} updated
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Users className="w-4 h-4" />
+                            <span>
+                              Members: {crmSyncResult.members?.total_fetched || 0} fetched, 
+                              {' '}{crmSyncResult.members?.created || 0} created, 
+                              {' '}{crmSyncResult.members?.updated || 0} updated,
+                              {' '}{crmSyncResult.members?.linked_to_org || 0} linked to organizations
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-semibold text-red-900 mb-1">Sync Failed</h3>
+                        <p className="text-sm text-red-700">{crmSyncResult.error}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <Button
+                onClick={handleSyncCrmData}
+                disabled={crmSyncLoading}
+                className="w-full"
+                size="lg"
+                data-testid="button-sync-crm"
+              >
+                {crmSyncLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Syncing CRM Data...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-5 h-5 mr-2" />
+                    Sync Organizations & Members from CRM
+                  </>
+                )}
+              </Button>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800">
+                  <strong>Note:</strong> This sync is one-way from Zoho CRM to the app. It will:
+                </p>
+                <ul className="text-xs text-blue-700 mt-1 list-disc list-inside ml-2">
+                  <li>Fetch all organizations (accounts) from Zoho CRM</li>
+                  <li>Fetch all contacts and create/update member records</li>
+                  <li>Link members to their organizations based on CRM data</li>
+                </ul>
+              </div>
             </CardContent>
           </Card>
         )}

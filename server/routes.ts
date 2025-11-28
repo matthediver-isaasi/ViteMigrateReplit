@@ -2020,15 +2020,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     const ZOHO_BACKSTAGE_PORTAL_ID = process.env.ZOHO_BACKSTAGE_PORTAL_ID || '20108049755';
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
 
     try {
-      const { accessToken } = req.body;
+      // Use server-side token refresh instead of client-provided token
+      const accessToken = await getValidZohoAccessToken();
 
-      if (!accessToken) {
-        return res.status(400).json({ error: 'Missing access token' });
-      }
-
-      const baseUrl = 'https://www.zohoapis.eu/backstage/v3';
+      // Use the correct API domain based on environment config
+      const baseUrl = ZOHO_CRM_API_DOMAIN.replace('/crm/', '/').replace(/\/$/, '') + '/backstage/v3';
       const url = `${baseUrl}/portals/${ZOHO_BACKSTAGE_PORTAL_ID}/events?status=live`;
 
       console.log('Fetching events from:', url);

@@ -3,14 +3,16 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Shield, Loader2, CheckCircle2, ExternalLink, RefreshCw, Calendar, Users, Building2, Search } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Shield, Loader2, CheckCircle2, ExternalLink, RefreshCw, Calendar, Users, Building2, Search, AlertTriangle, Unlink } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function AdminSetupPage() {
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
+  const [disconnecting, setDisconnecting] = useState(false);
   const [syncLoading, setSyncLoading] = useState(false);
   const [testLoading, setTestLoading] = useState(false);
   const [xeroLoading, setXeroLoading] = useState(false);
@@ -104,18 +106,42 @@ export default function AdminSetupPage() {
     setSyncLoading(true);
     setSyncResult(null);
     try {
-      const response = await base44.functions.invoke('syncBackstageEvents', {
-        accessToken: tokens[0].access_token
-      });
-      
+      const response = await base44.functions.invoke('syncBackstageEvents', {});
       setSyncResult(response.data);
     } catch (error) {
+      const errorMessage = error.response?.data?.error || error.message;
+      const errorDetails = error.response?.data?.details || '';
+      const isOAuthScopeError = errorMessage?.includes('OAuthScope') || errorDetails?.includes('OAuthScope');
+      
       setSyncResult({ 
         success: false, 
-        error: error.response?.data?.error || error.message 
+        error: errorMessage,
+        isOAuthScopeError
       });
     } finally {
       setSyncLoading(false);
+    }
+  };
+
+  const handleDisconnectZoho = async () => {
+    if (!window.confirm('Are you sure you want to disconnect Zoho? You will need to re-authenticate to use Zoho features.')) {
+      return;
+    }
+    
+    setDisconnecting(true);
+    try {
+      // Delete all Zoho tokens
+      for (const token of tokens) {
+        await base44.entities.ZohoToken.delete(token.id);
+      }
+      // Invalidate the query to refresh the UI
+      queryClient.invalidateQueries({ queryKey: ['zoho-tokens'] });
+      setSyncResult(null);
+      setTestResult(null);
+    } catch (error) {
+      console.error('Failed to disconnect Zoho:', error);
+    } finally {
+      setDisconnecting(false);
     }
   };
 
@@ -298,13 +324,28 @@ export default function AdminSetupPage() {
               <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
                 <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <h3 className="font-semibold text-green-900 mb-1">✓ Connected</h3>
+                  <h3 className="font-semibold text-green-900 mb-1">Connected</h3>
                   <p className="text-sm text-green-700">
                     Your Zoho account is connected and ready to sync data.
                   </p>
                   <p className="text-xs text-green-600 mt-2">
-                    Last updated: {new Date(tokens[0].expires_at).toLocaleString()}
+                    Token expires: {new Date(tokens[0].expires_at).toLocaleString()}
                   </p>
+                  <div className="mt-3 pt-3 border-t border-green-200">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDisconnectZoho}
+                      disabled={disconnecting}
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                    >
+                      {disconnecting ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Disconnecting...</>
+                      ) : (
+                        <><Unlink className="w-4 h-4 mr-2" /> Disconnect Zoho</>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -471,10 +512,33 @@ export default function AdminSetupPage() {
                     </>
                   ) : (
                     <>
-                      <ExternalLink className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
-                      <div>
+                      <AlertTriangle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                      <div className="flex-1">
                         <h3 className="font-semibold text-red-900 mb-1">Sync Failed</h3>
                         <p className="text-sm text-red-700">{syncResult.error}</p>
+                        {syncResult.isOAuthScopeError && (
+                          <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <p className="text-sm text-amber-800 font-medium mb-2">
+                              Your Zoho connection needs to be updated with Backstage permissions.
+                            </p>
+                            <p className="text-xs text-amber-700 mb-3">
+                              Please disconnect and re-connect your Zoho account to grant the required Backstage API access.
+                            </p>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={handleDisconnectZoho}
+                              disabled={disconnecting}
+                              className="border-amber-400 text-amber-800 hover:bg-amber-100"
+                            >
+                              {disconnecting ? (
+                                <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Disconnecting...</>
+                              ) : (
+                                <><Unlink className="w-4 h-4 mr-2" /> Disconnect & Re-authenticate</>
+                              )}
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}

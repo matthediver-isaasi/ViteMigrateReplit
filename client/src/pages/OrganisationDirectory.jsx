@@ -53,7 +53,30 @@ export default function OrganisationDirectoryPage() {
     queryKey: ['all-members-for-org-directory'],
     queryFn: async () => {
       // Fetch all members - need to handle Supabase's 1000 row default limit
-      return await base44.entities.Member.list({ limit: 5000 });
+      // by paginating through all records
+      const allMembers = [];
+      let offset = 0;
+      const batchSize = 1000;
+      let hasMore = true;
+      
+      while (hasMore) {
+        const batch = await base44.entities.Member.list({ 
+          limit: batchSize, 
+          offset: offset 
+        });
+        
+        if (batch && batch.length > 0) {
+          allMembers.push(...batch);
+          offset += batch.length;
+          // If we got fewer than batchSize, we've reached the end
+          hasMore = batch.length === batchSize;
+        } else {
+          hasMore = false;
+        }
+      }
+      
+      console.log(`[OrganisationDirectory] Loaded ${allMembers.length} total members`);
+      return allMembers;
     },
     staleTime: 0,
     refetchOnMount: true

@@ -50,9 +50,10 @@ export default function OrganisationDirectoryPage() {
   });
 
   const { data: members = [] } = useQuery({
-    queryKey: ['all-members'],
+    queryKey: ['all-members-for-org-directory'],
     queryFn: async () => {
-      return await base44.entities.Member.list();
+      // Fetch all members - need to handle Supabase's 1000 row default limit
+      return await base44.entities.Member.list({ limit: 5000 });
     }
   });
 
@@ -154,7 +155,7 @@ export default function OrganisationDirectoryPage() {
                 <Card key={org.id} className="border-slate-200 hover:shadow-lg transition-shadow">
                     <CardHeader>
                       <CardTitle className="flex items-start gap-3">
-                        {displaySettings.showLogo && (
+                        {displaySettings?.showLogo && (
                           <div className="w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
                             {org.logo_url ?
                           <img
@@ -171,7 +172,7 @@ export default function OrganisationDirectoryPage() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
-                      {displaySettings.showDomains && allDomains.length > 0 &&
+                      {displaySettings?.showDomains && allDomains.length > 0 &&
                     <div className="space-y-1">
                           <div className="flex items-center gap-2">
                             <Globe className="w-4 h-4 text-slate-400" />
@@ -189,7 +190,7 @@ export default function OrganisationDirectoryPage() {
                         </div>
                     }
 
-                      {displaySettings.showMemberCount && (
+                      {displaySettings?.showMemberCount && (
                         <div className="flex items-center justify-between pt-2 border-t border-slate-200">
                           <div className="flex items-center gap-2">
                             <Users className="w-4 h-4 text-slate-400" />

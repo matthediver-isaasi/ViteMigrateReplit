@@ -646,6 +646,31 @@ export function IEditShowcaseElementEditor({ element, onChange }) {
         </Select>
       </div>
 
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <Label htmlFor="titleFontSize">Title Font Size (px)</Label>
+          <Input
+            id="titleFontSize"
+            type="number"
+            value={content.titleFontSize || 16}
+            onChange={(e) => updateContent('titleFontSize', parseInt(e.target.value) || 16)}
+            min="12"
+            max="32"
+          />
+        </div>
+        <div>
+          <Label htmlFor="dateFontSize">Date Font Size (px)</Label>
+          <Input
+            id="dateFontSize"
+            type="number"
+            value={content.dateFontSize || 12}
+            onChange={(e) => updateContent('dateFontSize', parseInt(e.target.value) || 12)}
+            min="10"
+            max="18"
+          />
+        </div>
+      </div>
+
       <div className="flex items-center gap-2">
         <input
           type="checkbox"
@@ -1103,7 +1128,10 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
                     />
                   )}
                   <div className="p-4 flex-1 overflow-hidden relative" style={{ textAlign: content.card_text_align || 'left' }}>
-                    <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2">
+                    <h3 
+                      className="font-semibold text-slate-900 mb-2 line-clamp-2"
+                      style={{ fontSize: `${content.titleFontSize || 16}px` }}
+                    >
                       {item.title || item.name}
                     </h3>
                     {content.descriptionLineClamp !== 0 && (item.summary || item.description) && (
@@ -1112,8 +1140,14 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
                       </p>
                     )}
                     {content.showPublishedDate && item.published_date && (
-                      <div className="flex items-center gap-1 mt-3 text-xs text-slate-500" style={{ justifyContent: content.card_text_align === 'center' ? 'center' : content.card_text_align === 'right' ? 'flex-end' : 'flex-start' }}>
-                        <Calendar className="w-3 h-3" />
+                      <div 
+                        className="flex items-center gap-1 mt-3 text-slate-500" 
+                        style={{ 
+                          justifyContent: content.card_text_align === 'center' ? 'center' : content.card_text_align === 'right' ? 'flex-end' : 'flex-start',
+                          fontSize: `${content.dateFontSize || 12}px`
+                        }}
+                      >
+                        <Calendar style={{ width: `${content.dateFontSize || 12}px`, height: `${content.dateFontSize || 12}px` }} />
                         {new Date(item.published_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                       </div>
                     )}

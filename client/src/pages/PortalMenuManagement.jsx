@@ -266,6 +266,7 @@ export default function PortalMenuManagementPage() {
     const normalizeParentId = (parentId) => parentId || "";
     const itemParentId = normalizeParentId(item.parent_id);
 
+    // Get siblings within the same section AND parent
     const siblings = menuItems
       .filter(i => i.section === item.section && normalizeParentId(i.parent_id) === itemParentId && i.is_active)
       .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
@@ -275,18 +276,26 @@ export default function PortalMenuManagementPage() {
 
     if (newIndex < 0 || newIndex >= siblings.length) return;
 
-    // Simply swap the two items' display_order values
-    const currentItem = siblings[currentIndex];
-    const swapItem = siblings[newIndex];
-    
-    const currentOrder = currentItem.display_order ?? currentIndex;
-    const swapOrder = swapItem.display_order ?? newIndex;
+    // Reorder the array by moving the item to the new position
+    const reorderedSiblings = [...siblings];
+    const [movedItem] = reorderedSiblings.splice(currentIndex, 1);
+    reorderedSiblings.splice(newIndex, 0, movedItem);
 
-    // Update both items with swapped display_order
-    await Promise.all([
-      base44.entities.PortalMenu.update(currentItem.id, { display_order: swapOrder }),
-      base44.entities.PortalMenu.update(swapItem.id, { display_order: currentOrder })
-    ]);
+    // Use section-scoped base offset to prevent collisions between sections
+    // user section: 0-9999, admin section: 10000-19999
+    // Also add parent-based offset for sub-items
+    const sectionOffset = item.section === 'admin' ? 10000 : 0;
+    const parentOffset = itemParentId ? 5000 : 0; // Sub-items get offset within section
+    const baseOffset = sectionOffset + parentOffset;
+
+    // Update all siblings with new sequential display_order values (scoped to section)
+    await Promise.all(
+      reorderedSiblings.map((sibling, index) => 
+        base44.entities.PortalMenu.update(sibling.id, { 
+          display_order: baseOffset + index 
+        })
+      )
+    );
 
     await queryClient.invalidateQueries({ queryKey: ['portal-menu'] });
     toast.success('Menu order updated');

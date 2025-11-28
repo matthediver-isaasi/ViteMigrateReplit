@@ -1,14 +1,12 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Building2, Search, Globe, Users, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export default function OrganisationDirectoryPage() {
-  const [, setLocation] = useLocation();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
@@ -162,9 +160,8 @@ export default function OrganisationDirectoryPage() {
                   key={org.id} 
                   className="border-slate-200 hover:shadow-lg transition-shadow cursor-pointer"
                   onClick={() => {
-                    setLocation(`/memberdirectory?org=${org.id}`);
-                    // Dispatch custom event for URL change detection
-                    window.dispatchEvent(new CustomEvent('urlchange', { detail: { org: org.id } }));
+                    // Use standard navigation to ensure MemberDirectory remounts with URL params
+                    window.location.href = `/memberdirectory?org=${org.id}`;
                   }}
                   data-testid={`card-organisation-${org.id}`}
                 >

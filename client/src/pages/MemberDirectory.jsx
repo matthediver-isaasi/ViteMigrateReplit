@@ -135,22 +135,8 @@ export default function MemberDirectoryPage() {
     refetchOnMount: true,
   });
 
-  // Sync URL parameter with state when navigating
+  // Handle browser back/forward navigation
   useEffect(() => {
-    const handleUrlChange = (event) => {
-      // Handle custom urlchange event from navigation
-      if (event.detail?.org) {
-        setSelectedOrganization(event.detail.org);
-        setCurrentPage(1);
-        return;
-      }
-      // Handle browser back/forward
-      const searchParams = new URLSearchParams(window.location.search);
-      const orgParam = searchParams.get('org') || "";
-      setSelectedOrganization(orgParam);
-      setCurrentPage(1);
-    };
-
     const handlePopState = () => {
       const searchParams = new URLSearchParams(window.location.search);
       const orgParam = searchParams.get('org') || "";
@@ -158,23 +144,8 @@ export default function MemberDirectoryPage() {
       setCurrentPage(1);
     };
 
-    // Listen for custom urlchange event (from OrganisationDirectory navigation)
-    window.addEventListener('urlchange', handleUrlChange);
-    // Listen for popstate (browser back/forward)
     window.addEventListener('popstate', handlePopState);
-    
-    // Also check on mount in case we navigated here with a param
-    const searchParams = new URLSearchParams(window.location.search);
-    const initialOrg = searchParams.get('org') || "";
-    if (initialOrg && initialOrg !== selectedOrganization) {
-      setSelectedOrganization(initialOrg);
-      setCurrentPage(1);
-    }
-
-    return () => {
-      window.removeEventListener('urlchange', handleUrlChange);
-      window.removeEventListener('popstate', handlePopState);
-    };
+    return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
   const memberStats = useMemo(() => {

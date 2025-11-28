@@ -681,6 +681,11 @@ const { data: dynamicNavItems = [] } = useQuery({
       // Use role's default landing page or fallback to Preferences
       const fallbackPage = memberRole?.default_landing_page || 'Preferences';
       
+      // Prevent redirect loop: don't redirect if we're already on the fallback page
+      if (currentPageName === fallbackPage) {
+        return;
+      }
+      
       // Check if page is excluded by role/member settings
       if (isCurrentPageExcluded()) {
         window.location.href = createPageUrl(fallbackPage);

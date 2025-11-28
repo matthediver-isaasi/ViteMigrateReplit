@@ -1618,36 +1618,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
             // Check if member exists by zoho_contact_id
             const { data: existingByZoho } = await supabase
               .from('member')
-              .select('id')
+              .select('id, organization_id')
               .eq('zoho_contact_id', contact.id);
 
             if (existingByZoho && existingByZoho.length > 0) {
               // Update existing member
-              await supabase
+              const { error: updateError } = await supabase
                 .from('member')
                 .update(memberData)
                 .eq('id', existingByZoho[0].id);
-              memberStats.updated++;
+              
+              if (updateError) {
+                console.error(`[syncSingleOrganizationFromZoho] Failed to update member ${contact.Email}:`, updateError);
+                memberStats.errors.push({ email: contact.Email, error: updateError.message });
+              } else {
+                console.log(`[syncSingleOrganizationFromZoho] Updated member ${contact.Email} with org_id ${orgId} (was: ${existingByZoho[0].organization_id})`);
+                memberStats.updated++;
+              }
             } else {
               // Check if member exists by email
               const { data: existingByEmail } = await supabase
                 .from('member')
-                .select('id')
+                .select('id, organization_id')
                 .eq('email', contact.Email);
 
               if (existingByEmail && existingByEmail.length > 0) {
                 // Update existing member and set zoho_contact_id
-                await supabase
+                const { error: updateError } = await supabase
                   .from('member')
                   .update(memberData)
                   .eq('id', existingByEmail[0].id);
-                memberStats.updated++;
+                
+                if (updateError) {
+                  console.error(`[syncSingleOrganizationFromZoho] Failed to update member by email ${contact.Email}:`, updateError);
+                  memberStats.errors.push({ email: contact.Email, error: updateError.message });
+                } else {
+                  console.log(`[syncSingleOrganizationFromZoho] Updated member by email ${contact.Email} with org_id ${orgId}`);
+                  memberStats.updated++;
+                }
               } else {
                 // Create new member
-                await supabase
+                const { error: insertError } = await supabase
                   .from('member')
                   .insert(memberData);
-                memberStats.created++;
+                
+                if (insertError) {
+                  console.error(`[syncSingleOrganizationFromZoho] Failed to create member ${contact.Email}:`, insertError);
+                  memberStats.errors.push({ email: contact.Email, error: insertError.message });
+                } else {
+                  console.log(`[syncSingleOrganizationFromZoho] Created member ${contact.Email} with org_id ${orgId}`);
+                  memberStats.created++;
+                }
               }
             }
           } catch (err: any) {

@@ -186,6 +186,8 @@ import MemberGroupGuestManagement from "./MemberGroupGuestManagement";
 
 import TeamSettings from "./TeamSettings";
 
+import PreferenceSettings from "./PreferenceSettings";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
@@ -375,6 +377,8 @@ const PAGES = {
     MemberGroupGuestManagement: MemberGroupGuestManagement,
     
     TeamSettings: TeamSettings,
+    
+    PreferenceSettings: PreferenceSettings,
     
 }
 
@@ -589,6 +593,8 @@ function PagesContent() {
                 <Route path="/MemberGroupGuestManagement" element={<MemberGroupGuestManagement />} />
                 
                 <Route path="/TeamSettings" element={<TeamSettings />} />
+                
+                <Route path="/PreferenceSettings" element={<PreferenceSettings />} />
                 
                 <Route path="/auth/verify" element={<VerifyMagicLink />} />
                 

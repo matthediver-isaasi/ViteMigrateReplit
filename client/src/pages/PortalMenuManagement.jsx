@@ -86,6 +86,7 @@ const availablePages = [
     { value: "PortalMenuManagement", label: "Portal Menu Management" },
     { value: "PortalNavigationManagement", label: "Portal Navigation Management" },
     { value: "PostJob", label: "Post Job" },
+    { value: "PreferenceSettings", label: "Preference Settings" },
     { value: "Preferences", label: "Preferences" },
     { value: "PublicAbout", label: "Public - About" },
     { value: "PublicArticles", label: "Public - Articles" },

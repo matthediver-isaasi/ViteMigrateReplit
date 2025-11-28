@@ -92,4 +92,5 @@ export const PAGE_NAMES = [
   "TeamEngagementReport",
   "MemberGroupGuestManagement",
   "TeamSettings",
+  "PreferenceSettings",
 ];

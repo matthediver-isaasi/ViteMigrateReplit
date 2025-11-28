@@ -106,6 +106,27 @@ export default function TeamPage() {
     }
   });
 
+  // Fetch section order settings
+  const { data: sectionOrder = null } = useQuery({
+    queryKey: ['team-card-section-order'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const setting = allSettings.find(s => s.setting_key === 'team_card_section_order');
+      if (setting?.setting_value) {
+        try {
+          return JSON.parse(setting.setting_value);
+        } catch {
+          return null;
+        }
+      }
+      return null;
+    }
+  });
+
+  // Default section order
+  const DEFAULT_SECTION_ORDER = ['profile_photo', 'name_role', 'email', 'last_activity', 'login_toggle', 'events_count', 'articles_count', 'awards'];
+  const orderedSections = sectionOrder || DEFAULT_SECTION_ORDER;
+
   // Default settings - show everything if not configured
   const showProfilePhoto = cardSettings.show_profile_photo !== false;
   const showRoleBadge = cardSettings.show_role_badge !== false;
@@ -486,144 +507,146 @@ export default function TeamPage() {
                       </CardHeader>
 
                       <CardContent className="space-y-3" onClick={(e) => e.stopPropagation()}>
-                        {/* Email */}
-                        {showEmail && (
-                          <div className="flex items-start gap-2">
-                            <Mail className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                            <span className="text-sm text-slate-700 break-all">{member.email}</span>
-                          </div>
-                        )}
-
-                        {/* Last Activity */}
-                        {showLastActivity && member.last_activity && (
-                          <div className="flex items-center gap-2">
-                            <Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
-                            <span className="text-xs text-slate-600">
-                              Last active {formatDistanceToNow(new Date(member.last_activity), { addSuffix: true })}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Login Access Toggle - Only for admins */}
-                        {showLoginToggle && isAdmin && (
-                          <div className="flex items-center justify-between pt-2 pb-2 border-y border-slate-200">
-                            <span className="text-sm font-medium text-slate-700">Login Access</span>
-                            <div className="flex items-center gap-2">
-                              <span className={`text-xs ${loginEnabled ? 'text-green-600' : 'text-slate-500'}`}>
-                                {loginEnabled ? 'Active' : 'Inactive'}
-                              </span>
-                              <Switch
-                                checked={loginEnabled}
-                                onCheckedChange={(checked) => handleToggleLogin(member, checked)}
-                                disabled={toggleLoginMutation.isPending}
-                              />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Events Attended */}
-                        {showEventsCount && (
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <Calendar className="w-4 h-4 text-green-600" />
-                              <span className="text-sm text-slate-600">Events</span>
-                            </div>
-                            <Badge variant="secondary">{stats.eventsAttended || 0}</Badge>
-                          </div>
-                        )}
-
-                        {/* Articles Published */}
-                        {showArticlesCount && (
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-4 h-4 text-purple-600" />
-                              <span className="text-sm text-slate-600">Articles</span>
-                            </div>
-                            <Badge variant="secondary">{stats.publishedArticles || 0}</Badge>
-                          </div>
-                        )}
-
-                        {/* Awards */}
-                        {showAwards && stats.totalAwards > 0 && (
-                          <div className="pt-3 border-t border-slate-200">
-                            <div className="flex items-center gap-2 mb-3">
-                              <Trophy className="w-4 h-4 text-amber-600" />
-                              <span className="text-xs font-semibold text-slate-700">
-                                Awards ({stats.totalAwards})
-                              </span>
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              {stats.onlineAwards.slice(0, 4).map(award => {
-                                const classification = award.classification_id ? awardClassifications.find(c => c.id === award.classification_id) : null;
-                                return (
-                                  <Tooltip key={`online-${award.id}`}>
-                                    <TooltipTrigger asChild>
-                                      <div className="flex flex-col items-center p-2 bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg border border-amber-200 cursor-help relative">
-                                        {classification && (
-                                          <Badge variant="secondary" className="absolute -top-1 -right-1 text-[8px] px-1 py-0 scale-75">
-                                            {classification.name}
-                                          </Badge>
-                                        )}
-                                        {award.image_url ? (
-                                          <img src={award.image_url} alt={award.name} className="w-8 h-8 object-contain mb-1" />
-                                        ) : (
-                                          <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center mb-1">
-                                            <Trophy className="w-4 h-4 text-white" />
-                                          </div>
-                                        )}
-                                        <span className="text-[10px] font-medium text-slate-900 text-center line-clamp-1">{award.name}</span>
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p className="font-semibold">{award.name}</p>
-                                      {award.description && <p className="text-xs text-slate-400 mt-1">{award.description}</p>}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                );
-                              })}
-                              {stats.offlineAwards.slice(0, Math.max(0, 4 - stats.onlineAwards.length)).map((award, idx) => {
-                                const classification = award.classification_id ? awardClassifications.find(c => c.id === award.classification_id) : null;
-                                return (
-                                  <Tooltip key={`offline-${award.id}-${idx}`}>
-                                    <TooltipTrigger asChild>
-                                      <div className="flex flex-col items-center p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 cursor-help relative">
-                                        {classification && (
-                                          <Badge variant="secondary" className="absolute -top-1 -right-1 text-[8px] px-1 py-0 scale-75">
-                                            {classification.name}
-                                          </Badge>
-                                        )}
-                                        {award.sublevel?.image_url ? (
-                                          <img src={award.sublevel.image_url} alt={award.sublevel.name} className="w-8 h-8 object-contain mb-1" />
-                                        ) : award.image_url ? (
-                                          <img src={award.image_url} alt={award.name} className="w-8 h-8 object-contain mb-1" />
-                                        ) : (
-                                          <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center mb-1">
-                                            <Trophy className="w-4 h-4 text-white" />
-                                          </div>
-                                        )}
-                                        <span className="text-[10px] font-medium text-slate-900 text-center line-clamp-1">{award.name}</span>
-                                        {award.sublevel && (
-                                          <Badge className="mt-0.5 bg-purple-600 text-white text-[8px] px-1 py-0">{award.sublevel.name}</Badge>
-                                        )}
-                                      </div>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <p className="font-semibold">{award.name}</p>
-                                      {award.sublevel && <p className="text-xs text-purple-400 mt-1">Level: {award.sublevel.name}</p>}
-                                      {award.period_text && <p className="text-xs text-slate-400 mt-1">{award.period_text}</p>}
-                                      {award.description && <p className="text-xs text-slate-400 mt-1">{award.description}</p>}
-                                    </TooltipContent>
-                                  </Tooltip>
-                                );
-                              })}
-                              {stats.totalAwards > 4 && (
-                                <div className="flex items-center justify-center p-2 bg-slate-100 rounded-lg border border-slate-200">
-                                  <span className="text-xs font-medium text-slate-600">+{stats.totalAwards - 4} more</span>
+                        {/* Render content sections in configured order */}
+                        {orderedSections.filter(s => !['profile_photo', 'name_role'].includes(s)).map(sectionId => {
+                          switch (sectionId) {
+                            case 'email':
+                              return showEmail ? (
+                                <div key="email" className="flex items-start gap-2">
+                                  <Mail className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                                  <span className="text-sm text-slate-700 break-all">{member.email}</span>
                                 </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
+                              ) : null;
+                            case 'last_activity':
+                              return showLastActivity && member.last_activity ? (
+                                <div key="last_activity" className="flex items-center gap-2">
+                                  <Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
+                                  <span className="text-xs text-slate-600">
+                                    Last active {formatDistanceToNow(new Date(member.last_activity), { addSuffix: true })}
+                                  </span>
+                                </div>
+                              ) : null;
+                            case 'login_toggle':
+                              return showLoginToggle && isAdmin ? (
+                                <div key="login_toggle" className="flex items-center justify-between pt-2 pb-2 border-y border-slate-200">
+                                  <span className="text-sm font-medium text-slate-700">Login Access</span>
+                                  <div className="flex items-center gap-2">
+                                    <span className={`text-xs ${loginEnabled ? 'text-green-600' : 'text-slate-500'}`}>
+                                      {loginEnabled ? 'Active' : 'Inactive'}
+                                    </span>
+                                    <Switch
+                                      checked={loginEnabled}
+                                      onCheckedChange={(checked) => handleToggleLogin(member, checked)}
+                                      disabled={toggleLoginMutation.isPending}
+                                    />
+                                  </div>
+                                </div>
+                              ) : null;
+                            case 'events_count':
+                              return showEventsCount ? (
+                                <div key="events_count" className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <Calendar className="w-4 h-4 text-green-600" />
+                                    <span className="text-sm text-slate-600">Events</span>
+                                  </div>
+                                  <Badge variant="secondary">{stats.eventsAttended || 0}</Badge>
+                                </div>
+                              ) : null;
+                            case 'articles_count':
+                              return showArticlesCount ? (
+                                <div key="articles_count" className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <FileText className="w-4 h-4 text-purple-600" />
+                                    <span className="text-sm text-slate-600">Articles</span>
+                                  </div>
+                                  <Badge variant="secondary">{stats.publishedArticles || 0}</Badge>
+                                </div>
+                              ) : null;
+                            case 'awards':
+                              return showAwards && stats.totalAwards > 0 ? (
+                                <div key="awards" className="pt-3 border-t border-slate-200">
+                                  <div className="flex items-center gap-2 mb-3">
+                                    <Trophy className="w-4 h-4 text-amber-600" />
+                                    <span className="text-xs font-semibold text-slate-700">
+                                      Awards ({stats.totalAwards})
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    {stats.onlineAwards.slice(0, 4).map(award => {
+                                      const classification = award.classification_id ? awardClassifications.find(c => c.id === award.classification_id) : null;
+                                      return (
+                                        <Tooltip key={`online-${award.id}`}>
+                                          <TooltipTrigger asChild>
+                                            <div className="flex flex-col items-center p-2 bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg border border-amber-200 cursor-help relative">
+                                              {classification && (
+                                                <Badge variant="secondary" className="absolute -top-1 -right-1 text-[8px] px-1 py-0 scale-75">
+                                                  {classification.name}
+                                                </Badge>
+                                              )}
+                                              {award.image_url ? (
+                                                <img src={award.image_url} alt={award.name} className="w-8 h-8 object-contain mb-1" />
+                                              ) : (
+                                                <div className="w-8 h-8 bg-gradient-to-br from-amber-400 to-amber-600 rounded-full flex items-center justify-center mb-1">
+                                                  <Trophy className="w-4 h-4 text-white" />
+                                                </div>
+                                              )}
+                                              <span className="text-[10px] font-medium text-slate-900 text-center line-clamp-1">{award.name}</span>
+                                            </div>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p className="font-semibold">{award.name}</p>
+                                            {award.description && <p className="text-xs text-slate-400 mt-1">{award.description}</p>}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      );
+                                    })}
+                                    {stats.offlineAwards.slice(0, Math.max(0, 4 - stats.onlineAwards.length)).map((award, idx) => {
+                                      const classification = award.classification_id ? awardClassifications.find(c => c.id === award.classification_id) : null;
+                                      return (
+                                        <Tooltip key={`offline-${award.id}-${idx}`}>
+                                          <TooltipTrigger asChild>
+                                            <div className="flex flex-col items-center p-2 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200 cursor-help relative">
+                                              {classification && (
+                                                <Badge variant="secondary" className="absolute -top-1 -right-1 text-[8px] px-1 py-0 scale-75">
+                                                  {classification.name}
+                                                </Badge>
+                                              )}
+                                              {award.sublevel?.image_url ? (
+                                                <img src={award.sublevel.image_url} alt={award.sublevel.name} className="w-8 h-8 object-contain mb-1" />
+                                              ) : award.image_url ? (
+                                                <img src={award.image_url} alt={award.name} className="w-8 h-8 object-contain mb-1" />
+                                              ) : (
+                                                <div className="w-8 h-8 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center mb-1">
+                                                  <Trophy className="w-4 h-4 text-white" />
+                                                </div>
+                                              )}
+                                              <span className="text-[10px] font-medium text-slate-900 text-center line-clamp-1">{award.name}</span>
+                                              {award.sublevel && (
+                                                <Badge className="mt-0.5 bg-purple-600 text-white text-[8px] px-1 py-0">{award.sublevel.name}</Badge>
+                                              )}
+                                            </div>
+                                          </TooltipTrigger>
+                                          <TooltipContent>
+                                            <p className="font-semibold">{award.name}</p>
+                                            {award.sublevel && <p className="text-xs text-purple-400 mt-1">Level: {award.sublevel.name}</p>}
+                                            {award.period_text && <p className="text-xs text-slate-400 mt-1">{award.period_text}</p>}
+                                            {award.description && <p className="text-xs text-slate-400 mt-1">{award.description}</p>}
+                                          </TooltipContent>
+                                        </Tooltip>
+                                      );
+                                    })}
+                                    {stats.totalAwards > 4 && (
+                                      <div className="flex items-center justify-center p-2 bg-slate-100 rounded-lg border border-slate-200">
+                                        <span className="text-xs font-medium text-slate-600">+{stats.totalAwards - 4} more</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : null;
+                            default:
+                              return null;
+                          }
+                        })}
                       </CardContent>
                     </Card>
                   );

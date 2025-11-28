@@ -369,6 +369,44 @@ export default function ArticlesPage() {
           </div>
 
           <div className="flex-1">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
+              <div className="text-sm text-slate-600">
+                {sortedArticles.length > 0 
+                  ? `Showing ${startIndex + 1}-${Math.min(endIndex, sortedArticles.length)} of ${sortedArticles.length} ${articleDisplayName.toLowerCase()}`
+                  : `0 ${articleDisplayName.toLowerCase()}`
+                }
+              </div>
+
+              <div className="flex items-center gap-2">
+                {memberInfo && (
+                  <Button
+                    variant={showMyArticlesOnly ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowMyArticlesOnly(!showMyArticlesOnly)}
+                    className="gap-2"
+                    data-testid="button-my-articles-filter"
+                  >
+                    <User className="w-4 h-4" />
+                    My {articleDisplayName}
+                  </Button>
+                )}
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-48">
+                    <SlidersHorizontal className="w-4 h-4 mr-2" />
+                    <SelectValue placeholder="Sort By" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="newest">Newest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="most-viewed">Most Viewed</SelectItem>
+                    <SelectItem value="most-liked">Most Liked</SelectItem>
+                    <SelectItem value="title-asc">Title A-Z</SelectItem>
+                    <SelectItem value="title-desc">Title Z-A</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {sortedArticles.length === 0 ? (
               <Card className="border-slate-200 shadow-sm">
                 <CardContent className="p-12 text-center">
@@ -398,41 +436,6 @@ export default function ArticlesPage() {
               </Card>
             ) : (
               <>
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
-                  <div className="text-sm text-slate-600">
-                    Showing {startIndex + 1}-{Math.min(endIndex, sortedArticles.length)} of {sortedArticles.length} {articleDisplayName.toLowerCase()}
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    {currentMember && (
-                      <Button
-                        variant={showMyArticlesOnly ? "default" : "outline"}
-                        size="sm"
-                        onClick={() => setShowMyArticlesOnly(!showMyArticlesOnly)}
-                        className="gap-2"
-                        data-testid="button-my-articles-filter"
-                      >
-                        <User className="w-4 h-4" />
-                        My {articleDisplayName}
-                      </Button>
-                    )}
-                    <Select value={sortBy} onValueChange={setSortBy}>
-                      <SelectTrigger className="w-48">
-                        <SlidersHorizontal className="w-4 h-4 mr-2" />
-                        <SelectValue placeholder="Sort By" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="newest">Newest First</SelectItem>
-                        <SelectItem value="oldest">Oldest First</SelectItem>
-                        <SelectItem value="most-viewed">Most Viewed</SelectItem>
-                        <SelectItem value="most-liked">Most Liked</SelectItem>
-                        <SelectItem value="title-asc">Title A-Z</SelectItem>
-                        <SelectItem value="title-desc">Title Z-A</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
                 <div className="grid md:grid-cols-2 gap-6 mb-8">
                   {paginatedArticles.map(article => (
                     <ArticleCard 

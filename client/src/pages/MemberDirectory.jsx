@@ -15,7 +15,10 @@ import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 export default function MemberDirectoryPage() {
-  const { memberInfo } = useMemberAccess();
+  const { memberInfo, isFeatureExcluded } = useMemberAccess();
+  
+  // Check if user can see the "Show disabled accounts" toggle
+  const canShowDisabledAccounts = !isFeatureExcluded('element_ShowDisabledAccounts');
   
   const [searchQuery, setSearchQuery] = useState("");
   const [showDisabled, setShowDisabled] = useState(false);
@@ -308,16 +311,19 @@ export default function MemberDirectoryPage() {
                       className="pl-10"
                     />
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Label htmlFor="show-disabled" className="text-sm text-slate-700 whitespace-nowrap cursor-pointer">
-                      Show disabled accounts
-                    </Label>
-                    <Switch
-                      id="show-disabled"
-                      checked={showDisabled}
-                      onCheckedChange={setShowDisabled}
-                    />
-                  </div>
+                  {canShowDisabledAccounts && (
+                    <div className="flex items-center gap-3">
+                      <Label htmlFor="show-disabled" className="text-sm text-slate-700 whitespace-nowrap cursor-pointer">
+                        Show disabled accounts
+                      </Label>
+                      <Switch
+                        id="show-disabled"
+                        checked={showDisabled}
+                        onCheckedChange={setShowDisabled}
+                        data-testid="switch-show-disabled"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="flex flex-col md:flex-row md:items-center gap-4">

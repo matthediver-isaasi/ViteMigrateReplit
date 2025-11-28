@@ -105,6 +105,7 @@ const AVAILABLE_FEATURES = [
   { id: "element_AvailableSeatsDisplay", label: "Event Available Seats Display", category: "UI Elements" },
   { id: "element_FloatersDisplay", label: "Floater Elements Display", category: "UI Elements" },
   { id: "element_NewsTickerBar", label: "News Ticker Bar", category: "UI Elements" },
+  { id: "element_ShowDisabledAccounts", label: "Show Disabled Accounts Toggle (Member Directory)", category: "UI Elements" },
   
   // Payment Options
   { id: "payment_training_vouchers", label: "Use Training Vouchers for Purchases", category: "Payment Options" },

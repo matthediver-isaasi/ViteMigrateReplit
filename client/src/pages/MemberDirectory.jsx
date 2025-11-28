@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
+import { useSearch } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,10 @@ import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 export default function MemberDirectoryPage() {
   const { memberInfo } = useMemberAccess();
+  const searchString = useSearch();
+  const urlParams = new URLSearchParams(searchString);
+  const orgFromUrl = urlParams.get('org');
+  
   const [searchQuery, setSearchQuery] = useState("");
   const [showDisabled, setShowDisabled] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -23,7 +28,7 @@ export default function MemberDirectoryPage() {
   const [viewingMember, setViewingMember] = useState(null);
   const [bioExpanded, setBioExpanded] = useState(false);
   const [sortBy, setSortBy] = useState("name-asc");
-  const [selectedOrganization, setSelectedOrganization] = useState("");
+  const [selectedOrganization, setSelectedOrganization] = useState(orgFromUrl || "");
 
   const { data: allMembers = [], isLoading: membersLoading } = useQuery({
     queryKey: ['all-members-directory'],
@@ -130,6 +135,14 @@ export default function MemberDirectoryPage() {
     staleTime: 0,
     refetchOnMount: true,
   });
+
+  // Sync URL parameter with state when navigating
+  useEffect(() => {
+    if (orgFromUrl && orgFromUrl !== selectedOrganization) {
+      setSelectedOrganization(orgFromUrl);
+      setCurrentPage(1);
+    }
+  }, [orgFromUrl]);
 
   const memberStats = useMemo(() => {
     const stats = {};

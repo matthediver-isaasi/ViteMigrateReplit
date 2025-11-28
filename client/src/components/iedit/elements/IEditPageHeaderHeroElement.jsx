@@ -1,7 +1,9 @@
-import React from "react";
+import { useState } from "react";
 
 export default function IEditPageHeaderHeroElement({ content, variant, settings, isFirst }) {
   const { 
+    background_type = 'color',
+    background_color = '#1e3a5f',
     image_url,
     header_text,
     header_position = 'left',
@@ -18,7 +20,10 @@ export default function IEditPageHeaderHeroElement({ content, variant, settings,
     text_padding_bottom = '0',
     height_type = 'auto',
     custom_height = '400',
-    image_fit = 'cover'
+    image_fit = 'cover',
+    overlay_enabled = false,
+    overlay_color = '#000000',
+    overlay_opacity = '50'
   } = content;
 
   const textAlignClass = {
@@ -28,27 +33,48 @@ export default function IEditPageHeaderHeroElement({ content, variant, settings,
   }[text_alignment] || 'text-left';
 
   const getHeightStyle = () => {
-    // For original fit, let image determine height
-    if (image_fit === 'original') return {};
+    if (background_type === 'image' && image_fit === 'original') return {};
     if (height_type === 'full') return { height: '100vh' };
     if (height_type === 'custom') return { height: `${custom_height}px` };
     return { minHeight: '400px' };
   };
 
+  const getBackgroundStyle = () => {
+    if (background_type === 'color') {
+      return { backgroundColor: background_color };
+    }
+    return {};
+  };
+
   return (
-    <div className="relative w-full overflow-hidden" style={getHeightStyle()}>
-      {/* Background Image */}
-      {image_url && (
-        <img 
-          src={image_url} 
-          alt={header_text || 'Hero image'} 
-          className={image_fit === 'original' ? 'w-full h-auto block' : 'absolute inset-0 w-full h-full'}
-          style={image_fit === 'original' ? {} : { objectFit: image_fit }}
-        />
+    <div 
+      className="relative w-full overflow-hidden" 
+      style={{ ...getHeightStyle(), ...getBackgroundStyle() }}
+    >
+      {background_type === 'image' && image_url && (
+        <>
+          <img 
+            src={image_url} 
+            alt={header_text || 'Hero image'} 
+            className={image_fit === 'original' ? 'w-full h-auto block' : 'absolute inset-0 w-full h-full'}
+            style={image_fit === 'original' ? {} : { objectFit: image_fit }}
+          />
+          {overlay_enabled && (
+            <div 
+              className="absolute inset-0" 
+              style={{ 
+                backgroundColor: overlay_color, 
+                opacity: parseInt(overlay_opacity) / 100 
+              }} 
+            />
+          )}
+        </>
       )}
       
-      {/* Content */}
-      <div className={`${image_fit === 'original' ? 'absolute inset-0 flex items-center' : 'relative h-full flex items-center'} max-w-7xl mx-auto`} style={{ paddingLeft: `${padding_horizontal}px`, paddingRight: `${padding_horizontal}px` }}>
+      <div 
+        className={`${background_type === 'image' && image_fit === 'original' ? 'absolute inset-0 flex items-center' : 'relative h-full flex items-center'} max-w-7xl mx-auto`} 
+        style={{ paddingLeft: `${padding_horizontal}px`, paddingRight: `${padding_horizontal}px` }}
+      >
         <div 
           className={`max-w-2xl ${header_position === 'right' ? 'ml-auto' : 'mr-auto'} ${textAlignClass}`}
           style={{
@@ -77,9 +103,10 @@ export default function IEditPageHeaderHeroElement({ content, variant, settings,
   );
 }
 
-// Editor Component
 export function IEditPageHeaderHeroElementEditor({ element, onChange }) {
   const content = element.content || {
+    background_type: 'color',
+    background_color: '#1e3a5f',
     image_url: '',
     header_text: '',
     header_position: 'left',
@@ -96,10 +123,13 @@ export function IEditPageHeaderHeroElementEditor({ element, onChange }) {
     text_padding_bottom: '0',
     height_type: 'auto',
     custom_height: '400',
-    image_fit: 'cover'
+    image_fit: 'cover',
+    overlay_enabled: false,
+    overlay_color: '#000000',
+    overlay_opacity: '50'
   };
 
-  const [isUploading, setIsUploading] = React.useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const updateContent = (key, value) => {
     onChange({ ...element, content: { ...content, [key]: value } });
@@ -133,49 +163,131 @@ export function IEditPageHeaderHeroElementEditor({ element, onChange }) {
 
   return (
     <div className="space-y-4">
-      {/* Image Upload */}
+      {/* Background Type Selection */}
       <div>
-        <label className="block text-sm font-medium mb-1">Hero Image *</label>
-        <div className="space-y-2">
-          <label className="inline-block">
-            <div className={`px-4 py-2 rounded-md text-sm font-medium cursor-pointer ${
-              isUploading 
-                ? 'bg-slate-300 cursor-not-allowed' 
-                : 'bg-blue-600 hover:bg-blue-700 text-white'
-            }`}>
-              {isUploading ? 'Uploading...' : '📤 Upload Image'}
-            </div>
-            <input
-              type="file"
-              accept="image/*"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) handleImageUpload(file);
-                e.target.value = '';
-              }}
-              className="hidden"
-              disabled={isUploading}
-            />
-          </label>
-        </div>
-        {content.image_url && (
-          <div className="mt-2 relative">
-            <img
-              src={content.image_url}
-              alt="Preview"
-              className="w-full h-32 object-cover rounded"
-              onError={(e) => { e.target.style.display = 'none'; }}
-            />
-            <button
-              onClick={() => updateContent('image_url', '')}
-              className="absolute bottom-2 right-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded"
-              type="button"
-            >
-              Remove
-            </button>
-          </div>
-        )}
+        <label className="block text-sm font-medium mb-1">Background Type</label>
+        <select
+          value={content.background_type || 'color'}
+          onChange={(e) => updateContent('background_type', e.target.value)}
+          className="w-full px-3 py-2 border border-slate-300 rounded-md"
+        >
+          <option value="color">Solid Color</option>
+          <option value="image">Image</option>
+        </select>
       </div>
+
+      {/* Color Background Options */}
+      {content.background_type === 'color' && (
+        <div>
+          <label className="block text-sm font-medium mb-1">Background Color</label>
+          <input
+            type="color"
+            value={content.background_color || '#1e3a5f'}
+            onChange={(e) => updateContent('background_color', e.target.value)}
+            className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+          />
+        </div>
+      )}
+
+      {/* Image Background Options */}
+      {content.background_type === 'image' && (
+        <>
+          <div>
+            <label className="block text-sm font-medium mb-1">Hero Image *</label>
+            <div className="space-y-2">
+              <label className="inline-block">
+                <div className={`px-4 py-2 rounded-md text-sm font-medium cursor-pointer ${
+                  isUploading 
+                    ? 'bg-slate-300 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}>
+                  {isUploading ? 'Uploading...' : 'Upload Image'}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageUpload(file);
+                    e.target.value = '';
+                  }}
+                  className="hidden"
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+            {content.image_url && (
+              <div className="mt-2 relative">
+                <img
+                  src={content.image_url}
+                  alt="Preview"
+                  className="w-full h-32 object-cover rounded"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <button
+                  onClick={() => updateContent('image_url', '')}
+                  className="absolute bottom-2 right-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded"
+                  type="button"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Image Display</label>
+            <select
+              value={content.image_fit || 'cover'}
+              onChange={(e) => updateContent('image_fit', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            >
+              <option value="cover">Cover (Fill & Crop)</option>
+              <option value="contain">Contain (Fit Within)</option>
+              <option value="original">Original (Full Width, Natural Height)</option>
+            </select>
+          </div>
+
+          {/* Overlay Options */}
+          <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="overlay_enabled"
+                checked={content.overlay_enabled || false}
+                onChange={(e) => updateContent('overlay_enabled', e.target.checked)}
+                className="rounded"
+              />
+              <label htmlFor="overlay_enabled" className="text-sm font-medium">Enable Overlay</label>
+            </div>
+            
+            {content.overlay_enabled && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Overlay Color</label>
+                  <input
+                    type="color"
+                    value={content.overlay_color || '#000000'}
+                    onChange={(e) => updateContent('overlay_color', e.target.value)}
+                    className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Opacity (%)</label>
+                  <input
+                    type="number"
+                    value={content.overlay_opacity || 50}
+                    onChange={(e) => updateContent('overlay_opacity', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                    min="0"
+                    max="100"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Header Text */}
       <div>
@@ -202,22 +314,8 @@ export function IEditPageHeaderHeroElementEditor({ element, onChange }) {
         </select>
       </div>
 
-      {/* Image Fit */}
-      <div>
-        <label className="block text-sm font-medium mb-1">Image Display</label>
-        <select
-          value={content.image_fit || 'cover'}
-          onChange={(e) => updateContent('image_fit', e.target.value)}
-          className="w-full px-3 py-2 border border-slate-300 rounded-md"
-        >
-          <option value="cover">Cover (Fill & Crop)</option>
-          <option value="contain">Contain (Fit Within)</option>
-          <option value="original">Original (Full Width, Natural Height)</option>
-        </select>
-      </div>
-
-      {/* Image Height - only show when not using original fit */}
-      {content.image_fit !== 'original' && (
+      {/* Container Height - show for color backgrounds or non-original image fit */}
+      {(content.background_type === 'color' || content.image_fit !== 'original') && (
         <div className="space-y-3">
           <div>
             <label className="block text-sm font-medium mb-1">Container Height</label>

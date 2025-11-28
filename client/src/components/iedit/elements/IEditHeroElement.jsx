@@ -5,6 +5,9 @@ export default function IEditHeroElement({ content, variant, settings }) {
   const {
     background_type = 'color',
     background_color = '#3b82f6',
+    gradient_start_color = '#3b82f6',
+    gradient_end_color = '#8b5cf6',
+    gradient_angle = 135,
     image_url,
     image_fit = 'cover',
     overlay_enabled = false,
@@ -43,6 +46,11 @@ export default function IEditHeroElement({ content, variant, settings }) {
   const getBackgroundStyle = () => {
     if (background_type === 'color') {
       return { backgroundColor: background_color };
+    }
+    if (background_type === 'gradient') {
+      return { 
+        background: `linear-gradient(${gradient_angle}deg, ${gradient_start_color}, ${gradient_end_color})` 
+      };
     }
     return {};
   };
@@ -154,39 +162,9 @@ export function IEditHeroElementEditor({ element, onChange }) {
     custom_border_color: '' 
   };
 
-  const content = element.content || {
-    background_type: 'color',
-    background_color: '#3b82f6',
-    image_url: '',
-    image_fit: 'cover',
-    overlay_enabled: false,
-    overlay_color: '#000000',
-    overlay_opacity: 50,
-    text_color: '#ffffff',
-    heading: '',
-    subheading: '',
-    heading_font_family: 'Poppins',
-    heading_font_size: 48,
-    heading_letter_spacing: 0,
-    heading_underline_enabled: false,
-    heading_underline_color: '#000000',
-    heading_underline_width: 100,
-    heading_underline_weight: 2,
-    heading_underline_spacing: 16,
-    heading_underline_to_content_spacing: 24,
-    subheading_font_family: 'Poppins',
-    subheading_font_size: 20,
-    subheading_line_height: 1.5,
-    text_align: 'center',
-    padding_left: 16,
-    padding_right: 16,
-    padding_top: 80,
-    padding_bottom: 80,
-    height_type: 'auto',
-    custom_height: 400,
-    button_top_margin: 32,
-    button: defaultButton
-  };
+  const content = element.content || {};
+  
+  const backgroundType = content.background_type || 'color';
 
   const [isUploading, setIsUploading] = useState(false);
   const [buttonStyles, setButtonStyles] = useState([]);
@@ -241,36 +219,113 @@ export function IEditHeroElementEditor({ element, onChange }) {
 
   const button = content.button || defaultButton;
 
+  const gradientPreview = `linear-gradient(${content.gradient_angle || 135}deg, ${content.gradient_start_color || '#3b82f6'}, ${content.gradient_end_color || '#8b5cf6'})`;
+
   return (
     <div className="space-y-4">
       {/* Background Type Selection */}
       <div>
         <label className="block text-sm font-medium mb-1">Background Type</label>
         <select
-          value={content.background_type || 'color'}
+          value={backgroundType}
           onChange={(e) => updateContent('background_type', e.target.value)}
           className="w-full px-3 py-2 border border-slate-300 rounded-md"
         >
           <option value="color">Solid Color</option>
+          <option value="gradient">Gradient</option>
           <option value="image">Image</option>
         </select>
       </div>
 
-      {/* Color Background Options */}
-      {content.background_type === 'color' && (
+      {/* Solid Color Options */}
+      {backgroundType === 'color' && (
         <div>
           <label className="block text-sm font-medium mb-1">Background Color</label>
-          <input
-            type="color"
-            value={content.background_color || '#3b82f6'}
-            onChange={(e) => updateContent('background_color', e.target.value)}
-            className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+          <div className="flex gap-2 items-center">
+            <input
+              type="color"
+              value={content.background_color || '#3b82f6'}
+              onChange={(e) => updateContent('background_color', e.target.value)}
+              className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+            />
+            <input
+              type="text"
+              value={content.background_color || '#3b82f6'}
+              onChange={(e) => updateContent('background_color', e.target.value)}
+              className="flex-1 px-3 py-2 border border-slate-300 rounded-md font-mono text-sm"
+              placeholder="#3b82f6"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Gradient Options */}
+      {backgroundType === 'gradient' && (
+        <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+          <div 
+            className="w-full h-16 rounded-md border border-slate-300"
+            style={{ background: gradientPreview }}
           />
+          
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Start Color</label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  value={content.gradient_start_color || '#3b82f6'}
+                  onChange={(e) => updateContent('gradient_start_color', e.target.value)}
+                  className="w-12 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={content.gradient_start_color || '#3b82f6'}
+                  onChange={(e) => updateContent('gradient_start_color', e.target.value)}
+                  className="flex-1 px-2 py-2 border border-slate-300 rounded-md font-mono text-xs"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">End Color</label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  value={content.gradient_end_color || '#8b5cf6'}
+                  onChange={(e) => updateContent('gradient_end_color', e.target.value)}
+                  className="w-12 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={content.gradient_end_color || '#8b5cf6'}
+                  onChange={(e) => updateContent('gradient_end_color', e.target.value)}
+                  className="flex-1 px-2 py-2 border border-slate-300 rounded-md font-mono text-xs"
+                />
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium mb-1">Angle: {content.gradient_angle || 135}°</label>
+            <input
+              type="range"
+              min="0"
+              max="360"
+              value={content.gradient_angle || 135}
+              onChange={(e) => updateContent('gradient_angle', parseInt(e.target.value))}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-slate-500 mt-1">
+              <span>0° (Right)</span>
+              <span>90° (Down)</span>
+              <span>180° (Left)</span>
+              <span>270° (Up)</span>
+            </div>
+          </div>
         </div>
       )}
 
       {/* Image Background Options */}
-      {content.background_type === 'image' && (
+      {backgroundType === 'image' && (
         <>
           <div>
             <label className="block text-sm font-medium mb-1">Background Image</label>
@@ -371,12 +426,21 @@ export function IEditHeroElementEditor({ element, onChange }) {
       {/* Text Color */}
       <div>
         <label className="block text-sm font-medium mb-1">Text Color</label>
-        <input
-          type="color"
-          value={content.text_color || '#ffffff'}
-          onChange={(e) => updateContent('text_color', e.target.value)}
-          className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-        />
+        <div className="flex gap-2 items-center">
+          <input
+            type="color"
+            value={content.text_color || '#ffffff'}
+            onChange={(e) => updateContent('text_color', e.target.value)}
+            className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+          />
+          <input
+            type="text"
+            value={content.text_color || '#ffffff'}
+            onChange={(e) => updateContent('text_color', e.target.value)}
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-md font-mono text-sm"
+            placeholder="#ffffff"
+          />
+        </div>
       </div>
 
       {/* Container Height */}

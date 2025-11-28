@@ -121,7 +121,7 @@ export default function ArticleViewPage() {
     queryKey: ['author-member', article?.author_id],
     queryFn: async () => {
       if (!article?.author_id) return null;
-      const members = await base44.entities.Member.list();
+      const members = await base44.entities.Member.listAll();
       const found = members.find(m => m.id === article.author_id);
       console.log('[ArticleView] authorMember found:', found);
       console.log('[ArticleView] authorMember.organization_id:', found?.organization_id);

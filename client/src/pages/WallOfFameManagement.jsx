@@ -50,7 +50,7 @@ export default function WallOfFameManagementPage() {
 
   const { data: members = [] } = useQuery({
     queryKey: ['members-for-selection'],
-    queryFn: () => base44.entities.Member.list(),
+    queryFn: () => base44.entities.Member.listAll(),
   });
 
   const { data: photoSizeSetting } = useQuery({

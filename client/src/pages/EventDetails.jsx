@@ -356,7 +356,7 @@ export default function EventDetailsPage() {
   const updateMemberTourStatus = async (tourKey) => {
     if (currentMemberInfo && !currentMemberInfo.is_team_member) {
       try {
-        const allMembers = await base44.entities.Member.list();
+        const allMembers = await base44.entities.Member.listAll();
         const currentMember = allMembers.find(m => m.email === currentMemberInfo.email);
         
         if (currentMember) {

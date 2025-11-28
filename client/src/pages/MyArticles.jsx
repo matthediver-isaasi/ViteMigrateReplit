@@ -39,7 +39,7 @@ export default function MyArticlesPage() {
     queryKey: ['my-articles', memberInfo?.email],
     queryFn: async () => {
       const allArticles = await base44.entities.BlogPost.list('-created_date');
-      const allMembers = await base44.entities.Member.list();
+      const allMembers = await base44.entities.Member.listAll();
       const currentMember = allMembers.find(m => m.email === memberInfo?.email);
       
       return allArticles.filter(article => article.author_id === currentMember?.id);

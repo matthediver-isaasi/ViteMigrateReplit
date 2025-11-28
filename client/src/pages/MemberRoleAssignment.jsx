@@ -39,7 +39,7 @@ export default function MemberRoleAssignmentPage() {
 
   const { data: members = [], isLoading: loadingMembers } = useQuery({
     queryKey: ['members'],
-    queryFn: () => base44.entities.Member.list(),
+    queryFn: () => base44.entities.Member.listAll(),
     staleTime: 0,
     refetchOnMount: true,
   });

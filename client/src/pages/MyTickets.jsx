@@ -69,7 +69,7 @@ export default function MyTicketsPage() {
 
   const { data: members = [], isLoading: loadingMembers } = useQuery({
     queryKey: ['members'],
-    queryFn: () => base44.entities.Member.list(),
+    queryFn: () => base44.entities.Member.listAll(),
     staleTime: 0,
     refetchOnMount: true,
   });
@@ -202,7 +202,7 @@ export default function MyTicketsPage() {
     setShowCancelDialog(false);
 
     try {
-      const allMembers = await base44.entities.Member.list();
+      const allMembers = await base44.entities.Member.listAll();
       const currentMember = allMembers.find((m) => m.email === memberInfo.email);
 
       if (!currentMember) {

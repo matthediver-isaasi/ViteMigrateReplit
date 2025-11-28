@@ -17,7 +17,7 @@ export default function MemberHandleManagementPage() {
   const { data: membersWithoutHandles = [], isLoading, refetch } = useQuery({
     queryKey: ['members-without-handles'],
     queryFn: async () => {
-      const members = await base44.entities.Member.list();
+      const members = await base44.entities.Member.listAll();
       return members.filter(m => !m.handle);
     },
     enabled: accessChecked

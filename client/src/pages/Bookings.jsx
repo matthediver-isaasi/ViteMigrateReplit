@@ -56,7 +56,7 @@ export default function BookingsPage() {
     queryFn: async () => {
       if (!memberInfo?.email) return [];
       
-      const allMembers = await base44.entities.Member.list();
+      const allMembers = await base44.entities.Member.listAll();
       const currentMember = allMembers.find(m => m.email === memberInfo.email);
       
       if (!currentMember) return [];
@@ -100,7 +100,7 @@ export default function BookingsPage() {
   const updateMemberTourStatus = async (tourKey) => {
     if (memberInfo && !memberInfo.is_team_member) {
       try {
-        const allMembers = await base44.entities.Member.list();
+        const allMembers = await base44.entities.Member.listAll();
         const currentMember = allMembers.find(m => m.email === memberInfo.email);
         
         if (currentMember) {
@@ -134,7 +134,7 @@ export default function BookingsPage() {
     setShowCancelDialog(false);
 
     try {
-      const allMembers = await base44.entities.Member.list();
+      const allMembers = await base44.entities.Member.listAll();
       const currentMember = allMembers.find(m => m.email === memberInfo.email);
       
       if (!currentMember) {

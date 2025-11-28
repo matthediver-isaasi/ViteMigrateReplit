@@ -20,7 +20,7 @@ export default function TeamEngagementReportPage() {
     queryKey: ['team-members-report', memberInfo?.organization_id],
     queryFn: async () => {
       if (!memberInfo?.organization_id) return [];
-      const allMembers = await base44.entities.Member.list();
+      const allMembers = await base44.entities.Member.listAll();
       return allMembers.filter(m => m.organization_id === memberInfo.organization_id && m.login_enabled !== false);
     },
     enabled: !!memberInfo?.organization_id

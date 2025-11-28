@@ -27,7 +27,7 @@ export default function MemberDirectoryPage() {
   const { data: allMembers = [], isLoading: membersLoading } = useQuery({
     queryKey: ['all-members-directory'],
     queryFn: async () => {
-      return await base44.entities.Member.list();
+      return await base44.entities.Member.listAll();
     },
     staleTime: 60 * 1000,
   });

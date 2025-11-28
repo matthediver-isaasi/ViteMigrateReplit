@@ -23,7 +23,7 @@ export default function FormViewPage() {
   const { data: memberRecord } = useQuery({
     queryKey: ['member-record', memberInfo?.email],
     queryFn: async () => {
-      const allMembers = await base44.entities.Member.list();
+      const allMembers = await base44.entities.Member.listAll();
       return allMembers.find(m => m.email === memberInfo?.email);
     },
     enabled: !!memberInfo?.email

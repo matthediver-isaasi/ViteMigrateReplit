@@ -105,6 +105,19 @@ export default function ResourcesPage() {
     refetchOnWindowFocus: true
   });
 
+  // Fetch resource author settings for social icons configuration
+  const { data: resourceSettings } = useQuery({
+    queryKey: ['resourceAuthorSettings'],
+    queryFn: async () => {
+      const settings = await base44.entities.ResourceAuthorSettings.list();
+      return settings[0] || null;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Get enabled social icons from settings, default to all enabled
+  const enabledSocialIcons = resourceSettings?.enabled_social_icons || ['x', 'linkedin', 'email'];
+
   // Load saved preferences once
   React.useEffect(() => {
     if (currentUser?.preferences?.resources && !hasLoadedPreferences) {
@@ -391,6 +404,7 @@ export default function ResourcesPage() {
                       key={resource.id} 
                       resource={resource}
                       buttonStyles={buttonStyles}
+                      enabledSocialIcons={enabledSocialIcons}
                     />
                   ))}
                 </div>

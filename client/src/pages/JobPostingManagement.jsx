@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Search, CheckCircle, XCircle, Briefcase, MapPin, Building2, Clock, Star, AlertCircle, Pencil, Trash2, FileText, Upload, X, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, CheckCircle, XCircle, Briefcase, MapPin, Building2, Clock, Star, AlertCircle, Pencil, Trash2, FileText, Upload, X, Loader2, ChevronLeft, ChevronRight, Pause, Archive, Play } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
@@ -147,9 +147,11 @@ export default function JobPostingManagementPage() {
       active: 'bg-green-100 text-green-700',
       expired: 'bg-slate-100 text-slate-700',
       rejected: 'bg-red-100 text-red-700',
-      pending_payment: 'bg-blue-100 text-blue-700'
+      pending_payment: 'bg-blue-100 text-blue-700',
+      paused: 'bg-orange-100 text-orange-700',
+      archived: 'bg-slate-200 text-slate-600'
     };
-    return <Badge className={styles[status]}>{status.replace(/_/g, ' ')}</Badge>;
+    return <Badge className={styles[status] || 'bg-slate-100 text-slate-700'}>{status?.replace(/_/g, ' ') || 'unknown'}</Badge>;
   };
 
   const filteredJobs = useMemo(() => {
@@ -161,6 +163,8 @@ export default function JobPostingManagementPage() {
       const matchesTab = 
         (activeTab === 'pending' && job.status === 'pending_approval') ||
         (activeTab === 'active' && job.status === 'active') ||
+        (activeTab === 'paused' && job.status === 'paused') ||
+        (activeTab === 'archived' && job.status === 'archived') ||
         (activeTab === 'rejected' && job.status === 'rejected') ||
         (activeTab === 'all');
 
@@ -356,12 +360,18 @@ export default function JobPostingManagementPage() {
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6">
+          <TabsList className="mb-6 flex-wrap">
             <TabsTrigger value="pending">
               Pending ({jobs.filter(j => j.status === 'pending_approval').length})
             </TabsTrigger>
             <TabsTrigger value="active">
               Active ({jobs.filter(j => j.status === 'active').length})
+            </TabsTrigger>
+            <TabsTrigger value="paused">
+              Paused ({jobs.filter(j => j.status === 'paused').length})
+            </TabsTrigger>
+            <TabsTrigger value="archived">
+              Archived ({jobs.filter(j => j.status === 'archived').length})
             </TabsTrigger>
             <TabsTrigger value="rejected">
               Rejected ({jobs.filter(j => j.status === 'rejected').length})
@@ -516,12 +526,13 @@ export default function JobPostingManagementPage() {
                             >
                               View Details
                             </Button>
-                            {job.status === 'active' && (
+                            {['active', 'paused', 'archived'].includes(job.status) && (
                               <Button
                                 variant="outline"
                                 size="sm"
                                 onClick={() => handleEdit(job)}
                                 className="text-blue-600 hover:text-blue-700"
+                                data-testid={`button-edit-job-${job.id}`}
                               >
                                 <Pencil className="w-4 h-4" />
                               </Button>
@@ -940,23 +951,93 @@ export default function JobPostingManagementPage() {
                 </div>
               </div>
             )}
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowEditDialog(false);
-                  setEditingJob(null);
-                }}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSaveEdit}
-                disabled={updateJobMutation.isPending || uploadingFiles}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {updateJobMutation.isPending ? 'Saving...' : 'Save Changes'}
-              </Button>
+            <DialogFooter className="flex-col sm:flex-row gap-2">
+              <div className="flex gap-2 w-full sm:w-auto">
+                {editingJob?.status === 'active' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to pause this job posting? It will no longer be visible to job seekers.')) {
+                        updateJobMutation.mutate({ id: editingJob.id, data: { status: 'paused' } });
+                      }
+                    }}
+                    disabled={updateJobMutation.isPending}
+                    className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                    data-testid="button-pause-job"
+                  >
+                    <Pause className="w-4 h-4 mr-2" />
+                    Pause
+                  </Button>
+                )}
+                {editingJob?.status === 'paused' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to reactivate this job posting?')) {
+                        updateJobMutation.mutate({ id: editingJob.id, data: { status: 'active' } });
+                      }
+                    }}
+                    disabled={updateJobMutation.isPending}
+                    className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    data-testid="button-reactivate-job"
+                  >
+                    <Play className="w-4 h-4 mr-2" />
+                    Reactivate
+                  </Button>
+                )}
+                {editingJob?.status !== 'archived' && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (confirm('Are you sure you want to archive this job posting? It will be moved to the archived section.')) {
+                        updateJobMutation.mutate({ id: editingJob.id, data: { status: 'archived' } });
+                      }
+                    }}
+                    disabled={updateJobMutation.isPending}
+                    className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
+                    data-testid="button-archive-job"
+                  >
+                    <Archive className="w-4 h-4 mr-2" />
+                    Archive
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    if (confirm('Are you sure you want to permanently delete this job posting? This action cannot be undone.')) {
+                      deleteJobMutation.mutate(editingJob.id);
+                      setShowEditDialog(false);
+                      setEditingJob(null);
+                    }
+                  }}
+                  disabled={deleteJobMutation.isPending}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  data-testid="button-delete-job"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+              </div>
+              <div className="flex gap-2 w-full sm:w-auto sm:ml-auto">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowEditDialog(false);
+                    setEditingJob(null);
+                  }}
+                  data-testid="button-cancel-edit"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveEdit}
+                  disabled={updateJobMutation.isPending || uploadingFiles}
+                  className="bg-blue-600 hover:bg-blue-700"
+                  data-testid="button-save-job"
+                >
+                  {updateJobMutation.isPending ? 'Saving...' : 'Save Changes'}
+                </Button>
+              </div>
             </DialogFooter>
           </DialogContent>
         </Dialog>

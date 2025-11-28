@@ -372,15 +372,20 @@ export function IEditHeroElementEditor({ element, onChange }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Image Display</label>
+            <label className="block text-sm font-medium mb-1">Image Scaling</label>
             <select
               value={content.image_fit || 'cover'}
               onChange={(e) => updateContent('image_fit', e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-md"
             >
-              <option value="cover">Cover (Fill & Crop)</option>
-              <option value="contain">Contain (Fit Within)</option>
+              <option value="cover">Fill container (scale proportionally, may crop edges)</option>
+              <option value="contain">Fit entire image (scale proportionally, may show gaps)</option>
             </select>
+            <p className="text-xs text-slate-500 mt-1">
+              {content.image_fit === 'contain' 
+                ? 'The full image will be visible, but there may be empty space around it.'
+                : 'Image fills the full width and height, keeping proportions. Parts may be cropped if needed.'}
+            </p>
           </div>
 
           {/* Overlay Options */}

@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { createClient } from "@supabase/supabase-js";
 import session from "express-session";
 import MemoryStore from "memorystore";
+import multer from "multer";
 
 // Supabase client for server-side operations
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -7891,6 +7892,109 @@ AGCAS Events Team
       message: resetAll ? 'All progress reset' : 'Failed files reset',
       progress 
     });
+  });
+
+  // ============ Integration Routes ============
+  
+  // File upload endpoint
+  const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+  });
+  
+  const STORAGE_BUCKET = 'file-repository';
+  
+  // Sanitize filename for safe storage
+  function sanitizeFileName(name: string): string {
+    return name
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .replace(/_+/g, '_')
+      .substring(0, 200);
+  }
+  
+  app.post('/api/integrations/upload-file', upload.single('file'), async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const file = (req as any).file;
+      if (!file) {
+        return res.status(400).json({ error: 'No file provided' });
+      }
+      
+      const isPrivate = req.body?.private === 'true';
+      const sanitizedName = sanitizeFileName(file.originalname);
+      const uniqueId = `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      const storagePath = `uploads/${uniqueId}-${sanitizedName}`;
+      
+      // Upload to Supabase Storage
+      const { data, error } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .upload(storagePath, file.buffer, {
+          contentType: file.mimetype,
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) {
+        console.error('Supabase upload error:', error);
+        return res.status(500).json({ error: 'Failed to upload file: ' + error.message });
+      }
+      
+      // Get public URL
+      const { data: publicUrlData } = supabase.storage
+        .from(STORAGE_BUCKET)
+        .getPublicUrl(storagePath);
+      
+      res.json({ 
+        file_url: publicUrlData.publicUrl,
+        file_name: file.originalname,
+        file_size: file.size,
+        mime_type: file.mimetype
+      });
+    } catch (error: any) {
+      console.error('File upload error:', error);
+      res.status(500).json({ error: 'Upload failed: ' + (error.message || 'Unknown error') });
+    }
+  });
+  
+  // Create signed URL for private files
+  app.post('/api/integrations/create-signed-url', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { file_url } = req.body;
+      if (!file_url) {
+        return res.status(400).json({ error: 'file_url is required' });
+      }
+      
+      // Extract storage path from URL
+      const urlObj = new URL(file_url);
+      const pathParts = urlObj.pathname.split('/storage/v1/object/public/');
+      if (pathParts.length < 2) {
+        return res.status(400).json({ error: 'Invalid file URL format' });
+      }
+      
+      const [bucket, ...pathSegments] = pathParts[1].split('/');
+      const storagePath = pathSegments.join('/');
+      
+      const { data, error } = await supabase.storage
+        .from(bucket)
+        .createSignedUrl(storagePath, 3600); // 1 hour expiry
+      
+      if (error) {
+        console.error('Signed URL error:', error);
+        return res.status(500).json({ error: 'Failed to create signed URL: ' + error.message });
+      }
+      
+      res.json({ signed_url: data.signedUrl });
+    } catch (error: any) {
+      console.error('Signed URL error:', error);
+      res.status(500).json({ error: 'Failed to create signed URL: ' + (error.message || 'Unknown error') });
+    }
   });
 
   // ============ Health Check ============

@@ -221,6 +221,95 @@ class EntitiesProxy {
   get MemberGroupGuest() { return this._getEntity('MemberGroupGuest'); }
 }
 
+class CoreIntegration {
+  constructor(apiRequest) {
+    this.apiRequest = apiRequest;
+  }
+
+  async UploadFile({ file }) {
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const response = await fetch('/api/integrations/upload-file', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(errorBody || 'Upload failed');
+    }
+    
+    return response.json();
+  }
+
+  async UploadPrivateFile({ file }) {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('private', 'true');
+    
+    const response = await fetch('/api/integrations/upload-file', {
+      method: 'POST',
+      body: formData,
+      credentials: 'include'
+    });
+    
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(errorBody || 'Upload failed');
+    }
+    
+    return response.json();
+  }
+
+  async CreateFileSignedUrl({ file_url }) {
+    return this.apiRequest('/api/integrations/create-signed-url', {
+      method: 'POST',
+      body: JSON.stringify({ file_url }),
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  async InvokeLLM(params) {
+    return this.apiRequest('/api/integrations/invoke-llm', {
+      method: 'POST',
+      body: JSON.stringify(params),
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  async SendEmail(params) {
+    return this.apiRequest('/api/integrations/send-email', {
+      method: 'POST',
+      body: JSON.stringify(params),
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  async GenerateImage(params) {
+    return this.apiRequest('/api/integrations/generate-image', {
+      method: 'POST',
+      body: JSON.stringify(params),
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  async ExtractDataFromUploadedFile(params) {
+    return this.apiRequest('/api/integrations/extract-data', {
+      method: 'POST',
+      body: JSON.stringify(params),
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+}
+
+class IntegrationsProxy {
+  constructor(apiRequest) {
+    this.Core = new CoreIntegration(apiRequest);
+  }
+}
+
 class Base44Client {
   constructor(options = {}) {
     this.options = options;
@@ -228,6 +317,7 @@ class Base44Client {
     this.entities = new EntitiesProxy(this._apiRequest);
     this.functions = new FunctionsProxy(this._apiRequest);
     this.auth = new AuthProxy(this._apiRequest);
+    this.integrations = new IntegrationsProxy(this._apiRequest);
   }
 
   async _apiRequest(url, options = {}) {

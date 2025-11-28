@@ -3,7 +3,9 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileQuestion, ChevronLeft, ChevronRight, SlidersHorizontal, Save, User } from "lucide-react";
+import { FileQuestion, ChevronLeft, ChevronRight, SlidersHorizontal, Save, User, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -390,6 +392,20 @@ export default function ArticlesPage() {
                     My {articleDisplayName}
                   </Button>
                 )}
+                
+                {showMyArticlesOnly && (
+                  <Link to={createPageUrl('ArticleEditor')}>
+                    <Button
+                      size="sm"
+                      className="gap-2 bg-blue-600 hover:bg-blue-700"
+                      data-testid="button-add-article"
+                    >
+                      <Plus className="w-4 h-4" />
+                      New {articleDisplayName}
+                    </Button>
+                  </Link>
+                )}
+                
                 <Select value={sortBy} onValueChange={setSortBy}>
                   <SelectTrigger className="w-48">
                     <SlidersHorizontal className="w-4 h-4 mr-2" />

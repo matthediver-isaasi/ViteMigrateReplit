@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FileQuestion, Search, X, Filter } from "lucide-react";
+import { FileQuestion, Search, X, Filter, User } from "lucide-react";
 import NewsCard from "../components/news/NewsCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
@@ -23,6 +23,7 @@ export default function NewsPage() {
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [newsToDelete, setNewsToDelete] = useState(null);
+  const [showMyNewsOnly, setShowMyNewsOnly] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -165,9 +166,11 @@ export default function NewsPage() {
       const matchesSubcategory = selectedSubcategories.length === 0 || 
         (item.subcategories && item.subcategories.some(sub => selectedSubcategories.includes(sub)));
       
-      return matchesSearch && matchesSubcategory;
+      const matchesAuthor = !showMyNewsOnly || item.author_id === currentMember?.id;
+      
+      return matchesSearch && matchesSubcategory && matchesAuthor;
     });
-  }, [news, searchQuery, selectedSubcategories]);
+  }, [news, searchQuery, selectedSubcategories, showMyNewsOnly, currentMember?.id]);
 
   // Sort news
   const sortedNews = useMemo(() => {
@@ -244,7 +247,7 @@ export default function NewsPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedSubcategories, sortBy, itemsPerPage]);
+  }, [searchQuery, selectedSubcategories, sortBy, itemsPerPage, showMyNewsOnly]);
 
   const hasUnsavedChanges = useMemo(() => {
     if (!currentMember?.news_filter_preferences) return false;
@@ -304,17 +307,32 @@ export default function NewsPage() {
                 )}
               </div>
               
-              {hasUnsavedChanges && (
-                <Button
-                  onClick={handleSavePreferences}
-                  disabled={savePreferencesMutation.isPending}
-                  className="bg-blue-600 hover:bg-blue-700"
-                  size="sm"
-                  data-testid="button-save-preferences"
-                >
-                  {savePreferencesMutation.isPending ? 'Saving...' : 'Save as Default'}
-                </Button>
-              )}
+              <div className="flex items-center gap-2">
+                {memberInfo && hasAdminEditPermission && (
+                  <Button
+                    variant={showMyNewsOnly ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setShowMyNewsOnly(!showMyNewsOnly)}
+                    className="gap-2"
+                    data-testid="button-my-news-filter"
+                  >
+                    <User className="w-4 h-4" />
+                    My News
+                  </Button>
+                )}
+                
+                {hasUnsavedChanges && (
+                  <Button
+                    onClick={handleSavePreferences}
+                    disabled={savePreferencesMutation.isPending}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    size="sm"
+                    data-testid="button-save-preferences"
+                  >
+                    {savePreferencesMutation.isPending ? 'Saving...' : 'Save as Default'}
+                  </Button>
+                )}
+              </div>
             </div>
 
           </div>
@@ -337,13 +355,26 @@ export default function NewsPage() {
             <CardContent className="p-12 text-center">
               <FileQuestion className="w-16 h-16 text-slate-300 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                {searchQuery || selectedSubcategories.length > 0 ? 'No news found' : 'No news available'}
+                {showMyNewsOnly ? 'No news found' : searchQuery || selectedSubcategories.length > 0 ? 'No news found' : 'No news available'}
               </h3>
               <p className="text-slate-600">
-                {searchQuery || selectedSubcategories.length > 0
-                  ? 'Try adjusting your search or filters'
-                  : 'Check back soon for updates'}
+                {showMyNewsOnly
+                  ? "You haven't authored any news articles yet"
+                  : searchQuery || selectedSubcategories.length > 0
+                    ? 'Try adjusting your search or filters'
+                    : 'Check back soon for updates'}
               </p>
+              {showMyNewsOnly && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowMyNewsOnly(false)}
+                  className="mt-4"
+                  data-testid="button-show-all-news"
+                >
+                  Show all news
+                </Button>
+              )}
             </CardContent>
           </Card>
         ) : (

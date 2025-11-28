@@ -1,90 +1,76 @@
 import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, User, ArrowUpRight, Download, ExternalLink, PlayCircle, Eye, FileText, Mail, Plus } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Calendar, User, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
-import AGCASButton from "../ui/AGCASButton";
-import AGCASSquareButton from "../ui/AGCASSquareButton";
-import { Button } from "@/components/ui/button";
 
-const iconMap = {
-  ArrowUpRight,
-  Download,
-  ExternalLink,
-  PlayCircle,
-  Eye,
-  FileText,
-  Mail,
-  Plus,
-};
-
-export default function ArticleCard({ article, buttonStyles = [], viewPageUrl = 'ArticleView', showActions = true, displayName = 'Articles' }) {
-  // Get button style from props instead of fetching
-  const buttonStyle = buttonStyles.find(s => s.card_type === 'article') || null;
-
+export default function ArticleCard({ 
+  article, 
+  viewPageUrl = 'ArticleView', 
+  showActions = true, 
+  displayName = 'Articles',
+  onEdit,
+  onDelete,
+  hasAdminEditPermission = false,
+  hasAdminDeletePermission = false,
+  currentMemberId = null,
+  showImage = true
+}) {
   const articleUrl = `${createPageUrl(viewPageUrl)}?slug=${article.slug}`;
 
-  const singularDisplayName = displayName.endsWith('s') ? displayName.slice(0, -1) : displayName;
+  const isAuthor = currentMemberId && article.author_id === currentMemberId;
+  
+  const canEdit = hasAdminEditPermission || isAuthor;
+  const canDelete = hasAdminDeletePermission || isAuthor;
 
-  const renderButton = () => {
-    if (!buttonStyle) {
-      // Default fallback
-      return (
-        <Button asChild className="w-full bg-blue-600 hover:bg-blue-700">
-          <Link to={articleUrl}>
-            <ArrowUpRight className="w-4 h-4 mr-2" />
-            Read {singularDisplayName}
-          </Link>
-        </Button>
-      );
-    }
-
-    // Use dynamic display name, replacing "Article" with the actual display name
-    let buttonText = buttonStyle.button_text || `Read ${singularDisplayName}`;
-    if (buttonText.includes('Article')) {
-      buttonText = buttonText.replace('Article', singularDisplayName);
-    }
-    const buttonType = buttonStyle.button_type;
-    const IconComponent = buttonStyle.icon_name && iconMap[buttonStyle.icon_name];
-
-    if (buttonType === "square_agcas") {
-      return (
-        <Link to={articleUrl}>
-          <AGCASSquareButton />
-        </Link>
-      );
-    } else if (buttonType === "rectangular_agcas") {
-      return (
-        <Link to={articleUrl}>
-          <AGCASButton 
-            icon={buttonStyle.icon_name !== 'none' ? IconComponent : undefined}
-            className="w-full"
+  const ActionButtons = () => {
+    if (!canEdit && !canDelete) return null;
+    
+    return (
+      <div className="flex gap-1">
+        {canEdit && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 hover:bg-slate-100"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onEdit?.(article);
+            }}
+            data-testid={`button-edit-article-${article.id}`}
           >
-            {buttonText}
-          </AGCASButton>
-        </Link>
-      );
-    } else {
-      // Standard button
-      return (
-        <Button 
-          asChild
-          className="w-full bg-blue-600 hover:bg-blue-700"
-        >
-          <Link to={articleUrl}>
-            {IconComponent && buttonStyle.icon_name !== 'none' && <IconComponent className="w-4 h-4 mr-2" />}
-            {buttonText}
-          </Link>
-        </Button>
-      );
-    }
+            <Pencil className="h-4 w-4" />
+          </Button>
+        )}
+        {canDelete && (
+          <Button
+            size="icon"
+            variant="ghost"
+            className="h-8 w-8 hover:bg-red-100 text-red-600"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete?.(article);
+            }}
+            data-testid={`button-delete-article-${article.id}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </div>
+    );
   };
 
   return (
-    <Card className="border-slate-200 hover:shadow-lg transition-shadow duration-300 overflow-hidden h-full flex flex-col">
-      {article.feature_image_url && (
+    <Card 
+      className="border-slate-200 hover:shadow-lg transition-shadow duration-300 overflow-hidden h-full flex flex-col relative"
+      data-testid={`card-article-${article.id}`}
+    >
+      {showImage && article.feature_image_url && (
         <>
           <div className="h-48 overflow-hidden bg-slate-100">
             <img 
@@ -136,9 +122,16 @@ export default function ArticleCard({ article, buttonStyles = [], viewPageUrl = 
         )}
       </CardHeader>
 
-      <CardContent className="pt-0 pb-4 mt-auto">
-        {renderButton()}
-      </CardContent>
+      <div className="mt-auto flex items-end justify-between">
+        <ActionButtons />
+        <Link 
+          to={articleUrl}
+          className="inline-flex items-center justify-center w-12 h-12 bg-black hover:bg-gray-800 transition-colors duration-200"
+          data-testid={`button-read-article-${article.id}`}
+        >
+          <ArrowUpRight className="w-6 h-6 text-white" strokeWidth={2} />
+        </Link>
+      </div>
     </Card>
   );
 }

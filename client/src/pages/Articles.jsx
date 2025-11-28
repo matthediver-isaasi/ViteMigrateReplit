@@ -7,13 +7,19 @@ import { FileQuestion, ChevronLeft, ChevronRight, SlidersHorizontal, Save } from
 import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { useBlogPostRealtime } from "@/hooks/useBlogPostRealtime";
 
 export default function ArticlesPage() {
   useBlogPostRealtime(['published-articles']);
-  const { memberInfo, memberRole } = useMemberAccess();
+  const { memberInfo, memberRole, isAdmin, isFeatureExcluded } = useMemberAccess();
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [articleToDelete, setArticleToDelete] = useState(null);
+
+  const hasAdminEditPermission = isAdmin && !isFeatureExcluded('action_article_edit');
+  const hasAdminDeletePermission = isAdmin && !isFeatureExcluded('action_article_delete');
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -29,6 +35,16 @@ export default function ArticlesPage() {
     queryFn: async () => {
       const user = await base44.auth.me();
       return user;
+    },
+    enabled: !!memberInfo
+  });
+
+  // Fetch current member for author comparison
+  const { data: currentMember } = useQuery({
+    queryKey: ['current-member', memberInfo?.email],
+    queryFn: async () => {
+      const allMembers = await base44.entities.Member.list();
+      return allMembers.find(m => m.email === memberInfo?.email);
     },
     enabled: !!memberInfo
   });
@@ -121,6 +137,37 @@ export default function ArticlesPage() {
       toast.error('Failed to save preferences: ' + error.message);
     }
   });
+
+  // Delete article mutation
+  const deleteArticleMutation = useMutation({
+    mutationFn: async (articleId) => {
+      await base44.entities.BlogPost.delete(articleId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['published-articles'] });
+      setDeleteDialogOpen(false);
+      setArticleToDelete(null);
+      toast.success('Article deleted successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to delete article: ' + error.message);
+    }
+  });
+
+  const handleEditArticle = (article) => {
+    window.location.href = `/ArticleEditor?id=${article.id}`;
+  };
+
+  const handleDeleteArticle = (article) => {
+    setArticleToDelete(article);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (articleToDelete) {
+      deleteArticleMutation.mutate(articleToDelete.id);
+    }
+  };
 
   // Calculate view and like counts per article
   const articleStats = useMemo(() => {
@@ -361,8 +408,12 @@ export default function ArticlesPage() {
                     <ArticleCard 
                       key={article.id} 
                       article={article}
-                      buttonStyles={buttonStyles}
                       displayName={articleDisplayName}
+                      hasAdminEditPermission={hasAdminEditPermission}
+                      hasAdminDeletePermission={hasAdminDeletePermission}
+                      currentMemberId={currentMember?.id}
+                      onEdit={handleEditArticle}
+                      onDelete={handleDeleteArticle}
                     />
                   ))}
                 </div>
@@ -438,6 +489,34 @@ export default function ArticlesPage() {
           </div>
         </div>
       </div>
+
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Article</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete "{articleToDelete?.title}"? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteDialogOpen(false)}
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={confirmDelete}
+              disabled={deleteArticleMutation.isPending}
+              data-testid="button-confirm-delete"
+            >
+              {deleteArticleMutation.isPending ? 'Deleting...' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

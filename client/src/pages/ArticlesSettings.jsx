@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Settings, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Settings, Loader2, ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
@@ -14,6 +15,8 @@ export default function ArticlesSettingsPage() {
   const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
   const [accessChecked, setAccessChecked] = useState(false);
   const [displayName, setDisplayName] = useState("");
+  const [showThumbsUp, setShowThumbsUp] = useState(true);
+  const [showThumbsDown, setShowThumbsDown] = useState(true);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -36,6 +39,21 @@ export default function ArticlesSettingsPage() {
     staleTime: 0
   });
 
+  // Fetch reaction settings
+  const { data: reactionSettings, isLoading: reactionsLoading } = useQuery({
+    queryKey: ['article-reaction-settings'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const thumbsUpSetting = allSettings.find(s => s.setting_key === 'article_show_thumbs_up');
+      const thumbsDownSetting = allSettings.find(s => s.setting_key === 'article_show_thumbs_down');
+      return {
+        thumbsUp: thumbsUpSetting,
+        thumbsDown: thumbsDownSetting
+      };
+    },
+    staleTime: 0
+  });
+
   React.useEffect(() => {
     if (settings) {
       setDisplayName(settings.setting_value || 'Articles');
@@ -43,6 +61,14 @@ export default function ArticlesSettingsPage() {
       setDisplayName('Articles');
     }
   }, [settings]);
+
+  // Initialize reaction toggles from settings
+  React.useEffect(() => {
+    if (reactionSettings) {
+      setShowThumbsUp(reactionSettings.thumbsUp?.setting_value !== 'false');
+      setShowThumbsDown(reactionSettings.thumbsDown?.setting_value !== 'false');
+    }
+  }, [reactionSettings]);
 
   const updateSettingMutation = useMutation({
     mutationFn: async (value) => {
@@ -76,6 +102,52 @@ export default function ArticlesSettingsPage() {
     updateSettingMutation.mutate(displayName.trim());
   };
 
+  // Mutation for updating reaction settings
+  const updateReactionSettingMutation = useMutation({
+    mutationFn: async ({ key, value, existingSetting }) => {
+      if (existingSetting) {
+        await base44.entities.SystemSettings.update(existingSetting.id, {
+          setting_value: value.toString()
+        });
+      } else {
+        await base44.entities.SystemSettings.create({
+          setting_key: key,
+          setting_value: value.toString(),
+          setting_type: 'boolean',
+          description: key === 'article_show_thumbs_up' 
+            ? 'Show thumbs up button on article view' 
+            : 'Show thumbs down button on article view'
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['article-reaction-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['article-settings'] });
+      toast.success('Reaction setting updated');
+    },
+    onError: (error) => {
+      toast.error('Failed to update setting: ' + error.message);
+    }
+  });
+
+  const handleThumbsUpToggle = (checked) => {
+    setShowThumbsUp(checked);
+    updateReactionSettingMutation.mutate({
+      key: 'article_show_thumbs_up',
+      value: checked,
+      existingSetting: reactionSettings?.thumbsUp
+    });
+  };
+
+  const handleThumbsDownToggle = (checked) => {
+    setShowThumbsDown(checked);
+    updateReactionSettingMutation.mutate({
+      key: 'article_show_thumbs_down',
+      value: checked,
+      existingSetting: reactionSettings?.thumbsDown
+    });
+  };
+
   if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-8 flex items-center justify-center">
@@ -92,7 +164,7 @@ export default function ArticlesSettingsPage() {
           <p className="text-slate-600">Configure how articles appear throughout the portal</p>
         </div>
 
-        {isLoading ? (
+        {isLoading || reactionsLoading ? (
           <Card>
             <CardContent className="p-8">
               <div className="flex items-center justify-center">
@@ -101,55 +173,114 @@ export default function ArticlesSettingsPage() {
             </CardContent>
           </Card>
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="w-5 h-5" />
-                Display Name
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="display-name">Section Display Name</Label>
-                <Input
-                  id="display-name"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  placeholder="e.g., Articles, Blog, Letters, Insights"
-                  className="max-w-md"
-                />
-                <p className="text-sm text-slate-500">
-                  Customize how this section is labeled throughout the portal. For example, change "Articles" to "Blog", "Letters", or anything else.
-                </p>
-              </div>
+          <div className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="w-5 h-5" />
+                  Display Name
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="display-name">Section Display Name</Label>
+                  <Input
+                    id="display-name"
+                    value={displayName}
+                    onChange={(e) => setDisplayName(e.target.value)}
+                    placeholder="e.g., Articles, Blog, Letters, Insights"
+                    className="max-w-md"
+                  />
+                  <p className="text-sm text-slate-500">
+                    Customize how this section is labeled throughout the portal. For example, change "Articles" to "Blog", "Letters", or anything else.
+                  </p>
+                </div>
 
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-semibold text-blue-900 mb-2">Preview</h4>
-                <ul className="text-sm text-blue-800 space-y-1">
-                  <li>• Page title: "{displayName || 'Articles'} & Insights"</li>
-                  <li>• Management page: "All {displayName || 'Articles'}"</li>
-                  <li>• Buttons: "New {displayName?.slice(0, -1) || 'Article'}"</li>
-                </ul>
-              </div>
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <h4 className="font-semibold text-blue-900 mb-2">Preview</h4>
+                  <ul className="text-sm text-blue-800 space-y-1">
+                    <li>• Page title: "{displayName || 'Articles'} & Insights"</li>
+                    <li>• Management page: "All {displayName || 'Articles'}"</li>
+                    <li>• Buttons: "New {displayName?.slice(0, -1) || 'Article'}"</li>
+                  </ul>
+                </div>
 
-              <div className="flex gap-3">
-                <Button
-                  onClick={handleSave}
-                  disabled={updateSettingMutation.isPending || !displayName.trim()}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {updateSettingMutation.isPending ? 'Saving...' : 'Save Changes'}
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setDisplayName(settings?.setting_value || 'Articles')}
-                  disabled={updateSettingMutation.isPending}
-                >
-                  Reset
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+                <div className="flex gap-3">
+                  <Button
+                    onClick={handleSave}
+                    disabled={updateSettingMutation.isPending || !displayName.trim()}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {updateSettingMutation.isPending ? 'Saving...' : 'Save Changes'}
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setDisplayName(settings?.setting_value || 'Articles')}
+                    disabled={updateSettingMutation.isPending}
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Reaction Buttons
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-900">
+                    Control which reaction buttons are displayed on article view pages. 
+                    These appear in the comments section and allow readers to provide feedback.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div 
+                    className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => handleThumbsUpToggle(!showThumbsUp)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <ThumbsUp className="w-5 h-5 text-green-600" />
+                      <div>
+                        <Label className="font-medium text-slate-900 cursor-pointer">Thumbs Up Button</Label>
+                        <p className="text-sm text-slate-500">Allow readers to give positive feedback on comments</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={showThumbsUp}
+                      onCheckedChange={handleThumbsUpToggle}
+                      disabled={updateReactionSettingMutation.isPending}
+                      data-testid="switch-thumbs-up"
+                    />
+                  </div>
+
+                  <div 
+                    className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => handleThumbsDownToggle(!showThumbsDown)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <ThumbsDown className="w-5 h-5 text-red-600" />
+                      <div>
+                        <Label className="font-medium text-slate-900 cursor-pointer">Thumbs Down Button</Label>
+                        <p className="text-sm text-slate-500">Allow readers to give negative feedback on comments</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={showThumbsDown}
+                      onCheckedChange={handleThumbsDownToggle}
+                      disabled={updateReactionSettingMutation.isPending}
+                      data-testid="switch-thumbs-down"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

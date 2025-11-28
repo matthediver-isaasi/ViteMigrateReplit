@@ -75,38 +75,45 @@ export default function IEditHeroElement({ content, variant, settings }) {
 
   if (isImageSized) {
     return (
-      <div className="relative w-full" style={{ position: 'relative' }}>
+      <div 
+        style={{ 
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gridTemplateRows: '1fr',
+          width: '100%'
+        }}
+      >
+        {/* Image layer - sets the size */}
         <img 
           src={image_url} 
           alt={content.heading || 'Hero background'} 
-          className="w-full h-auto block"
-          style={{ display: 'block', width: '100%', height: 'auto' }}
+          style={{ 
+            gridColumn: '1 / -1',
+            gridRow: '1 / -1',
+            display: 'block', 
+            width: '100%', 
+            height: 'auto' 
+          }}
         />
+        {/* Overlay layer */}
         {overlay_enabled && (
           <div 
             style={{ 
-              position: 'absolute',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0,
+              gridColumn: '1 / -1',
+              gridRow: '1 / -1',
               backgroundColor: overlay_color, 
-              opacity: parseInt(overlay_opacity) / 100,
-              zIndex: 1
+              opacity: parseInt(overlay_opacity) / 100
             }} 
           />
         )}
+        {/* Text layer */}
         <div 
           style={{ 
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
+            gridColumn: '1 / -1',
+            gridRow: '1 / -1',
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: getTextVerticalAlign(),
-            zIndex: 2
+            justifyContent: getTextVerticalAlign()
           }}
         >
           <div className="max-w-7xl mx-auto px-4 w-full" style={containerStyle}>

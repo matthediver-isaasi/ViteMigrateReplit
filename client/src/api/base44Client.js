@@ -22,6 +22,32 @@ class EntityProxy {
     return response;
   }
 
+  // Fetch all records with automatic pagination to handle Supabase's 1000 row limit
+  async listAll(options = {}) {
+    const allRecords = [];
+    let offset = 0;
+    const batchSize = 1000;
+    let hasMore = true;
+    
+    while (hasMore) {
+      const batch = await this.list({ 
+        ...options,
+        limit: batchSize, 
+        offset: offset 
+      });
+      
+      if (batch && batch.length > 0) {
+        allRecords.push(...batch);
+        offset += batch.length;
+        hasMore = batch.length === batchSize;
+      } else {
+        hasMore = false;
+      }
+    }
+    
+    return allRecords;
+  }
+
   async get(id, options = {}) {
     const params = new URLSearchParams();
     if (options.expand) params.set('expand', options.expand);

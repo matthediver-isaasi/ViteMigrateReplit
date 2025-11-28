@@ -33,7 +33,8 @@ export default function TeamPage() {
     queryKey: ['team-members', memberInfo?.organization_id],
     queryFn: async () => {
       if (!memberInfo?.organization_id) return [];
-      const allMembers = await base44.entities.Member.list();
+      // Use listAll to handle Supabase's 1000 row limit with automatic pagination
+      const allMembers = await base44.entities.Member.listAll();
       return allMembers.filter(m => m.organization_id === memberInfo.organization_id);
     },
     enabled: !!memberInfo?.organization_id

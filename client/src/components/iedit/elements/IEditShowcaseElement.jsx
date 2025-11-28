@@ -635,6 +635,7 @@ export function IEditShowcaseElementEditor({ element, onChange }) {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
+            <SelectItem value="0">Title Only (No Description)</SelectItem>
             <SelectItem value="1">1 Line</SelectItem>
             <SelectItem value="2">2 Lines</SelectItem>
             <SelectItem value="3">3 Lines</SelectItem>
@@ -1105,7 +1106,7 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
                     <h3 className="font-semibold text-slate-900 mb-2 line-clamp-2">
                       {item.title || item.name}
                     </h3>
-                    {(item.summary || item.description) && (
+                    {content.descriptionLineClamp !== 0 && (item.summary || item.description) && (
                       <p className={`text-sm text-slate-600 ${content.descriptionLineClamp === 'none' ? '' : `line-clamp-${content.descriptionLineClamp ?? 3}`}`}>
                         {item.summary || item.description}
                       </p>

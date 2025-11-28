@@ -25,6 +25,7 @@ export default function OrganisationDirectoryPage() {
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
       const logoSetting = allSettings.find(s => s.setting_key === 'org_directory_show_logo');
+      const titleSetting = allSettings.find(s => s.setting_key === 'org_directory_show_title');
       const domainsSetting = allSettings.find(s => s.setting_key === 'org_directory_show_domains');
       const memberCountSetting = allSettings.find(s => s.setting_key === 'org_directory_show_member_count');
       const excludedOrgsSetting = allSettings.find(s => s.setting_key === 'org_directory_excluded_orgs');
@@ -40,6 +41,7 @@ export default function OrganisationDirectoryPage() {
       
       return {
         showLogo: logoSetting?.setting_value !== 'false',
+        showTitle: titleSetting?.setting_value !== 'false', // Default to true if not set
         showDomains: domainsSetting?.setting_value !== 'false',
         showMemberCount: memberCountSetting?.setting_value !== 'false',
         excludedOrgIds: excludedOrgIds
@@ -177,7 +179,9 @@ export default function OrganisationDirectoryPage() {
                           }
                         </div>
                       )}
-                      <CardTitle className="text-base line-clamp-2 w-full">{org.name}</CardTitle>
+                      {displaySettings?.showTitle !== false && (
+                        <CardTitle className="text-base line-clamp-2 w-full">{org.name}</CardTitle>
+                      )}
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {displaySettings?.showDomains && allDomains.length > 0 &&

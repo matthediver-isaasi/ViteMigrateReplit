@@ -15,6 +15,7 @@ export default function OrganisationDirectorySettingsPage() {
   const [accessChecked, setAccessChecked] = useState(false);
   const queryClient = useQueryClient();
   const [showLogo, setShowLogo] = useState(true);
+  const [showTitle, setShowTitle] = useState(true);
   const [showDomains, setShowDomains] = useState(true);
   const [showMemberCount, setShowMemberCount] = useState(true);
   const [excludedOrgIds, setExcludedOrgIds] = useState([]);
@@ -42,11 +43,13 @@ export default function OrganisationDirectorySettingsPage() {
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
       const logoSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_logo');
+      const titleSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_title');
       const domainsSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_domains');
       const memberCountSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_member_count');
       const excludedOrgsSetting = allSettings.find((s) => s.setting_key === 'org_directory_excluded_orgs');
       return {
         logo: logoSetting,
+        title: titleSetting,
         domains: domainsSetting,
         memberCount: memberCountSetting,
         excludedOrgs: excludedOrgsSetting
@@ -58,6 +61,9 @@ export default function OrganisationDirectorySettingsPage() {
   useEffect(() => {
     if (settings?.logo) {
       setShowLogo(settings.logo.setting_value === 'true');
+    }
+    if (settings?.title) {
+      setShowTitle(settings.title.setting_value !== 'false'); // Default to true if not set
     }
     if (settings?.domains) {
       setShowDomains(settings.domains.setting_value === 'true');
@@ -75,8 +81,31 @@ export default function OrganisationDirectorySettingsPage() {
     }
   }, [settings]);
 
+  // Handler for toggling logo - ensures at least one of logo/title is enabled
+  const handleLogoToggle = (checked) => {
+    if (!checked && !showTitle) {
+      toast.error('At least one of Logo or Title must be enabled');
+      return;
+    }
+    setShowLogo(checked);
+  };
+
+  // Handler for toggling title - ensures at least one of logo/title is enabled
+  const handleTitleToggle = (checked) => {
+    if (!checked && !showLogo) {
+      toast.error('At least one of Logo or Title must be enabled');
+      return;
+    }
+    setShowTitle(checked);
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
+      // Validation: at least one of logo or title must be enabled
+      if (!showLogo && !showTitle) {
+        throw new Error('At least one of Logo or Title must be enabled');
+      }
+
       // Save logo setting
       if (settings?.logo) {
         await base44.entities.SystemSettings.update(settings.logo.id, {
@@ -87,6 +116,19 @@ export default function OrganisationDirectorySettingsPage() {
           setting_key: 'org_directory_show_logo',
           setting_value: showLogo.toString(),
           description: 'Show organization logo on directory cards'
+        });
+      }
+
+      // Save title setting
+      if (settings?.title) {
+        await base44.entities.SystemSettings.update(settings.title.id, {
+          setting_value: showTitle.toString()
+        });
+      } else {
+        await base44.entities.SystemSettings.create({
+          setting_key: 'org_directory_show_title',
+          setting_value: showTitle.toString(),
+          description: 'Show organization title on directory cards'
         });
       }
 
@@ -195,10 +237,34 @@ export default function OrganisationDirectorySettingsPage() {
                 type="checkbox"
                 id="showLogo"
                 checked={showLogo}
-                onChange={(e) => setShowLogo(e.target.checked)}
+                onChange={(e) => handleLogoToggle(e.target.checked)}
                 className="w-5 h-5 cursor-pointer" />
-
             </div>
+
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+              <div>
+                <Label htmlFor="showTitle" className="text-base font-medium cursor-pointer">
+                  Show Organization Title
+                </Label>
+                <p className="text-sm text-slate-600 mt-1">
+                  Display organization name on directory cards
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                id="showTitle"
+                checked={showTitle}
+                onChange={(e) => handleTitleToggle(e.target.checked)}
+                className="w-5 h-5 cursor-pointer" />
+            </div>
+
+            {(!showLogo || !showTitle) && (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-sm text-amber-800">
+                  Note: At least one of Logo or Title must be enabled for cards to display content.
+                </p>
+              </div>
+            )}
 
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
               <div>
@@ -215,7 +281,6 @@ export default function OrganisationDirectorySettingsPage() {
                 checked={showDomains}
                 onChange={(e) => setShowDomains(e.target.checked)}
                 className="w-5 h-5 cursor-pointer" />
-
             </div>
 
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">

@@ -54,7 +54,9 @@ export default function OrganisationDirectoryPage() {
     queryFn: async () => {
       // Fetch all members - need to handle Supabase's 1000 row default limit
       return await base44.entities.Member.list({ limit: 5000 });
-    }
+    },
+    staleTime: 0,
+    refetchOnMount: true
   });
 
   const organizationMemberCounts = useMemo(() => {

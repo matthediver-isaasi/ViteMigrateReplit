@@ -630,10 +630,35 @@ export default function AdminSetupPage() {
                           )}
                           <p><strong>Training Fund:</strong> £{singleOrgSyncResult.organization?.training_fund_balance || 0}</p>
                           <p><strong>Purchase Orders:</strong> {singleOrgSyncResult.organization?.purchase_order_enabled ? 'Enabled' : 'Disabled'}</p>
-                          <p className="text-xs text-green-600 mt-2">
-                            Last synced: {new Date(singleOrgSyncResult.organization?.last_synced).toLocaleString()}
-                          </p>
                         </div>
+                        
+                        {singleOrgSyncResult.members && (
+                          <div className="mt-3 pt-3 border-t border-green-200">
+                            <h4 className="font-semibold text-green-900 mb-1 flex items-center gap-2">
+                              <Users className="w-4 h-4" />
+                              Members Synced
+                            </h4>
+                            <div className="space-y-1 text-sm text-green-700">
+                              <p>
+                                <strong>Found:</strong> {singleOrgSyncResult.members.attempted} contacts in Zoho
+                              </p>
+                              <p>
+                                <strong>Created:</strong> {singleOrgSyncResult.members.created} | 
+                                <strong> Updated:</strong> {singleOrgSyncResult.members.updated} | 
+                                <strong> Skipped:</strong> {singleOrgSyncResult.members.skipped}
+                              </p>
+                              {singleOrgSyncResult.members.errors > 0 && (
+                                <p className="text-amber-700">
+                                  <strong>Errors:</strong> {singleOrgSyncResult.members.errors}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                        
+                        <p className="text-xs text-green-600 mt-2">
+                          Last synced: {new Date(singleOrgSyncResult.organization?.last_synced).toLocaleString()}
+                        </p>
                       </div>
                     </>
                   ) : (
@@ -748,7 +773,7 @@ export default function AdminSetupPage() {
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <p className="text-xs text-amber-800">
                   <strong>Testing tip:</strong> Use this to verify CRM sync is working before running a full sync. 
-                  Select an organization you know exists in Zoho CRM and check that the data updates correctly.
+                  This will sync both the organization data AND all members (contacts) belonging to that organization from Zoho CRM.
                 </p>
               </div>
             </CardContent>

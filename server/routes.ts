@@ -1543,6 +1543,131 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       console.log(`[syncSingleOrganizationFromZoho] ${action}: ${account.Account_Name} (${orgId})`);
 
+      // Now sync members belonging to this organization
+      let memberStats = {
+        attempted: 0,
+        created: 0,
+        updated: 0,
+        skipped: 0,
+        errors: [] as Array<{ email: string; error: string }>
+      };
+
+      try {
+        // Fetch contacts belonging to this Zoho Account using search API
+        const contactFields = 'First_Name,Last_Name,Email,Account_Name';
+        const searchCriteria = `(Account_Name.id:equals:${account.id})`;
+        
+        let allContacts: any[] = [];
+        let page = 1;
+        let hasMoreRecords = true;
+
+        while (hasMoreRecords && page <= 10) {
+          const contactsUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts/search?criteria=${encodeURIComponent(searchCriteria)}&fields=${contactFields}&page=${page}&per_page=200`;
+          
+          const contactsResponse = await fetch(contactsUrl, {
+            headers: {
+              'Authorization': `Zoho-oauthtoken ${accessToken}`,
+            },
+          });
+
+          if (contactsResponse.status === 204) {
+            // No contacts found for this account
+            console.log(`[syncSingleOrganizationFromZoho] No contacts found for account ${account.id}`);
+            hasMoreRecords = false;
+            break;
+          }
+
+          if (!contactsResponse.ok) {
+            const errorText = await contactsResponse.text();
+            console.error(`[syncSingleOrganizationFromZoho] Error fetching contacts: ${errorText}`);
+            break;
+          }
+
+          const contactsData = await contactsResponse.json();
+          
+          if (contactsData.data && contactsData.data.length > 0) {
+            allContacts = allContacts.concat(contactsData.data);
+            hasMoreRecords = contactsData.info?.more_records || false;
+            page++;
+          } else {
+            hasMoreRecords = false;
+          }
+        }
+
+        console.log(`[syncSingleOrganizationFromZoho] Found ${allContacts.length} contacts for organization`);
+        memberStats.attempted = allContacts.length;
+
+        // Process each contact
+        for (const contact of allContacts) {
+          try {
+            // Skip contacts without email
+            if (!contact.Email) {
+              memberStats.skipped++;
+              continue;
+            }
+
+            const memberData = {
+              email: contact.Email,
+              first_name: contact.First_Name || null,
+              last_name: contact.Last_Name || null,
+              zoho_contact_id: contact.id,
+              organization_id: orgId,
+              last_synced: new Date().toISOString(),
+            };
+
+            // Check if member exists by zoho_contact_id
+            const { data: existingByZoho } = await supabase
+              .from('member')
+              .select('id')
+              .eq('zoho_contact_id', contact.id);
+
+            if (existingByZoho && existingByZoho.length > 0) {
+              // Update existing member
+              await supabase
+                .from('member')
+                .update(memberData)
+                .eq('id', existingByZoho[0].id);
+              memberStats.updated++;
+            } else {
+              // Check if member exists by email
+              const { data: existingByEmail } = await supabase
+                .from('member')
+                .select('id')
+                .eq('email', contact.Email);
+
+              if (existingByEmail && existingByEmail.length > 0) {
+                // Update existing member and set zoho_contact_id
+                await supabase
+                  .from('member')
+                  .update(memberData)
+                  .eq('id', existingByEmail[0].id);
+                memberStats.updated++;
+              } else {
+                // Create new member
+                await supabase
+                  .from('member')
+                  .insert(memberData);
+                memberStats.created++;
+              }
+            }
+          } catch (err: any) {
+            memberStats.errors.push({
+              email: contact.Email || 'no-email',
+              error: err.message
+            });
+          }
+        }
+
+        console.log(`[syncSingleOrganizationFromZoho] Members synced: ${memberStats.created} created, ${memberStats.updated} updated, ${memberStats.skipped} skipped, ${memberStats.errors.length} errors`);
+
+      } catch (memberSyncError: any) {
+        console.error('[syncSingleOrganizationFromZoho] Member sync error:', memberSyncError.message);
+        memberStats.errors.push({
+          email: 'general',
+          error: `Member sync failed: ${memberSyncError.message}`
+        });
+      }
+
       res.json({
         success: true,
         action,
@@ -1554,6 +1679,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           training_fund_balance: account.Training_Fund_Balance || 0,
           purchase_order_enabled: account.Purchase_Order_Enabled || false,
           last_synced: orgData.last_synced
+        },
+        members: {
+          attempted: memberStats.attempted,
+          created: memberStats.created,
+          updated: memberStats.updated,
+          skipped: memberStats.skipped,
+          errors: memberStats.errors.length,
+          error_details: memberStats.errors.length > 0 ? memberStats.errors.slice(0, 5) : undefined
         }
       });
 

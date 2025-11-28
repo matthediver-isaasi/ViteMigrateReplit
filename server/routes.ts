@@ -1333,6 +1333,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       let created = 0;
       let updated = 0;
+      let processed = 0;
+      const totalOrgs = allAccounts.length;
       let errors: Array<{ accountId: string; name: string; error: string }> = [];
 
       for (const account of allAccounts) {
@@ -1389,7 +1391,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: err.message
           });
         }
+        
+        processed++;
+        if (processed % 25 === 0 || processed === totalOrgs) {
+          console.log(`[syncAllOrganizationsFromZoho] Progress: ${processed}/${totalOrgs} organizations processed (${created} created, ${updated} updated)`);
+        }
       }
+
+      console.log(`[syncAllOrganizationsFromZoho] Completed: ${created} created, ${updated} updated, ${errors.length} errors`);
 
       res.json({
         success: true,
@@ -1503,12 +1512,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let created = 0;
       let updated = 0;
       let linkedToOrg = 0;
+      let processed = 0;
+      let skipped = 0;
+      const totalContacts = allContacts.length;
       let errors: Array<{ contactId: string; email: string; error: string }> = [];
 
       for (const contact of allContacts) {
         try {
           // Skip contacts without email
           if (!contact.Email) {
+            skipped++;
+            processed++;
+            if (processed % 100 === 0) {
+              console.log(`[syncAllMembersFromZoho] Progress: ${processed}/${totalContacts} contacts processed (${created} created, ${updated} updated, ${skipped} skipped)`);
+            }
             continue;
           }
 
@@ -1572,7 +1589,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
             error: err.message
           });
         }
+        
+        processed++;
+        if (processed % 100 === 0 || processed === totalContacts) {
+          console.log(`[syncAllMembersFromZoho] Progress: ${processed}/${totalContacts} contacts processed (${created} created, ${updated} updated, ${linkedToOrg} linked to orgs)`);
+        }
       }
+
+      console.log(`[syncAllMembersFromZoho] Completed: ${created} created, ${updated} updated, ${linkedToOrg} linked to orgs, ${skipped} skipped (no email), ${errors.length} errors`);
 
       res.json({
         success: true,

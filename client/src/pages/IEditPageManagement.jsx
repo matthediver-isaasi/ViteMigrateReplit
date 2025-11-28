@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileEdit, Plus, Eye, Pencil, Trash2, ExternalLink, Search, Zap } from "lucide-react";
+import { FileEdit, Plus, Eye, Pencil, Trash2, ExternalLink, Search, Zap, Copy } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
@@ -104,6 +104,52 @@ export default function IEditPageManagementPage() {
     },
     onError: (error) => {
       toast.error('Failed to update page status: ' + error.message);
+    }
+  });
+
+  const duplicatePageMutation = useMutation({
+    mutationFn: async (page) => {
+      // Generate a unique slug by adding -copy or incrementing number
+      let newSlug = `${page.slug}-copy`;
+      const existingSlugs = pages.map(p => p.slug);
+      let counter = 1;
+      while (existingSlugs.includes(newSlug)) {
+        newSlug = `${page.slug}-copy-${counter}`;
+        counter++;
+      }
+
+      // Create the new page (as draft)
+      const newPageData = {
+        title: `${page.title} (Copy)`,
+        slug: newSlug,
+        description: page.description || '',
+        layout_type: page.layout_type || 'public',
+        status: 'draft',
+        meta_title: page.meta_title,
+        meta_description: page.meta_description
+      };
+
+      const createdPage = await base44.entities.IEditPage.create(newPageData);
+
+      // Copy all elements from the original page
+      const originalElements = await base44.entities.IEditPageElement.filter({ page_id: page.id });
+      
+      for (const element of originalElements) {
+        const { id, page_id, created_date, updated_date, ...elementData } = element;
+        await base44.entities.IEditPageElement.create({
+          ...elementData,
+          page_id: createdPage.id
+        });
+      }
+
+      return createdPage;
+    },
+    onSuccess: (newPage) => {
+      queryClient.invalidateQueries({ queryKey: ['iedit-pages'] });
+      toast.success(`Page duplicated! New page: "${newPage.title}"`);
+    },
+    onError: (error) => {
+      toast.error('Failed to duplicate page: ' + error.message);
     }
   });
 
@@ -271,6 +317,16 @@ export default function IEditPageManagementPage() {
                         <ExternalLink className="w-3 h-3" />
                       </Button>
                     )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => duplicatePageMutation.mutate(page)}
+                      disabled={duplicatePageMutation.isPending}
+                      title="Duplicate Page"
+                      data-testid={`button-duplicate-page-${page.id}`}
+                    >
+                      <Copy className="w-3 h-3" />
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

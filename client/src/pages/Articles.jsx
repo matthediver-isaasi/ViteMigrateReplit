@@ -401,7 +401,7 @@ export default function ArticlesPage() {
                       data-testid="button-add-article"
                     >
                       <Plus className="w-4 h-4" />
-                      New {articleDisplayName}
+                      New {articleDisplayName?.replace(/s$/i, '') || 'Article'}
                     </Button>
                   </Link>
                 )}

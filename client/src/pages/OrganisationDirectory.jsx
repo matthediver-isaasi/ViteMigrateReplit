@@ -165,49 +165,43 @@ export default function OrganisationDirectoryPage() {
                   }}
                   data-testid={`card-organisation-${org.id}`}
                 >
-                    <CardHeader>
-                      <CardTitle className="flex items-start gap-3">
-                        {displaySettings?.showLogo && (
-                          <div className="w-10 h-10 flex-shrink-0 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
-                            {org.logo_url ?
-                          <img
-                            src={org.logo_url}
-                            alt={org.name}
-                            className="w-full h-full object-cover" /> :
-
-
-                          <Building2 className="w-5 h-5 text-slate-400" />
+                    <CardHeader className="flex flex-col items-center text-center pb-2">
+                      {displaySettings?.showLogo && (
+                        <div className="w-[90%] aspect-square rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center mb-3">
+                          {org.logo_url ?
+                            <img
+                              src={org.logo_url}
+                              alt={org.name}
+                              className="w-full h-full object-contain" /> :
+                            <Building2 className="w-16 h-16 text-slate-400" />
                           }
-                          </div>
-                        )}
-                        <span className="text-base line-clamp-2">{org.name}</span>
-                      </CardTitle>
+                        </div>
+                      )}
+                      <CardTitle className="text-base line-clamp-2 w-full">{org.name}</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-3">
                       {displaySettings?.showDomains && allDomains.length > 0 &&
-                    <div className="space-y-1">
-                          <div className="flex items-center gap-2">
+                        <div className="space-y-1 text-center">
+                          <div className="flex items-center justify-center gap-2">
                             <Globe className="w-4 h-4 text-slate-400" />
                             <span className="text-sm font-medium text-slate-700">
                               {allDomains.length > 1 ? 'Domains' : 'Domain'}
                             </span>
                           </div>
-                          <div className="flex flex-wrap gap-1 ml-6">
+                          <div className="flex flex-wrap justify-center gap-1">
                             {allDomains.map((domain, idx) =>
-                        <span key={idx} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
+                              <span key={idx} className="text-xs bg-slate-100 text-slate-700 px-2 py-1 rounded">
                                 @{domain}
                               </span>
-                        )}
+                            )}
                           </div>
                         </div>
-                    }
+                      }
 
                       {displaySettings?.showMemberCount && (
-                        <div className="flex items-center justify-between pt-2 border-t border-slate-200">
-                          <div className="flex items-center gap-2">
-                            <Users className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm text-slate-600">Members</span>
-                          </div>
+                        <div className="flex items-center justify-center gap-2 pt-2 border-t border-slate-200">
+                          <Users className="w-4 h-4 text-slate-400" />
+                          <span className="text-sm text-slate-600">Members:</span>
                           <span className="text-sm font-semibold text-slate-900">{memberCount}</span>
                         </div>
                       )}

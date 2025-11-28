@@ -123,7 +123,8 @@ export default function IEditHeroElement({ content, variant, settings }) {
               fontFamily: subheading_font_family,
               fontSize: `${subheading_font_size}px`,
               lineHeight: subheading_line_height,
-              color: text_color
+              color: text_color,
+              whiteSpace: 'pre-line'
             }}
           >
             {content.subheading}

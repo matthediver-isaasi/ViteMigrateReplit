@@ -664,33 +664,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log('[validateMember] Not a TeamMember, checking Member entity...');
 
       // Step 2: Check Member entity directly
-      const { data: allMembers } = await supabase
+      const { data: localMembers } = await supabase
         .from('member')
-        .select('*');
+        .select('*')
+        .eq('email', email)
+        .limit(1);
 
-      let member = allMembers?.find((m: any) => m.email === email);
+      let member = localMembers && localMembers.length > 0 ? localMembers[0] : null;
+      
+      // Step 3: ALWAYS validate and sync from Zoho CRM (one-way CRM -> app sync)
+      const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+      const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
+      const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
+      const zohoConfigured = ZOHO_CRM_API_DOMAIN && ZOHO_CLIENT_ID && ZOHO_CLIENT_SECRET;
 
-      if (!member) {
-        console.log('[validateMember] Member not found locally, checking Zoho CRM...');
+      if (zohoConfigured) {
+        console.log('[validateMember] Zoho configured, validating member against CRM...');
         
-        // Try to sync from Zoho CRM
-        const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
-        const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
-        const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
-
-        if (!ZOHO_CRM_API_DOMAIN || !ZOHO_CLIENT_ID || !ZOHO_CLIENT_SECRET) {
-          console.log('[validateMember] Zoho not configured, cannot sync from CRM');
-          return res.status(404).json({
-            success: false,
-            error: 'Email not found. Please check your email address or contact support.'
-          });
-        }
-
         try {
           // Get valid Zoho access token
           const accessToken = await getValidZohoAccessToken();
           
-          // Search Zoho CRM for contact
+          // Search Zoho CRM for contact by email
           const criteria = `(Email:equals:${email})`;
           const searchUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Contacts/search?criteria=${encodeURIComponent(criteria)}`;
           
@@ -699,154 +694,207 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
 
           if (!searchResponse.ok) {
-            console.log('[validateMember] CRM search failed');
-            return res.status(404).json({
-              success: false,
-              error: 'Email not found. Please check your email address or contact support.'
-            });
-          }
+            console.log('[validateMember] CRM search failed, status:', searchResponse.status);
+            // If member exists locally, allow login with local data
+            if (!member) {
+              return res.status(404).json({
+                success: false,
+                error: 'Email not found. Please check your email address or contact support.'
+              });
+            }
+          } else {
+            const searchData = await searchResponse.json() as any;
+            
+            if (!searchData.data || searchData.data.length === 0) {
+              console.log('[validateMember] Email not found in Zoho CRM');
+              // If member exists locally but not in CRM, they may be deactivated - deny login
+              if (!member) {
+                return res.status(404).json({
+                  success: false,
+                  error: 'Email not found. Please check your email address or contact support.'
+                });
+              }
+              // Member exists locally but not in CRM - could be legacy or deactivated
+              // Allow login but log warning
+              console.log('[validateMember] WARNING: Member exists locally but not in CRM:', email);
+            } else {
+              // Found contact in CRM - sync data
+              const contact = searchData.data[0];
+              console.log('[validateMember] Found contact in Zoho CRM:', contact.Email, 'zoho_contact_id:', contact.id);
 
-          const searchData = await searchResponse.json() as any;
-          
-          if (!searchData.data || searchData.data.length === 0) {
-            console.log('[validateMember] Email not found in Zoho CRM');
-            return res.status(404).json({
-              success: false,
-              error: 'Email not found. Please check your email address or contact support.'
-            });
-          }
+              // Get organization details if contact is linked to an account
+              let crmOrganizationId = null;
+              if (contact.Account_Name?.id) {
+                console.log('[validateMember] Contact linked to Zoho Account:', contact.Account_Name.name, 'id:', contact.Account_Name.id);
+                
+                const accountUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts/${contact.Account_Name.id}`;
+                const accountResponse = await fetch(accountUrl, {
+                  headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}` }
+                });
 
-          const contact = searchData.data[0];
-          console.log('[validateMember] Found contact in Zoho CRM:', contact.Email, 'zoho_contact_id:', contact.id);
+                if (accountResponse.ok) {
+                  const accountData = await accountResponse.json() as any;
+                  const account = accountData.data[0];
+                  console.log('[validateMember] Fetched Account details:', account.Account_Name);
 
-          // First check if member exists by zoho_contact_id (email may have changed in CRM)
-          // Query directly from database since allMembers may be limited to 1000 results
-          const { data: existingMemberByZohoId } = await supabase
-            .from('member')
-            .select('*')
-            .eq('zoho_contact_id', contact.id)
-            .limit(1);
-          
-          // Get organization details if contact is linked to an account
-          let organizationId = null;
-          if (contact.Account_Name?.id) {
-            const accountUrl = `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts/${contact.Account_Name.id}`;
-            const accountResponse = await fetch(accountUrl, {
-              headers: { 'Authorization': `Zoho-oauthtoken ${accessToken}` }
-            });
+                  // Check if organization exists in Supabase, create if not
+                  const { data: existingOrgs } = await supabase
+                    .from('organization')
+                    .select('*')
+                    .eq('zoho_account_id', account.id);
 
-            if (accountResponse.ok) {
-              const accountData = await accountResponse.json() as any;
-              const account = accountData.data[0];
-
-              // Check if organization exists, create if not
-              const { data: existingOrgs } = await supabase
-                .from('organization')
-                .select('*')
-                .eq('zoho_account_id', account.id);
-
-              if (existingOrgs && existingOrgs.length > 0) {
-                organizationId = existingOrgs[0].id;
-                // Update organization data
-                await supabase
-                  .from('organization')
-                  .update({
-                    name: account.Account_Name,
-                    training_fund_balance: account.Training_Fund_Balance || 0,
-                    purchase_order_enabled: account.Purchase_Order_Enabled || false,
-                    last_synced: new Date().toISOString()
-                  })
-                  .eq('id', existingOrgs[0].id);
+                  if (existingOrgs && existingOrgs.length > 0) {
+                    crmOrganizationId = existingOrgs[0].id;
+                    // Update organization data from CRM
+                    await supabase
+                      .from('organization')
+                      .update({
+                        name: account.Account_Name,
+                        training_fund_balance: account.Training_Fund_Balance || 0,
+                        purchase_order_enabled: account.Purchase_Order_Enabled || false,
+                        last_synced: new Date().toISOString()
+                      })
+                      .eq('id', existingOrgs[0].id);
+                    console.log('[validateMember] Updated organization from CRM:', account.Account_Name);
+                  } else {
+                    // Create new organization from CRM data
+                    const { data: newOrg } = await supabase
+                      .from('organization')
+                      .insert({
+                        name: account.Account_Name,
+                        zoho_account_id: account.id,
+                        training_fund_balance: account.Training_Fund_Balance || 0,
+                        purchase_order_enabled: account.Purchase_Order_Enabled || false,
+                        last_synced: new Date().toISOString()
+                      })
+                      .select()
+                      .single();
+                    crmOrganizationId = newOrg?.id;
+                    console.log('[validateMember] Created new organization from CRM:', account.Account_Name);
+                  }
+                }
               } else {
-                // Create new organization
-                const { data: newOrg } = await supabase
-                  .from('organization')
-                  .insert({
-                    name: account.Account_Name,
-                    zoho_account_id: account.id,
-                    training_fund_balance: account.Training_Fund_Balance || 0,
-                    purchase_order_enabled: account.Purchase_Order_Enabled || false,
+                console.log('[validateMember] Contact has no linked Account in CRM');
+              }
+
+              // Check if member exists by zoho_contact_id (handles email changes in CRM)
+              const { data: existingMemberByZohoId } = await supabase
+                .from('member')
+                .select('*')
+                .eq('zoho_contact_id', contact.id)
+                .limit(1);
+
+              if (existingMemberByZohoId && existingMemberByZohoId.length > 0) {
+                // Update existing member with latest CRM data
+                console.log('[validateMember] Updating existing member with CRM data');
+                const existingMember = existingMemberByZohoId[0];
+                await supabase
+                  .from('member')
+                  .update({ 
+                    email: email,
+                    first_name: contact.First_Name,
+                    last_name: contact.Last_Name,
+                    organization_id: crmOrganizationId,
                     last_synced: new Date().toISOString()
                   })
+                  .eq('id', existingMember.id);
+                
+                member = { 
+                  ...existingMember, 
+                  email, 
+                  first_name: contact.First_Name, 
+                  last_name: contact.Last_Name,
+                  organization_id: crmOrganizationId
+                };
+              } else if (member) {
+                // Member exists by email but not by zoho_contact_id - link them
+                console.log('[validateMember] Linking existing member to CRM contact');
+                await supabase
+                  .from('member')
+                  .update({ 
+                    zoho_contact_id: contact.id,
+                    first_name: contact.First_Name,
+                    last_name: contact.Last_Name,
+                    organization_id: crmOrganizationId,
+                    last_synced: new Date().toISOString()
+                  })
+                  .eq('id', member.id);
+                
+                member = { 
+                  ...member, 
+                  zoho_contact_id: contact.id,
+                  first_name: contact.First_Name, 
+                  last_name: contact.Last_Name,
+                  organization_id: crmOrganizationId
+                };
+              } else {
+                // Create new member from CRM data
+                console.log('[validateMember] Creating new member from CRM');
+                const { data: allRoles } = await supabase
+                  .from('role')
+                  .select('*');
+                const defaultRole = allRoles?.find((r: any) => r.is_default === true);
+
+                const memberData: any = {
+                  email: email,
+                  first_name: contact.First_Name,
+                  last_name: contact.Last_Name,
+                  zoho_contact_id: contact.id,
+                  organization_id: crmOrganizationId,
+                  last_synced: new Date().toISOString(),
+                  login_enabled: true
+                };
+
+                if (defaultRole) {
+                  memberData.role_id = defaultRole.id;
+                }
+
+                const { data: newMember, error: insertError } = await supabase
+                  .from('member')
+                  .insert(memberData)
                   .select()
                   .single();
-                organizationId = newOrg?.id;
+
+                if (insertError) {
+                  console.error('[validateMember] Failed to create member:', insertError);
+                  return res.status(500).json({
+                    success: false,
+                    error: 'Failed to create member record'
+                  });
+                }
+
+                member = newMember;
+                console.log('[validateMember] Created new member from CRM:', member.email);
               }
             }
           }
-
-          // Check if member exists by zoho_contact_id and update them
-          if (existingMemberByZohoId && existingMemberByZohoId.length > 0) {
-            console.log('[validateMember] Found existing member by zoho_contact_id, updating from CRM');
-            const existingMember = existingMemberByZohoId[0];
-            // Update the member with latest CRM data including organization_id
-            await supabase
-              .from('member')
-              .update({ 
-                email: email,
-                first_name: contact.First_Name,
-                last_name: contact.Last_Name,
-                organization_id: organizationId,
-                last_synced: new Date().toISOString()
-              })
-              .eq('id', existingMember.id);
-            
-            member = { 
-              ...existingMember, 
-              email, 
-              first_name: contact.First_Name, 
-              last_name: contact.Last_Name,
-              organization_id: organizationId
-            };
-          }
-
-          // Only create member if we didn't find one by zoho_contact_id
-          if (!member) {
-            // Create the member record
-            const { data: allRoles } = await supabase
-              .from('role')
-              .select('*');
-            const defaultRole = allRoles?.find((r: any) => r.is_default === true);
-
-            const memberData: any = {
-              email: email,
-              first_name: contact.First_Name,
-              last_name: contact.Last_Name,
-              zoho_contact_id: contact.id,
-              organization_id: organizationId,
-              last_synced: new Date().toISOString(),
-              login_enabled: true
-            };
-
-            if (defaultRole) {
-              memberData.role_id = defaultRole.id;
-            }
-
-            const { data: newMember, error: insertError } = await supabase
-              .from('member')
-              .insert(memberData)
-              .select()
-              .single();
-
-            if (insertError) {
-              console.error('[validateMember] Failed to create member:', insertError);
-              return res.status(500).json({
-                success: false,
-                error: 'Failed to create member record'
-              });
-            }
-
-            member = newMember;
-            console.log('[validateMember] Created new member from CRM:', member.email);
-          }
-
         } catch (crmError: any) {
           console.error('[validateMember] CRM sync error:', crmError.message);
+          // If member exists locally, allow login with local data even if CRM fails
+          if (!member) {
+            return res.status(404).json({
+              success: false,
+              error: 'Email not found. Please check your email address or contact support.'
+            });
+          }
+          console.log('[validateMember] CRM sync failed, using local member data');
+        }
+      } else {
+        console.log('[validateMember] Zoho not configured, using local data only');
+        if (!member) {
           return res.status(404).json({
             success: false,
             error: 'Email not found. Please check your email address or contact support.'
           });
         }
+      }
+      
+      // Final check - member must exist at this point
+      if (!member) {
+        return res.status(404).json({
+          success: false,
+          error: 'Email not found. Please check your email address or contact support.'
+        });
       }
 
       console.log('[validateMember] Found Member record');

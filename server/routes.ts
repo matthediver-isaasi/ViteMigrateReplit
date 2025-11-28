@@ -1415,6 +1415,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync Single Organization from Zoho CRM
+  app.post('/api/functions/syncSingleOrganizationFromZoho', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    const { zoho_account_id, organization_id } = req.body;
+    
+    if (!zoho_account_id && !organization_id) {
+      return res.status(400).json({ error: 'Either zoho_account_id or organization_id is required' });
+    }
+
+    const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zohoapis.eu';
+
+    try {
+      const accessToken = await getValidZohoAccessToken();
+      
+      let zohoAccountId = zoho_account_id;
+      let existingOrg: any = null;
+
+      // If organization_id provided, look up the zoho_account_id
+      if (organization_id && !zoho_account_id) {
+        const { data: orgs } = await supabase
+          .from('organization')
+          .select('id, name, zoho_account_id')
+          .eq('id', organization_id);
+
+        if (!orgs || orgs.length === 0) {
+          return res.status(404).json({ error: 'Organization not found' });
+        }
+        
+        existingOrg = orgs[0];
+        zohoAccountId = existingOrg.zoho_account_id;
+        
+        if (!zohoAccountId) {
+          return res.status(400).json({ 
+            error: 'This organization is not linked to Zoho CRM (no zoho_account_id)',
+            organization: { id: existingOrg.id, name: existingOrg.name }
+          });
+        }
+      }
+
+      console.log(`[syncSingleOrganizationFromZoho] Fetching account ${zohoAccountId} from Zoho`);
+
+      // Fetch the specific account from Zoho
+      const accountFields = 'Account_Name,Domain,Additional_verified_domains,Training_Fund_Balance,Purchase_Order_Enabled';
+      const accountResponse = await fetch(
+        `${ZOHO_CRM_API_DOMAIN}/crm/v3/Accounts/${zohoAccountId}?fields=${accountFields}`,
+        {
+          headers: {
+            'Authorization': `Zoho-oauthtoken ${accessToken}`,
+          },
+        }
+      );
+
+      if (!accountResponse.ok) {
+        const errorText = await accountResponse.text();
+        if (accountResponse.status === 404) {
+          return res.status(404).json({ error: 'Account not found in Zoho CRM', zoho_account_id: zohoAccountId });
+        }
+        throw new Error(`Zoho API error: ${accountResponse.status} - ${errorText}`);
+      }
+
+      const accountData = await accountResponse.json();
+      const account = accountData.data?.[0];
+
+      if (!account) {
+        return res.status(404).json({ error: 'Account data not found in Zoho response' });
+      }
+
+      console.log(`[syncSingleOrganizationFromZoho] Found account: ${account.Account_Name}`);
+
+      const orgData = {
+        name: account.Account_Name,
+        zoho_account_id: account.id,
+        domain: account.Domain || null,
+        additional_verified_domains: account.Additional_verified_domains || [],
+        training_fund_balance: account.Training_Fund_Balance || 0,
+        purchase_order_enabled: account.Purchase_Order_Enabled || false,
+        last_synced: new Date().toISOString(),
+      };
+
+      let action: 'created' | 'updated' = 'updated';
+      let orgId: string;
+
+      // Check if organization exists by zoho_account_id
+      const { data: existingOrgs } = await supabase
+        .from('organization')
+        .select('id, name')
+        .eq('zoho_account_id', account.id);
+
+      if (existingOrgs && existingOrgs.length > 0) {
+        // Update existing organization
+        await supabase
+          .from('organization')
+          .update(orgData)
+          .eq('id', existingOrgs[0].id);
+        orgId = existingOrgs[0].id;
+        action = 'updated';
+      } else {
+        // Check if organization exists by name (migrated data without zoho_account_id)
+        const { data: orgsByName } = await supabase
+          .from('organization')
+          .select('id')
+          .eq('name', account.Account_Name);
+
+        if (orgsByName && orgsByName.length > 0) {
+          // Update existing organization and set zoho_account_id
+          await supabase
+            .from('organization')
+            .update(orgData)
+            .eq('id', orgsByName[0].id);
+          orgId = orgsByName[0].id;
+          action = 'updated';
+        } else {
+          // Create new organization
+          const { data: newOrg } = await supabase
+            .from('organization')
+            .insert(orgData)
+            .select('id')
+            .single();
+          orgId = newOrg?.id;
+          action = 'created';
+        }
+      }
+
+      console.log(`[syncSingleOrganizationFromZoho] ${action}: ${account.Account_Name} (${orgId})`);
+
+      res.json({
+        success: true,
+        action,
+        organization: {
+          id: orgId,
+          name: account.Account_Name,
+          zoho_account_id: account.id,
+          domain: account.Domain,
+          training_fund_balance: account.Training_Fund_Balance || 0,
+          purchase_order_enabled: account.Purchase_Order_Enabled || false,
+          last_synced: orgData.last_synced
+        }
+      });
+
+    } catch (error: any) {
+      console.error('Sync single organization error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Sync All Members from Zoho CRM
   app.post('/api/functions/syncAllMembersFromZoho', async (req: Request, res: Response) => {
     if (!supabase) {

@@ -3,8 +3,11 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Shield, Loader2, CheckCircle2, ExternalLink, RefreshCw, Calendar, Users, Building2 } from "lucide-react";
+import { Shield, Loader2, CheckCircle2, ExternalLink, RefreshCw, Calendar, Users, Building2, Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function AdminSetupPage() {
   const [loading, setLoading] = useState(false);
@@ -17,6 +20,11 @@ export default function AdminSetupPage() {
   const [xeroAuthWindow, setXeroAuthWindow] = useState(null);
   const [crmSyncLoading, setCrmSyncLoading] = useState(false);
   const [crmSyncResult, setCrmSyncResult] = useState(null);
+  const [selectedOrgId, setSelectedOrgId] = useState("");
+  const [zohoAccountIdInput, setZohoAccountIdInput] = useState("");
+  const [singleOrgSyncLoading, setSingleOrgSyncLoading] = useState(false);
+  const [singleOrgSyncResult, setSingleOrgSyncResult] = useState(null);
+  const [orgSearchTerm, setOrgSearchTerm] = useState("");
 
   const { data: tokens = [] } = useQuery({
     queryKey: ['zoho-tokens'],
@@ -35,6 +43,19 @@ export default function AdminSetupPage() {
 
   const isAuthenticated = tokens.length > 0;
   const isXeroAuthenticated = xeroTokens.length > 0; // New derived state for Xero authentication
+
+  // Query for organizations (for individual sync)
+  const { data: organizations = [] } = useQuery({
+    queryKey: ['organizations'],
+    queryFn: () => base44.entities.Organization.list(),
+    staleTime: 30000,
+    enabled: isAuthenticated,
+  });
+
+  // Filter organizations by search term
+  const filteredOrganizations = organizations.filter(org => 
+    org.name?.toLowerCase().includes(orgSearchTerm.toLowerCase())
+  ).slice(0, 50); // Limit to 50 for performance
 
   const handleAuthenticate = async () => {
     setLoading(true);
@@ -142,6 +163,39 @@ export default function AdminSetupPage() {
       });
     } finally {
       setCrmSyncLoading(false);
+    }
+  };
+
+  const handleSyncSingleOrganization = async () => {
+    setSingleOrgSyncLoading(true);
+    setSingleOrgSyncResult(null);
+    try {
+      const params = {};
+      if (selectedOrgId) {
+        params.organization_id = selectedOrgId;
+      } else if (zohoAccountIdInput.trim()) {
+        params.zoho_account_id = zohoAccountIdInput.trim();
+      } else {
+        setSingleOrgSyncResult({
+          success: false,
+          error: 'Please select an organization or enter a Zoho Account ID'
+        });
+        setSingleOrgSyncLoading(false);
+        return;
+      }
+
+      const response = await base44.functions.invoke('syncSingleOrganizationFromZoho', params);
+      setSingleOrgSyncResult({
+        success: true,
+        ...response.data
+      });
+    } catch (error) {
+      setSingleOrgSyncResult({ 
+        success: false, 
+        error: error.response?.data?.error || error.message 
+      });
+    } finally {
+      setSingleOrgSyncLoading(false);
     }
   };
 
@@ -538,6 +592,164 @@ export default function AdminSetupPage() {
                   <li>Fetch all contacts and create/update member records</li>
                   <li>Link members to their organizations based on CRM data</li>
                 </ul>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isAuthenticated && (
+          <Card className="shadow-xl border-slate-200 mt-6">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Building2 className="w-5 h-5" />
+                Test Individual Organization Sync
+              </CardTitle>
+              <CardDescription>
+                Sync a single organization from Zoho CRM to test the integration is working correctly.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {singleOrgSyncResult && (
+                <div className={`flex items-start gap-3 p-4 rounded-lg border ${
+                  singleOrgSyncResult.success 
+                    ? 'bg-green-50 border-green-200' 
+                    : 'bg-red-50 border-red-200'
+                }`}>
+                  {singleOrgSyncResult.success ? (
+                    <>
+                      <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
+                      <div className="w-full">
+                        <h3 className="font-semibold text-green-900 mb-2">
+                          Organization {singleOrgSyncResult.action === 'created' ? 'Created' : 'Updated'}
+                        </h3>
+                        <div className="space-y-1 text-sm text-green-700">
+                          <p><strong>Name:</strong> {singleOrgSyncResult.organization?.name}</p>
+                          <p><strong>Zoho ID:</strong> {singleOrgSyncResult.organization?.zoho_account_id}</p>
+                          {singleOrgSyncResult.organization?.domain && (
+                            <p><strong>Domain:</strong> {singleOrgSyncResult.organization?.domain}</p>
+                          )}
+                          <p><strong>Training Fund:</strong> £{singleOrgSyncResult.organization?.training_fund_balance || 0}</p>
+                          <p><strong>Purchase Orders:</strong> {singleOrgSyncResult.organization?.purchase_order_enabled ? 'Enabled' : 'Disabled'}</p>
+                          <p className="text-xs text-green-600 mt-2">
+                            Last synced: {new Date(singleOrgSyncResult.organization?.last_synced).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <ExternalLink className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                      <div>
+                        <h3 className="font-semibold text-red-900 mb-1">Sync Failed</h3>
+                        <p className="text-sm text-red-700">{singleOrgSyncResult.error}</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="org-select" className="text-sm font-medium">
+                    Select an existing organization:
+                  </Label>
+                  <div className="space-y-2">
+                    <Input
+                      placeholder="Search organizations..."
+                      value={orgSearchTerm}
+                      onChange={(e) => setOrgSearchTerm(e.target.value)}
+                      className="w-full"
+                      data-testid="input-org-search"
+                    />
+                    <Select 
+                      value={selectedOrgId} 
+                      onValueChange={(value) => {
+                        setSelectedOrgId(value);
+                        setZohoAccountIdInput(""); // Clear manual input when selecting
+                      }}
+                    >
+                      <SelectTrigger data-testid="select-organization">
+                        <SelectValue placeholder="Choose an organization..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {filteredOrganizations.length === 0 ? (
+                          <div className="p-2 text-sm text-slate-500">
+                            {orgSearchTerm ? 'No organizations match your search' : 'No organizations found'}
+                          </div>
+                        ) : (
+                          filteredOrganizations.map(org => (
+                            <SelectItem 
+                              key={org.id} 
+                              value={org.id}
+                              data-testid={`select-org-${org.id}`}
+                            >
+                              <span className="flex items-center gap-2">
+                                <span>{org.name}</span>
+                                {org.zoho_account_id && (
+                                  <span className="text-xs text-slate-400">
+                                    (Zoho: {org.zoho_account_id.substring(0, 8)}...)
+                                  </span>
+                                )}
+                              </span>
+                            </SelectItem>
+                          ))
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="flex-1 border-t border-slate-200"></div>
+                  <span className="text-xs text-slate-500 uppercase">or</span>
+                  <div className="flex-1 border-t border-slate-200"></div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="zoho-id-input" className="text-sm font-medium">
+                    Enter Zoho Account ID directly:
+                  </Label>
+                  <Input
+                    id="zoho-id-input"
+                    placeholder="e.g., 3652397000012345678"
+                    value={zohoAccountIdInput}
+                    onChange={(e) => {
+                      setZohoAccountIdInput(e.target.value);
+                      setSelectedOrgId(""); // Clear selection when typing
+                    }}
+                    data-testid="input-zoho-account-id"
+                  />
+                  <p className="text-xs text-slate-500">
+                    Use this to sync an organization that doesn't exist in the app yet
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                onClick={handleSyncSingleOrganization}
+                disabled={singleOrgSyncLoading || (!selectedOrgId && !zohoAccountIdInput.trim())}
+                className="w-full"
+                size="lg"
+                data-testid="button-sync-single-org"
+              >
+                {singleOrgSyncLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Syncing Organization...
+                  </>
+                ) : (
+                  <>
+                    <Search className="w-5 h-5 mr-2" />
+                    Sync Selected Organization
+                  </>
+                )}
+              </Button>
+
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <p className="text-xs text-amber-800">
+                  <strong>Testing tip:</strong> Use this to verify CRM sync is working before running a full sync. 
+                  Select an organization you know exists in Zoho CRM and check that the data updates correctly.
+                </p>
               </div>
             </CardContent>
           </Card>

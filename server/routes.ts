@@ -567,11 +567,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .update({ used: true })
         .eq('id', magicLink.id);
 
+      // Get full member data
+      const { data: memberData } = await supabase
+        .from('member')
+        .select('*')
+        .eq('id', magicLink.member_id)
+        .single();
+
+      let member = memberData;
+
+      // Assign default "Member" role if user has no role_id
+      if (member && !member.role_id) {
+        console.log('[verifyMagicLink] Member has no role, assigning default "Member" role');
+        try {
+          const { data: allRoles } = await supabase
+            .from('role')
+            .select('*');
+          
+          // Find role named "Member" or fallback to default role
+          const memberRole = allRoles?.find((r: any) => r.name === 'Member');
+          const defaultRole = memberRole || allRoles?.find((r: any) => r.is_default === true);
+          
+          if (defaultRole) {
+            await supabase
+              .from('member')
+              .update({ role_id: defaultRole.id })
+              .eq('id', member.id);
+            
+            member = { ...member, role_id: defaultRole.id };
+            console.log('[verifyMagicLink] Assigned role:', defaultRole.name, 'to member:', member.email);
+          }
+        } catch (roleError: any) {
+          console.error('[verifyMagicLink] Error assigning default role:', roleError.message);
+        }
+      }
+
       // Set session
       req.session.memberId = magicLink.member_id;
       req.session.memberEmail = magicLink.email;
 
-      res.json({ success: true, member: magicLink.members });
+      res.json({ success: true, member });
     } catch (error) {
       console.error('Verify magic link error:', error);
       res.status(500).json({ success: false, error: 'Failed to verify link' });
@@ -897,6 +932,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } catch (handleError: any) {
           console.error('[validateMember] Error generating handle:', handleError.message);
           // Don't fail the login if handle generation fails
+        }
+      }
+
+      // Assign default "Member" role if user has no role_id
+      if (!member.role_id) {
+        console.log('[validateMember] Member has no role, assigning default "Member" role');
+        try {
+          const { data: allRoles } = await supabase
+            .from('role')
+            .select('*');
+          
+          // Find role named "Member" or fallback to default role
+          const memberRole = allRoles?.find((r: any) => r.name === 'Member');
+          const defaultRole = memberRole || allRoles?.find((r: any) => r.is_default === true);
+          
+          if (defaultRole) {
+            await supabase
+              .from('member')
+              .update({ role_id: defaultRole.id })
+              .eq('id', member.id);
+            
+            member.role_id = defaultRole.id;
+            console.log('[validateMember] Assigned role:', defaultRole.name, 'to member:', member.email);
+          } else {
+            console.log('[validateMember] No "Member" or default role found');
+          }
+        } catch (roleError: any) {
+          console.error('[validateMember] Error assigning default role:', roleError.message);
+          // Don't fail the login if role assignment fails
         }
       }
 

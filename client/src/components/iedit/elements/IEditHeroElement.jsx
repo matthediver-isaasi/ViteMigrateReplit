@@ -764,14 +764,36 @@ export function IEditHeroElementEditor({ element, onChange }) {
             <p className="text-xs text-slate-500 mt-1">Or use custom colors below</p>
           </div>
 
+          <div className="flex items-center gap-2 mb-2">
+            <input
+              type="checkbox"
+              id="transparent-bg-hero"
+              checked={button.transparent_bg || false}
+              onChange={(e) => {
+                updateButton('transparent_bg', e.target.checked);
+                if (e.target.checked) {
+                  updateButton('custom_bg_color', 'transparent');
+                }
+              }}
+              className="w-4 h-4"
+            />
+            <label htmlFor="transparent-bg-hero" className="text-sm cursor-pointer">
+              Transparent background
+            </label>
+          </div>
+
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium mb-1">Background</label>
               <input
                 type="color"
-                value={button.custom_bg_color || '#000000'}
-                onChange={(e) => updateButton('custom_bg_color', e.target.value)}
-                className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                value={button.custom_bg_color === 'transparent' ? '#000000' : (button.custom_bg_color || '#000000')}
+                onChange={(e) => {
+                  updateButton('custom_bg_color', e.target.value);
+                  updateButton('transparent_bg', false);
+                }}
+                className={`w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer ${button.transparent_bg ? 'opacity-50' : ''}`}
+                disabled={button.transparent_bg}
               />
             </div>
             <div>

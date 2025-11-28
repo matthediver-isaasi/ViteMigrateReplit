@@ -184,6 +184,8 @@ import TeamEngagementReport from "./TeamEngagementReport";
 
 import MemberGroupGuestManagement from "./MemberGroupGuestManagement";
 
+import TeamSettings from "./TeamSettings";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 
 const PAGES = {
@@ -371,6 +373,8 @@ const PAGES = {
     TeamEngagementReport: TeamEngagementReport,
     
     MemberGroupGuestManagement: MemberGroupGuestManagement,
+    
+    TeamSettings: TeamSettings,
     
 }
 
@@ -583,6 +587,8 @@ function PagesContent() {
                 <Route path="/TeamEngagementReport" element={<TeamEngagementReport />} />
                 
                 <Route path="/MemberGroupGuestManagement" element={<MemberGroupGuestManagement />} />
+                
+                <Route path="/TeamSettings" element={<TeamSettings />} />
                 
                 <Route path="/auth/verify" element={<VerifyMagicLink />} />
                 

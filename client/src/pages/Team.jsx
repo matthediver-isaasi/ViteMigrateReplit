@@ -89,6 +89,34 @@ export default function TeamPage() {
     }
   });
 
+  // Fetch team card display settings
+  const { data: cardSettings = {} } = useQuery({
+    queryKey: ['team-card-settings'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const setting = allSettings.find(s => s.setting_key === 'team_card_display');
+      if (setting?.setting_value) {
+        try {
+          return JSON.parse(setting.setting_value);
+        } catch {
+          return {};
+        }
+      }
+      return {};
+    }
+  });
+
+  // Default settings - show everything if not configured
+  const showProfilePhoto = cardSettings.show_profile_photo !== false;
+  const showRoleBadge = cardSettings.show_role_badge !== false;
+  const showJobTitle = cardSettings.show_job_title !== false;
+  const showEmail = cardSettings.show_email !== false;
+  const showLastActivity = cardSettings.show_last_activity !== false;
+  const showLoginToggle = cardSettings.show_login_toggle !== false;
+  const showEventsCount = cardSettings.show_events_count !== false;
+  const showArticlesCount = cardSettings.show_articles_count !== false;
+  const showAwards = cardSettings.show_awards !== false;
+
   // Fetch offline awards
   const { data: offlineAwards = [] } = useQuery({
     queryKey: ['offline-awards'],
@@ -416,26 +444,28 @@ export default function TeamPage() {
                       <CardHeader className="pb-3">
                         <div className="flex items-start gap-3">
                           {/* Profile Picture */}
-                          <div className="flex-shrink-0">
-                            {member.profile_photo_url ? (
-                              <img 
-                                src={member.profile_photo_url} 
-                                alt={`${member.first_name} ${member.last_name}`}
-                                className="w-16 h-16 rounded-full object-cover border-2 border-slate-200"
-                              />
-                            ) : (
-                              <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center">
-                                <User className="w-8 h-8 text-slate-400" />
-                              </div>
-                            )}
-                          </div>
+                          {showProfilePhoto && (
+                            <div className="flex-shrink-0">
+                              {member.profile_photo_url ? (
+                                <img 
+                                  src={member.profile_photo_url} 
+                                  alt={`${member.first_name} ${member.last_name}`}
+                                  className="w-16 h-16 rounded-full object-cover border-2 border-slate-200"
+                                />
+                              ) : (
+                                <div className="w-16 h-16 rounded-full bg-slate-200 flex items-center justify-center">
+                                  <User className="w-8 h-8 text-slate-400" />
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {/* Name and Role */}
                           <div className="flex-1 min-w-0">
                             <CardTitle className="text-base mb-1">
                               {member.first_name} {member.last_name}
                             </CardTitle>
-                            {role && (
+                            {showRoleBadge && role && (
                               <div className="flex items-center gap-1 mb-1">
                                 <Badge 
                                   variant="secondary" 
@@ -446,7 +476,7 @@ export default function TeamPage() {
                                 </Badge>
                               </div>
                             )}
-                            {member.job_title && (
+                            {showJobTitle && member.job_title && (
                               <p className="text-xs text-slate-600 line-clamp-1">{member.job_title}</p>
                             )}
                           </div>
@@ -457,13 +487,15 @@ export default function TeamPage() {
 
                       <CardContent className="space-y-3" onClick={(e) => e.stopPropagation()}>
                         {/* Email */}
-                        <div className="flex items-start gap-2">
-                          <Mail className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
-                          <span className="text-sm text-slate-700 break-all">{member.email}</span>
-                        </div>
+                        {showEmail && (
+                          <div className="flex items-start gap-2">
+                            <Mail className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+                            <span className="text-sm text-slate-700 break-all">{member.email}</span>
+                          </div>
+                        )}
 
                         {/* Last Activity */}
-                        {member.last_activity && (
+                        {showLastActivity && member.last_activity && (
                           <div className="flex items-center gap-2">
                             <Clock className="w-4 h-4 text-slate-400 flex-shrink-0" />
                             <span className="text-xs text-slate-600">
@@ -473,7 +505,7 @@ export default function TeamPage() {
                         )}
 
                         {/* Login Access Toggle - Only for admins */}
-                        {isAdmin && (
+                        {showLoginToggle && isAdmin && (
                           <div className="flex items-center justify-between pt-2 pb-2 border-y border-slate-200">
                             <span className="text-sm font-medium text-slate-700">Login Access</span>
                             <div className="flex items-center gap-2">
@@ -490,25 +522,29 @@ export default function TeamPage() {
                         )}
 
                         {/* Events Attended */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-4 h-4 text-green-600" />
-                            <span className="text-sm text-slate-600">Events</span>
+                        {showEventsCount && (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Calendar className="w-4 h-4 text-green-600" />
+                              <span className="text-sm text-slate-600">Events</span>
+                            </div>
+                            <Badge variant="secondary">{stats.eventsAttended || 0}</Badge>
                           </div>
-                          <Badge variant="secondary">{stats.eventsAttended || 0}</Badge>
-                        </div>
+                        )}
 
                         {/* Articles Published */}
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-purple-600" />
-                            <span className="text-sm text-slate-600">Articles</span>
+                        {showArticlesCount && (
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-purple-600" />
+                              <span className="text-sm text-slate-600">Articles</span>
+                            </div>
+                            <Badge variant="secondary">{stats.publishedArticles || 0}</Badge>
                           </div>
-                          <Badge variant="secondary">{stats.publishedArticles || 0}</Badge>
-                        </div>
+                        )}
 
                         {/* Awards */}
-                        {stats.totalAwards > 0 && (
+                        {showAwards && stats.totalAwards > 0 && (
                           <div className="pt-3 border-t border-slate-200">
                             <div className="flex items-center gap-2 mb-3">
                               <Trophy className="w-4 h-4 text-amber-600" />

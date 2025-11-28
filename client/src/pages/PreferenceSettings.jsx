@@ -3,21 +3,17 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GripVertical, Settings, Loader2, User, Mail, Clock, ToggleLeft, Calendar, FileText, Trophy, Shield, Briefcase, Save, RotateCcw } from "lucide-react";
+import { GripVertical, Settings, Loader2, Building2, User, BarChart3, FolderHeart, Save, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 const DEFAULT_SECTION_ORDER = [
-  { id: 'profile_photo', label: 'Profile Photo', icon: User, description: 'Member profile picture or avatar' },
-  { id: 'name_role', label: 'Name & Role', icon: Shield, description: 'Member name, role badge, and job title' },
-  { id: 'email', label: 'Email Address', icon: Mail, description: 'Member email contact' },
-  { id: 'last_activity', label: 'Last Activity', icon: Clock, description: 'When the member was last active' },
-  { id: 'login_toggle', label: 'Login Access', icon: ToggleLeft, description: 'Toggle to enable/disable member login (admin only)' },
-  { id: 'events_count', label: 'Events Attended', icon: Calendar, description: 'Number of events the member has attended' },
-  { id: 'articles_count', label: 'Articles Published', icon: FileText, description: 'Number of articles the member has written' },
-  { id: 'awards', label: 'Awards', icon: Trophy, description: 'Awards and achievements earned by the member' }
+  { id: 'organization_logo', label: 'Organization Logo', icon: Building2, description: 'Organization branding and logo upload (shown to org members only)' },
+  { id: 'profile_information', label: 'Profile Information', icon: User, description: 'Personal details, photo, biography and contact information' },
+  { id: 'engagement', label: 'Engagement', icon: BarChart3, description: 'Activity statistics, awards, and group memberships' },
+  { id: 'resource_interests', label: 'Resource Interests', icon: FolderHeart, description: 'Content category preferences and subscriptions' }
 ];
 
 export default function PreferenceSettingsPage() {
@@ -38,10 +34,10 @@ export default function PreferenceSettingsPage() {
   }, [isAdmin, isAccessReady]);
 
   const { data: savedOrder, isLoading } = useQuery({
-    queryKey: ['team-card-section-order'],
+    queryKey: ['preferences-section-order'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
-      const setting = allSettings.find(s => s.setting_key === 'team_card_section_order');
+      const setting = allSettings.find(s => s.setting_key === 'preferences_section_order');
       if (setting?.setting_value) {
         try {
           return JSON.parse(setting.setting_value);
@@ -55,10 +51,10 @@ export default function PreferenceSettingsPage() {
   });
 
   const { data: existingSetting } = useQuery({
-    queryKey: ['team-card-section-order-record'],
+    queryKey: ['preferences-section-order-record'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
-      const found = allSettings.find(s => s.setting_key === 'team_card_section_order');
+      const found = allSettings.find(s => s.setting_key === 'preferences_section_order');
       return found || null;
     },
     staleTime: 0
@@ -87,15 +83,15 @@ export default function PreferenceSettingsPage() {
         });
       } else {
         return await base44.entities.SystemSettings.create({
-          setting_key: 'team_card_section_order',
+          setting_key: 'preferences_section_order',
           setting_value: orderValue,
-          description: 'Order of sections displayed on team member cards'
+          description: 'Order of main card sections on the Preferences page'
         });
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['team-card-section-order'] });
-      queryClient.invalidateQueries({ queryKey: ['team-card-section-order-record'] });
+      queryClient.invalidateQueries({ queryKey: ['preferences-section-order'] });
+      queryClient.invalidateQueries({ queryKey: ['preferences-section-order-record'] });
       setHasChanges(false);
       toast.success('Section order saved successfully');
     },
@@ -141,19 +137,19 @@ export default function PreferenceSettingsPage() {
           <div>
             <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2 flex items-center gap-3">
               <Settings className="w-8 h-8 text-blue-600" />
-              Card Section Order
+              Preferences Page Layout
             </h1>
             <p className="text-slate-600">
-              Drag and drop to reorder how sections appear on team member cards
+              Drag and drop to reorder the main card sections on the member Preferences page
             </p>
           </div>
         </div>
 
         <Card className="mb-6">
           <CardHeader>
-            <CardTitle className="text-lg">Team Card Sections</CardTitle>
+            <CardTitle className="text-lg">Main Card Sections</CardTitle>
             <CardDescription>
-              Drag sections to change their display order on team member cards. Changes will apply to all team cards.
+              Drag sections to change their display order. Changes will apply to all members viewing the Preferences page.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -163,7 +159,7 @@ export default function PreferenceSettingsPage() {
                   <div
                     {...provided.droppableProps}
                     ref={provided.innerRef}
-                    className="space-y-2"
+                    className="space-y-3"
                   >
                     {sections.map((section, index) => {
                       const IconComponent = section.icon;
@@ -173,30 +169,30 @@ export default function PreferenceSettingsPage() {
                             <div
                               ref={provided.innerRef}
                               {...provided.draggableProps}
-                              className={`flex items-center gap-3 p-4 bg-white border rounded-lg transition-shadow ${
+                              className={`flex items-center gap-4 p-5 bg-white border rounded-lg transition-shadow ${
                                 snapshot.isDragging ? 'shadow-lg border-blue-300' : 'border-slate-200 hover:border-slate-300'
                               }`}
                             >
                               <div
                                 {...provided.dragHandleProps}
-                                className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-100 rounded"
+                                className="cursor-grab active:cursor-grabbing p-2 hover:bg-slate-100 rounded"
                                 data-testid={`drag-handle-${section.id}`}
                               >
                                 <GripVertical className="w-5 h-5 text-slate-400" />
                               </div>
                               
-                              <div className="flex items-center justify-center w-10 h-10 bg-blue-50 rounded-lg">
-                                <IconComponent className="w-5 h-5 text-blue-600" />
+                              <div className="flex items-center justify-center w-12 h-12 bg-blue-50 rounded-lg flex-shrink-0">
+                                <IconComponent className="w-6 h-6 text-blue-600" />
                               </div>
                               
                               <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-slate-900">{section.label}</span>
-                                  <span className="text-xs text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
-                                    #{index + 1}
+                                <div className="flex items-center gap-3">
+                                  <span className="font-semibold text-slate-900 text-lg">{section.label}</span>
+                                  <span className="text-sm text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                                    Position {index + 1}
                                   </span>
                                 </div>
-                                <p className="text-sm text-slate-500 truncate">{section.description}</p>
+                                <p className="text-sm text-slate-500 mt-1">{section.description}</p>
                               </div>
                             </div>
                           )}
@@ -237,11 +233,11 @@ export default function PreferenceSettingsPage() {
           </Button>
         </div>
 
-        <Card className="mt-6 border-amber-200 bg-amber-50">
+        <Card className="mt-6 border-blue-200 bg-blue-50">
           <CardContent className="p-4">
-            <p className="text-sm text-amber-800">
-              <strong>Note:</strong> This controls the order in which sections appear on team member cards. 
-              To show/hide specific sections, use the Team Settings page.
+            <p className="text-sm text-blue-800">
+              <strong>Note:</strong> The Organization Logo section is only visible to organization members (not team members). 
+              All other sections are visible to everyone. The content within each card remains fixed.
             </p>
           </CardContent>
         </Card>

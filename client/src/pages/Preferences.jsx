@@ -298,6 +298,31 @@ export default function PreferencesPage() {
     },
   });
 
+  // --- Section order for Preferences page layout ---
+  const DEFAULT_SECTION_ORDER = ['organization_logo', 'profile_information', 'engagement', 'resource_interests'];
+  
+  const { data: sectionOrder = DEFAULT_SECTION_ORDER } = useQuery({
+    queryKey: ['preferences-section-order'],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('system_settings')
+        .select('setting_value')
+        .eq('setting_key', 'preferences_section_order')
+        .limit(1);
+      if (error) return DEFAULT_SECTION_ORDER;
+      if (data?.[0]?.setting_value) {
+        try {
+          const parsed = JSON.parse(data[0].setting_value);
+          if (Array.isArray(parsed)) return parsed;
+        } catch {
+          return DEFAULT_SECTION_ORDER;
+        }
+      }
+      return DEFAULT_SECTION_ORDER;
+    },
+    staleTime: 60000
+  });
+
   // --- Derived awards from stats ---
   const earnedOnlineAwards = useMemo(() => {
     if (!engagementStats || !awards || awards.length === 0) return [];
@@ -631,22 +656,13 @@ export default function PreferencesPage() {
     );
   }
 
-  // --- UI identical to previous version (just without props) ---
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
-      <div className="max-w-4xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-            Preferences
-          </h1>
-          <p className="text-slate-600">
-            Manage your profile and content preferences
-          </p>
-        </div>
-
-        {/* Organization Logo Section - only if organizationInfo and not team member */}
-        {organizationInfo && !isTeamMember && (
-          <Card className="border-slate-200 shadow-sm">
+  // --- Render section by ID for dynamic ordering ---
+  const renderSection = (sectionId) => {
+    switch (sectionId) {
+      case 'organization_logo':
+        if (!organizationInfo || isTeamMember) return null;
+        return (
+          <Card key="organization_logo" className="border-slate-200 shadow-sm">
             <CardHeader>
               <CardTitle>Organization Logo</CardTitle>
               <CardDescription>
@@ -726,10 +742,11 @@ export default function PreferencesPage() {
               )}
             </CardContent>
           </Card>
-        )}
+        );
 
-        {/* Profile Information */}
-        <Card className="border-slate-200 shadow-sm">
+      case 'profile_information':
+        return (
+          <Card key="profile_information" className="border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle>Profile Information</CardTitle>
             <CardDescription>
@@ -883,10 +900,12 @@ export default function PreferencesPage() {
             )}
           </CardContent>
         </Card>
+        );
 
-        {/* Engagement Section */}
-        {canEditBiography && (
-          <Card className="border-slate-200 shadow-sm">
+      case 'engagement':
+        if (!canEditBiography) return null;
+        return (
+          <Card key="engagement" className="border-slate-200 shadow-sm">
             <CardHeader>
               <CardTitle>Engagement</CardTitle>
               <CardDescription>
@@ -1160,10 +1179,11 @@ export default function PreferencesPage() {
               )}
             </CardContent>
           </Card>
-        )}
+        );
 
-        {/* Resource Interests */}
-        <Card className="border-slate-200 shadow-sm">
+      case 'resource_interests':
+        return (
+          <Card key="resource_interests" className="border-slate-200 shadow-sm">
           <CardHeader>
             <CardTitle>Resource Interests</CardTitle>
             <CardDescription>
@@ -1260,6 +1280,27 @@ export default function PreferencesPage() {
             )}
           </CardContent>
         </Card>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  // --- UI with dynamic section ordering ---
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-4xl mx-auto space-y-8">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
+            Preferences
+          </h1>
+          <p className="text-slate-600">
+            Manage your profile and content preferences
+          </p>
+        </div>
+
+        {sectionOrder.map((sectionId) => renderSection(sectionId))}
       </div>
     </div>
   );

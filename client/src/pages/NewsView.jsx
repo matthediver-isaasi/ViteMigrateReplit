@@ -53,7 +53,7 @@ export default function NewsViewPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
         <div className="max-w-4xl mx-auto text-center py-16">
           <h2 className="text-2xl font-bold text-slate-900 mb-4">News not found</h2>
-          <Link to={isLoggedIn ? createPageUrl('MyNews') : createPageUrl('PublicNews')}>
+          <Link to={isLoggedIn ? createPageUrl('News') : createPageUrl('PublicNews')}>
             <Button>Back to News</Button>
           </Link>
         </div>
@@ -66,7 +66,7 @@ export default function NewsViewPage() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <Link 
-            to={isLoggedIn ? createPageUrl('MyNews') : createPageUrl('PublicNews')} 
+            to={isLoggedIn ? createPageUrl('News') : createPageUrl('PublicNews')} 
             className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900"
           >
             <ArrowLeft className="w-4 h-4" />

@@ -528,6 +528,29 @@ export function IEditShowcaseElementEditor({ element, onChange }) {
 
       <div className="grid grid-cols-2 gap-3">
         <div>
+          <Label htmlFor="padding_top">Top Padding (px)</Label>
+          <Input
+            id="padding_top"
+            type="number"
+            value={content.padding_top ?? 64}
+            onChange={(e) => updateContent('padding_top', parseInt(e.target.value) || 0)}
+            min="0"
+          />
+        </div>
+        <div>
+          <Label htmlFor="padding_bottom">Bottom Padding (px)</Label>
+          <Input
+            id="padding_bottom"
+            type="number"
+            value={content.padding_bottom ?? 64}
+            onChange={(e) => updateContent('padding_bottom', parseInt(e.target.value) || 0)}
+            min="0"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
           <Label htmlFor="padding_left">Left Padding (px)</Label>
           <Input
             id="padding_left"
@@ -1031,8 +1054,14 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
     textAlign: content.text_align || 'center'
   };
 
+  const wrapperStyle = {
+    ...sectionStyle,
+    paddingTop: `${content.padding_top ?? 64}px`,
+    paddingBottom: `${content.padding_bottom ?? 64}px`
+  };
+
   return (
-    <div className={`${backgroundWrapperClass} py-16 relative`} style={sectionStyle}>
+    <div className={`${backgroundWrapperClass} relative`} style={wrapperStyle}>
       <div className="max-w-7xl mx-auto px-4 relative z-10" style={containerStyle}>
         {(content.headerText || content.descriptionText) && (
           <div style={{ marginBottom: '48px' }}>

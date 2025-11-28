@@ -1060,23 +1060,9 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
     paddingBottom: `${content.padding_bottom ?? 64}px`
   };
 
-  // When fullWidth is enabled, content container uses calc to match page container width
-  // The offset brings content back to align with the normal page flow
-  const contentContainerClass = fullWidth 
-    ? 'relative z-10' 
-    : 'max-w-7xl mx-auto px-4 relative z-10';
-  
-  const contentContainerStyle = fullWidth ? {
-    ...containerStyle,
-    // Use calc to offset the breakout and align with page container
-    marginLeft: 'calc((100vw - 100%) / 2)',
-    marginRight: 'calc((100vw - 100%) / 2)',
-    maxWidth: 'none'
-  } : containerStyle;
-
   return (
     <div className={`${backgroundWrapperClass} relative`} style={wrapperStyle}>
-      <div className={contentContainerClass} style={contentContainerStyle}>
+      <div className="max-w-7xl mx-auto px-4 relative z-10" style={containerStyle}>
         {(content.headerText || content.descriptionText) && (
           <div style={{ marginBottom: '48px' }}>
             {content.headerText && (

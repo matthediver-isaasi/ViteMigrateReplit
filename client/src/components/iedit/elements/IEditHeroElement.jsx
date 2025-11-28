@@ -1,8 +1,16 @@
-import React from "react";
+import { useState, useEffect } from "react";
 import AGCASButton from "../../ui/AGCASButton";
 
 export default function IEditHeroElement({ content, variant, settings }) {
   const {
+    background_type = 'color',
+    background_color = '#3b82f6',
+    image_url,
+    image_fit = 'cover',
+    overlay_enabled = false,
+    overlay_color = '#000000',
+    overlay_opacity = 50,
+    text_color = '#ffffff',
     heading_font_family = 'Poppins',
     heading_font_size = 48,
     heading_letter_spacing = 0,
@@ -16,30 +24,63 @@ export default function IEditHeroElement({ content, variant, settings }) {
     subheading_font_size = 20,
     subheading_line_height = 1.5,
     text_align = 'center',
-    background_color,
     padding_left = 16,
     padding_right = 16,
+    padding_top = 80,
+    padding_bottom = 80,
+    height_type = 'auto',
+    custom_height = 400,
     button_top_margin = 32,
     button
   } = content;
 
-  const variants = {
-    default: "bg-gradient-to-r from-blue-600 to-indigo-600 text-white",
-    dark: "bg-slate-900 text-white",
-    light: "bg-slate-50 text-slate-900",
+  const getHeightStyle = () => {
+    if (height_type === 'full') return { minHeight: '100vh' };
+    if (height_type === 'custom') return { minHeight: `${custom_height}px` };
+    return {};
   };
 
-  const bgClass = variants[variant] || variants.default;
-  const bgStyle = background_color ? { backgroundColor: background_color } : {};
+  const getBackgroundStyle = () => {
+    if (background_type === 'color') {
+      return { backgroundColor: background_color };
+    }
+    return {};
+  };
+
   const containerStyle = {
     paddingLeft: `${padding_left}px`,
     paddingRight: `${padding_right}px`,
+    paddingTop: `${padding_top}px`,
+    paddingBottom: `${padding_bottom}px`,
     textAlign: text_align
   };
 
   return (
-    <div className={background_color ? "py-20" : `${bgClass} py-20`} style={bgStyle}>
-      <div className="max-w-7xl mx-auto px-4" style={containerStyle}>
+    <div 
+      className="relative w-full overflow-hidden"
+      style={{ ...getHeightStyle(), ...getBackgroundStyle() }}
+    >
+      {background_type === 'image' && image_url && (
+        <>
+          <img 
+            src={image_url} 
+            alt={content.heading || 'Hero background'} 
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: image_fit }}
+          />
+          {overlay_enabled && (
+            <div 
+              className="absolute inset-0" 
+              style={{ 
+                backgroundColor: overlay_color, 
+                opacity: parseInt(overlay_opacity) / 100 
+              }} 
+            />
+          )}
+        </>
+      )}
+      
+      <div className="relative max-w-7xl mx-auto px-4" style={containerStyle}>
         {content.heading && (
           <div>
             <h1 
@@ -48,6 +89,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
                 fontFamily: heading_font_family,
                 fontSize: `${heading_font_size}px`,
                 letterSpacing: `${heading_letter_spacing}px`,
+                color: text_color,
                 marginBottom: heading_underline_enabled ? `${heading_underline_spacing}px` : '24px'
               }}
             >
@@ -72,33 +114,33 @@ export default function IEditHeroElement({ content, variant, settings }) {
             style={{ 
               fontFamily: subheading_font_family,
               fontSize: `${subheading_font_size}px`,
-              lineHeight: subheading_line_height
+              lineHeight: subheading_line_height,
+              color: text_color
             }}
           >
             {content.subheading}
           </p>
-          )}
-          {button && button.text && (
+        )}
+        {button && button.text && (
           <div style={{ marginTop: `${button_top_margin}px` }}>
-          <AGCASButton
-            text={button.text}
-            link={button.link}
-            buttonStyleId={button.button_style_id}
-            customBgColor={button.custom_bg_color}
-            customTextColor={button.custom_text_color}
-            customBorderColor={button.custom_border_color}
-            openInNewTab={button.open_in_new_tab}
-            size={button.size || 'large'}
-            showArrow={button.show_arrow}
+            <AGCASButton
+              text={button.text}
+              link={button.link}
+              buttonStyleId={button.button_style_id}
+              customBgColor={button.custom_bg_color}
+              customTextColor={button.custom_text_color}
+              customBorderColor={button.custom_border_color}
+              openInNewTab={button.open_in_new_tab}
+              size={button.size || 'large'}
+              showArrow={button.show_arrow}
             />
-            </div>
-            )}
-            </div>
-            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
-// Editor Component
 export function IEditHeroElementEditor({ element, onChange }) {
   const defaultButton = { 
     text: '', 
@@ -113,6 +155,14 @@ export function IEditHeroElementEditor({ element, onChange }) {
   };
 
   const content = element.content || {
+    background_type: 'color',
+    background_color: '#3b82f6',
+    image_url: '',
+    image_fit: 'cover',
+    overlay_enabled: false,
+    overlay_color: '#000000',
+    overlay_opacity: 50,
+    text_color: '#ffffff',
     heading: '',
     subheading: '',
     heading_font_family: 'Poppins',
@@ -128,12 +178,18 @@ export function IEditHeroElementEditor({ element, onChange }) {
     subheading_font_size: 20,
     subheading_line_height: 1.5,
     text_align: 'center',
-    background_color: '',
     padding_left: 16,
     padding_right: 16,
+    padding_top: 80,
+    padding_bottom: 80,
+    height_type: 'auto',
+    custom_height: 400,
     button_top_margin: 32,
     button: defaultButton
   };
+
+  const [isUploading, setIsUploading] = useState(false);
+  const [buttonStyles, setButtonStyles] = useState([]);
 
   const updateContent = (key, value) => {
     onChange({ ...element, content: { ...content, [key]: value } });
@@ -144,10 +200,7 @@ export function IEditHeroElementEditor({ element, onChange }) {
     updateContent('button', { ...currentButton, [key]: value });
   };
 
-  // Fetch button styles
-  const [buttonStyles, setButtonStyles] = React.useState([]);
-  
-  React.useEffect(() => {
+  useEffect(() => {
     const fetchStyles = async () => {
       try {
         const { base44 } = await import("@/api/base44Client");
@@ -160,10 +213,201 @@ export function IEditHeroElementEditor({ element, onChange }) {
     fetchStyles();
   }, []);
 
+  const handleImageUpload = async (file) => {
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please upload a valid image file');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image must be smaller than 10MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const { base44 } = await import("@/api/base44Client");
+      const response = await base44.integrations.Core.UploadFile({ file });
+      updateContent('image_url', response.file_url);
+    } catch (error) {
+      alert('Failed to upload image: ' + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   const button = content.button || defaultButton;
 
   return (
     <div className="space-y-4">
+      {/* Background Type Selection */}
+      <div>
+        <label className="block text-sm font-medium mb-1">Background Type</label>
+        <select
+          value={content.background_type || 'color'}
+          onChange={(e) => updateContent('background_type', e.target.value)}
+          className="w-full px-3 py-2 border border-slate-300 rounded-md"
+        >
+          <option value="color">Solid Color</option>
+          <option value="image">Image</option>
+        </select>
+      </div>
+
+      {/* Color Background Options */}
+      {content.background_type === 'color' && (
+        <div>
+          <label className="block text-sm font-medium mb-1">Background Color</label>
+          <input
+            type="color"
+            value={content.background_color || '#3b82f6'}
+            onChange={(e) => updateContent('background_color', e.target.value)}
+            className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+          />
+        </div>
+      )}
+
+      {/* Image Background Options */}
+      {content.background_type === 'image' && (
+        <>
+          <div>
+            <label className="block text-sm font-medium mb-1">Background Image</label>
+            <div className="space-y-2">
+              <label className="inline-block">
+                <div className={`px-4 py-2 rounded-md text-sm font-medium cursor-pointer ${
+                  isUploading 
+                    ? 'bg-slate-300 cursor-not-allowed' 
+                    : 'bg-blue-600 hover:bg-blue-700 text-white'
+                }`}>
+                  {isUploading ? 'Uploading...' : 'Upload Image'}
+                </div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) handleImageUpload(file);
+                    e.target.value = '';
+                  }}
+                  className="hidden"
+                  disabled={isUploading}
+                />
+              </label>
+            </div>
+            {content.image_url && (
+              <div className="mt-2 relative">
+                <img
+                  src={content.image_url}
+                  alt="Preview"
+                  className="w-full h-32 object-cover rounded"
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+                <button
+                  onClick={() => updateContent('image_url', '')}
+                  className="absolute bottom-2 right-2 px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs rounded"
+                  type="button"
+                >
+                  Remove
+                </button>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Image Display</label>
+            <select
+              value={content.image_fit || 'cover'}
+              onChange={(e) => updateContent('image_fit', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            >
+              <option value="cover">Cover (Fill & Crop)</option>
+              <option value="contain">Contain (Fit Within)</option>
+            </select>
+          </div>
+
+          {/* Overlay Options */}
+          <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="overlay_enabled"
+                checked={content.overlay_enabled || false}
+                onChange={(e) => updateContent('overlay_enabled', e.target.checked)}
+                className="rounded"
+              />
+              <label htmlFor="overlay_enabled" className="text-sm font-medium">Enable Overlay</label>
+            </div>
+            
+            {content.overlay_enabled && (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Overlay Color</label>
+                  <input
+                    type="color"
+                    value={content.overlay_color || '#000000'}
+                    onChange={(e) => updateContent('overlay_color', e.target.value)}
+                    className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Opacity (%)</label>
+                  <input
+                    type="number"
+                    value={content.overlay_opacity || 50}
+                    onChange={(e) => updateContent('overlay_opacity', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                    min="0"
+                    max="100"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {/* Text Color */}
+      <div>
+        <label className="block text-sm font-medium mb-1">Text Color</label>
+        <input
+          type="color"
+          value={content.text_color || '#ffffff'}
+          onChange={(e) => updateContent('text_color', e.target.value)}
+          className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+        />
+      </div>
+
+      {/* Container Height */}
+      <div className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium mb-1">Container Height</label>
+          <select
+            value={content.height_type || 'auto'}
+            onChange={(e) => updateContent('height_type', e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+          >
+            <option value="auto">Auto (Based on Content)</option>
+            <option value="full">Full Viewport</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+
+        {content.height_type === 'custom' && (
+          <div>
+            <label className="block text-sm font-medium mb-1">Custom Height (px)</label>
+            <input
+              type="number"
+              value={content.custom_height || 400}
+              onChange={(e) => updateContent('custom_height', parseInt(e.target.value) || 400)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              min="100"
+            />
+          </div>
+        )}
+      </div>
+
       <div>
         <label className="block text-sm font-medium mb-1">Heading</label>
         <input
@@ -353,37 +597,50 @@ export function IEditHeroElementEditor({ element, onChange }) {
         </select>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Background Color</label>
-        <input
-          type="color"
-          value={content.background_color || '#3b82f6'}
-          onChange={(e) => updateContent('background_color', e.target.value)}
-          className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-        />
-        <p className="text-xs text-slate-500 mt-1">Leave empty to use variant style</p>
-      </div>
-
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">Left Padding (px)</label>
-          <input
-            type="number"
-            value={content.padding_left || 16}
-            onChange={(e) => updateContent('padding_left', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="0"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Right Padding (px)</label>
-          <input
-            type="number"
-            value={content.padding_right || 16}
-            onChange={(e) => updateContent('padding_right', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="0"
-          />
+      {/* Padding Controls */}
+      <div className="space-y-3">
+        <h4 className="text-sm font-semibold">Padding</h4>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Top (px)</label>
+            <input
+              type="number"
+              value={content.padding_top || 80}
+              onChange={(e) => updateContent('padding_top', parseInt(e.target.value) || 0)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              min="0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Bottom (px)</label>
+            <input
+              type="number"
+              value={content.padding_bottom || 80}
+              onChange={(e) => updateContent('padding_bottom', parseInt(e.target.value) || 0)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              min="0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Left (px)</label>
+            <input
+              type="number"
+              value={content.padding_left || 16}
+              onChange={(e) => updateContent('padding_left', parseInt(e.target.value) || 0)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              min="0"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Right (px)</label>
+            <input
+              type="number"
+              value={content.padding_right || 16}
+              onChange={(e) => updateContent('padding_right', parseInt(e.target.value) || 0)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              min="0"
+            />
+          </div>
         </div>
       </div>
 
@@ -496,7 +753,7 @@ export function IEditHeroElementEditor({ element, onChange }) {
               className="w-4 h-4"
             />
             <label htmlFor="arrow-hero" className="text-sm cursor-pointer">
-              Show arrow icon →
+              Show arrow icon
             </label>
           </div>
 

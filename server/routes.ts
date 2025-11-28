@@ -605,6 +605,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (teamMember) {
         console.log('[validateMember] Found active TeamMember');
 
+        // Also check for an associated Member record to get organization data
+        let organizationId = null;
+        let organizationName = null;
+        let trainingFundBalance = 0;
+        let purchaseOrderEnabled = false;
+        let programTicketBalances = {};
+
+        // Check if there's a Member record with the same email
+        const { data: memberData } = await supabase
+          .from('member')
+          .select('*')
+          .eq('email', email)
+          .limit(1);
+
+        if (memberData && memberData.length > 0) {
+          const associatedMember = memberData[0];
+          organizationId = associatedMember.organization_id;
+
+          if (organizationId) {
+            // Fetch organization details
+            const { data: orgData } = await supabase
+              .from('organization')
+              .select('*')
+              .eq('id', organizationId)
+              .limit(1);
+
+            if (orgData && orgData.length > 0) {
+              const org = orgData[0];
+              organizationName = org.name;
+              trainingFundBalance = org.training_fund_balance || 0;
+              purchaseOrderEnabled = org.purchase_order_enabled || false;
+              programTicketBalances = org.program_ticket_balances || {};
+              console.log('[validateMember] TeamMember linked to organization:', organizationName);
+            }
+          }
+        }
+
         return res.json({
           success: true,
           member: {
@@ -612,6 +649,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             first_name: teamMember.first_name,
             last_name: teamMember.last_name,
             role_id: teamMember.role_id,
+            organization_id: organizationId,
+            organization_name: organizationName,
+            training_fund_balance: trainingFundBalance,
+            purchase_order_enabled: purchaseOrderEnabled,
+            program_ticket_balances: programTicketBalances,
             is_team_member: true,
             member_excluded_features: [],
             has_seen_onboarding_tour: true // Team members don't need the tour

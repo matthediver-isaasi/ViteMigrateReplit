@@ -4,7 +4,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { FileQuestion, Search, X, Filter, User } from "lucide-react";
+import { FileQuestion, Search, X, Filter, User, Plus } from "lucide-react";
+import { Link } from "react-router-dom";
 import NewsCard from "../components/news/NewsCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
@@ -319,6 +320,19 @@ export default function NewsPage() {
                     <User className="w-4 h-4" />
                     My News
                   </Button>
+                )}
+                
+                {showMyNewsOnly && hasAdminEditPermission && (
+                  <Link to={createPageUrl('NewsEditor')}>
+                    <Button
+                      size="sm"
+                      className="gap-2 bg-blue-600 hover:bg-blue-700"
+                      data-testid="button-add-news"
+                    >
+                      <Plus className="w-4 h-4" />
+                      Add News
+                    </Button>
+                  </Link>
                 )}
                 
                 {hasUnsavedChanges && (

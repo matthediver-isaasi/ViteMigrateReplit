@@ -23,6 +23,7 @@ export default function MemberDirectoryPage() {
   const [viewingMember, setViewingMember] = useState(null);
   const [bioExpanded, setBioExpanded] = useState(false);
   const [sortBy, setSortBy] = useState("name-asc");
+  const [selectedOrganization, setSelectedOrganization] = useState("");
 
   const { data: allMembers = [], isLoading: membersLoading } = useQuery({
     queryKey: ['all-members-directory'],
@@ -175,6 +176,14 @@ export default function MemberDirectoryPage() {
       filtered = filtered.filter(member => member.login_enabled !== false);
     }
     
+    // Filter by selected organization
+    if (selectedOrganization) {
+      filtered = filtered.filter(member => {
+        const org = organizations.find(o => o.id === member.organization_id || o.zoho_account_id === member.organization_id);
+        return org?.id === selectedOrganization;
+      });
+    }
+    
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
       filtered = filtered.filter(member => {
@@ -222,7 +231,7 @@ export default function MemberDirectoryPage() {
     });
     
     return sorted;
-  }, [allMembers, searchQuery, showDisabled, sortBy, organizations, memberStats, displaySettings]);
+  }, [allMembers, searchQuery, showDisabled, sortBy, organizations, memberStats, displaySettings, selectedOrganization]);
 
   const totalPages = Math.ceil(filteredAndSortedMembers.length / itemsPerPage);
   const paginatedMembers = useMemo(() => {
@@ -294,22 +303,54 @@ export default function MemberDirectoryPage() {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <ArrowUpDown className="w-4 h-4 text-slate-500" />
-                  <Label className="text-sm text-slate-700">Sort by:</Label>
-                  <Select value={sortBy} onValueChange={setSortBy}>
-                    <SelectTrigger className="w-[200px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="name-asc">Name (A-Z)</SelectItem>
-                      <SelectItem value="name-desc">Name (Z-A)</SelectItem>
-                      {displaySettings?.show_organization && <SelectItem value="org-asc">Organization (A-Z)</SelectItem>}
-                      {displaySettings?.show_organization && <SelectItem value="org-desc">Organization (Z-A)</SelectItem>}
-                      {displaySettings?.show_events && <SelectItem value="events-desc">Most Events</SelectItem>}
-                      {displaySettings?.show_articles && <SelectItem value="articles-desc">Most Articles</SelectItem>}
-                    </SelectContent>
-                  </Select>
+                <div className="flex flex-col md:flex-row md:items-center gap-4">
+                  {displaySettings?.show_organization && (
+                    <div className="flex items-center gap-2">
+                      <Building2 className="w-4 h-4 text-slate-500" />
+                      <Label className="text-sm text-slate-700">Organisation:</Label>
+                      <Select 
+                        value={selectedOrganization} 
+                        onValueChange={(value) => {
+                          setSelectedOrganization(value);
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="w-[250px]" data-testid="select-organization-filter">
+                          <SelectValue placeholder="All Organisations" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">All Organisations</SelectItem>
+                          {organizations
+                            .filter(org => org.name)
+                            .sort((a, b) => a.name.localeCompare(b.name))
+                            .map(org => (
+                              <SelectItem key={org.id} value={org.id}>
+                                {org.name}
+                              </SelectItem>
+                            ))
+                          }
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center gap-2">
+                    <ArrowUpDown className="w-4 h-4 text-slate-500" />
+                    <Label className="text-sm text-slate-700">Sort by:</Label>
+                    <Select value={sortBy} onValueChange={setSortBy}>
+                      <SelectTrigger className="w-[200px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="name-asc">Name (A-Z)</SelectItem>
+                        <SelectItem value="name-desc">Name (Z-A)</SelectItem>
+                        {displaySettings?.show_organization && <SelectItem value="org-asc">Organisation (A-Z)</SelectItem>}
+                        {displaySettings?.show_organization && <SelectItem value="org-desc">Organisation (Z-A)</SelectItem>}
+                        {displaySettings?.show_events && <SelectItem value="events-desc">Most Events</SelectItem>}
+                        {displaySettings?.show_articles && <SelectItem value="articles-desc">Most Articles</SelectItem>}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
             </CardContent>

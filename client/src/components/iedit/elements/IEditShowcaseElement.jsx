@@ -1070,7 +1070,7 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
 
               const imageHeight = Math.round((content.cardHeight || 400) * ((content.imageHeightPercent || 50) / 100));
               const buttonSize = content.ctaButtonSize || 48;
-              const buttonMargin = content.ctaButtonMargin ?? 16;
+              const buttonMargin = content.ctaButtonMargin ?? 0;
 
               const cardContent = (
                 <>

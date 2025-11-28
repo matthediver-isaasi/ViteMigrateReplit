@@ -34,12 +34,16 @@ export default function IEditHeroElement({ content, variant, settings }) {
     height_type = 'auto',
     custom_height = 400,
     button_top_margin = 32,
+    text_vertical_align = 'center',
     button
   } = content;
+
+  const isImageSized = height_type === 'image' && background_type === 'image' && image_url;
 
   const getHeightStyle = () => {
     if (height_type === 'full') return { minHeight: '100vh' };
     if (height_type === 'custom') return { minHeight: `${custom_height}px` };
+    if (height_type === 'image') return {};
     return {};
   };
 
@@ -55,6 +59,12 @@ export default function IEditHeroElement({ content, variant, settings }) {
     return {};
   };
 
+  const getTextVerticalAlign = () => {
+    if (text_vertical_align === 'top') return 'flex-start';
+    if (text_vertical_align === 'bottom') return 'flex-end';
+    return 'center';
+  };
+
   const containerStyle = {
     paddingLeft: `${padding_left}px`,
     paddingRight: `${padding_right}px`,
@@ -62,6 +72,90 @@ export default function IEditHeroElement({ content, variant, settings }) {
     paddingBottom: `${padding_bottom}px`,
     textAlign: text_align
   };
+
+  if (isImageSized) {
+    return (
+      <div className="relative w-full">
+        <img 
+          src={image_url} 
+          alt={content.heading || 'Hero background'} 
+          className="w-full h-auto block"
+        />
+        {overlay_enabled && (
+          <div 
+            className="absolute inset-0" 
+            style={{ 
+              backgroundColor: overlay_color, 
+              opacity: parseInt(overlay_opacity) / 100 
+            }} 
+          />
+        )}
+        <div 
+          className="absolute inset-0 flex flex-col"
+          style={{ justifyContent: getTextVerticalAlign() }}
+        >
+          <div className="max-w-7xl mx-auto px-4 w-full" style={containerStyle}>
+            {content.heading && (
+              <div>
+                <h1 
+                  className="font-bold"
+                  style={{ 
+                    fontFamily: heading_font_family,
+                    fontSize: `${heading_font_size}px`,
+                    letterSpacing: `${heading_letter_spacing}px`,
+                    color: text_color,
+                    marginBottom: heading_underline_enabled ? `${heading_underline_spacing}px` : '24px'
+                  }}
+                >
+                  {content.heading}
+                </h1>
+                {heading_underline_enabled && (
+                  <div 
+                    style={{
+                      width: `${heading_underline_width}px`,
+                      height: `${heading_underline_weight}px`,
+                      backgroundColor: heading_underline_color,
+                      margin: text_align === 'center' ? '0 auto' : text_align === 'right' ? '0 0 0 auto' : '0',
+                      marginBottom: `${heading_underline_to_content_spacing}px`
+                    }}
+                  />
+                )}
+              </div>
+            )}
+            {content.subheading && (
+              <p 
+                className="mb-8 opacity-90"
+                style={{ 
+                  fontFamily: subheading_font_family,
+                  fontSize: `${subheading_font_size}px`,
+                  lineHeight: subheading_line_height,
+                  color: text_color,
+                  whiteSpace: 'pre-line'
+                }}
+              >
+                {content.subheading}
+              </p>
+            )}
+            {button && button.text && (
+              <div style={{ marginTop: `${button_top_margin}px` }}>
+                <AGCASButton
+                  text={button.text}
+                  link={button.link}
+                  buttonStyleId={button.button_style_id}
+                  customBgColor={button.custom_bg_color}
+                  customTextColor={button.custom_text_color}
+                  customBorderColor={button.custom_border_color}
+                  openInNewTab={button.open_in_new_tab}
+                  size={button.size || 'large'}
+                  showArrow={button.show_arrow}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 
@@ -461,7 +555,15 @@ export function IEditHeroElementEditor({ element, onChange }) {
             <option value="auto">Auto (Based on Content)</option>
             <option value="full">Full Viewport</option>
             <option value="custom">Custom</option>
+            {backgroundType === 'image' && (
+              <option value="image">Match Image Size (text overlays image)</option>
+            )}
           </select>
+          {content.height_type === 'image' && backgroundType === 'image' && (
+            <p className="text-xs text-slate-500 mt-1">
+              Container will match the image's natural dimensions. Text will overlay the image.
+            </p>
+          )}
         </div>
 
         {content.height_type === 'custom' && (
@@ -474,6 +576,21 @@ export function IEditHeroElementEditor({ element, onChange }) {
               className="w-full px-3 py-2 border border-slate-300 rounded-md"
               min="100"
             />
+          </div>
+        )}
+
+        {content.height_type === 'image' && backgroundType === 'image' && (
+          <div>
+            <label className="block text-sm font-medium mb-1">Text Vertical Position</label>
+            <select
+              value={content.text_vertical_align || 'center'}
+              onChange={(e) => updateContent('text_vertical_align', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            >
+              <option value="top">Top</option>
+              <option value="center">Center</option>
+              <option value="bottom">Bottom</option>
+            </select>
           </div>
         )}
       </div>

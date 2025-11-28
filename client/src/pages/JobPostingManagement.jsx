@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Search, CheckCircle, XCircle, Briefcase, MapPin, Building2, Clock, Star, AlertCircle, Pencil, Trash2, FileText, Upload, X, Loader2, ChevronLeft, ChevronRight, Pause, Archive, Play } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ export default function JobPostingManagementPage() {
   const [organizationFilter, setOrganizationFilter] = useState("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(6);
+  const [confirmAction, setConfirmAction] = useState(null);
   
   const queryClient = useQueryClient();
 
@@ -755,11 +757,7 @@ export default function JobPostingManagementPage() {
                   </Button>
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      if (confirm('Are you sure you want to delete this job posting?')) {
-                        deleteJobMutation.mutate(selectedJob.id);
-                      }
-                    }}
+                    onClick={() => setConfirmAction({ type: 'delete', jobId: selectedJob.id, fromViewDialog: true })}
                     disabled={deleteJobMutation.isPending}
                     className="text-red-600 hover:text-red-700"
                   >
@@ -952,15 +950,11 @@ export default function JobPostingManagementPage() {
               </div>
             )}
             <DialogFooter className="flex-col sm:flex-row gap-2">
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
                 {editingJob?.status === 'active' && (
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      if (confirm('Are you sure you want to pause this job posting? It will no longer be visible to job seekers.')) {
-                        updateJobMutation.mutate({ id: editingJob.id, data: { status: 'paused' } });
-                      }
-                    }}
+                    onClick={() => setConfirmAction({ type: 'pause', jobId: editingJob.id })}
                     disabled={updateJobMutation.isPending}
                     className="text-orange-600 hover:text-orange-700 hover:bg-orange-50"
                     data-testid="button-pause-job"
@@ -972,11 +966,7 @@ export default function JobPostingManagementPage() {
                 {editingJob?.status === 'paused' && (
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      if (confirm('Are you sure you want to reactivate this job posting?')) {
-                        updateJobMutation.mutate({ id: editingJob.id, data: { status: 'active' } });
-                      }
-                    }}
+                    onClick={() => setConfirmAction({ type: 'reactivate', jobId: editingJob.id })}
                     disabled={updateJobMutation.isPending}
                     className="text-green-600 hover:text-green-700 hover:bg-green-50"
                     data-testid="button-reactivate-job"
@@ -988,11 +978,7 @@ export default function JobPostingManagementPage() {
                 {editingJob?.status !== 'archived' && (
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      if (confirm('Are you sure you want to archive this job posting? It will be moved to the archived section.')) {
-                        updateJobMutation.mutate({ id: editingJob.id, data: { status: 'archived' } });
-                      }
-                    }}
+                    onClick={() => setConfirmAction({ type: 'archive', jobId: editingJob.id })}
                     disabled={updateJobMutation.isPending}
                     className="text-slate-600 hover:text-slate-700 hover:bg-slate-100"
                     data-testid="button-archive-job"
@@ -1003,13 +989,7 @@ export default function JobPostingManagementPage() {
                 )}
                 <Button
                   variant="outline"
-                  onClick={() => {
-                    if (confirm('Are you sure you want to permanently delete this job posting? This action cannot be undone.')) {
-                      deleteJobMutation.mutate(editingJob.id);
-                      setShowEditDialog(false);
-                      setEditingJob(null);
-                    }
-                  }}
+                  onClick={() => setConfirmAction({ type: 'delete', jobId: editingJob.id })}
                   disabled={deleteJobMutation.isPending}
                   className="text-red-600 hover:text-red-700 hover:bg-red-50"
                   data-testid="button-delete-job"
@@ -1041,6 +1021,65 @@ export default function JobPostingManagementPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Confirmation Dialog */}
+        <AlertDialog open={!!confirmAction} onOpenChange={(open) => !open && setConfirmAction(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>
+                {confirmAction?.type === 'pause' && 'Pause Job Posting'}
+                {confirmAction?.type === 'reactivate' && 'Reactivate Job Posting'}
+                {confirmAction?.type === 'archive' && 'Archive Job Posting'}
+                {confirmAction?.type === 'delete' && 'Delete Job Posting'}
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                {confirmAction?.type === 'pause' && 'Are you sure you want to pause this job posting? It will no longer be visible to job seekers until reactivated.'}
+                {confirmAction?.type === 'reactivate' && 'Are you sure you want to reactivate this job posting? It will become visible to job seekers again.'}
+                {confirmAction?.type === 'archive' && 'Are you sure you want to archive this job posting? It will be moved to the archived section and no longer visible to job seekers.'}
+                {confirmAction?.type === 'delete' && 'Are you sure you want to permanently delete this job posting? This action cannot be undone.'}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel data-testid="button-cancel-confirm">Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  if (confirmAction?.type === 'pause') {
+                    updateJobMutation.mutate({ id: confirmAction.jobId, data: { status: 'paused' } });
+                  } else if (confirmAction?.type === 'reactivate') {
+                    updateJobMutation.mutate({ id: confirmAction.jobId, data: { status: 'active' } });
+                  } else if (confirmAction?.type === 'archive') {
+                    updateJobMutation.mutate({ id: confirmAction.jobId, data: { status: 'archived' } });
+                  } else if (confirmAction?.type === 'delete') {
+                    deleteJobMutation.mutate(confirmAction.jobId);
+                    if (confirmAction.fromViewDialog) {
+                      setShowDialog(false);
+                      setSelectedJob(null);
+                    } else {
+                      setShowEditDialog(false);
+                      setEditingJob(null);
+                    }
+                  }
+                  setConfirmAction(null);
+                }}
+                className={
+                  confirmAction?.type === 'delete' 
+                    ? 'bg-red-600 hover:bg-red-700 text-white' 
+                    : confirmAction?.type === 'pause'
+                    ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                    : confirmAction?.type === 'reactivate'
+                    ? 'bg-green-600 hover:bg-green-700 text-white'
+                    : 'bg-slate-600 hover:bg-slate-700 text-white'
+                }
+                data-testid="button-confirm-action"
+              >
+                {confirmAction?.type === 'pause' && 'Pause'}
+                {confirmAction?.type === 'reactivate' && 'Reactivate'}
+                {confirmAction?.type === 'archive' && 'Archive'}
+                {confirmAction?.type === 'delete' && 'Delete'}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </div>
   );

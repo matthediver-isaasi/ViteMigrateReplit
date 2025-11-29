@@ -1586,6 +1586,226 @@ export default function PreferencesPage() {
         </Card>
         );
 
+      case 'password_security':
+        return (
+          <Card key="password_security" className="border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-blue-600" />
+                Password & Security
+              </CardTitle>
+              <CardDescription>
+                Change your password to keep your account secure
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {passwordSuccess ? (
+                <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <Check className="w-5 h-5 text-green-600" />
+                  <span className="text-green-800">Password changed successfully!</span>
+                </div>
+              ) : (
+                <>
+                  {passwordError && (
+                    <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <AlertCircle className="w-5 h-5 text-red-600" />
+                      <span className="text-red-800">{passwordError}</span>
+                    </div>
+                  )}
+                  
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="currentPassword">Current Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="currentPassword"
+                          type={showCurrentPassword ? "text" : "password"}
+                          value={currentPassword}
+                          onChange={(e) => {
+                            setCurrentPassword(e.target.value);
+                            setPasswordError("");
+                            setPasswordSuccess(false);
+                          }}
+                          placeholder="Enter your current password"
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword">New Password</Label>
+                      <div className="relative">
+                        <Input
+                          id="newPassword"
+                          type={showNewPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => {
+                            setNewPassword(e.target.value);
+                            setPasswordError("");
+                            setPasswordSuccess(false);
+                          }}
+                          placeholder="Enter your new password"
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowNewPassword(!showNewPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      
+                      {/* Password Strength Indicator */}
+                      {newPassword && (
+                        <div className="space-y-2">
+                          <div className="flex gap-1">
+                            {[1, 2, 3, 4, 5].map((level) => {
+                              const strength = (() => {
+                                let score = 0;
+                                if (newPassword.length >= 8) score++;
+                                if (/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword)) score++;
+                                if (/[0-9]/.test(newPassword)) score++;
+                                if (/[^a-zA-Z0-9]/.test(newPassword)) score++;
+                                if (newPassword.length >= 12) score++;
+                                return score;
+                              })();
+                              return (
+                                <div
+                                  key={level}
+                                  className={`h-1 flex-1 rounded-full ${
+                                    level <= strength
+                                      ? strength <= 2
+                                        ? 'bg-red-500'
+                                        : strength <= 3
+                                        ? 'bg-yellow-500'
+                                        : 'bg-green-500'
+                                      : 'bg-slate-200'
+                                  }`}
+                                />
+                              );
+                            })}
+                          </div>
+                          <div className="text-xs text-slate-500 space-y-1">
+                            <div className={`flex items-center gap-1 ${newPassword.length >= 8 ? 'text-green-600' : ''}`}>
+                              {newPassword.length >= 8 ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
+                              At least 8 characters
+                            </div>
+                            <div className={`flex items-center gap-1 ${/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? 'text-green-600' : ''}`}>
+                              {/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
+                              Upper and lowercase letters
+                            </div>
+                            <div className={`flex items-center gap-1 ${/[0-9]/.test(newPassword) ? 'text-green-600' : ''}`}>
+                              {/[0-9]/.test(newPassword) ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
+                              At least one number
+                            </div>
+                            <div className={`flex items-center gap-1 ${/[^a-zA-Z0-9]/.test(newPassword) ? 'text-green-600' : ''}`}>
+                              {/[^a-zA-Z0-9]/.test(newPassword) ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
+                              At least one special character
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                      <Input
+                        id="confirmPassword"
+                        type="password"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          setConfirmPassword(e.target.value);
+                          setPasswordError("");
+                          setPasswordSuccess(false);
+                        }}
+                        placeholder="Confirm your new password"
+                      />
+                      {confirmPassword && newPassword !== confirmPassword && (
+                        <p className="text-xs text-red-500">Passwords do not match</p>
+                      )}
+                      {confirmPassword && newPassword === confirmPassword && (
+                        <p className="text-xs text-green-600 flex items-center gap-1">
+                          <Check className="w-3 h-3" /> Passwords match
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={async () => {
+                      if (!currentPassword || !newPassword || !confirmPassword) {
+                        setPasswordError("Please fill in all fields");
+                        return;
+                      }
+                      if (newPassword !== confirmPassword) {
+                        setPasswordError("New passwords do not match");
+                        return;
+                      }
+                      if (newPassword.length < 8) {
+                        setPasswordError("Password must be at least 8 characters");
+                        return;
+                      }
+                      
+                      setIsChangingPassword(true);
+                      setPasswordError("");
+                      
+                      try {
+                        const response = await fetch('/api/auth/change-password', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify({
+                            currentPassword,
+                            newPassword
+                          })
+                        });
+                        
+                        const data = await response.json();
+                        
+                        if (!response.ok) {
+                          setPasswordError(data.error || 'Failed to change password');
+                        } else {
+                          setPasswordSuccess(true);
+                          setCurrentPassword("");
+                          setNewPassword("");
+                          setConfirmPassword("");
+                          toast.success("Password changed successfully!");
+                        }
+                      } catch (error) {
+                        setPasswordError("An error occurred. Please try again.");
+                      } finally {
+                        setIsChangingPassword(false);
+                      }
+                    }}
+                    disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isChangingPassword ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Changing Password...
+                      </>
+                    ) : (
+                      <>
+                        <Lock className="w-4 h-4 mr-2" />
+                        Change Password
+                      </>
+                    )}
+                  </Button>
+                </>
+              )}
+            </CardContent>
+          </Card>
+        );
+
       default:
         return null;
     }

@@ -136,14 +136,13 @@ export default function ResetPasswordPage() {
                     <div className="space-y-2">
                       <Label htmlFor="new-password">New Password</Label>
                       <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
                         <Input
                           id="new-password"
                           type={showPassword ? "text" : "password"}
-                          placeholder="At least 8 characters"
+                          placeholder="Enter your new password"
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
-                          className="pl-10 pr-10"
+                          className="pr-10"
                           required
                           minLength={8}
                           data-testid="input-new-password"
@@ -151,15 +150,15 @@ export default function ResetPasswordPage() {
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
                         >
-                          {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                       
                       {/* Password Strength Indicator */}
                       {password && (
-                        <div className="space-y-2 mt-2">
+                        <div className="space-y-2">
                           <div className="flex gap-1">
                             {[1, 2, 3, 4, 5].map((level) => {
                               const strength = (() => {
@@ -174,7 +173,7 @@ export default function ResetPasswordPage() {
                               return (
                                 <div
                                   key={level}
-                                  className={`h-1.5 flex-1 rounded-full ${
+                                  className={`h-1 flex-1 rounded-full ${
                                     level <= strength
                                       ? strength <= 2
                                         ? 'bg-red-500'
@@ -187,38 +186,22 @@ export default function ResetPasswordPage() {
                               );
                             })}
                           </div>
-                          <p className="text-xs text-slate-500">
-                            {(() => {
-                              let score = 0;
-                              if (password.length >= 8) score++;
-                              if (/[a-z]/.test(password) && /[A-Z]/.test(password)) score++;
-                              if (/[0-9]/.test(password)) score++;
-                              if (/[^a-zA-Z0-9]/.test(password)) score++;
-                              if (password.length >= 12) score++;
-                              if (score <= 1) return "Weak password";
-                              if (score <= 2) return "Fair password";
-                              if (score <= 3) return "Good password";
-                              if (score <= 4) return "Strong password";
-                              return "Very strong password";
-                            })()}
-                          </p>
-                          <div className="text-xs text-slate-500 space-y-1 bg-slate-50 p-3 rounded-lg border border-slate-100">
-                            <p className="font-medium text-slate-600 mb-2">Password requirements:</p>
-                            <div className={`flex items-center gap-2 ${password.length >= 8 ? 'text-green-600' : 'text-slate-400'}`}>
-                              {password.length >= 8 ? <Check className="w-3.5 h-3.5" /> : <div className="w-3.5 h-3.5 rounded-full border border-current" />}
+                          <div className="text-xs text-slate-500 space-y-1">
+                            <div className={`flex items-center gap-1 ${password.length >= 8 ? 'text-green-600' : ''}`}>
+                              {password.length >= 8 ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
                               At least 8 characters
                             </div>
-                            <div className={`flex items-center gap-2 ${/[a-z]/.test(password) && /[A-Z]/.test(password) ? 'text-green-600' : 'text-slate-400'}`}>
-                              {/[a-z]/.test(password) && /[A-Z]/.test(password) ? <Check className="w-3.5 h-3.5" /> : <div className="w-3.5 h-3.5 rounded-full border border-current" />}
+                            <div className={`flex items-center gap-1 ${/[a-z]/.test(password) && /[A-Z]/.test(password) ? 'text-green-600' : ''}`}>
+                              {/[a-z]/.test(password) && /[A-Z]/.test(password) ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
                               Upper and lowercase letters
                             </div>
-                            <div className={`flex items-center gap-2 ${/[0-9]/.test(password) ? 'text-green-600' : 'text-slate-400'}`}>
-                              {/[0-9]/.test(password) ? <Check className="w-3.5 h-3.5" /> : <div className="w-3.5 h-3.5 rounded-full border border-current" />}
+                            <div className={`flex items-center gap-1 ${/[0-9]/.test(password) ? 'text-green-600' : ''}`}>
+                              {/[0-9]/.test(password) ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
                               At least one number
                             </div>
-                            <div className={`flex items-center gap-2 ${/[^a-zA-Z0-9]/.test(password) ? 'text-green-600' : 'text-slate-400'}`}>
-                              {/[^a-zA-Z0-9]/.test(password) ? <Check className="w-3.5 h-3.5" /> : <div className="w-3.5 h-3.5 rounded-full border border-current" />}
-                              At least one special character (!@#$%^&*)
+                            <div className={`flex items-center gap-1 ${/[^a-zA-Z0-9]/.test(password) ? 'text-green-600' : ''}`}>
+                              {/[^a-zA-Z0-9]/.test(password) ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
+                              At least one special character
                             </div>
                           </div>
                         </div>
@@ -226,24 +209,18 @@ export default function ResetPasswordPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="confirm-password">Confirm Password</Label>
-                      <div className="relative">
-                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                          id="confirm-password"
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Confirm your password"
-                          value={confirmPassword}
-                          onChange={(e) => setConfirmPassword(e.target.value)}
-                          className="pl-10"
-                          required
-                          data-testid="input-confirm-password"
-                        />
-                      </div>
+                      <Label htmlFor="confirm-password">Confirm New Password</Label>
+                      <Input
+                        id="confirm-password"
+                        type="password"
+                        placeholder="Confirm your new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        required
+                        data-testid="input-confirm-password"
+                      />
                       {confirmPassword && password !== confirmPassword && (
-                        <p className="text-xs text-red-500 flex items-center gap-1">
-                          <AlertCircle className="w-3 h-3" /> Passwords do not match
-                        </p>
+                        <p className="text-xs text-red-500">Passwords do not match</p>
                       )}
                       {confirmPassword && password === confirmPassword && (
                         <p className="text-xs text-green-600 flex items-center gap-1">
@@ -254,17 +231,20 @@ export default function ResetPasswordPage() {
 
                     <Button
                       type="submit"
-                      className="w-full"
-                      disabled={loading || !password || !confirmPassword}
+                      className="w-full bg-blue-600 hover:bg-blue-700"
+                      disabled={loading || !password || !confirmPassword || password !== confirmPassword}
                       data-testid="button-reset-password"
                     >
                       {loading ? (
                         <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Resetting...
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Setting Password...
                         </>
                       ) : (
-                        "Reset Password"
+                        <>
+                          <Lock className="w-4 h-4 mr-2" />
+                          Set Password
+                        </>
                       )}
                     </Button>
                   </form>

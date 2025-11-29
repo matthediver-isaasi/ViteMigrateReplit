@@ -22,7 +22,6 @@ export default function ResourceFilter({
 
   // Compute which subcategories have resources
   const subcategoriesWithResources = React.useMemo(() => {
-    console.log('[ResourceFilter] hideEmptySubcategories:', hideEmptySubcategories, 'resources count:', resources?.length);
     if (!hideEmptySubcategories || !resources || resources.length === 0) {
       return null; // Return null to indicate no filtering needed
     }
@@ -33,7 +32,6 @@ export default function ResourceFilter({
         resource.subcategories.forEach(subcat => subcatSet.add(subcat));
       }
     });
-    console.log('[ResourceFilter] Subcategories with resources:', [...subcatSet]);
     return subcatSet;
   }, [resources, hideEmptySubcategories]);
 

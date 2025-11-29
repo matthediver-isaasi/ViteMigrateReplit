@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Calendar, User, CreditCard, LogOut, Ticket, Wallet, Shield, Users, Settings, Sparkles, ShoppingCart, History, BarChart3, Briefcase, FileEdit, Image, FileText, AtSign, FolderTree, Square, Trophy, BookOpen, Mail, MousePointer2, Building, Download, HelpCircle, Menu, ChevronRight } from "lucide-react";
+import { useLayoutContext } from "@/contexts/LayoutContext";
 import {
   Sidebar,
   SidebarContent,
@@ -645,8 +646,16 @@ const { data: dynamicNavItems = [] } = useQuery({
 
 
 
+  // Get layout context for dynamic pages that need to force public layout
+  const { forcePublicLayout } = useLayoutContext();
+
   // Check if page is truly public (not hybrid with member logged in)
   const isPublicPage = () => {
+    // If a dynamic page signals it should use public layout, respect that
+    if (forcePublicLayout) {
+      return true;
+    }
+    
     if (publicPages.includes(currentPageName)) {
       return true;
     }

@@ -189,6 +189,7 @@ import TeamSettings from "./TeamSettings";
 import PreferenceSettings from "./PreferenceSettings";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { LayoutProvider } from '@/contexts/LayoutContext';
 
 const PAGES = {
     
@@ -610,7 +611,9 @@ function PagesContent() {
 export default function Pages() {
     return (
         <Router>
-            <PagesContent />
+            <LayoutProvider>
+                <PagesContent />
+            </LayoutProvider>
         </Router>
     );
 }

@@ -294,7 +294,6 @@ export default function OrganisationDirectoryPage() {
                     window.location.href = `/memberdirectory?org=${org.id}`;
                   }}
                   data-testid={`card-organisation-${org.id}`}
-                  title={displaySettings?.showNameTooltip ? org.name : undefined}
                 >
                     <CardHeader className="flex flex-col items-center text-center pb-2">
                       {displaySettings?.showLogo && (
@@ -303,11 +302,18 @@ export default function OrganisationDirectoryPage() {
                             <img
                               src={org.logo_url}
                               alt={org.name}
-                              className="w-full h-full object-contain" /> :
-                            <Building2 className="w-16 h-16 text-slate-400" />
+                              className={`w-full h-full object-contain transition-all duration-300 ${displaySettings?.showNameTooltip ? 'group-hover:opacity-20' : ''}`} /> :
+                            <Building2 className={`w-16 h-16 text-slate-400 transition-all duration-300 ${displaySettings?.showNameTooltip ? 'group-hover:opacity-20' : ''}`} />
                           }
+                          {displaySettings?.showNameTooltip && (
+                            <div className="absolute inset-0 flex items-center justify-center p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <span className="text-lg font-bold text-slate-800 text-center leading-tight line-clamp-4">
+                                {org.name}
+                              </span>
+                            </div>
+                          )}
                           {isAdmin && (
-                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                               <Button
                                 size="icon"
                                 variant="secondary"

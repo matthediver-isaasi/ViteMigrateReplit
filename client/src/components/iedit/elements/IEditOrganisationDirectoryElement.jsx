@@ -472,22 +472,28 @@ export function IEditOrganisationDirectoryElementRenderer({ content, settings })
                       window.location.href = `/memberdirectory?org=${org.id}`;
                     }}
                     data-testid={`card-org-element-${org.id}`}
-                    title={showNameTooltip ? org.name : undefined}
                   >
                     <CardHeader className="flex flex-col items-center text-center pb-2">
                       {showLogo && (
                         <div 
-                          className="w-[90%] aspect-square overflow-hidden bg-slate-100 flex items-center justify-center mb-3"
+                          className="relative w-[90%] aspect-square overflow-hidden bg-slate-100 flex items-center justify-center mb-3 group"
                           style={{ borderRadius: `${cardBorderRadius}px` }}
                         >
                           {org.logo_url ? (
                             <img
                               src={org.logo_url}
                               alt={org.name}
-                              className="w-full h-full object-contain"
+                              className={`w-full h-full object-contain transition-all duration-300 ${showNameTooltip ? 'group-hover:opacity-20' : ''}`}
                             />
                           ) : (
-                            <Building2 className="w-16 h-16 text-slate-400" />
+                            <Building2 className={`w-16 h-16 text-slate-400 transition-all duration-300 ${showNameTooltip ? 'group-hover:opacity-20' : ''}`} />
+                          )}
+                          {showNameTooltip && (
+                            <div className="absolute inset-0 flex items-center justify-center p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                              <span className="text-lg font-bold text-slate-800 text-center leading-tight line-clamp-4">
+                                {org.name}
+                              </span>
+                            </div>
                           )}
                         </div>
                       )}

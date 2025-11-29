@@ -53,7 +53,9 @@ export default function DynamicPage() {
 
   // Check if page is accessible
   const isPublished = page?.status === 'published';
-  const isMemberPage = page?.layout_type === 'member';
+  const layoutType = page?.layout_type || 'public';
+  const isMemberPage = layoutType === 'member';
+  const isHybridPage = layoutType === 'hybrid';
   const isLoggedIn = !!memberInfo;
 
   // Show loading while fetching page data
@@ -142,8 +144,11 @@ export default function DynamicPage() {
   }
 
   // Render the page with appropriate layout
-  // Member pages use a simple wrapper, public pages use PublicLayout
-  const LayoutComponent = isMemberPage 
+  // Member pages use a simple wrapper (Layout provides the sidebar)
+  // Public pages use PublicLayout (header/footer)
+  // Hybrid pages: logged-in users see portal layout, guests see public layout
+  const usePortalLayout = isMemberPage || (isHybridPage && isLoggedIn);
+  const LayoutComponent = usePortalLayout
     ? ({ children }) => <div className="min-h-screen">{children}</div>
     : PublicLayout;
 

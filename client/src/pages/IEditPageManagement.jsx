@@ -287,8 +287,13 @@ export default function IEditPageManagementPage() {
                   </div>
                   
                   <div className="text-sm">
-                    <span className="text-slate-500">Layout:</span>
-                    <span className="ml-2 text-slate-700 capitalize">{page.layout_type}</span>
+                    <span className="text-slate-500">View:</span>
+                    <Badge variant="outline" className="ml-2">
+                      {page.layout_type === 'public' && 'Public'}
+                      {page.layout_type === 'member' && 'Portal'}
+                      {page.layout_type === 'hybrid' && 'Hybrid'}
+                      {!['public', 'member', 'hybrid'].includes(page.layout_type) && (page.layout_type || 'Public')}
+                    </Badge>
                   </div>
 
                   {page.updated_date && (
@@ -418,7 +423,7 @@ export default function IEditPageManagementPage() {
               </div>
 
               <div>
-                <Label htmlFor="layout_type">Layout Type</Label>
+                <Label htmlFor="layout_type">View Type</Label>
                 <Select
                   value={newPage.layout_type}
                   onValueChange={(value) => setNewPage({ ...newPage, layout_type: value })}
@@ -427,10 +432,16 @@ export default function IEditPageManagementPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="public">Public (With header/footer)</SelectItem>
-                    <SelectItem value="member">Member Portal (With sidebar)</SelectItem>
+                    <SelectItem value="public">Public (Anyone can view, public layout)</SelectItem>
+                    <SelectItem value="member">Portal (Members only, with sidebar)</SelectItem>
+                    <SelectItem value="hybrid">Hybrid (Anyone can view, members see portal)</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-slate-500 mt-1">
+                  {newPage.layout_type === 'public' && 'Accessible to everyone with public header/footer layout'}
+                  {newPage.layout_type === 'member' && 'Only logged-in members can access, displayed within the portal sidebar'}
+                  {newPage.layout_type === 'hybrid' && 'Anyone can view; logged-in members see it within the portal sidebar'}
+                </p>
               </div>
             </div>
             <DialogFooter>

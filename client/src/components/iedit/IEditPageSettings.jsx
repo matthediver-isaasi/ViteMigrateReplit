@@ -84,7 +84,7 @@ export default function IEditPageSettings({ page, onClose, onSave }) {
             </div>
 
             <div>
-              <Label htmlFor="layout_type">Layout Type</Label>
+              <Label htmlFor="layout_type">View Type</Label>
               <Select
                 value={editedPage.layout_type}
                 onValueChange={(value) => setEditedPage({ ...editedPage, layout_type: value })}
@@ -93,10 +93,16 @@ export default function IEditPageSettings({ page, onClose, onSave }) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="public">Public (With header/footer)</SelectItem>
-                  <SelectItem value="member">Member Portal (With sidebar)</SelectItem>
+                  <SelectItem value="public">Public (Anyone can view, public layout)</SelectItem>
+                  <SelectItem value="member">Portal (Members only, with sidebar)</SelectItem>
+                  <SelectItem value="hybrid">Hybrid (Anyone can view, members see portal)</SelectItem>
                 </SelectContent>
               </Select>
+              <p className="text-xs text-slate-500 mt-1">
+                {editedPage.layout_type === 'public' && 'Accessible to everyone with public header/footer layout'}
+                {editedPage.layout_type === 'member' && 'Only logged-in members can access, displayed within the portal sidebar'}
+                {editedPage.layout_type === 'hybrid' && 'Anyone can view; logged-in members see it within the portal sidebar'}
+              </p>
             </div>
           </div>
 

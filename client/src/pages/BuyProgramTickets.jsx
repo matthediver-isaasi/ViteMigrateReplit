@@ -19,6 +19,7 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
+import { useLayoutContext } from "@/contexts/LayoutContext";
 
 // Load Stripe outside component to avoid recreating on every render
 let stripePromise = null;
@@ -122,8 +123,8 @@ export default function BuyProgramTicketsPage({
   isFeatureExcluded,
   memberRole,
   reloadMemberInfo,
-  hasBanner
 }) {
+  const { hasBanner } = useLayoutContext();
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState("");

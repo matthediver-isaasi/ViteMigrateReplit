@@ -10,6 +10,7 @@ import ProgramFilter from "../components/events/ProgramFilter";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
 import { base44 } from "@/api/base44Client";
+import { useLayoutContext } from "@/contexts/LayoutContext";
 
 export default function EventsPage({
   organizationInfo,
@@ -17,8 +18,9 @@ export default function EventsPage({
   memberInfo,
   memberRole,
   reloadMemberInfo,
-  hasBanner,
 }) {
+  // Get hasBanner from layout context
+  const { hasBanner } = useLayoutContext();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
   const [showTour, setShowTour] = useState(false);

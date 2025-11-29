@@ -13,9 +13,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, User, Mail, FileText, Trophy, Search, Users, Shield, Calendar, ChevronLeft, ChevronRight, Building2, Briefcase, ChevronDown, ChevronUp, Linkedin, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { useLayoutContext } from "@/contexts/LayoutContext";
 
-export default function MemberDirectoryPage({ hasBanner }) {
+export default function MemberDirectoryPage() {
   const { memberInfo, isFeatureExcluded } = useMemberAccess();
+  const { hasBanner } = useLayoutContext();
   
   // Check if user can see the "Show disabled accounts" toggle
   const canShowDisabledAccounts = !isFeatureExcluded('element_ShowDisabledAccounts');

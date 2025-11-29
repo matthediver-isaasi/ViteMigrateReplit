@@ -23,9 +23,11 @@ import { Button } from "@/components/ui/button";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { useLayoutContext } from "@/contexts/LayoutContext";
 
-export default function BookingsPage({ hasBanner }) {
+export default function BookingsPage() {
   const { memberInfo, memberRole } = useMemberAccess();
+  const { hasBanner } = useLayoutContext();
   const [cancellingTicketId, setCancellingTicketId] = React.useState(null);
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
   const [ticketToCancel, setTicketToCancel] = React.useState(null);

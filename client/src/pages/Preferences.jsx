@@ -31,6 +31,7 @@ import { format } from "date-fns";
 import ResourceFilter from "../components/resources/ResourceFilter";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
+import { useLayoutContext } from "@/contexts/LayoutContext";
 
 // --- Helper: upload to Supabase Storage and return public URL ---
 async function uploadImageToSupabase(file, bucket, folderPrefix = "") {
@@ -53,9 +54,9 @@ async function uploadImageToSupabase(file, bucket, folderPrefix = "") {
   return publicData.publicUrl;
 }
 
-export default function PreferencesPage({ hasBanner }) {
-  // Debug logging for hasBanner prop
-  console.log('[Preferences] hasBanner prop received:', hasBanner);
+export default function PreferencesPage() {
+  // Get hasBanner from layout context (since props don't work through React Router)
+  const { hasBanner } = useLayoutContext();
   
   // Resource prefs
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);

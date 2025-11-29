@@ -10,9 +10,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { useResourceRealtime } from "@/hooks/useResourceRealtime";
+import { useLayoutContext } from "@/contexts/LayoutContext";
 
-export default function ResourcesPage({ hasBanner }) {
+export default function ResourcesPage() {
   const { memberInfo, memberRole, isAdmin } = useMemberAccess();
+  const { hasBanner } = useLayoutContext();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);

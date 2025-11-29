@@ -224,8 +224,8 @@ export default function RoleManagementPage() {
     ArticleView: "Article View",
     NewsEditor: "News Editor",
     NewsView: "News View",
-    VerifyMagicLink: "Verify Magic Link",
     TestLogin: "Test Login",
+    Login: "Login",
     DynamicPage: "Dynamic Page",
     ViewPage: "View Page",
     ParamTest: "Parameter Test",
@@ -252,7 +252,7 @@ export default function RoleManagementPage() {
     if (memberPages.includes(pageName)) return 'Member Pages';
     
     // System pages (auth, setup)
-    const systemPages = ['VerifyMagicLink', 'TestLogin', 'AdminSetup'];
+    const systemPages = ['TestLogin', 'Login', 'AdminSetup'];
     if (systemPages.includes(pageName)) return 'System Pages';
     
     // Everything else is admin

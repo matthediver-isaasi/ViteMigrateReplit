@@ -558,7 +558,7 @@ useEffect(() => {
 }, [portalBanner, setHasBanner, setPortalBanner]);
 
 
-  const publicPages = ["Home", "VerifyMagicLink", "TestLogin", "Login", "ResetPassword", "UnpackedInternationalEmployability", "PublicEvents", "PublicAbout", "PublicContact", "PublicResources", "PublicArticles", "PublicNews", "sharon", "content"];
+  const publicPages = ["Home", "TestLogin", "Login", "ResetPassword", "UnpackedInternationalEmployability", "PublicEvents", "PublicAbout", "PublicContact", "PublicResources", "PublicArticles", "PublicNews", "sharon", "content"];
   
   // Hybrid pages that work both as public (for non-members) and portal (for members)
   // "_DynamicPage" is a special marker for CMS pages (e.g. /homely) that handle their own auth
@@ -567,7 +567,7 @@ useEffect(() => {
   const adminPages = ["RoleManagement", "MemberRoleAssignment", "TeamMemberManagement", "DiscountCodeManagement", "EventSettings", "TicketSalesAnalytics", "ResourceSettings", "ResourceManagement", "TagManagement", "ResourceAuthorSettings", "TourManagement", "FileManagement", "JobPostingManagement", "JobBoardSettings", "IEditPageManagement", "IEditTemplateManagement", "PageBannerManagement", "NavigationManagement", "MemberHandleManagement", "ButtonElements", "ButtonStyleManagement", "AwardManagement", "WallOfFameManagement", "TeamInviteSettings", "FormManagement", "FormSubmissions", "FloaterManagement", "MemberDirectorySettings", "SupportManagement"];
 
   // Pages that should use the bare layout (no new header/footer)
-  const bareLayoutPages = ["Home", "VerifyMagicLink", "TestLogin"];
+  const bareLayoutPages = ["Home", "TestLogin", "Login"];
 
   // Helper function to check if current user is an admin
   const isAdmin = () => {

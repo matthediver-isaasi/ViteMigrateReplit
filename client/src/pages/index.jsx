@@ -434,7 +434,7 @@ function PagesContent() {
                 
                 <Route path="/BuyProgramTickets" element={<BuyProgramTickets />} />
                 
-                <Route path="/VerifyMagicLink" element={<VerifyMagicLink />} />
+                {/* VerifyMagicLink route removed - using password auth */}
                 
                 <Route path="/TestLogin" element={<TestLogin />} />
                 <Route path="/test-login" element={<TestLogin />} />
@@ -623,7 +623,7 @@ function PagesContent() {
                 
                 <Route path="/PreferenceSettings" element={<PreferenceSettings />} />
                 
-                <Route path="/auth/verify" element={<VerifyMagicLink />} />
+                {/* /auth/verify route removed - using password auth */}
                 
                 {/* Dynamic CMS pages - catch-all route for IEdit pages by slug */}
                 <Route path="/:slug" element={<DynamicPage />} />

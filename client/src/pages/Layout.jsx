@@ -1436,6 +1436,9 @@ useEffect(() => {
                   </a>
                   {' '}- © Copyright {new Date().getFullYear() === 2025 ? '2025' : `2025-${new Date().getFullYear()}`}
                 </p>
+                <p className="text-xs text-orange-500 font-semibold mt-2">
+                  BETA AUTH
+                </p>
               </div>
             </footer>
           </div>

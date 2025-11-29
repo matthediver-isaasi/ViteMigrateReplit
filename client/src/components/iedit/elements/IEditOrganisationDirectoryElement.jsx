@@ -18,6 +18,7 @@ export function IEditOrganisationDirectoryElementEditor({ element, onChange }) {
     showTitle: true,
     showDomains: false,
     showMemberCount: false,
+    showNameTooltip: false,
     columns: '3',
     rowsPerPage: '4',
     cardBorderRadius: 8,
@@ -229,6 +230,19 @@ export function IEditOrganisationDirectoryElementEditor({ element, onChange }) {
             Show Member Count
           </Label>
         </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="showNameTooltip"
+            checked={content.showNameTooltip || false}
+            onChange={(e) => updateContent('showNameTooltip', e.target.checked)}
+            className="w-4 h-4"
+          />
+          <Label htmlFor="showNameTooltip" className="cursor-pointer">
+            Show Name Tooltip on Hover
+          </Label>
+        </div>
       </div>
     </div>
   );
@@ -248,6 +262,7 @@ export function IEditOrganisationDirectoryElementRenderer({ content, settings })
     showTitle = true,
     showDomains = false,
     showMemberCount = false,
+    showNameTooltip = false,
     columns = '3',
     rowsPerPage = '4',
     cardBorderRadius = 8,
@@ -457,6 +472,7 @@ export function IEditOrganisationDirectoryElementRenderer({ content, settings })
                       window.location.href = `/memberdirectory?org=${org.id}`;
                     }}
                     data-testid={`card-org-element-${org.id}`}
+                    title={showNameTooltip ? org.name : undefined}
                   >
                     <CardHeader className="flex flex-col items-center text-center pb-2">
                       {showLogo && (

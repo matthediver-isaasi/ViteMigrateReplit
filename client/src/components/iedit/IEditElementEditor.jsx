@@ -17,6 +17,7 @@ import { IEditResourcesShowcaseElementEditor } from "./elements/IEditResourcesSh
 import { IEditButtonBlockElementEditor } from "./elements/IEditButtonBlockElement";
 import { IEditPageHeaderHeroElementEditor } from "./elements/IEditPageHeaderHeroElement";
 import { IEditHeroElementEditor } from "./elements/IEditHeroElement";
+import { IEditOrganisationDirectoryElementEditor } from "./elements/IEditOrganisationDirectoryElement";
 
 export default function IEditElementEditor({ element, onClose, onSave }) {
   const [editedContent, setEditedContent] = useState(element.content || {});
@@ -121,6 +122,9 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
 
   // Check if this is a Hero element (custom editor)
   const isHero = element.element_type === 'hero';
+
+  // Check if this is an Organisation Directory element (custom editor)
+  const isOrganisationDirectory = element.element_type === 'organisation_directory';
 
   // Check if this is a Form element (needs form selector)
   const isFormElement = element.element_type === 'form';
@@ -430,6 +434,11 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
             />
           ) : isHero ? (
             <IEditHeroElementEditor 
+              element={{ ...element, content: editedContent }}
+              onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
+            />
+          ) : isOrganisationDirectory ? (
+            <IEditOrganisationDirectoryElementEditor 
               element={{ ...element, content: editedContent }}
               onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
             />

@@ -486,7 +486,7 @@ const { data: dynamicNavItems = [] } = useQuery({
 });
 
 
-  const publicPages = ["Home", "AdminSetup", "VerifyMagicLink", "TestLogin", "UnpackedInternationalEmployability", "PublicEvents", "PublicAbout", "PublicContact", "PublicResources", "PublicArticles", "PublicNews", "sharon", "content"];
+  const publicPages = ["Home", "VerifyMagicLink", "TestLogin", "UnpackedInternationalEmployability", "PublicEvents", "PublicAbout", "PublicContact", "PublicResources", "PublicArticles", "PublicNews", "sharon", "content"];
   
   // Hybrid pages that work both as public (for non-members) and portal (for members)
   const hybridPages = ["PostJob", "ArticleView", "NewsView", "icontent", "ViewPage", "OrganisationDirectory", "JobBoard", "JobDetails", "JobPostSuccess"];
@@ -494,7 +494,7 @@ const { data: dynamicNavItems = [] } = useQuery({
   const adminPages = ["RoleManagement", "MemberRoleAssignment", "TeamMemberManagement", "DiscountCodeManagement", "EventSettings", "TicketSalesAnalytics", "ResourceSettings", "ResourceManagement", "TagManagement", "ResourceAuthorSettings", "TourManagement", "FileManagement", "JobPostingManagement", "JobBoardSettings", "IEditPageManagement", "IEditTemplateManagement", "PageBannerManagement", "NavigationManagement", "MemberHandleManagement", "ButtonElements", "ButtonStyleManagement", "AwardManagement", "WallOfFameManagement", "TeamInviteSettings", "FormManagement", "FormSubmissions", "FloaterManagement", "MemberDirectorySettings", "SupportManagement"];
 
   // Pages that should use the bare layout (no new header/footer)
-  const bareLayoutPages = ["Home", "AdminSetup", "VerifyMagicLink", "TestLogin"];
+  const bareLayoutPages = ["Home", "VerifyMagicLink", "TestLogin"];
 
   // Helper function to check if current user is an admin
   const isAdmin = () => {

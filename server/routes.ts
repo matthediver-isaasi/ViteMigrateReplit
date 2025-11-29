@@ -224,6 +224,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { entity } = req.params;
       const tableName = getTableName(entity);
 
+      console.log(`[Entity POST] Creating ${entity} in table ${tableName}`);
+      console.log(`[Entity POST] Payload:`, JSON.stringify(req.body, null, 2));
+
       const { data, error } = await supabase
         .from(tableName)
         .insert(req.body)
@@ -231,9 +234,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (error) {
+        console.error(`[Entity POST] ${entity} error:`, error);
+        console.error(`[Entity POST] Full error details:`, JSON.stringify(error, null, 2));
         return res.status(500).json({ error: error.message });
       }
 
+      console.log(`[Entity POST] ${entity} created successfully:`, data?.id);
       res.status(201).json(data);
     } catch (error) {
       console.error('Entity create error:', error);

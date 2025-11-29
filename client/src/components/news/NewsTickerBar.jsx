@@ -17,7 +17,8 @@ export default function NewsTickerBar() {
         return allSettings.filter(s => 
           s.setting_key === 'news_ticker_count' || 
           s.setting_key === 'news_ticker_cycle_seconds' ||
-          s.setting_key === 'news_ticker_enabled'
+          s.setting_key === 'news_ticker_enabled' ||
+          s.setting_key === 'news_ticker_bottom_margin'
         );
       } catch (error) {
         console.error("Error loading news ticker settings:", error);
@@ -41,6 +42,13 @@ export default function NewsTickerBar() {
         (s) => s.setting_key === "news_ticker_cycle_seconds"
       )?.setting_value
     ) || 5;
+
+  const bottomMargin =
+    parseInt(
+      settings.find(
+        (s) => s.setting_key === "news_ticker_bottom_margin"
+      )?.setting_value
+    ) || 0;
 
   // Load latest news posts via base44 client
   const { data: latestNews = [] } = useQuery({
@@ -84,7 +92,10 @@ export default function NewsTickerBar() {
   if (!tickerEnabled || latestNews.length === 0) return null;
 
   return (
-    <div className="bg-gradient-to-r from-purple-600 to-blue-600 text-white overflow-hidden">
+    <div 
+      className="bg-gradient-to-r from-purple-600 to-blue-600 text-white overflow-hidden"
+      style={{ marginBottom: bottomMargin > 0 ? `${bottomMargin}px` : undefined }}
+    >
       <div className="max-w-7xl mx-auto px-4 py-3">
         <div className="flex items-center gap-3">
           <span className="text-xs font-semibold uppercase tracking-wider shrink-0 bg-white/20 px-2 py-1 rounded">

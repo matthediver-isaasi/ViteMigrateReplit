@@ -29,6 +29,7 @@ export default function NewsSettingsPage() {
   const [tickerCount, setTickerCount] = useState(3);
   const [cycleSeconds, setCycleSeconds] = useState(5);
   const [tickerEnabled, setTickerEnabled] = useState(true);
+  const [tickerBottomMargin, setTickerBottomMargin] = useState(0);
   const [showAuthor, setShowAuthor] = useState(true);
   const [cardsPerRow, setCardsPerRow] = useState("3");
   const [showImage, setShowImage] = useState(true);
@@ -43,6 +44,7 @@ export default function NewsSettingsPage() {
         s.setting_key === 'news_ticker_count' || 
         s.setting_key === 'news_ticker_cycle_seconds' ||
         s.setting_key === 'news_ticker_enabled' ||
+        s.setting_key === 'news_ticker_bottom_margin' ||
         s.setting_key === 'news_show_author' ||
         s.setting_key === 'news_cards_per_row' ||
         s.setting_key === 'news_show_image'
@@ -56,6 +58,7 @@ export default function NewsSettingsPage() {
       const countSetting = settings.find(s => s.setting_key === 'news_ticker_count');
       const cycleSetting = settings.find(s => s.setting_key === 'news_ticker_cycle_seconds');
       const enabledSetting = settings.find(s => s.setting_key === 'news_ticker_enabled');
+      const bottomMarginSetting = settings.find(s => s.setting_key === 'news_ticker_bottom_margin');
       const authorSetting = settings.find(s => s.setting_key === 'news_show_author');
       const cardsPerRowSetting = settings.find(s => s.setting_key === 'news_cards_per_row');
       const showImageSetting = settings.find(s => s.setting_key === 'news_show_image');
@@ -63,6 +66,7 @@ export default function NewsSettingsPage() {
       if (countSetting) setTickerCount(parseInt(countSetting.setting_value) || 3);
       if (cycleSetting) setCycleSeconds(parseInt(cycleSetting.setting_value) || 5);
       if (enabledSetting) setTickerEnabled(enabledSetting.setting_value === 'true');
+      if (bottomMarginSetting) setTickerBottomMargin(parseInt(bottomMarginSetting.setting_value) || 0);
       if (authorSetting) setShowAuthor(authorSetting.setting_value === 'true');
       if (cardsPerRowSetting) setCardsPerRow(cardsPerRowSetting.setting_value || "3");
       if (showImageSetting) setShowImage(showImageSetting.setting_value === 'true');
@@ -74,6 +78,7 @@ export default function NewsSettingsPage() {
       const countSetting = settings.find(s => s.setting_key === 'news_ticker_count');
       const cycleSetting = settings.find(s => s.setting_key === 'news_ticker_cycle_seconds');
       const enabledSetting = settings.find(s => s.setting_key === 'news_ticker_enabled');
+      const bottomMarginSetting = settings.find(s => s.setting_key === 'news_ticker_bottom_margin');
       const authorSetting = settings.find(s => s.setting_key === 'news_show_author');
       const cardsPerRowSetting = settings.find(s => s.setting_key === 'news_cards_per_row');
       const showImageSetting = settings.find(s => s.setting_key === 'news_show_image');
@@ -124,6 +129,22 @@ export default function NewsSettingsPage() {
             setting_key: 'news_ticker_enabled',
             setting_value: tickerEnabled.toString(),
             description: 'Whether the news ticker is enabled'
+          })
+        );
+      }
+
+      if (bottomMarginSetting) {
+        promises.push(
+          base44.entities.SystemSettings.update(bottomMarginSetting.id, {
+            setting_value: tickerBottomMargin.toString()
+          })
+        );
+      } else {
+        promises.push(
+          base44.entities.SystemSettings.create({
+            setting_key: 'news_ticker_bottom_margin',
+            setting_value: tickerBottomMargin.toString(),
+            description: 'Bottom margin for the news ticker in pixels'
           })
         );
       }
@@ -344,6 +365,22 @@ export default function NewsSettingsPage() {
                     />
                     <p className="text-xs text-slate-500">
                       Time in seconds before switching to the next article (minimum 2 seconds)
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="bottom-margin">Bottom Margin (pixels)</Label>
+                    <Input
+                      id="bottom-margin"
+                      type="number"
+                      min="0"
+                      max="100"
+                      value={tickerBottomMargin}
+                      onChange={(e) => setTickerBottomMargin(parseInt(e.target.value) || 0)}
+                      data-testid="input-ticker-bottom-margin"
+                    />
+                    <p className="text-xs text-slate-500">
+                      Space below the news ticker bar (0-100 pixels)
                     </p>
                   </div>
                 </>

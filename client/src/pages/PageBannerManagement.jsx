@@ -199,23 +199,42 @@ export default function PageBannerManagementPage() {
       return;
     }
     
-    if (bannerType === 'hero' && !editingBanner.hero_content?.heading) {
-      toast.error('Please enter a heading for the hero');
+    // For hero banners, we just need valid hero_content (no specific field required)
+    // Users can create hero banners with just a background and no text
+    if (bannerType === 'hero' && !editingBanner.hero_content) {
+      toast.error('Hero content configuration is missing');
       return;
     }
     
-    if (editingBanner.associated_pages.length === 0) {
+    if (!editingBanner.associated_pages || editingBanner.associated_pages.length === 0) {
       toast.error('Please select at least one page');
       return;
     }
 
+    // Prepare the data for saving
+    const bannerData = {
+      name: editingBanner.name,
+      banner_type: bannerType,
+      image_url: bannerType === 'image' ? editingBanner.image_url : null,
+      alt_text: bannerType === 'image' ? editingBanner.alt_text : null,
+      size: editingBanner.size,
+      height: editingBanner.height,
+      position: editingBanner.position,
+      hero_content: bannerType === 'hero' ? editingBanner.hero_content : null,
+      associated_pages: editingBanner.associated_pages,
+      display_order: editingBanner.display_order || 0,
+      is_active: editingBanner.is_active
+    };
+
+    console.log('[PageBannerManagement] Saving banner:', bannerData);
+
     if (editingBanner.id) {
       updateBannerMutation.mutate({
         id: editingBanner.id,
-        bannerData: editingBanner
+        bannerData: bannerData
       });
     } else {
-      createBannerMutation.mutate(editingBanner);
+      createBannerMutation.mutate(bannerData);
     }
   };
 

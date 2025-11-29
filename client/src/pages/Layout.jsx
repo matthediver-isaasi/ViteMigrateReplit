@@ -28,6 +28,7 @@ import PublicLayout from "@/components/layouts/PublicLayout";
 import BarePublicLayout from "@/components/layouts/BarePublicLayout";
 import FloaterDisplay from "@/components/floaters/FloaterDisplay";
 import NewsTickerBar from "@/components/news/NewsTickerBar";
+import PortalHeroBanner from "@/components/banners/PortalHeroBanner";
 
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from "@/api/base44Client";
@@ -482,6 +483,60 @@ const { data: dynamicNavItems = [] } = useQuery({
     } catch (error) {
       console.error('Error loading PortalMenu:', error);
       return [];
+    }
+  },
+});
+
+// Map page names to portal page identifiers for banner matching
+// These identifiers must match the PORTAL_PAGES values in PageBannerManagement.jsx
+const pageToPortalPageMap = {
+  'Events': 'portal_events',
+  'Bookings': 'portal_bookings',
+  'MyTickets': 'portal_my_tickets',
+  'BuyProgramTickets': 'portal_buy_tickets',
+  'MemberDirectory': 'portal_member_directory',
+  'OrganisationDirectory': 'portal_org_directory',
+  'Resources': 'portal_resources',
+  'Articles': 'portal_articles',
+  'MyArticles': 'portal_my_articles',
+  'Team': 'portal_team',
+  'Balances': 'portal_balances',
+  'History': 'portal_history',
+  'Profile': 'portal_profile',
+  'JobBoard': 'portal_job_board',
+  'News': 'portal_news',
+  'MyJobPostings': 'portal_my_job_postings',
+  'Preferences': 'portal_preferences',
+  'Support': 'portal_support',
+  'Dashboard': 'portal_dashboard'
+};
+
+// Get the portal page identifier for the current page
+const currentPortalPageId = pageToPortalPageMap[currentPageName] || null;
+
+// Fetch portal banner for the current page
+const { data: portalBanner } = useQuery({
+  queryKey: ['portal-banner', currentPortalPageId],
+  enabled: !!currentPortalPageId,
+  refetchOnMount: false,
+  queryFn: async () => {
+    try {
+      // Fetch all active banners sorted by display_order
+      const banners = await base44.entities.PageBanner.list({
+        filter: { is_active: true },
+        sort: { display_order: 'asc' }
+      });
+      // Find first banner that includes this portal page in its associated_pages array
+      // Lower display_order takes priority
+      const matchingBanner = banners?.find(banner => 
+        banner.associated_pages && 
+        Array.isArray(banner.associated_pages) && 
+        banner.associated_pages.includes(currentPortalPageId)
+      );
+      return matchingBanner || null;
+    } catch (error) {
+      console.error('Error loading portal banner:', error);
+      return null;
     }
   },
 });
@@ -1211,6 +1266,7 @@ const { data: dynamicNavItems = [] } = useQuery({
           <div className="flex-1 flex flex-col min-h-screen max-h-screen overflow-hidden">
             {!isFeatureExcluded('element_NewsTickerBar') && <NewsTickerBar />}
             <main ref={mainContentRef} className="flex-1 overflow-y-auto overflow-x-hidden">
+              {portalBanner && <PortalHeroBanner banner={portalBanner} />}
               {childrenWithProps}
             </main>
 

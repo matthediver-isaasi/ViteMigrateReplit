@@ -3,13 +3,15 @@ import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Building2, Search, Globe, Users, Loader2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Building2, Search, Globe, Users, Loader2, ChevronLeft, ChevronRight, ArrowDownAZ, ArrowUpZA } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function OrganisationDirectoryPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
+  const [sortOrder, setSortOrder] = useState("asc"); // "asc" for A-Z, "desc" for Z-A
 
   const { data: organizations = [], isLoading } = useQuery({
     queryKey: ['organizations'],
@@ -111,8 +113,19 @@ export default function OrganisationDirectoryPage() {
       );
     }
     
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      if (sortOrder === 'asc') {
+        return nameA.localeCompare(nameB);
+      } else {
+        return nameB.localeCompare(nameA);
+      }
+    });
+    
     return filtered;
-  }, [organizations, searchQuery, displaySettings?.excludedOrgIds]);
+  }, [organizations, searchQuery, displaySettings?.excludedOrgIds, sortOrder]);
 
   const totalPages = Math.ceil(filteredOrganizations.length / itemsPerPage);
   const paginatedOrganizations = useMemo(() => {
@@ -149,14 +162,36 @@ export default function OrganisationDirectoryPage() {
 
         <Card className="mb-6 border-slate-200">
           <CardContent className="p-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Search organisations by name or domain..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10" />
-
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Search organisations by name or domain..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search-organisations"
+                />
+              </div>
+              <Select value={sortOrder} onValueChange={setSortOrder}>
+                <SelectTrigger className="w-full sm:w-36" data-testid="select-sort-order">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="asc">
+                    <span className="flex items-center gap-2">
+                      <ArrowDownAZ className="w-4 h-4" />
+                      A-Z
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="desc">
+                    <span className="flex items-center gap-2">
+                      <ArrowUpZA className="w-4 h-4" />
+                      Z-A
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
           </CardContent>
         </Card>

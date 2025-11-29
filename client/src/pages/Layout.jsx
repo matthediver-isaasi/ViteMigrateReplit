@@ -402,7 +402,7 @@ const adminNavigationItems = [
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
-  const { getArticleListUrl, getMyArticlesUrl, articleDisplayName, isCustomSlug } = useArticleUrl();
+  const { getArticleListUrl, getMyArticlesUrl, articleDisplayName, isCustomSlug, urlSlug } = useArticleUrl();
   
   // Initialize from sessionStorage immediately to prevent flicker
   const [memberInfo, setMemberInfo] = useState(() => {
@@ -1008,7 +1008,7 @@ useEffect(() => {
       
       return processedItem;
     });
-  }, [dynamicNavItems, isCustomSlug, articleDisplayName, getArticleListUrl, getMyArticlesUrl]);
+  }, [dynamicNavItems, isCustomSlug, articleDisplayName, urlSlug, getArticleListUrl, getMyArticlesUrl]);
   
   const adminNavigationItemsSource = useMemo(() => {
     // Get base items (from DB or hardcoded)
@@ -1062,7 +1062,7 @@ useEffect(() => {
       
       return processedItem;
     });
-  }, [dynamicNavItems, isCustomSlug, articleDisplayName, getArticleListUrl, getMyArticlesUrl]);
+  }, [dynamicNavItems, isCustomSlug, articleDisplayName, urlSlug, getArticleListUrl, getMyArticlesUrl]);
 
   // Filter navigation items based on member's excluded features
   const filteredNavigationItems = navigationItemsSource

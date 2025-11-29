@@ -41,7 +41,8 @@ export function ArticleUrlProvider({ children }) {
         return 'Articles';
       }
     },
-    staleTime: 60000
+    staleTime: 5000, // Short stale time to pick up settings changes quickly
+    refetchOnWindowFocus: true // Refetch when user returns to tab
   });
 
   const value = useMemo(() => {

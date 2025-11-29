@@ -28,6 +28,7 @@ export default function OrganisationDirectoryPage() {
       const titleSetting = allSettings.find(s => s.setting_key === 'org_directory_show_title');
       const domainsSetting = allSettings.find(s => s.setting_key === 'org_directory_show_domains');
       const memberCountSetting = allSettings.find(s => s.setting_key === 'org_directory_show_member_count');
+      const cardsPerRowSetting = allSettings.find(s => s.setting_key === 'org_directory_cards_per_row');
       const excludedOrgsSetting = allSettings.find(s => s.setting_key === 'org_directory_excluded_orgs');
       
       let excludedOrgIds = [];
@@ -44,12 +45,32 @@ export default function OrganisationDirectoryPage() {
         showTitle: titleSetting?.setting_value !== 'false', // Default to true if not set
         showDomains: domainsSetting?.setting_value !== 'false',
         showMemberCount: memberCountSetting?.setting_value !== 'false',
+        cardsPerRow: cardsPerRowSetting?.setting_value || '3',
         excludedOrgIds: excludedOrgIds
       };
     },
     staleTime: 0,
     refetchOnMount: true
   });
+
+  // Get grid class based on cards per row setting
+  const getGridClass = () => {
+    const cols = displaySettings?.cardsPerRow || '3';
+    switch (cols) {
+      case '2':
+        return 'grid grid-cols-1 md:grid-cols-2 gap-6';
+      case '3':
+        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+      case '4':
+        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6';
+      case '5':
+        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6';
+      case '6':
+        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6';
+      default:
+        return 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6';
+    }
+  };
 
   const { data: members = [] } = useQuery({
     queryKey: ['all-members-for-org-directory'],
@@ -152,7 +173,7 @@ export default function OrganisationDirectoryPage() {
           </Card> :
 
         <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className={getGridClass()}>
               {paginatedOrganizations.map((org) => {
               const memberCount = organizationMemberCounts[org.id] || 0;
               const allDomains = [org.domain, ...(org.additional_verified_domains || [])].filter(Boolean);

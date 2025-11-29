@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, Settings, Search, Building } from "lucide-react";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
@@ -18,6 +19,7 @@ export default function OrganisationDirectorySettingsPage() {
   const [showTitle, setShowTitle] = useState(true);
   const [showDomains, setShowDomains] = useState(true);
   const [showMemberCount, setShowMemberCount] = useState(true);
+  const [cardsPerRow, setCardsPerRow] = useState("3");
   const [excludedOrgIds, setExcludedOrgIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -46,12 +48,14 @@ export default function OrganisationDirectorySettingsPage() {
       const titleSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_title');
       const domainsSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_domains');
       const memberCountSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_member_count');
+      const cardsPerRowSetting = allSettings.find((s) => s.setting_key === 'org_directory_cards_per_row');
       const excludedOrgsSetting = allSettings.find((s) => s.setting_key === 'org_directory_excluded_orgs');
       return {
         logo: logoSetting,
         title: titleSetting,
         domains: domainsSetting,
         memberCount: memberCountSetting,
+        cardsPerRow: cardsPerRowSetting,
         excludedOrgs: excludedOrgsSetting
       };
     },
@@ -70,6 +74,9 @@ export default function OrganisationDirectorySettingsPage() {
     }
     if (settings?.memberCount) {
       setShowMemberCount(settings.memberCount.setting_value === 'true');
+    }
+    if (settings?.cardsPerRow) {
+      setCardsPerRow(settings.cardsPerRow.setting_value || "3");
     }
     if (settings?.excludedOrgs) {
       try {
@@ -155,6 +162,19 @@ export default function OrganisationDirectorySettingsPage() {
           setting_key: 'org_directory_show_member_count',
           setting_value: showMemberCount.toString(),
           description: 'Show member count on directory cards'
+        });
+      }
+
+      // Save cards per row setting
+      if (settings?.cardsPerRow) {
+        await base44.entities.SystemSettings.update(settings.cardsPerRow.id, {
+          setting_value: cardsPerRow
+        });
+      } else {
+        await base44.entities.SystemSettings.create({
+          setting_key: 'org_directory_cards_per_row',
+          setting_value: cardsPerRow,
+          description: 'Number of organisation cards to show per row'
         });
       }
 
@@ -289,7 +309,7 @@ export default function OrganisationDirectorySettingsPage() {
                   Show Member Count
                 </Label>
                 <p className="text-sm text-slate-600 mt-1">
-                  Display the number of members from each organization
+                  Display the number of members from each organisation
                 </p>
               </div>
               <input
@@ -299,6 +319,29 @@ export default function OrganisationDirectorySettingsPage() {
                 onChange={(e) => setShowMemberCount(e.target.checked)}
                 className="w-5 h-5 cursor-pointer" />
 
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+              <div>
+                <Label htmlFor="cardsPerRow" className="text-base font-medium">
+                  Cards Per Row
+                </Label>
+                <p className="text-sm text-slate-600 mt-1">
+                  Number of organisation cards to display per row on large screens
+                </p>
+              </div>
+              <Select value={cardsPerRow} onValueChange={setCardsPerRow}>
+                <SelectTrigger className="w-24" data-testid="select-cards-per-row">
+                  <SelectValue placeholder="3" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="2">2</SelectItem>
+                  <SelectItem value="3">3</SelectItem>
+                  <SelectItem value="4">4</SelectItem>
+                  <SelectItem value="5">5</SelectItem>
+                  <SelectItem value="6">6</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="pt-4 border-t">

@@ -165,6 +165,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (entity === 'Member' && data) {
         console.log(`[Entity GET] Member: returned ${data.length} records, limit=${limit || 'none'}`);
       }
+      
+      // Debug logging for ResourceAuthorSettings
+      if (entity === 'ResourceAuthorSettings' && data) {
+        console.log(`[Entity GET] ResourceAuthorSettings: returned ${data.length} records:`, JSON.stringify(data));
+      }
 
       if (error) {
         console.error(`Error listing ${entity}:`, error);

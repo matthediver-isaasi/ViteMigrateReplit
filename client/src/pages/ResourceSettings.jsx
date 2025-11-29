@@ -64,12 +64,12 @@ export default function ResourceSettingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async ({ roleIds, limit, showFolders, socialIcons, hideEmpty }) => {
+      // Core payload without hide_empty_subcategories (column may not exist in database)
       const payload = {
         author_role_ids: roleIds,
         description_character_limit: limit,
         show_folders: showFolders,
         enabled_social_icons: socialIcons,
-        hide_empty_subcategories: hideEmpty
       };
       
       // First, always get fresh settings from the database
@@ -77,6 +77,14 @@ export default function ResourceSettingsPage() {
       const currentSettings = freshSettings.length > 0 ? freshSettings[0] : null;
       
       console.log('[ResourceSettings] Saving with fresh settings ID:', currentSettings?.id);
+      
+      // Check if the hide_empty_subcategories column exists by checking if it's in the fetched data
+      const columnExists = currentSettings && 'hide_empty_subcategories' in currentSettings;
+      if (columnExists) {
+        payload.hide_empty_subcategories = hideEmpty;
+      } else {
+        console.log('[ResourceSettings] hide_empty_subcategories column not in database, skipping');
+      }
       
       if (currentSettings) {
         // Update existing settings using the fresh ID

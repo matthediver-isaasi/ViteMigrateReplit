@@ -766,159 +766,159 @@ export default function PreferencesPage() {
       case 'profile_information':
         return (
           <Card key="profile_information" className="border-slate-200 shadow-sm">
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
-            <CardDescription>
-              {sessionMember?.handle ? `@${sessionMember.handle}` : 'Update your personal details'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>Profile Photo</Label>
-              <div className="flex items-center gap-4">
-                <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-slate-200">
-                  {profilePhotoUrl ? (
-                    <img
-                      src={profilePhotoUrl}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
+            <CardHeader>
+              <CardTitle>My Information</CardTitle>
+              <CardDescription>
+                {sessionMember?.handle ? `@${sessionMember.handle}` : 'Update your personal details'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Profile Photo</Label>
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 rounded-full bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-slate-200">
+                    {profilePhotoUrl ? (
+                      <img
+                        src={profilePhotoUrl}
+                        alt="Profile"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <User className="w-12 h-12 text-slate-400" />
+                    )}
+                  </div>
+                  <div>
+                    <input
+                      type="file"
+                      id="photo-upload"
+                      accept="image/*"
+                      onChange={handlePhotoUpload}
+                      className="hidden"
                     />
-                  ) : (
-                    <User className="w-12 h-12 text-slate-400" />
-                  )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={isUploadingPhoto}
+                      onClick={() =>
+                        document.getElementById("photo-upload").click()
+                      }
+                    >
+                      {isUploadingPhoto ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upload Photo
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-slate-500 mt-1">
+                      JPG, PNG or GIF. Max 5MB.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <input
-                    type="file"
-                    id="photo-upload"
-                    accept="image/*"
-                    onChange={handlePhotoUpload}
-                    className="hidden"
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="firstName">First Name</Label>
+                  <Input
+                    id="firstName"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    placeholder="Enter your first name"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lastName">Last Name</Label>
+                  <Input
+                    id="lastName"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    placeholder="Enter your last name"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="jobTitle">Job Title</Label>
+                <Input
+                  id="jobTitle"
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  placeholder="e.g., Careers Adviser"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="linkedinUrl">LinkedIn Profile URL</Label>
+                <Input
+                  id="linkedinUrl"
+                  type="url"
+                  value={linkedinUrl}
+                  onChange={(e) => setLinkedinUrl(e.target.value)}
+                  placeholder="https://www.linkedin.com/in/your-profile"
+                />
+              </div>
+
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="flex-1">
+                  <Label htmlFor="show-in-directory" className="cursor-pointer">
+                    Show in Member Directory
+                  </Label>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Allow other members to see your profile in the member
+                    directory
+                  </p>
+                </div>
+                <Switch
+                  id="show-in-directory"
+                  checked={showInDirectory}
+                  onCheckedChange={setShowInDirectory}
+                />
+              </div>
+
+              {memberRecord?.created_at && (
+                <div className="flex items-center gap-2 p-4 bg-slate-50 rounded-lg border border-slate-200">
+                  <CalendarDays className="w-5 h-5 text-slate-500" />
+                  <div>
+                    <p className="text-sm text-slate-600">Member since</p>
+                    <p className="text-sm font-semibold text-slate-900">
+                      {format(
+                        new Date(memberRecord.created_at),
+                        "dd MMMM yyyy"
+                      )}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {hasUnsavedProfile && (
+                <div className="flex justify-end pt-4">
                   <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isUploadingPhoto}
-                    onClick={() =>
-                      document.getElementById("photo-upload").click()
-                    }
+                    onClick={handleSaveProfile}
+                    disabled={isSavingProfile}
+                    className="bg-blue-600 hover:bg-blue-700"
                   >
-                    {isUploadingPhoto ? (
+                    {isSavingProfile ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Uploading...
+                        Saving...
                       </>
                     ) : (
                       <>
-                        <Upload className="w-4 h-4 mr-2" />
-                        Upload Photo
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Profile
                       </>
                     )}
                   </Button>
-                  <p className="text-xs text-slate-500 mt-1">
-                    JPG, PNG or GIF. Max 5MB.
-                  </p>
                 </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
-                <Input
-                  id="firstName"
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Enter your first name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
-                <Input
-                  id="lastName"
-                  value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Enter your last name"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="jobTitle">Job Title</Label>
-              <Input
-                id="jobTitle"
-                value={jobTitle}
-                onChange={(e) => setJobTitle(e.target.value)}
-                placeholder="e.g., Careers Adviser"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="linkedinUrl">LinkedIn Profile URL</Label>
-              <Input
-                id="linkedinUrl"
-                type="url"
-                value={linkedinUrl}
-                onChange={(e) => setLinkedinUrl(e.target.value)}
-                placeholder="https://www.linkedin.com/in/your-profile"
-              />
-            </div>
-
-            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex-1">
-                <Label htmlFor="show-in-directory" className="cursor-pointer">
-                  Show in Member Directory
-                </Label>
-                <p className="text-xs text-slate-500 mt-1">
-                  Allow other members to see your profile in the member
-                  directory
-                </p>
-              </div>
-              <Switch
-                id="show-in-directory"
-                checked={showInDirectory}
-                onCheckedChange={setShowInDirectory}
-              />
-            </div>
-
-            {memberRecord?.created_at && (
-              <div className="flex items-center gap-2 p-4 bg-slate-50 rounded-lg border border-slate-200">
-                <CalendarDays className="w-5 h-5 text-slate-500" />
-                <div>
-                  <p className="text-sm text-slate-600">Member since</p>
-                  <p className="text-sm font-semibold text-slate-900">
-                    {format(
-                      new Date(memberRecord.created_at),
-                      "dd MMMM yyyy"
-                    )}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {hasUnsavedProfile && (
-              <div className="flex justify-end pt-4">
-                <Button
-                  onClick={handleSaveProfile}
-                  disabled={isSavingProfile}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  {isSavingProfile ? (
-                    <>
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Save Profile
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+              )}
+            </CardContent>
+          </Card>
         );
 
       case 'engagement':

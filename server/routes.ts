@@ -107,15 +107,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // ============ Entity Routes ============
   
-  // Disable caching for API routes
-  app.use('/api', (req: Request, res: Response, next: NextFunction) => {
-    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
-    res.set('Pragma', 'no-cache');
-    res.set('Expires', '0');
-    res.set('Surrogate-Control', 'no-store');
-    next();
-  });
-  
   // List entities
   app.get('/api/entities/:entity', async (req: Request, res: Response) => {
     if (!supabase) {
@@ -254,8 +245,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { entity, id } = req.params;
       const tableName = getTableName(entity);
-      
-      console.log(`[Entity PATCH] ${entity}/${id}:`, JSON.stringify(req.body));
 
       const { data, error } = await supabase
         .from(tableName)
@@ -265,11 +254,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (error) {
-        console.log(`[Entity PATCH] Error:`, error.message);
         return res.status(500).json({ error: error.message });
       }
 
-      console.log(`[Entity PATCH] Result:`, JSON.stringify(data));
       res.json(data);
     } catch (error) {
       console.error('Entity update error:', error);

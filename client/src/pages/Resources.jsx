@@ -105,18 +105,13 @@ export default function ResourcesPage() {
     refetchOnWindowFocus: true
   });
 
-  // Fetch resource author settings for social icons configuration - scoped by organization
-  const organizationId = memberInfo?.organization_id;
+  // Fetch resource author settings for social icons configuration
   const { data: resourceSettings } = useQuery({
-    queryKey: ['resourceAuthorSettings', organizationId],
+    queryKey: ['resourceAuthorSettings'],
     queryFn: async () => {
-      if (!organizationId) return null;
-      const settings = await base44.entities.ResourceAuthorSettings.list({
-        filter: { organization_id: organizationId }
-      });
+      const settings = await base44.entities.ResourceAuthorSettings.list();
       return settings[0] || null;
     },
-    enabled: !!organizationId,
     staleTime: 5 * 60 * 1000,
   });
 

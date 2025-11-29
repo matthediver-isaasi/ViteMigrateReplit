@@ -113,7 +113,8 @@ const AVAILABLE_FEATURES = [
   
   // Content Actions
   { id: "action_news_edit", label: "Edit News Articles", category: "Content Actions" },
-  { id: "action_news_delete", label: "Delete News Articles", category: "Content Actions" }
+  { id: "action_news_delete", label: "Delete News Articles", category: "Content Actions" },
+  { id: "action_org_logo_edit", label: "Edit Organisation Logos", category: "Content Actions" }
   ];
 
 export default function RoleManagementPage() {

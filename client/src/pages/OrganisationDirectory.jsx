@@ -11,8 +11,11 @@ import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { toast } from "sonner";
 
 export default function OrganisationDirectoryPage() {
-  const { isAdmin } = useMemberAccess();
+  const { isAdmin, isFeatureExcluded } = useMemberAccess();
   const queryClient = useQueryClient();
+  
+  // Check if user can edit organisation logos (admin AND not excluded from feature)
+  const canEditLogos = isAdmin && !isFeatureExcluded('action_org_logo_edit');
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
@@ -312,7 +315,7 @@ export default function OrganisationDirectoryPage() {
                               </span>
                             </div>
                           )}
-                          {isAdmin && (
+                          {canEditLogos && (
                             <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-10">
                               <Button
                                 size="icon"

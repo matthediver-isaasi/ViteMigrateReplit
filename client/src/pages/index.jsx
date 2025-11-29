@@ -14,6 +14,10 @@ import VerifyMagicLink from "./VerifyMagicLink";
 
 import TestLogin from "./TestLogin";
 
+import Login from "./Login";
+
+import ResetPassword from "./ResetPassword";
+
 import Balances from "./Balances";
 
 import Dashboard from "./Dashboard";
@@ -207,6 +211,10 @@ const PAGES = {
     VerifyMagicLink: VerifyMagicLink,
     
     TestLogin: TestLogin,
+    
+    Login: Login,
+    
+    ResetPassword: ResetPassword,
     
     Balances: Balances,
     
@@ -429,6 +437,15 @@ function PagesContent() {
                 <Route path="/VerifyMagicLink" element={<VerifyMagicLink />} />
                 
                 <Route path="/TestLogin" element={<TestLogin />} />
+                <Route path="/test-login" element={<TestLogin />} />
+                
+                <Route path="/Login" element={<Login />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/auth/login" element={<Login />} />
+                
+                <Route path="/ResetPassword" element={<ResetPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/auth/reset-password" element={<ResetPassword />} />
                 
                 <Route path="/Balances" element={<Balances />} />
                 

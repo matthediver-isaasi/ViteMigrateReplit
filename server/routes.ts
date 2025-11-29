@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import session from "express-session";
 import MemoryStore from "memorystore";
 import multer from "multer";
+import bcrypt from "bcryptjs";
 
 // Supabase client for server-side operations
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -72,6 +73,7 @@ const entityToTable: Record<string, string> = {
   'AwardClassification': 'award_classification',
   'AwardSublevel': 'award_sublevel',
   'MemberGroupGuest': 'member_group_guest',
+  'MemberCredentials': 'member_credentials',
 };
 
 // Extend session type
@@ -93,11 +95,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     cookie: {
       secure: process.env.NODE_ENV === 'production',
       httpOnly: true,
-      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+      sameSite: 'lax', // Allows cookies to work across tabs
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days for better persistence
     },
     store: new SessionStore({
       checkPeriod: 86400000 // prune expired entries every 24h
-    })
+    }),
+    name: 'iconnect.sid' // Custom session cookie name
   }));
 
   // Helper to get table name from entity (uses singular form for Base44 compatibility)
@@ -313,7 +317,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get('/api/auth/me', async (req: Request, res: Response) => {
     if (!req.session.memberId) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.status(401).json({ authenticated: false, error: 'Not authenticated' });
     }
 
     if (!supabase) {
@@ -328,10 +332,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (error || !data) {
-        return res.status(401).json({ error: 'User not found' });
+        return res.status(401).json({ authenticated: false, error: 'User not found' });
       }
 
-      res.json(data);
+      // Return in the format expected by Layout.jsx
+      res.json({ authenticated: true, member: data });
     } catch (error) {
       console.error('Auth me error:', error);
       res.status(500).json({ error: 'Failed to get user' });
@@ -341,10 +346,409 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/auth/logout', (req: Request, res: Response) => {
     req.session.destroy((err) => {
       if (err) {
+        console.error('[Auth Logout] Session destroy error:', err);
         return res.status(500).json({ error: 'Failed to logout' });
       }
+      // Clear the session cookie with the correct name matching our session config
+      res.clearCookie('iconnect.sid');
       res.json({ success: true });
     });
+  });
+
+  // ============ Password Auth Routes ============
+
+  // Login with email and password
+  app.post('/api/auth/login', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { email, password } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ success: false, error: 'Email and password are required' });
+      }
+
+      // Find member credentials
+      const { data: credentials, error: credError } = await supabase
+        .from('member_credentials')
+        .select('*')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (credError || !credentials) {
+        console.log('[Auth Login] No credentials found for:', email);
+        return res.status(401).json({ success: false, error: 'Invalid email or password' });
+      }
+
+      // Check if account is locked
+      if (credentials.locked_until && new Date(credentials.locked_until) > new Date()) {
+        return res.status(401).json({ success: false, error: 'Account temporarily locked. Please try again later.' });
+      }
+
+      // Check if password is set
+      if (!credentials.password_hash) {
+        return res.status(401).json({ 
+          success: false, 
+          error: 'Password not set', 
+          needsPasswordSetup: true,
+          memberId: credentials.member_id 
+        });
+      }
+
+      // Verify password
+      const isValid = await bcrypt.compare(password, credentials.password_hash);
+      
+      if (!isValid) {
+        // Increment failed attempts
+        const newFailedAttempts = (credentials.failed_attempts || 0) + 1;
+        const updates: any = { failed_attempts: newFailedAttempts };
+        
+        // Lock account after 5 failed attempts for 15 minutes
+        if (newFailedAttempts >= 5) {
+          updates.locked_until = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        }
+        
+        await supabase
+          .from('member_credentials')
+          .update(updates)
+          .eq('id', credentials.id);
+        
+        return res.status(401).json({ success: false, error: 'Invalid email or password' });
+      }
+
+      // Reset failed attempts and update last login
+      await supabase
+        .from('member_credentials')
+        .update({ 
+          failed_attempts: 0, 
+          locked_until: null,
+          last_login: new Date().toISOString() 
+        })
+        .eq('id', credentials.id);
+
+      // Get full member data
+      const { data: member, error: memberError } = await supabase
+        .from('member')
+        .select('*')
+        .eq('id', credentials.member_id)
+        .single();
+
+      if (memberError || !member) {
+        return res.status(401).json({ success: false, error: 'Member not found' });
+      }
+
+      // Assign default role if needed
+      if (!member.role_id) {
+        const { data: allRoles } = await supabase.from('role').select('*');
+        const memberRole = allRoles?.find((r: any) => r.name === 'Member');
+        const defaultRole = memberRole || allRoles?.find((r: any) => r.is_default === true);
+        
+        if (defaultRole) {
+          await supabase
+            .from('member')
+            .update({ role_id: defaultRole.id })
+            .eq('id', member.id);
+          member.role_id = defaultRole.id;
+        }
+      }
+
+      // Set session
+      req.session.memberId = member.id;
+      req.session.memberEmail = member.email;
+
+      console.log('[Auth Login] Success for:', email, 'Session ID:', req.sessionID);
+      
+      res.json({ 
+        success: true, 
+        member,
+        isTemporaryPassword: credentials.is_temp_password 
+      });
+    } catch (error) {
+      console.error('Login error:', error);
+      res.status(500).json({ success: false, error: 'Login failed' });
+    }
+  });
+
+  // Check if member has password set
+  app.post('/api/auth/check-password-status', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+      }
+
+      // Check if member exists
+      const { data: member, error: memberError } = await supabase
+        .from('member')
+        .select('id, email')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (memberError || !member) {
+        return res.json({ exists: false, hasPassword: false });
+      }
+
+      // Check if credentials exist
+      const { data: credentials } = await supabase
+        .from('member_credentials')
+        .select('id, password_hash')
+        .eq('member_id', member.id)
+        .single();
+
+      res.json({ 
+        exists: true, 
+        hasPassword: !!(credentials?.password_hash),
+        memberId: member.id
+      });
+    } catch (error) {
+      console.error('Check password status error:', error);
+      res.status(500).json({ error: 'Failed to check status' });
+    }
+  });
+
+  // Set password for first time (for existing members migrating from magic link)
+  app.post('/api/auth/set-password', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { email, password, token } = req.body;
+
+      if (!email || !password) {
+        return res.status(400).json({ success: false, error: 'Email and password are required' });
+      }
+
+      if (password.length < 8) {
+        return res.status(400).json({ success: false, error: 'Password must be at least 8 characters' });
+      }
+
+      // Find member
+      const { data: member, error: memberError } = await supabase
+        .from('member')
+        .select('id, email')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      if (memberError || !member) {
+        return res.status(404).json({ success: false, error: 'Member not found' });
+      }
+
+      // If token provided, verify it (for password reset flow)
+      if (token) {
+        const { data: credentials, error: credError } = await supabase
+          .from('member_credentials')
+          .select('*')
+          .eq('member_id', member.id)
+          .eq('reset_token', token)
+          .single();
+
+        if (credError || !credentials) {
+          return res.status(401).json({ success: false, error: 'Invalid or expired reset token' });
+        }
+
+        if (credentials.reset_token_expires && new Date(credentials.reset_token_expires) < new Date()) {
+          return res.status(401).json({ success: false, error: 'Reset token has expired' });
+        }
+      }
+
+      // Hash the password
+      const passwordHash = await bcrypt.hash(password, 12);
+
+      // Check if credentials record exists
+      const { data: existingCreds } = await supabase
+        .from('member_credentials')
+        .select('id')
+        .eq('member_id', member.id)
+        .single();
+
+      if (existingCreds) {
+        // Update existing credentials
+        await supabase
+          .from('member_credentials')
+          .update({ 
+            password_hash: passwordHash,
+            is_temp_password: false,
+            password_set_at: new Date().toISOString(),
+            reset_token: null,
+            reset_token_expires: null,
+            failed_attempts: 0,
+            locked_until: null
+          })
+          .eq('id', existingCreds.id);
+      } else {
+        // Create new credentials record
+        await supabase
+          .from('member_credentials')
+          .insert({
+            member_id: member.id,
+            email: email.toLowerCase(),
+            password_hash: passwordHash,
+            is_temp_password: false,
+            password_set_at: new Date().toISOString()
+          });
+      }
+
+      // Set session (auto-login after setting password)
+      req.session.memberId = member.id;
+      req.session.memberEmail = member.email;
+
+      // Get full member data for response
+      const { data: fullMember } = await supabase
+        .from('member')
+        .select('*')
+        .eq('id', member.id)
+        .single();
+
+      console.log('[Auth] Password set for:', email);
+      res.json({ success: true, member: fullMember });
+    } catch (error) {
+      console.error('Set password error:', error);
+      res.status(500).json({ success: false, error: 'Failed to set password' });
+    }
+  });
+
+  // Request password reset
+  app.post('/api/auth/request-password-reset', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { email } = req.body;
+
+      if (!email) {
+        return res.status(400).json({ success: false, error: 'Email is required' });
+      }
+
+      // Find member
+      const { data: member, error: memberError } = await supabase
+        .from('member')
+        .select('id, email, first_name')
+        .eq('email', email.toLowerCase())
+        .single();
+
+      // Always return success to prevent email enumeration
+      if (memberError || !member) {
+        console.log('[Password Reset] No member found for:', email);
+        return res.json({ success: true, message: 'If an account exists, a reset link will be sent.' });
+      }
+
+      // Generate reset token
+      const resetToken = crypto.randomUUID();
+      const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+      // Ensure credentials record exists and update with reset token
+      const { data: existingCreds } = await supabase
+        .from('member_credentials')
+        .select('id')
+        .eq('member_id', member.id)
+        .single();
+
+      if (existingCreds) {
+        await supabase
+          .from('member_credentials')
+          .update({ 
+            reset_token: resetToken,
+            reset_token_expires: expiresAt.toISOString()
+          })
+          .eq('id', existingCreds.id);
+      } else {
+        await supabase
+          .from('member_credentials')
+          .insert({
+            member_id: member.id,
+            email: email.toLowerCase(),
+            reset_token: resetToken,
+            reset_token_expires: expiresAt.toISOString()
+          });
+      }
+
+      // Generate reset link
+      const resetUrl = `${req.protocol}://${req.get('host')}/auth/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
+      console.log(`[Password Reset] Link for ${email}: ${resetUrl}`);
+
+      // TODO: Send email with reset link
+      // For now, we'll log it and return the token in dev mode
+      const isDev = process.env.NODE_ENV !== 'production';
+      
+      res.json({ 
+        success: true, 
+        message: 'If an account exists, a reset link will be sent.',
+        ...(isDev && { resetUrl, resetToken }) // Only include in dev for testing
+      });
+    } catch (error) {
+      console.error('Password reset request error:', error);
+      res.status(500).json({ success: false, error: 'Failed to process request' });
+    }
+  });
+
+  // Change password (when logged in)
+  app.post('/api/auth/change-password', async (req: Request, res: Response) => {
+    if (!req.session.memberId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { currentPassword, newPassword } = req.body;
+
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ success: false, error: 'Current and new password are required' });
+      }
+
+      if (newPassword.length < 8) {
+        return res.status(400).json({ success: false, error: 'New password must be at least 8 characters' });
+      }
+
+      // Get credentials
+      const { data: credentials, error: credError } = await supabase
+        .from('member_credentials')
+        .select('*')
+        .eq('member_id', req.session.memberId)
+        .single();
+
+      if (credError || !credentials) {
+        return res.status(404).json({ success: false, error: 'Credentials not found' });
+      }
+
+      // Verify current password
+      if (credentials.password_hash) {
+        const isValid = await bcrypt.compare(currentPassword, credentials.password_hash);
+        if (!isValid) {
+          return res.status(401).json({ success: false, error: 'Current password is incorrect' });
+        }
+      }
+
+      // Hash new password
+      const passwordHash = await bcrypt.hash(newPassword, 12);
+
+      // Update password
+      await supabase
+        .from('member_credentials')
+        .update({ 
+          password_hash: passwordHash,
+          is_temp_password: false,
+          password_set_at: new Date().toISOString()
+        })
+        .eq('id', credentials.id);
+
+      console.log('[Auth] Password changed for member:', req.session.memberId);
+      res.json({ success: true, message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('Change password error:', error);
+      res.status(500).json({ success: false, error: 'Failed to change password' });
+    }
   });
 
   // ============ Migration Routes ============

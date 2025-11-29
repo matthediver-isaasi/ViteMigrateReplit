@@ -558,7 +558,7 @@ useEffect(() => {
 }, [portalBanner, setHasBanner, setPortalBanner]);
 
 
-  const publicPages = ["Home", "VerifyMagicLink", "TestLogin", "UnpackedInternationalEmployability", "PublicEvents", "PublicAbout", "PublicContact", "PublicResources", "PublicArticles", "PublicNews", "sharon", "content"];
+  const publicPages = ["Home", "VerifyMagicLink", "TestLogin", "Login", "ResetPassword", "UnpackedInternationalEmployability", "PublicEvents", "PublicAbout", "PublicContact", "PublicResources", "PublicArticles", "PublicNews", "sharon", "content"];
   
   // Hybrid pages that work both as public (for non-members) and portal (for members)
   // "_DynamicPage" is a special marker for CMS pages (e.g. /homely) that handle their own auth
@@ -741,44 +741,84 @@ useEffect(() => {
   };
 
   useEffect(() => {
-    // Handle truly public pages
-    if (publicPages.includes(currentPageName)) {
-      return;
-    }
+    // Check server session first for multi-tab persistence (password auth)
+    // Falls back to sessionStorage for legacy magic link users
+    const checkServerSession = async () => {
+      try {
+        const response = await fetch('/api/auth/me', { credentials: 'include' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.member) {
+            console.log('[Layout] Server session found:', data.member.email);
+            // Sync server session to sessionStorage for backwards compatibility
+            const sessionExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+            const memberData = { ...data.member, sessionExpiry };
+            sessionStorage.setItem('agcas_member', JSON.stringify(memberData));
+            setMemberInfo(memberData);
+            
+            // Fetch organization info for regular members
+            if (data.member.organization_id && !data.member.is_team_member) {
+              fetchOrganizationInfo(data.member.organization_id);
+            }
+            return true; // Session is valid
+          }
+        }
+        return false; // No server session
+      } catch (error) {
+        console.log('[Layout] Server session check failed, falling back to sessionStorage');
+        return false;
+      }
+    };
 
-    // Handle hybrid pages
-    if (hybridPages.includes(currentPageName)) {
-      const storedMember = sessionStorage.getItem('agcas_member');
-      if (!storedMember) {
-        // No member logged in, treat as public
+    const handleAuth = async () => {
+      // Handle truly public pages - no auth required
+      if (publicPages.includes(currentPageName)) {
         return;
       }
-      // Member is logged in, continue to load member info below
-    }
 
-    const storedMember = sessionStorage.getItem('agcas_member');
-    if (!storedMember) {
-      window.location.href = createPageUrl('Home');
-      return;
-    }
+      // Try server session first (for password-based auth with cross-tab persistence)
+      const hasServerSession = await checkServerSession();
+      if (hasServerSession) {
+        return; // Already authenticated via server session
+      }
 
-    const member = JSON.parse(storedMember);
+      // Handle hybrid pages - check sessionStorage
+      if (hybridPages.includes(currentPageName)) {
+        const storedMember = sessionStorage.getItem('agcas_member');
+        if (!storedMember) {
+          // No member logged in, treat as public
+          return;
+        }
+        // Member is logged in via sessionStorage, continue to validate
+      }
 
-    if (member.sessionExpiry && new Date(member.sessionExpiry) < new Date()) {
-      sessionStorage.removeItem('agcas_member');
-      window.location.href = createPageUrl('Home');
-      return;
-    }
+      // Fall back to sessionStorage for legacy magic link users
+      const storedMember = sessionStorage.getItem('agcas_member');
+      if (!storedMember) {
+        window.location.href = createPageUrl('Home');
+        return;
+      }
 
-    // Only update memberInfo if it's actually different (prevent unnecessary re-renders)
-    if (!memberInfo || JSON.stringify(memberInfo) !== JSON.stringify(member)) {
-      setMemberInfo(member);
-    }
+      const member = JSON.parse(storedMember);
 
-    // Only fetch organization info for regular members (not team members)
-    if (member.organization_id && !member.is_team_member) {
-      fetchOrganizationInfo(member.organization_id);
-    }
+      if (member.sessionExpiry && new Date(member.sessionExpiry) < new Date()) {
+        sessionStorage.removeItem('agcas_member');
+        window.location.href = createPageUrl('Home');
+        return;
+      }
+
+      // Only update memberInfo if it's actually different (prevent unnecessary re-renders)
+      if (!memberInfo || JSON.stringify(memberInfo) !== JSON.stringify(member)) {
+        setMemberInfo(member);
+      }
+
+      // Only fetch organization info for regular members (not team members)
+      if (member.organization_id && !member.is_team_member) {
+        fetchOrganizationInfo(member.organization_id);
+      }
+    };
+
+    handleAuth();
   }, []); // Only run once on mount
 
   // Update last_activity on navigation (throttled to once every 10 minutes)
@@ -880,7 +920,17 @@ useEffect(() => {
     }
   }, [location.pathname]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      // Clear server session first
+      await fetch('/api/auth/logout', { 
+        method: 'POST', 
+        credentials: 'include' 
+      });
+    } catch (error) {
+      console.log('[Layout] Server logout error (may not have server session):', error);
+    }
+    // Always clear local storage
     sessionStorage.removeItem('agcas_member');
     sessionStorage.removeItem('agcas_organization');
     window.location.href = createPageUrl('Home');

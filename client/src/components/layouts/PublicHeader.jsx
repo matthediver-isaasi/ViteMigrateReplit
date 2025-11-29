@@ -26,6 +26,7 @@ const iconMap = {
 export default function PublicHeader() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [memberLandingPage, setMemberLandingPage] = useState('Events');
   const [navItems, setNavItems] = useState({ topNav: [], mainNav: [] });
   const [hoveredMenu, setHoveredMenu] = useState(null);
   const [hoveredSubmenu, setHoveredSubmenu] = useState(null);
@@ -34,10 +35,24 @@ export default function PublicHeader() {
   const location = useLocation();
 
   useEffect(() => {
-    // Check if user is logged in
-    const checkLoginStatus = () => {
+    // Check if user is logged in and fetch their role's landing page
+    const checkLoginStatus = async () => {
       const storedMember = sessionStorage.getItem('agcas_member');
       setIsLoggedIn(!!storedMember);
+      
+      if (storedMember) {
+        try {
+          const member = JSON.parse(storedMember);
+          if (member.role_id) {
+            const role = await base44.entities.Role.get(member.role_id);
+            if (role?.default_landing_page) {
+              setMemberLandingPage(role.default_landing_page);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to fetch member role:', error);
+        }
+      }
     };
 
     checkLoginStatus();
@@ -373,7 +388,7 @@ export default function PublicHeader() {
 
               {/* Static Items - Login / Member Area */}
               <Link
-                to={isLoggedIn ? createPageUrl('Events') : createPageUrl('Home')}
+                to={isLoggedIn ? createPageUrl(memberLandingPage) : createPageUrl('Home')}
                 className="flex items-center gap-1 text-white hover:opacity-80 transition-opacity text-sm font-semibold"
               >
                 <User className="w-4 h-4" />

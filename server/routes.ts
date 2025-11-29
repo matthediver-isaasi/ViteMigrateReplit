@@ -622,7 +622,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       if (existingCreds) {
         // Update existing credentials
-        await supabase
+        const { error: updateError } = await supabase
           .from('member_credentials')
           .update({ 
             password_hash: passwordHash,
@@ -630,13 +630,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
             password_set_at: new Date().toISOString(),
             reset_token: null,
             reset_token_expires: null,
-            failed_attempts: 0,
+            failed_login_attempts: 0,
             locked_until: null
           })
           .eq('id', existingCreds.id);
+        
+        if (updateError) {
+          console.error('[Auth] Failed to update password:', updateError);
+          return res.status(500).json({ success: false, error: 'Failed to save password' });
+        }
+        console.log('[Auth] Updated existing credentials for:', email);
       } else {
         // Create new credentials record
-        await supabase
+        const { error: insertError } = await supabase
           .from('member_credentials')
           .insert({
             member_id: member.id,
@@ -645,6 +651,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
             is_temp_password: false,
             password_set_at: new Date().toISOString()
           });
+        
+        if (insertError) {
+          console.error('[Auth] Failed to insert credentials:', insertError);
+          return res.status(500).json({ success: false, error: 'Failed to save password' });
+        }
+        console.log('[Auth] Created new credentials for:', email);
       }
 
       // Set session (auto-login after setting password)

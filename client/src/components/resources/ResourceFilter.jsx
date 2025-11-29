@@ -12,11 +12,28 @@ export default function ResourceFilter({
   searchQuery,
   onSearchChange,
   onClearSearch,
-  isLoading = false
+  isLoading = false,
+  resources = [],
+  hideEmptySubcategories = false
 }) {
   const [openCategories, setOpenCategories] = React.useState({});
   const [expandedSubcategories, setExpandedSubcategories] = React.useState({});
   const [searchOpen, setSearchOpen] = React.useState(true);
+
+  // Compute which subcategories have resources
+  const subcategoriesWithResources = React.useMemo(() => {
+    if (!hideEmptySubcategories || !resources || resources.length === 0) {
+      return null; // Return null to indicate no filtering needed
+    }
+    
+    const subcatSet = new Set();
+    resources.forEach(resource => {
+      if (resource.subcategories && Array.isArray(resource.subcategories)) {
+        resource.subcategories.forEach(subcat => subcatSet.add(subcat));
+      }
+    });
+    return subcatSet;
+  }, [resources, hideEmptySubcategories]);
 
   const toggleCategory = (categoryName) => {
     setOpenCategories(prev => ({
@@ -159,10 +176,22 @@ export default function ResourceFilter({
           const isOpen = openCategories[category.name];
           const isExpanded = expandedSubcategories[category.name];
           
-          // Sort subcategories alphabetically
-          const sortedSubcategories = [...category.subcategories].sort((a, b) => 
+          // Sort subcategories alphabetically and filter out empty ones if setting is enabled
+          let sortedSubcategories = [...category.subcategories].sort((a, b) => 
             a.localeCompare(b, undefined, { sensitivity: 'base' })
           );
+          
+          // Filter out subcategories with no resources if hideEmptySubcategories is enabled
+          if (subcategoriesWithResources !== null) {
+            sortedSubcategories = sortedSubcategories.filter(subcat => 
+              subcategoriesWithResources.has(subcat)
+            );
+          }
+          
+          // Skip rendering this category if it has no subcategories to show
+          if (sortedSubcategories.length === 0) {
+            return null;
+          }
           
           const subcategoriesToShow = isExpanded 
             ? sortedSubcategories 

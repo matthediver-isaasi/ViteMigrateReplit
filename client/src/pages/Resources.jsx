@@ -117,6 +117,9 @@ export default function ResourcesPage() {
 
   // Get enabled social icons from settings, default to all enabled
   const enabledSocialIcons = resourceSettings?.enabled_social_icons || ['x', 'linkedin', 'email'];
+  
+  // Get hide empty subcategories setting
+  const hideEmptySubcategories = resourceSettings?.hide_empty_subcategories === true;
 
   // Load saved preferences once
   React.useEffect(() => {
@@ -319,6 +322,8 @@ export default function ResourcesPage() {
                 onSearchChange={setSearchQuery}
                 onClearSearch={() => setSearchQuery("")}
                 isLoading={categoriesLoading}
+                resources={resources}
+                hideEmptySubcategories={hideEmptySubcategories}
               />
               
               {memberInfo && hasUnsavedChanges && (

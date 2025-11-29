@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { UserCircle, Save, FileText, Share2, Mail } from "lucide-react";
+import { UserCircle, Save, FileText, Share2, Mail, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
@@ -46,6 +46,7 @@ export default function ResourceSettingsPage() {
   const [descriptionLimit, setDescriptionLimit] = useState(500);
   const [showFolders, setShowFolders] = useState(true);
   const [enabledSocialIcons, setEnabledSocialIcons] = useState(['x', 'linkedin', 'email']);
+  const [hideEmptySubcategories, setHideEmptySubcategories] = useState(false);
 
   // Initialize selected roles and description limit when settings load
   React.useEffect(() => {
@@ -54,18 +55,20 @@ export default function ResourceSettingsPage() {
       setDescriptionLimit(authorSettings.description_character_limit || 500);
       setShowFolders(authorSettings.show_folders !== false);
       setEnabledSocialIcons(authorSettings.enabled_social_icons || ['x', 'linkedin', 'email']);
+      setHideEmptySubcategories(authorSettings.hide_empty_subcategories === true);
     }
   }, [authorSettings]);
 
   const saveMutation = useMutation({
-    mutationFn: async ({ roleIds, limit, showFolders, socialIcons }) => {
+    mutationFn: async ({ roleIds, limit, showFolders, socialIcons, hideEmpty }) => {
       if (authorSettings) {
         // Update existing settings
         return await base44.entities.ResourceAuthorSettings.update(authorSettings.id, {
           author_role_ids: roleIds,
           description_character_limit: limit,
           show_folders: showFolders,
-          enabled_social_icons: socialIcons
+          enabled_social_icons: socialIcons,
+          hide_empty_subcategories: hideEmpty
         });
       } else {
         // Create new settings
@@ -73,7 +76,8 @@ export default function ResourceSettingsPage() {
           author_role_ids: roleIds,
           description_character_limit: limit,
           show_folders: showFolders,
-          enabled_social_icons: socialIcons
+          enabled_social_icons: socialIcons,
+          hide_empty_subcategories: hideEmpty
         });
       }
     },
@@ -112,7 +116,7 @@ export default function ResourceSettingsPage() {
       toast.error('Description limit must be a positive number');
       return;
     }
-    saveMutation.mutate({ roleIds: selectedRoles, limit, showFolders, socialIcons: enabledSocialIcons });
+    saveMutation.mutate({ roleIds: selectedRoles, limit, showFolders, socialIcons: enabledSocialIcons, hideEmpty: hideEmptySubcategories });
   };
 
   if (!accessChecked) {
@@ -247,6 +251,43 @@ export default function ResourceSettingsPage() {
                     <p className="text-xs text-slate-500 mt-1">
                       Enable folder organization in the Resource Management page
                     </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Subcategory Filter Settings */}
+            <Card className="border-slate-200 shadow-sm">
+              <CardHeader className="border-b border-slate-200">
+                <CardTitle className="flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-blue-600" />
+                  Subcategory Filters
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    <p className="text-sm text-blue-900">
+                      Control how subcategory filter options are displayed on the Resources page. 
+                      When enabled, subcategories with no available resources will be hidden from the filter panel.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-lg">
+                    <Checkbox
+                      id="hide-empty-subcategories"
+                      checked={hideEmptySubcategories}
+                      onCheckedChange={setHideEmptySubcategories}
+                      className="data-[state=checked]:bg-blue-600 data-[state=checked]:border-blue-600"
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="hide-empty-subcategories" className="cursor-pointer font-medium">
+                        Hide Empty Subcategories
+                      </Label>
+                      <p className="text-xs text-slate-500 mt-1">
+                        Only show subcategory filters that have at least one resource available
+                      </p>
+                    </div>
                   </div>
                 </div>
               </CardContent>

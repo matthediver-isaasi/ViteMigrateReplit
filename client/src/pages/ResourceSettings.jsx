@@ -35,11 +35,13 @@ export default function ResourceSettingsPage() {
   });
 
   const { data: authorSettings, isLoading: settingsLoading } = useQuery({
-    queryKey: ['resource-author-settings'],
+    queryKey: ['resourceAuthorSettings'],
     queryFn: async () => {
       const settings = await base44.entities.ResourceAuthorSettings.list();
       return settings.length > 0 ? settings[0] : null;
-    }
+    },
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const [selectedRoles, setSelectedRoles] = useState([]);
@@ -82,7 +84,7 @@ export default function ResourceSettingsPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resource-author-settings'] });
+      queryClient.invalidateQueries({ queryKey: ['resourceAuthorSettings'] });
       toast.success('Settings saved successfully');
     },
     onError: (error) => {

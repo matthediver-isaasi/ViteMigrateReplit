@@ -355,6 +355,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // ============ Test Auth Route (Development Only) ============
+  
+  // Establish session for test login (bypasses password check)
+  // This is used by TestLogin.jsx for development testing
+  app.post('/api/auth/test-session', async (req: Request, res: Response) => {
+    // Only allow in development mode
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({ error: 'Test login not available in production' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { memberId } = req.body;
+
+      if (!memberId) {
+        return res.status(400).json({ success: false, error: 'Member ID is required' });
+      }
+
+      // Verify member exists
+      const { data: member, error: memberError } = await supabase
+        .from('member')
+        .select('*')
+        .eq('id', memberId)
+        .single();
+
+      if (memberError || !member) {
+        return res.status(404).json({ success: false, error: 'Member not found' });
+      }
+
+      // Establish server session
+      req.session.memberId = member.id;
+      
+      // Save session explicitly
+      req.session.save((err) => {
+        if (err) {
+          console.error('[Auth TestSession] Session save error:', err);
+          return res.status(500).json({ success: false, error: 'Failed to create session' });
+        }
+        
+        console.log('[Auth TestSession] Session established for:', member.email);
+        res.json({ success: true, member });
+      });
+    } catch (error) {
+      console.error('[Auth TestSession] Error:', error);
+      res.status(500).json({ success: false, error: 'Failed to establish test session' });
+    }
+  });
+
   // ============ Password Auth Routes ============
 
   // Login with email and password
@@ -1026,11 +1077,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // Set session
+      // Establish server session for cross-tab persistence
       req.session.memberId = magicLink.member_id;
       req.session.memberEmail = magicLink.email;
 
-      res.json({ success: true, member });
+      // Save session explicitly and return success
+      req.session.save((err) => {
+        if (err) {
+          console.error('[verifyMagicLink] Session save error:', err);
+          return res.status(500).json({ success: false, error: 'Failed to create session' });
+        }
+        console.log('[verifyMagicLink] Session established for:', magicLink.email);
+        res.json({ success: true, user: member });
+      });
     } catch (error) {
       console.error('Verify magic link error:', error);
       res.status(500).json({ success: false, error: 'Failed to verify link' });

@@ -95,7 +95,25 @@ export default function TestLoginPage() {
         ).toISOString(),
       };
 
-      // Store in sessionStorage
+      // Establish server session for cross-tab persistence
+      try {
+        const sessionResponse = await fetch('/api/auth/test-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ memberId: member.id })
+        });
+        
+        if (sessionResponse.ok) {
+          console.log("[TestLogin] Server session established for cross-tab persistence");
+        } else {
+          console.warn("[TestLogin] Could not establish server session, using sessionStorage only");
+        }
+      } catch (sessionErr) {
+        console.warn("[TestLogin] Server session error:", sessionErr.message);
+      }
+
+      // Store in sessionStorage for backwards compatibility
       sessionStorage.setItem("agcas_member", JSON.stringify(memberData));
       
       // Clear old organization cache and store new one from validated data

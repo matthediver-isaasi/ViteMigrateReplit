@@ -26,8 +26,9 @@ export default function VerifyMagicLinkPage() {
           setStatus('success');
           setMessage('Login successful! Redirecting...');
 
-          // Store user info with session expiry (30 minutes)
-          const sessionExpiry = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+          // Server session is already established by the backend verifyMagicLink endpoint
+          // Store user info in sessionStorage for backwards compatibility
+          const sessionExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
           const memberInfo = {
             ...response.data.user,
             sessionExpiry

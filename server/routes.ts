@@ -726,8 +726,58 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const resetUrl = `${req.protocol}://${req.get('host')}/auth/reset-password?token=${resetToken}&email=${encodeURIComponent(email)}`;
       console.log(`[Password Reset] Link for ${email}: ${resetUrl}`);
 
-      // TODO: Send email with reset link
-      // For now, we'll log it and return the token in dev mode
+      // Send email via Mailgun
+      const MAILGUN_API_KEY = process.env.MAILGUN_API_KEY;
+      const MAILGUN_DOMAIN = process.env.MAILGUN_DOMAIN;
+      const MAILGUN_FROM_EMAIL = process.env.MAILGUN_FROM_EMAIL;
+
+      if (MAILGUN_API_KEY && MAILGUN_DOMAIN && MAILGUN_FROM_EMAIL) {
+        try {
+          const formData = new FormData();
+          formData.append('from', `AGCAS Portal <${MAILGUN_FROM_EMAIL}>`);
+          formData.append('to', email);
+          formData.append('subject', 'Reset Your Password');
+          formData.append('html', `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #333;">Password Reset Request</h2>
+              <p>Hi ${member.first_name || 'there'},</p>
+              <p>We received a request to reset your password. Click the button below to create a new password:</p>
+              <p style="margin: 30px 0;">
+                <a href="${resetUrl}" style="background-color: #4f46e5; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+                  Reset Password
+                </a>
+              </p>
+              <p>This link will expire in 1 hour.</p>
+              <p>If you didn't request this reset, you can safely ignore this email.</p>
+              <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+              <p style="color: #666; font-size: 12px;">AGCAS Member Portal</p>
+            </div>
+          `);
+
+          const apiBase = 'https://api.eu.mailgun.net/v3';
+          const mailgunUrl = `${apiBase}/${MAILGUN_DOMAIN}/messages`;
+
+          const mailResponse = await fetch(mailgunUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Basic ' + Buffer.from(`api:${MAILGUN_API_KEY}`).toString('base64'),
+            },
+            body: formData
+          });
+
+          if (mailResponse.ok) {
+            console.log(`[Password Reset] Email sent to ${email}`);
+          } else {
+            const errorText = await mailResponse.text();
+            console.error(`[Password Reset] Mailgun error: ${mailResponse.status} - ${errorText}`);
+          }
+        } catch (mailError) {
+          console.error('[Password Reset] Failed to send email:', mailError);
+        }
+      } else {
+        console.warn('[Password Reset] Mailgun not configured, email not sent');
+      }
+
       const isDev = process.env.NODE_ENV !== 'production';
       
       res.json({ 

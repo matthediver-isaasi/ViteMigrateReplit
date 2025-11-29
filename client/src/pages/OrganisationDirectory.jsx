@@ -39,6 +39,7 @@ export default function OrganisationDirectoryPage() {
       const titleSetting = allSettings.find(s => s.setting_key === 'org_directory_show_title');
       const domainsSetting = allSettings.find(s => s.setting_key === 'org_directory_show_domains');
       const memberCountSetting = allSettings.find(s => s.setting_key === 'org_directory_show_member_count');
+      const nameTooltipSetting = allSettings.find(s => s.setting_key === 'org_directory_show_name_tooltip');
       const cardsPerRowSetting = allSettings.find(s => s.setting_key === 'org_directory_cards_per_row');
       const excludedOrgsSetting = allSettings.find(s => s.setting_key === 'org_directory_excluded_orgs');
       
@@ -56,6 +57,7 @@ export default function OrganisationDirectoryPage() {
         showTitle: titleSetting?.setting_value !== 'false', // Default to true if not set
         showDomains: domainsSetting?.setting_value !== 'false',
         showMemberCount: memberCountSetting?.setting_value !== 'false',
+        showNameTooltip: nameTooltipSetting?.setting_value === 'true',
         cardsPerRow: cardsPerRowSetting?.setting_value || '3',
         excludedOrgIds: excludedOrgIds
       };
@@ -292,6 +294,7 @@ export default function OrganisationDirectoryPage() {
                     window.location.href = `/memberdirectory?org=${org.id}`;
                   }}
                   data-testid={`card-organisation-${org.id}`}
+                  title={displaySettings?.showNameTooltip ? org.name : undefined}
                 >
                     <CardHeader className="flex flex-col items-center text-center pb-2">
                       {displaySettings?.showLogo && (

@@ -19,6 +19,7 @@ export default function OrganisationDirectorySettingsPage() {
   const [showTitle, setShowTitle] = useState(true);
   const [showDomains, setShowDomains] = useState(true);
   const [showMemberCount, setShowMemberCount] = useState(true);
+  const [showNameTooltip, setShowNameTooltip] = useState(false);
   const [cardsPerRow, setCardsPerRow] = useState("3");
   const [excludedOrgIds, setExcludedOrgIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -48,6 +49,7 @@ export default function OrganisationDirectorySettingsPage() {
       const titleSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_title');
       const domainsSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_domains');
       const memberCountSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_member_count');
+      const nameTooltipSetting = allSettings.find((s) => s.setting_key === 'org_directory_show_name_tooltip');
       const cardsPerRowSetting = allSettings.find((s) => s.setting_key === 'org_directory_cards_per_row');
       const excludedOrgsSetting = allSettings.find((s) => s.setting_key === 'org_directory_excluded_orgs');
       return {
@@ -55,6 +57,7 @@ export default function OrganisationDirectorySettingsPage() {
         title: titleSetting,
         domains: domainsSetting,
         memberCount: memberCountSetting,
+        nameTooltip: nameTooltipSetting,
         cardsPerRow: cardsPerRowSetting,
         excludedOrgs: excludedOrgsSetting
       };
@@ -74,6 +77,9 @@ export default function OrganisationDirectorySettingsPage() {
     }
     if (settings?.memberCount) {
       setShowMemberCount(settings.memberCount.setting_value === 'true');
+    }
+    if (settings?.nameTooltip) {
+      setShowNameTooltip(settings.nameTooltip.setting_value === 'true');
     }
     if (settings?.cardsPerRow) {
       setCardsPerRow(settings.cardsPerRow.setting_value || "3");
@@ -162,6 +168,19 @@ export default function OrganisationDirectorySettingsPage() {
           setting_key: 'org_directory_show_member_count',
           setting_value: showMemberCount.toString(),
           description: 'Show member count on directory cards'
+        });
+      }
+
+      // Save name tooltip setting
+      if (settings?.nameTooltip) {
+        await base44.entities.SystemSettings.update(settings.nameTooltip.id, {
+          setting_value: showNameTooltip.toString()
+        });
+      } else {
+        await base44.entities.SystemSettings.create({
+          setting_key: 'org_directory_show_name_tooltip',
+          setting_value: showNameTooltip.toString(),
+          description: 'Show organisation name as tooltip on hover'
         });
       }
 
@@ -318,7 +337,23 @@ export default function OrganisationDirectorySettingsPage() {
                 checked={showMemberCount}
                 onChange={(e) => setShowMemberCount(e.target.checked)}
                 className="w-5 h-5 cursor-pointer" />
+            </div>
 
+            <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+              <div>
+                <Label htmlFor="showNameTooltip" className="text-base font-medium cursor-pointer">
+                  Show Name Tooltip on Hover
+                </Label>
+                <p className="text-sm text-slate-600 mt-1">
+                  Display the organisation name as a tooltip when hovering over a card
+                </p>
+              </div>
+              <input
+                type="checkbox"
+                id="showNameTooltip"
+                checked={showNameTooltip}
+                onChange={(e) => setShowNameTooltip(e.target.checked)}
+                className="w-5 h-5 cursor-pointer" />
             </div>
 
             <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">

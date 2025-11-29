@@ -1,9 +1,10 @@
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Calendar, User, CreditCard, LogOut, Ticket, Wallet, Shield, Users, Settings, Sparkles, ShoppingCart, History, BarChart3, Briefcase, FileEdit, Image, FileText, AtSign, FolderTree, Square, Trophy, BookOpen, Mail, MousePointer2, Building, Download, HelpCircle, Menu, ChevronRight } from "lucide-react";
 import { useLayoutContext } from "@/contexts/LayoutContext";
+import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 import {
   Sidebar,
   SidebarContent,
@@ -101,16 +102,19 @@ const navigationItems = [
     title: "Articles",
     icon: FileText,
     featureId: "page_ArticlesSection",
+    isDynamicArticleSection: true,
     subItems: [
       {
         title: "My Articles",
         url: createPageUrl("MyArticles"),
-        featureId: "page_MyArticles"
+        featureId: "page_MyArticles",
+        isDynamicMyArticles: true
       },
       {
         title: "Articles",
         url: createPageUrl("Articles"),
-        featureId: "page_Articles"
+        featureId: "page_Articles",
+        isDynamicArticles: true
       }
     ]
   },
@@ -162,6 +166,7 @@ const adminNavigationItems = [
     title: "Articles",
     icon: FileText,
     featureId: "page_ArticlesAdmin",
+    isDynamicArticleSection: true,
     subItems: [
       {
         title: "All Articles",
@@ -397,6 +402,8 @@ const adminNavigationItems = [
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
+  const { getArticleListUrl, getMyArticlesUrl, articleDisplayName, isCustomSlug } = useArticleUrl();
+  
   // Initialize from sessionStorage immediately to prevent flicker
   const [memberInfo, setMemberInfo] = useState(() => {
     const stored = sessionStorage.getItem('agcas_member');
@@ -901,6 +908,14 @@ useEffect(() => {
     const items = dynamicNavItems.filter(item => item.is_active && item.section === section);
     const topLevelItems = items.filter(item => !item.parent_id);
     
+    // Helper to detect article-related URLs
+    const isArticleUrl = (url) => {
+      if (!url) return false;
+      const lower = url.toLowerCase();
+      return lower === 'articles' || lower === 'myarticles' || 
+             lower.includes('article') || lower.includes('blog');
+    };
+    
     return topLevelItems.sort((a, b) => a.display_order - b.display_order).map(parent => {
       // Find children - look in ALL items, not just section-filtered ones
       const children = dynamicNavItems.filter(child => 
@@ -908,16 +923,21 @@ useEffect(() => {
       );
       
       const IconComponent = iconMap[parent.icon] || Menu;
+      const isArticleSection = isArticleUrl(parent.url) || 
+        children.some(child => isArticleUrl(child.url));
       
       if (children.length > 0) {
         return {
           title: parent.title,
           icon: IconComponent,
           featureId: parent.feature_id,
+          isDynamicArticleSection: isArticleSection,
           subItems: children.sort((a, b) => a.display_order - b.display_order).map(child => ({
             title: child.title,
             url: child.url ? createPageUrl(child.url) : '',
-            featureId: child.feature_id
+            featureId: child.feature_id,
+            isDynamicMyArticles: child.url?.toLowerCase() === 'myarticles',
+            isDynamicArticles: child.url?.toLowerCase() === 'articles'
           }))
         };
       } else {
@@ -925,15 +945,124 @@ useEffect(() => {
           title: parent.title,
           url: parent.url ? createPageUrl(parent.url) : '',
           icon: IconComponent,
-          featureId: parent.feature_id
+          featureId: parent.feature_id,
+          isDynamicArticles: parent.url?.toLowerCase() === 'articles',
+          isDynamicMyArticles: parent.url?.toLowerCase() === 'myarticles'
         };
       }
     });
   };
 
-  // Use dynamic navigation or fallback to hardcoded
-  const navigationItemsSource = dynamicNavItems.length > 0 ? buildNavigationFromDB('user') : navigationItems;
-  const adminNavigationItemsSource = dynamicNavItems.length > 0 ? buildNavigationFromDB('admin') : adminNavigationItems;
+  // Memoized navigation items with dynamic article URLs applied
+  // CRITICAL: Must deep clone AND apply URL transformations in the SAME memoization
+  // This prevents any mutation of cached clones when isCustomSlug changes
+  const navigationItemsSource = useMemo(() => {
+    // Get base items (from DB or hardcoded)
+    const baseItems = dynamicNavItems.length > 0 
+      ? buildNavigationFromDB('user')
+      : navigationItems;
+    
+    // Deep clone with icons preserved - NEVER mutate originals
+    const clonedItems = baseItems.map(item => ({
+      ...item,
+      icon: item.icon,
+      subItems: item.subItems ? item.subItems.map(sub => ({ ...sub })) : undefined
+    }));
+    
+    // When NOT using custom slug, return cloned items with original createPageUrl() URLs
+    if (!isCustomSlug) {
+      return clonedItems;
+    }
+    
+    // Apply dynamic URLs only when custom slug is confirmed
+    return clonedItems.map(item => {
+      const processedItem = { ...item };
+      
+      if (item.isDynamicArticleSection && articleDisplayName) {
+        processedItem.title = articleDisplayName;
+      }
+      
+      if (item.isDynamicArticles) {
+        processedItem.url = getArticleListUrl();
+        if (articleDisplayName) processedItem.title = articleDisplayName;
+      }
+      if (item.isDynamicMyArticles) {
+        processedItem.url = getMyArticlesUrl();
+        if (articleDisplayName) processedItem.title = `My ${articleDisplayName}`;
+      }
+      
+      if (item.subItems) {
+        processedItem.subItems = item.subItems.map(subItem => {
+          const processedSubItem = { ...subItem };
+          if (subItem.isDynamicMyArticles) {
+            processedSubItem.url = getMyArticlesUrl();
+            if (articleDisplayName) processedSubItem.title = `My ${articleDisplayName}`;
+          }
+          if (subItem.isDynamicArticles) {
+            processedSubItem.url = getArticleListUrl();
+            if (articleDisplayName) processedSubItem.title = articleDisplayName;
+          }
+          return processedSubItem;
+        });
+      }
+      
+      return processedItem;
+    });
+  }, [dynamicNavItems, isCustomSlug, articleDisplayName, getArticleListUrl, getMyArticlesUrl]);
+  
+  const adminNavigationItemsSource = useMemo(() => {
+    // Get base items (from DB or hardcoded)
+    const baseItems = dynamicNavItems.length > 0 
+      ? buildNavigationFromDB('admin')
+      : adminNavigationItems;
+    
+    // Deep clone with icons preserved - NEVER mutate originals
+    const clonedItems = baseItems.map(item => ({
+      ...item,
+      icon: item.icon,
+      subItems: item.subItems ? item.subItems.map(sub => ({ ...sub })) : undefined
+    }));
+    
+    // When NOT using custom slug, return cloned items with original createPageUrl() URLs
+    if (!isCustomSlug) {
+      return clonedItems;
+    }
+    
+    // Apply dynamic URLs only when custom slug is confirmed
+    return clonedItems.map(item => {
+      const processedItem = { ...item };
+      
+      if (item.isDynamicArticleSection && articleDisplayName) {
+        processedItem.title = articleDisplayName;
+      }
+      
+      if (item.isDynamicArticles) {
+        processedItem.url = getArticleListUrl();
+        if (articleDisplayName) processedItem.title = articleDisplayName;
+      }
+      if (item.isDynamicMyArticles) {
+        processedItem.url = getMyArticlesUrl();
+        if (articleDisplayName) processedItem.title = `My ${articleDisplayName}`;
+      }
+      
+      if (item.subItems) {
+        processedItem.subItems = item.subItems.map(subItem => {
+          const processedSubItem = { ...subItem };
+          if (subItem.isDynamicMyArticles) {
+            processedSubItem.url = getMyArticlesUrl();
+            if (articleDisplayName) processedSubItem.title = `My ${articleDisplayName}`;
+          }
+          if (subItem.isDynamicArticles) {
+            processedSubItem.url = getArticleListUrl();
+            if (articleDisplayName) processedSubItem.title = articleDisplayName;
+          }
+          return processedSubItem;
+        });
+      }
+      
+      return processedItem;
+    });
+  }, [dynamicNavItems, isCustomSlug, articleDisplayName, getArticleListUrl, getMyArticlesUrl]);
 
   // Filter navigation items based on member's excluded features
   const filteredNavigationItems = navigationItemsSource

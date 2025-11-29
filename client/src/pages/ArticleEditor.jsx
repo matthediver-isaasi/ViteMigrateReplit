@@ -1,13 +1,12 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"; // Changed import path
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, Save, Eye, Trash2, Upload, X, Loader2, CheckCircle2, Clock } from "lucide-react";
-import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -18,9 +17,11 @@ import SubcategorySelector from "../components/blog/SubcategorySelector";
 import StatusSelector from "../components/blog/StatusSelector";
 import SEOSettings from "../components/blog/SEOSettings";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 
 export default function ArticleEditorPage() {
   const { memberInfo } = useMemberAccess();
+  const { getArticleListUrl, getArticleEditorUrl } = useArticleUrl();
   const urlParams = new URLSearchParams(window.location.search);
   const articleId = urlParams.get('id');
   const isEditing = !!articleId;
@@ -272,7 +273,7 @@ export default function ArticleEditorPage() {
       setLastSaved(new Date());
       
       if (!isEditing) {
-        window.location.href = `${createPageUrl('ArticleEditor')}?id=${data.id}`;
+        window.location.href = getArticleEditorUrl(data.id);
       }
     },
     onError: (error) => {
@@ -285,7 +286,7 @@ export default function ArticleEditorPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['articles'] });
       toast.success(`${singularDisplayName} deleted successfully`);
-      window.location.href = createPageUrl('Articles');
+      window.location.href = getArticleListUrl();
     },
     onError: () => {
       toast.error(`Failed to delete ${singularDisplayName.toLowerCase()}`);
@@ -411,7 +412,7 @@ export default function ArticleEditorPage() {
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <Link to={createPageUrl('Articles')} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900">
+          <Link to={getArticleListUrl()} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900">
             <ArrowLeft className="w-4 h-4" />
             Back to {articleDisplayName}
           </Link>

@@ -190,6 +190,7 @@ import PreferenceSettings from "./PreferenceSettings";
 
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
+import { ArticleUrlProvider } from '@/contexts/ArticleUrlContext';
 
 const PAGES = {
     
@@ -617,9 +618,11 @@ function PagesContent() {
 export default function Pages() {
     return (
         <Router>
-            <LayoutProvider>
-                <PagesContent />
-            </LayoutProvider>
+            <ArticleUrlProvider>
+                <LayoutProvider>
+                    <PagesContent />
+                </LayoutProvider>
+            </ArticleUrlProvider>
         </Router>
     );
 }

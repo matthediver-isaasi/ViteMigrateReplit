@@ -5,17 +5,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Plus, Edit, Eye, FileQuestion, SlidersHorizontal } from "lucide-react";
-import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
 import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { useBlogPostRealtime } from "@/hooks/useBlogPostRealtime";
+import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 
 export default function MyArticlesPage() {
   useBlogPostRealtime(['my-articles']);
   const { memberInfo } = useMemberAccess();
+  const { getArticleEditorUrl, getArticleViewUrl } = useArticleUrl();
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
@@ -178,7 +179,7 @@ export default function MyArticlesPage() {
             </h1>
             <p className="text-slate-600">Create and manage your content</p>
           </div>
-          <Link to={createPageUrl('ArticleEditor')}>
+          <Link to={getArticleEditorUrl()}>
             <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
               <Plus className="w-4 h-4" />
               New {singularDisplayName}
@@ -233,7 +234,7 @@ export default function MyArticlesPage() {
                       : `Start creating your first ${singularDisplayName.toLowerCase()}`}
                   </p>
                   {!searchQuery && statusFilter === 'all' && selectedSubcategories.length === 0 && (
-                    <Link to={createPageUrl('ArticleEditor')}>
+                    <Link to={getArticleEditorUrl()}>
                       <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
                         <Plus className="w-4 h-4" />
                         Create First {singularDisplayName}
@@ -284,14 +285,14 @@ export default function MyArticlesPage() {
                         <ArticleCard article={article} buttonStyles={buttonStyles} showActions={false} displayName={displayName} />
                       </div>
                       <div className="flex gap-2 mt-3">
-                        <Link to={`${createPageUrl('ArticleEditor')}?id=${article.id}`} className="flex-1">
+                        <Link to={getArticleEditorUrl(article.id)} className="flex-1">
                           <Button variant="outline" size="sm" className="w-full gap-2">
                             <Edit className="w-3 h-3" />
                             Edit
                           </Button>
                         </Link>
                         {article.status === 'published' && (
-                          <Link to={`${createPageUrl('ArticleView')}?slug=${article.slug}`} className="flex-1">
+                          <Link to={getArticleViewUrl(article.slug)} className="flex-1">
                             <Button variant="outline" size="sm" className="w-full gap-2">
                               <Eye className="w-3 h-3" />
                               View

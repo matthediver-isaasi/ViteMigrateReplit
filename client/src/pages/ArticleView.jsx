@@ -6,15 +6,16 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Calendar, User, Edit, Tag, Eye, Linkedin, Mail, Trophy, ChevronDown, ChevronUp } from "lucide-react";
 import { format } from "date-fns";
-import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
 import ArticleComments from "../components/blog/ArticleComments";
 import ArticleReactions from "../components/blog/ArticleReactions";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 
 export default function ArticleViewPage() {
   const { memberInfo } = useMemberAccess();
+  const { getArticleListUrl, getArticleEditorUrl, getPublicArticlesUrl } = useArticleUrl();
   console.log('[ArticleView] Component initialized');
   console.log('[ArticleView] window.location.href:', window.location.href);
   console.log('[ArticleView] window.location.search:', window.location.search);
@@ -307,7 +308,7 @@ export default function ArticleViewPage() {
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
         <div className="max-w-4xl mx-auto text-center py-16">
           <h2 className="text-2xl font-bold text-slate-900 mb-4">{singularDisplayName} not found</h2>
-          <Link to={isLoggedIn ? createPageUrl('Articles') : createPageUrl('PublicArticles')}>
+          <Link to={isLoggedIn ? getArticleListUrl() : getPublicArticlesUrl()}>
             <Button>Back to {articleDisplayName}</Button>
           </Link>
         </div>
@@ -324,7 +325,7 @@ export default function ArticleViewPage() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link 
-            to={isLoggedIn ? createPageUrl('Articles') : createPageUrl('PublicArticles')} 
+            to={isLoggedIn ? getArticleListUrl() : getPublicArticlesUrl()} 
             className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -332,7 +333,7 @@ export default function ArticleViewPage() {
           </Link>
           
           {isAuthor && (
-            <Link to={`${createPageUrl('ArticleEditor')}?id=${article.id}`}>
+            <Link to={getArticleEditorUrl(article.id)}>
               <Button variant="outline" className="gap-2">
                 <Edit className="w-4 h-4" />
                 Edit

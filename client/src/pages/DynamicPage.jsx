@@ -1,17 +1,60 @@
-import React, { useEffect } from "react";
-import { useParams } from "react-router-dom";
+import React, { useEffect, useMemo } from "react";
+import { useParams, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import IEditElementRenderer from "../components/iedit/IEditElementRenderer";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { useLayoutContext } from "@/contexts/LayoutContext";
+import { useArticleUrl } from "@/contexts/ArticleUrlContext";
+import Articles from "./Articles";
+import ArticleView from "./ArticleView";
+import ArticleEditor from "./ArticleEditor";
+import MyArticles from "./MyArticles";
+import PublicArticles from "./PublicArticles";
 
 export default function DynamicPage() {
   const { slug } = useParams();
+  const location = useLocation();
   const { memberInfo, isAccessReady } = useMemberAccess();
   const { setForcePublicLayout } = useLayoutContext();
+  
+  // Use shared ArticleUrlContext instead of duplicating settings query
+  const { 
+    displayName: articleDisplayName, 
+    urlSlug, 
+    viewSlug, 
+    editorSlug, 
+    mySlug, 
+    publicSlug, 
+    isCustomSlug, 
+    isLoading: articleUrlLoading 
+  } = useArticleUrl();
 
-  // Fetch page by slug (regardless of status - we check permissions separately)
+  const dynamicArticleRoute = useMemo(() => {
+    // Only intercept dynamic routes if we have a custom slug configured
+    if (!isCustomSlug || !slug || articleUrlLoading) return null;
+    
+    const slugLower = slug.toLowerCase();
+    
+    if (slugLower === urlSlug.toLowerCase()) {
+      return { component: 'Articles', displayName: articleDisplayName };
+    }
+    if (slugLower === viewSlug.toLowerCase()) {
+      return { component: 'ArticleView', displayName: articleDisplayName };
+    }
+    if (slugLower === editorSlug.toLowerCase()) {
+      return { component: 'ArticleEditor', displayName: articleDisplayName };
+    }
+    if (slugLower === mySlug.toLowerCase()) {
+      return { component: 'MyArticles', displayName: articleDisplayName };
+    }
+    if (slugLower === publicSlug.toLowerCase()) {
+      return { component: 'PublicArticles', displayName: articleDisplayName };
+    }
+    
+    return null;
+  }, [articleDisplayName, urlSlug, viewSlug, editorSlug, mySlug, publicSlug, isCustomSlug, articleUrlLoading, slug]);
+
   const { data: page, isLoading: pageLoading, error: pageError } = useQuery({
     queryKey: ['iedit-dynamic-page', slug],
     queryFn: async () => {
@@ -20,7 +63,7 @@ export default function DynamicPage() {
       });
       return pages[0] || null;
     },
-    enabled: !!slug,
+    enabled: !!slug && !dynamicArticleRoute,
     staleTime: 0
   });
 
@@ -65,8 +108,16 @@ export default function DynamicPage() {
   // - Public pages: Always use public layout, even for logged-in users
   // - Hybrid pages: Use public layout for guests, portal layout for logged-in users
   // - Member pages: Always use portal layout (with sidebar)
+  // - Dynamic article routes: Use portal layout (except PublicArticles)
   useEffect(() => {
-    // Default to public layout while loading or if page not found
+    if (dynamicArticleRoute) {
+      const isPublicArticleRoute = dynamicArticleRoute.component === 'PublicArticles';
+      setForcePublicLayout(isPublicArticleRoute);
+      return () => {
+        setForcePublicLayout(false);
+      };
+    }
+
     if (pageLoading || !page) {
       setForcePublicLayout(true);
       return;
@@ -75,13 +126,28 @@ export default function DynamicPage() {
     const shouldForcePublic = isPublicPage || (isHybridPage && !isLoggedIn);
     setForcePublicLayout(shouldForcePublic);
     
-    // Clean up when unmounting
     return () => {
       setForcePublicLayout(false);
     };
-  }, [page, pageLoading, isPublicPage, isHybridPage, isLoggedIn, setForcePublicLayout]);
+  }, [page, pageLoading, isPublicPage, isHybridPage, isLoggedIn, setForcePublicLayout, dynamicArticleRoute]);
 
-  // Show loading while fetching page data
+  if (dynamicArticleRoute) {
+    switch (dynamicArticleRoute.component) {
+      case 'Articles':
+        return <Articles />;
+      case 'ArticleView':
+        return <ArticleView />;
+      case 'ArticleEditor':
+        return <ArticleEditor />;
+      case 'MyArticles':
+        return <MyArticles />;
+      case 'PublicArticles':
+        return <PublicArticles />;
+      default:
+        return null;
+    }
+  }
+
   if (pageLoading || elementsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center" data-testid="loading-dynamic-page">
@@ -90,7 +156,6 @@ export default function DynamicPage() {
     );
   }
 
-  // Page doesn't exist - show 404
   if (!page) {
     return (
       <div className="min-h-screen flex items-center justify-center" data-testid="page-not-found">

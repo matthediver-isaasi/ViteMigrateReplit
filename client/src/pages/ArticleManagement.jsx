@@ -5,17 +5,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Edit, Eye, FileQuestion, Plus, SlidersHorizontal, User, Loader2 } from "lucide-react";
-import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
 import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { useBlogPostRealtime } from "@/hooks/useBlogPostRealtime";
+import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 
 export default function ArticleManagementPage() {
   useBlogPostRealtime(['all-articles-admin']);
   const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const { getArticleEditorUrl, getArticleViewUrl } = useArticleUrl();
   const [accessChecked, setAccessChecked] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -176,7 +177,7 @@ export default function ArticleManagementPage() {
             </h1>
             <p className="text-slate-600">Manage all {articleDisplayName.toLowerCase()} across the platform</p>
           </div>
-          <Link to={createPageUrl('ArticleEditor')}>
+          <Link to={getArticleEditorUrl()}>
             <Button className="bg-blue-600 hover:bg-blue-700 gap-2">
               <Plus className="w-4 h-4" />
               New {articleDisplayName.endsWith('s') ? articleDisplayName.slice(0, -1) : articleDisplayName}
@@ -290,14 +291,14 @@ export default function ArticleManagementPage() {
                         </div>
                       )}
                       <div className="flex gap-2 mt-2">
-                        <Link to={`${createPageUrl('ArticleEditor')}?id=${article.id}`} className="flex-1">
+                        <Link to={getArticleEditorUrl(article.id)} className="flex-1">
                           <Button variant="outline" size="sm" className="w-full gap-2">
                             <Edit className="w-3 h-3" />
                             Edit
                           </Button>
                         </Link>
                         {article.status === 'published' && (
-                          <Link to={`${createPageUrl('ArticleView')}?slug=${article.slug}`} className="flex-1">
+                          <Link to={getArticleViewUrl(article.slug)} className="flex-1">
                             <Button variant="outline" size="sm" className="w-full gap-2">
                               <Eye className="w-3 h-3" />
                               View

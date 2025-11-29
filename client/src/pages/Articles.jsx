@@ -5,7 +5,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileQuestion, ChevronLeft, ChevronRight, SlidersHorizontal, Save, User, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
 import ArticleFilter from "../components/blog/ArticleFilter";
 import ArticleCard from "../components/blog/ArticleCard";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -13,10 +12,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { useBlogPostRealtime } from "@/hooks/useBlogPostRealtime";
+import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 
 export default function ArticlesPage() {
   useBlogPostRealtime(['published-articles']);
   const { memberInfo, memberRole, isAdmin, isFeatureExcluded } = useMemberAccess();
+  const { getArticleEditorUrl } = useArticleUrl();
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [articleToDelete, setArticleToDelete] = useState(null);
 
@@ -158,7 +159,7 @@ export default function ArticlesPage() {
   });
 
   const handleEditArticle = (article) => {
-    window.location.href = `/ArticleEditor?id=${article.id}`;
+    window.location.href = getArticleEditorUrl(article.id);
   };
 
   const handleDeleteArticle = (article) => {
@@ -394,7 +395,7 @@ export default function ArticlesPage() {
                 )}
                 
                 {showMyArticlesOnly && (
-                  <Link to={createPageUrl('ArticleEditor')}>
+                  <Link to={getArticleEditorUrl()}>
                     <Button
                       size="sm"
                       className="gap-2 bg-blue-600 hover:bg-blue-700"

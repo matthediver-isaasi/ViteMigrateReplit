@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, User, ArrowUpRight, Pencil, Trash2 } from "lucide-react";
 import { format } from "date-fns";
-import { createPageUrl } from "@/utils";
+import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 import { Link } from "react-router-dom";
 
 export default function ArticleCard({ 
@@ -19,7 +19,8 @@ export default function ArticleCard({
   currentMemberId = null,
   showImage = true
 }) {
-  const articleUrl = `${createPageUrl(viewPageUrl)}?slug=${article.slug}`;
+  const { getArticleViewUrl } = useArticleUrl();
+  const articleUrl = getArticleViewUrl(article.slug);
 
   const isAuthor = currentMemberId && article.author_id === currentMemberId;
   

@@ -8,9 +8,11 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 
 export default function SiteMapPage() {
   const { isAdmin, isAccessReady } = useMemberAccess();
+  const { getArticleViewUrl, getPublicArticlesUrl } = useArticleUrl();
   const [accessChecked, setAccessChecked] = useState(false);
   const appBaseUrl = window.location.origin;
 
@@ -59,7 +61,7 @@ export default function SiteMapPage() {
   const staticPublicPages = [
     { name: 'Home', url: createPageUrl('Home'), icon: ExternalLink },
     { name: 'Public Events', url: createPageUrl('PublicEvents'), icon: ExternalLink },
-    { name: 'Public Articles', url: createPageUrl('PublicArticles'), icon: FileText },
+    { name: 'Public Articles', url: getPublicArticlesUrl(), icon: FileText },
     { name: 'Public News', url: createPageUrl('PublicNews'), icon: Newspaper },
     { name: 'Public Resources', url: createPageUrl('PublicResources'), icon: Sparkles },
     { name: 'Job Board', url: createPageUrl('JobBoard'), icon: Briefcase },
@@ -70,12 +72,12 @@ export default function SiteMapPage() {
   const articleUrls = useMemo(() => {
     return articles.map(article => ({
       title: article.title,
-      url: `${createPageUrl('ArticleView')}?slug=${article.slug}`,
-      fullUrl: `${appBaseUrl}${createPageUrl('ArticleView')}?slug=${article.slug}`,
+      url: getArticleViewUrl(article.slug),
+      fullUrl: `${appBaseUrl}${getArticleViewUrl(article.slug)}`,
       author: article.author_name,
       date: article.published_date
     }));
-  }, [articles, appBaseUrl]);
+  }, [articles, appBaseUrl, getArticleViewUrl]);
 
   const newsUrls = useMemo(() => {
     return news.map(post => ({

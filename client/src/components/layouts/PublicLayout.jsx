@@ -8,8 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import PublicHeader from "./PublicHeader";
 import PageBannerDisplay from "../banners/PageBannerDisplay";
 import FloaterDisplay from "../floaters/FloaterDisplay";
+import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 
 export default function PublicLayout({ children, currentPageName }) {
+  const { getPublicArticlesUrl, articleDisplayName } = useArticleUrl();
   const [banners, setBanners] = useState([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
   const [showNewsletterDialog, setShowNewsletterDialog] = useState(false);
@@ -133,8 +135,8 @@ export default function PublicLayout({ children, currentPageName }) {
                     </Link>
                   </li>
                   <li>
-                    <Link to={createPageUrl('PublicArticles')} className="text-slate-300 hover:text-white transition-colors">
-                      Articles
+                    <Link to={getPublicArticlesUrl()} className="text-slate-300 hover:text-white transition-colors">
+                      {articleDisplayName}
                     </Link>
                   </li>
                   <li>

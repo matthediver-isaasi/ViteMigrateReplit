@@ -392,7 +392,9 @@ function _getCurrentPage(url) {
     }
 
     const pageName = Object.keys(PAGES).find(page => page.toLowerCase() === urlLastPart.toLowerCase());
-    return pageName || Object.keys(PAGES)[0];
+    // Return "_DynamicPage" for unrecognized routes (CMS pages like /homely)
+    // This allows Layout to treat them as hybrid pages that handle their own auth
+    return pageName || "_DynamicPage";
 }
 
 // Create a wrapper component that uses useLocation inside the Router context

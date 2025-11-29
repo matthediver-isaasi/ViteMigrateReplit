@@ -18,7 +18,8 @@ import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
 
 export default function ResourceManagementPage() {
-  const { isAdmin, isAccessReady } = useMemberAccess();
+  const { isAdmin, isAccessReady, memberInfo } = useMemberAccess();
+  const organizationId = memberInfo?.organization_id;
   const [accessChecked, setAccessChecked] = useState(false);
   const [editingResource, setEditingResource] = useState(null);
   const [showDialog, setShowDialog] = useState(false);
@@ -107,11 +108,15 @@ export default function ResourceManagementPage() {
   });
 
   const { data: authorSettings } = useQuery({
-    queryKey: ['resource-author-settings'],
+    queryKey: ['resourceAuthorSettings', organizationId],
     queryFn: async () => {
-      const settings = await base44.entities.ResourceAuthorSettings.list();
+      if (!organizationId) return null;
+      const settings = await base44.entities.ResourceAuthorSettings.list({
+        filter: { organization_id: organizationId }
+      });
       return settings.length > 0 ? settings[0] : null;
     },
+    enabled: !!organizationId,
     staleTime: 0,
     refetchOnMount: true,
   });

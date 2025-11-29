@@ -13,9 +13,10 @@ import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
 
 export default function ResourceSettingsPage() {
-  const { isAdmin, isAccessReady } = useMemberAccess();
+  const { isAdmin, isAccessReady, memberInfo } = useMemberAccess();
   const [accessChecked, setAccessChecked] = useState(false);
   const queryClient = useQueryClient();
+  const organizationId = memberInfo?.organization_id;
 
   useEffect(() => {
     if (isAccessReady) {
@@ -35,13 +36,17 @@ export default function ResourceSettingsPage() {
   });
 
   const { data: authorSettings, isLoading: settingsLoading } = useQuery({
-    queryKey: ['resourceAuthorSettings'],
+    queryKey: ['resourceAuthorSettings', organizationId],
     queryFn: async () => {
-      const settings = await base44.entities.ResourceAuthorSettings.list();
+      if (!organizationId) return null;
+      const settings = await base44.entities.ResourceAuthorSettings.list({
+        filter: { organization_id: organizationId }
+      });
       return settings.length > 0 ? settings[0] : null;
     },
+    enabled: !!organizationId,
     staleTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: 'always',
   });
 
   const [selectedRoles, setSelectedRoles] = useState([]);
@@ -73,8 +78,9 @@ export default function ResourceSettingsPage() {
           hide_empty_subcategories: hideEmpty
         });
       } else {
-        // Create new settings
+        // Create new settings with organization_id
         return await base44.entities.ResourceAuthorSettings.create({
+          organization_id: organizationId,
           author_role_ids: roleIds,
           description_character_limit: limit,
           show_folders: showFolders,
@@ -84,7 +90,7 @@ export default function ResourceSettingsPage() {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['resourceAuthorSettings'] });
+      queryClient.invalidateQueries({ queryKey: ['resourceAuthorSettings', organizationId] });
       toast.success('Settings saved successfully');
     },
     onError: (error) => {

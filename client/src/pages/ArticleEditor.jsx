@@ -630,7 +630,7 @@ export default function ArticleEditorPage() {
             {/* Categories & Tags */}
             <Card className="border-slate-200 shadow-sm">
               <CardHeader>
-                <CardTitle className="text-base">Organization</CardTitle>
+                <CardTitle className="text-base">Organisation</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <SubcategorySelector 

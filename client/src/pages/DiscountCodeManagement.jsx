@@ -322,7 +322,7 @@ export default function DiscountCodeManagementPage() {
                           {code.organization_id ? (
                             <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200">
                               <Building2 className="w-3 h-3 mr-1" />
-                              {org?.name || 'Organization'}
+                              {org?.name || 'Organisation'}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
@@ -502,16 +502,16 @@ export default function DiscountCodeManagementPage() {
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="organization">Organization (Optional)</Label>
+                    <Label htmlFor="organization">Organisation (Optional)</Label>
                     <Select
                       value={editingCode.organization_id}
                       onValueChange={(value) => setEditingCode({ ...editingCode, organization_id: value })}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Global (all organizations)" />
+                        <SelectValue placeholder="Global (all organisations)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value={null}>Global (all organizations)</SelectItem>
+                        <SelectItem value={null}>Global (all organisations)</SelectItem>
                         {organizations.map(org => (
                           <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
                         ))}
@@ -562,7 +562,7 @@ export default function DiscountCodeManagementPage() {
                       placeholder="Unlimited"
                     />
                     <p className="text-xs text-slate-500">
-                      {editingCode.organization_id ? 'Per organization' : 'Total across all organizations'}
+                      {editingCode.organization_id ? 'Per organisation' : 'Total across all organisations'}
                     </p>
                   </div>
                 </div>

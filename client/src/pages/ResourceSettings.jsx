@@ -249,7 +249,7 @@ export default function ResourceSettingsPage() {
                       Show Folder Management
                     </Label>
                     <p className="text-xs text-slate-500 mt-1">
-                      Enable folder organization in the Resource Management page
+                      Enable folder organisation in the Resource Management page
                     </p>
                   </div>
                 </div>

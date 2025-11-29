@@ -115,7 +115,7 @@ export default function OrganisationDirectorySettingsPage() {
         await base44.entities.SystemSettings.create({
           setting_key: 'org_directory_show_logo',
           setting_value: showLogo.toString(),
-          description: 'Show organization logo on directory cards'
+          description: 'Show organisation logo on directory cards'
         });
       }
 
@@ -128,7 +128,7 @@ export default function OrganisationDirectorySettingsPage() {
         await base44.entities.SystemSettings.create({
           setting_key: 'org_directory_show_title',
           setting_value: showTitle.toString(),
-          description: 'Show organization title on directory cards'
+          description: 'Show organisation title on directory cards'
         });
       }
 
@@ -141,7 +141,7 @@ export default function OrganisationDirectorySettingsPage() {
         await base44.entities.SystemSettings.create({
           setting_key: 'org_directory_show_domains',
           setting_value: showDomains.toString(),
-          description: 'Show organization domains on directory cards'
+          description: 'Show organisation domains on directory cards'
         });
       }
 
@@ -167,7 +167,7 @@ export default function OrganisationDirectorySettingsPage() {
         await base44.entities.SystemSettings.create({
           setting_key: 'org_directory_excluded_orgs',
           setting_value: JSON.stringify(excludedOrgIds),
-          description: 'List of organization IDs excluded from the directory'
+          description: 'List of organisation IDs excluded from the directory'
         });
       }
     },

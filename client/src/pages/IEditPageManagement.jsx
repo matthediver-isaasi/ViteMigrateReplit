@@ -389,7 +389,7 @@ export default function IEditPageManagementPage() {
                       slug: newPage.slug === '' ? title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') : newPage.slug
                     });
                   }}
-                  placeholder="e.g., About Our Organization"
+                  placeholder="e.g., About Our Organisation"
                 />
               </div>
 
@@ -399,7 +399,7 @@ export default function IEditPageManagementPage() {
                   id="slug"
                   value={newPage.slug}
                   onChange={(e) => setNewPage({ ...newPage, slug: e.target.value.toLowerCase() })}
-                  placeholder="e.g., about-our-organization"
+                  placeholder="e.g., about-our-organisation"
                 />
                 <p className="text-xs text-slate-500 mt-1">
                   Lowercase letters, numbers, and hyphens only

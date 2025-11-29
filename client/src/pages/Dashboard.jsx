@@ -50,7 +50,7 @@ export default function DashboardPage() {
     {
       icon: Wallet,
       title: "Account Balances",
-      description: "Monitor your organization's training fund balance and available vouchers. Keep track of your professional development budget.",
+      description: "Monitor your organisation's training fund balance and available vouchers. Keep track of your professional development budget.",
       link: createPageUrl('Balances'),
       linkText: "View Balances",
       color: "indigo"
@@ -59,7 +59,7 @@ export default function DashboardPage() {
 
   const steps = [
     "Browse available events and filter by program",
-    "Check your organization's available tickets and vouchers",
+    "Check your organisation's available tickets and vouchers",
     "Register yourself or colleagues for events",
     "Manage your bookings and track attendance"
   ];

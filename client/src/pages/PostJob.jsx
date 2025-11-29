@@ -563,7 +563,7 @@ export default function PostJobPage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="company_name">Company/Organization *</Label>
+                <Label htmlFor="company_name">Company/Organisation *</Label>
                 <Input
                   id="company_name"
                   placeholder="e.g., University of Example"
@@ -575,7 +575,7 @@ export default function PostJobPage() {
 
                 {isLoggedIn && organizationInfo &&
                 <p className="text-xs text-slate-500">
-                    Your organization details are automatically filled from your member profile
+                    Your organisation details are automatically filled from your member profile
                   </p>
                 }
               </div>

@@ -422,9 +422,9 @@ export default function GuestWriterManagementPage() {
                 />
               </div>
 
-              {/* Organization */}
+              {/* Organisation */}
               <div className="space-y-2">
-                <Label htmlFor="organization">Organization</Label>
+                <Label htmlFor="organization">Organisation</Label>
                 <Input
                   id="organization"
                   value={formData.organization}

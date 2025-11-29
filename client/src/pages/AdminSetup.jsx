@@ -204,7 +204,7 @@ export default function AdminSetupPage() {
       } else {
         setSingleOrgSyncResult({
           success: false,
-          error: 'Please select an organization or enter a Zoho Account ID'
+          error: 'Please select an organisation or enter a Zoho Account ID'
         });
         setSingleOrgSyncLoading(false);
         return;
@@ -361,7 +361,7 @@ export default function AdminSetupPage() {
                   <p><strong>This will allow the app to:</strong></p>
                   <ul className="list-disc list-inside space-y-1 ml-2">
                     <li>Search and validate member contacts in Zoho CRM</li>
-                    <li>Access organization and account information</li>
+                    <li>Access organisation and account information</li>
                     <li>Sync events from Zoho Backstage</li>
                     <li>Create registrations and manage bookings</li>
                   </ul>
@@ -579,7 +579,7 @@ export default function AdminSetupPage() {
                 CRM Data Sync
               </CardTitle>
               <CardDescription>
-                Sync organizations and members from Zoho CRM. This ensures the app has the latest data from your CRM.
+                Sync organisations and members from Zoho CRM. This ensures the app has the latest data from your CRM.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -598,7 +598,7 @@ export default function AdminSetupPage() {
                           <div className="flex items-center gap-2">
                             <Building2 className="w-4 h-4" />
                             <span>
-                              Organizations: {crmSyncResult.organizations?.total_fetched || 0} fetched, 
+                              Organisations: {crmSyncResult.organizations?.total_fetched || 0} fetched, 
                               {' '}{crmSyncResult.organizations?.created || 0} created, 
                               {' '}{crmSyncResult.organizations?.updated || 0} updated
                             </span>
@@ -609,7 +609,7 @@ export default function AdminSetupPage() {
                               Members: {crmSyncResult.members?.total_fetched || 0} fetched, 
                               {' '}{crmSyncResult.members?.created || 0} created, 
                               {' '}{crmSyncResult.members?.updated || 0} updated,
-                              {' '}{crmSyncResult.members?.linked_to_org || 0} linked to organizations
+                              {' '}{crmSyncResult.members?.linked_to_org || 0} linked to organisations
                             </span>
                           </div>
                         </div>
@@ -642,7 +642,7 @@ export default function AdminSetupPage() {
                 ) : (
                   <>
                     <RefreshCw className="w-5 h-5 mr-2" />
-                    Sync Organizations & Members from CRM
+                    Sync Organisations & Members from CRM
                   </>
                 )}
               </Button>
@@ -652,9 +652,9 @@ export default function AdminSetupPage() {
                   <strong>Note:</strong> This sync is one-way from Zoho CRM to the app. It will:
                 </p>
                 <ul className="text-xs text-blue-700 mt-1 list-disc list-inside ml-2">
-                  <li>Fetch all organizations (accounts) from Zoho CRM</li>
+                  <li>Fetch all organisations (accounts) from Zoho CRM</li>
                   <li>Fetch all contacts and create/update member records</li>
-                  <li>Link members to their organizations based on CRM data</li>
+                  <li>Link members to their organisations based on CRM data</li>
                 </ul>
               </div>
             </CardContent>
@@ -666,10 +666,10 @@ export default function AdminSetupPage() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Building2 className="w-5 h-5" />
-                Test Individual Organization Sync
+                Test Individual Organisation Sync
               </CardTitle>
               <CardDescription>
-                Sync a single organization from Zoho CRM to test the integration is working correctly.
+                Sync a single organisation from Zoho CRM to test the integration is working correctly.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -684,7 +684,7 @@ export default function AdminSetupPage() {
                       <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0 mt-0.5" />
                       <div className="w-full">
                         <h3 className="font-semibold text-green-900 mb-2">
-                          Organization {singleOrgSyncResult.action === 'created' ? 'Created' : 'Updated'}
+                          Organisation {singleOrgSyncResult.action === 'created' ? 'Created' : 'Updated'}
                         </h3>
                         <div className="space-y-1 text-sm text-green-700">
                           <p><strong>Name:</strong> {singleOrgSyncResult.organization?.name}</p>
@@ -740,11 +740,11 @@ export default function AdminSetupPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="org-select" className="text-sm font-medium">
-                    Select an existing organization:
+                    Select an existing organisation:
                   </Label>
                   <div className="space-y-2">
                     <Input
-                      placeholder="Search organizations..."
+                      placeholder="Search organisations..."
                       value={orgSearchTerm}
                       onChange={(e) => setOrgSearchTerm(e.target.value)}
                       className="w-full"
@@ -758,12 +758,12 @@ export default function AdminSetupPage() {
                       }}
                     >
                       <SelectTrigger data-testid="select-organization">
-                        <SelectValue placeholder="Choose an organization..." />
+                        <SelectValue placeholder="Choose an organisation..." />
                       </SelectTrigger>
                       <SelectContent>
                         {filteredOrganizations.length === 0 ? (
                           <div className="p-2 text-sm text-slate-500">
-                            {orgSearchTerm ? 'No organizations match your search' : 'No organizations found'}
+                            {orgSearchTerm ? 'No organisations match your search' : 'No organisations found'}
                           </div>
                         ) : (
                           filteredOrganizations.map(org => (
@@ -809,7 +809,7 @@ export default function AdminSetupPage() {
                     data-testid="input-zoho-account-id"
                   />
                   <p className="text-xs text-slate-500">
-                    Use this to sync an organization that doesn't exist in the app yet
+                    Use this to sync an organisation that doesn't exist in the app yet
                   </p>
                 </div>
               </div>
@@ -824,12 +824,12 @@ export default function AdminSetupPage() {
                 {singleOrgSyncLoading ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Syncing Organization...
+                    Syncing Organisation...
                   </>
                 ) : (
                   <>
                     <Search className="w-5 h-5 mr-2" />
-                    Sync Selected Organization
+                    Sync Selected Organisation
                   </>
                 )}
               </Button>
@@ -837,7 +837,7 @@ export default function AdminSetupPage() {
               <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
                 <p className="text-xs text-amber-800">
                   <strong>Testing tip:</strong> Use this to verify CRM sync is working before running a full sync. 
-                  This will sync both the organization data AND all members (contacts) belonging to that organization from Zoho CRM.
+                  This will sync both the organisation data AND all members (contacts) belonging to that organisation from Zoho CRM.
                 </p>
               </div>
             </CardContent>

@@ -117,9 +117,9 @@ export default function TeamInviteSettingsPage() {
               <Label className="text-xs text-slate-600 mb-2 block">Example Webhook Payload</Label>
               <pre className="text-xs text-slate-700 overflow-x-auto">
 {`{
-  "email": "newmember@organization.com",
+  "email": "newmember@organisation.com",
   "inviterName": "John Doe",
-  "inviterEmail": "john@organization.com",
+  "inviterEmail": "john@organisation.com",
   "timestamp": "2025-01-17T10:30:00.000Z"
 }`}
               </pre>
@@ -131,7 +131,7 @@ export default function TeamInviteSettingsPage() {
                 <p className="font-medium mb-1">Important Notes:</p>
                 <ul className="list-disc list-inside space-y-1 text-amber-800">
                   <li>The webhook must accept POST requests with JSON body</li>
-                  <li>Invitations can only be sent to email addresses matching the organization's domain</li>
+                  <li>Invitations can only be sent to email addresses matching the organisation's domain</li>
                   <li>The webhook is responsible for sending the actual invitation email</li>
                 </ul>
               </div>

@@ -347,10 +347,10 @@ export default function JobPostingManagementPage() {
               </div>
               <Select value={organizationFilter} onValueChange={setOrganizationFilter}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Filter by organization" />
+                  <SelectValue placeholder="Filter by organisation" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All Organizations</SelectItem>
+                  <SelectItem value="all">All Organisations</SelectItem>
                   <SelectItem value="non-member">Non-Member Posts</SelectItem>
                   {organizationsWithJobs.map(org => (
                     <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
@@ -686,7 +686,7 @@ export default function JobPostingManagementPage() {
                   </div>
                   {selectedJob.posted_by_organization_name && (
                     <div className="md:col-span-2">
-                      <p className="text-sm text-slate-500">Member Organization</p>
+                      <p className="text-sm text-slate-500">Member Organisation</p>
                       <p className="font-medium">{selectedJob.posted_by_organization_name}</p>
                     </div>
                   )}

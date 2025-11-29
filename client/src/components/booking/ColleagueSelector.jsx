@@ -187,7 +187,7 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
     return (
       <div className="p-4 border border-slate-200 rounded-lg bg-slate-50 text-center">
         <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
-        <p className="text-sm text-slate-600">Syncing organization contacts...</p>
+        <p className="text-sm text-slate-600">Syncing organisation contacts...</p>
         <p className="text-xs text-slate-500 mt-1">This may take a moment</p>
       </div>
     );

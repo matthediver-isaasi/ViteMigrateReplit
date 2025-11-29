@@ -36,7 +36,7 @@ const FIELD_TYPES = [
   { value: 'file', label: 'File Upload' },
   { value: 'user_name', label: 'User Name (Auto)' },
   { value: 'user_email', label: 'User Email (Auto)' },
-  { value: 'user_organization', label: 'User Organization (Auto)' },
+  { value: 'user_organization', label: 'User Organisation (Auto)' },
   { value: 'user_job_title', label: 'User Job Title (Auto)' },
 ];
 

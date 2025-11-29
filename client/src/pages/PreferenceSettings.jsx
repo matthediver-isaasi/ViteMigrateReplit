@@ -12,7 +12,7 @@ import { createPageUrl } from "@/utils";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 
 const DEFAULT_SECTION_ORDER = [
-  { id: 'organization_logo', label: 'Organization Logo', icon: Building2, description: 'Organization branding and logo upload (shown to org members only)', visible: true },
+  { id: 'organization_logo', label: 'Organisation Logo', icon: Building2, description: 'Organisation branding and logo upload (shown to org members only)', visible: true },
   { id: 'profile_information', label: 'Profile Information', icon: User, description: 'Personal details, photo, biography and contact information', visible: true },
   { id: 'engagement', label: 'Engagement', icon: BarChart3, description: 'Activity statistics, awards, and group memberships', visible: true },
   { id: 'resource_interests', label: 'Resource Interests', icon: FolderHeart, description: 'Content category preferences and subscriptions', visible: true }

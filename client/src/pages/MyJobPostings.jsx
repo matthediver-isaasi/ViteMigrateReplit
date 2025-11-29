@@ -217,7 +217,7 @@ export default function MyJobPostingsPage() {
             </Button>
           </div>
           <p className="text-slate-600">
-            Manage your organization's job postings
+            Manage your organisation's job postings
           </p>
         </div>
 

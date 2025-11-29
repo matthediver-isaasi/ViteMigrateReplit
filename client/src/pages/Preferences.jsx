@@ -470,11 +470,11 @@ export default function PreferencesPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["organization"] });
-      toast.success("Organization logo updated successfully");
+      toast.success("Organisation logo updated successfully");
       setHasUnsavedOrgLogo(false);
     },
     onError: () => {
-      toast.error("Failed to update organization logo");
+      toast.error("Failed to update organisation logo");
     },
   });
 
@@ -683,9 +683,9 @@ export default function PreferencesPage() {
         return (
           <Card key="organization_logo" className="border-slate-200 shadow-sm">
             <CardHeader>
-              <CardTitle>Organization Logo</CardTitle>
+              <CardTitle>Organisation Logo</CardTitle>
               <CardDescription>
-                Upload your organization's logo for the directory
+                Upload your organisation's logo for the directory
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -696,7 +696,7 @@ export default function PreferencesPage() {
                     {organizationLogoUrl ? (
                       <img
                         src={organizationLogoUrl}
-                        alt="Organization Logo"
+                        alt="Organisation Logo"
                         className="w-full h-full object-contain"
                       />
                     ) : (

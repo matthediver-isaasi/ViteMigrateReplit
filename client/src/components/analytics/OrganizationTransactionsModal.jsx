@@ -396,7 +396,7 @@ export default function OrganizationTransactionsModal({
                   <div className="text-sm">
                     <p className="font-medium text-amber-900 mb-1">Important:</p>
                     <p className="text-amber-800">
-                      This will void the selected tickets from this purchase. The tickets will be removed from the organization's available balance. You can reinstate them later if needed.
+                      This will void the selected tickets from this purchase. The tickets will be removed from the organisation's available balance. You can reinstate them later if needed.
                     </p>
                   </div>
                 </div>
@@ -474,7 +474,7 @@ export default function OrganizationTransactionsModal({
                   <div className="text-sm">
                     <p className="font-medium text-green-900 mb-1">Reinstate Transaction</p>
                     <p className="text-green-800">
-                      This will reverse the cancellation and restore the tickets back to the organization's available balance.
+                      This will reverse the cancellation and restore the tickets back to the organisation's available balance.
                     </p>
                   </div>
                 </div>

@@ -157,7 +157,7 @@ export default function VoucherSelector({ organizationId, selectedVouchers, onVo
       <div className="p-4 rounded-lg border border-amber-200 bg-amber-50">
         <div className="flex items-start gap-2 text-sm text-amber-600">
           <AlertCircle className="w-4 h-4 mt-0.5" />
-          <span>Organization information not available</span>
+          <span>Organisation information not available</span>
         </div>
       </div>
     );

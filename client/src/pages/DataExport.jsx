@@ -98,7 +98,7 @@ export default function DataExportPage() {
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
               <h3 className="text-sm font-semibold text-blue-900 mb-2">What will be exported:</h3>
               <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
-                <li>All member and organization data</li>
+                <li>All member and organisation data</li>
                 <li>Events, bookings, and program tickets</li>
                 <li>Resources, articles, and news posts</li>
                 <li>Roles, permissions, and settings</li>

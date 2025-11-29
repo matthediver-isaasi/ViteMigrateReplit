@@ -294,7 +294,7 @@ export default function MemberDirectoryPage() {
               </h1>
             </div>
             <p className="text-slate-600">
-              {filteredAndSortedMembers.length} {filteredAndSortedMembers.length === 1 ? 'member' : 'members'} across all organizations
+              {filteredAndSortedMembers.length} {filteredAndSortedMembers.length === 1 ? 'member' : 'members'} across all organisations
             </p>
           </div>
 
@@ -305,7 +305,7 @@ export default function MemberDirectoryPage() {
                   <div className="flex-1 relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <Input
-                      placeholder="Search by name, email, job title, or organization..."
+                      placeholder="Search by name, email, job title, or organisation..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-10"

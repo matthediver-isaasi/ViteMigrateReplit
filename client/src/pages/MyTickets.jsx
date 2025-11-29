@@ -25,7 +25,7 @@ import { useMemberAccess } from "@/hooks/useMemberAccess";
 
 const ZOHO_PUBLIC_BACKSTAGE_SUBDOMAIN = "agcasevents";
 
-export default function MyTicketsPage() {
+export default function MyTicketsPage({ hasBanner }) {
   const { memberInfo, memberRole, reloadMemberInfo } = useMemberAccess();
   const [cancellingTicketId, setCancellingTicketId] = React.useState(null);
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
@@ -250,19 +250,22 @@ export default function MyTicketsPage() {
       )}
 
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
-              My Tickets
-            </h1>
-            {shouldShowTours && (
-              <TourButton onClick={handleStartTour} />
-            )}
+        {/* Header - hidden when custom banner is present */}
+        {!hasBanner && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
+                My Tickets
+              </h1>
+              {shouldShowTours && (
+                <TourButton onClick={handleStartTour} />
+              )}
+            </div>
+            <p className="text-slate-600">
+              Events you are registered to attend
+            </p>
           </div>
-          <p className="text-slate-600">
-            Events you are registered to attend
-          </p>
-        </div>
+        )}
 
         {isLoading ? (
           <div className="space-y-6">

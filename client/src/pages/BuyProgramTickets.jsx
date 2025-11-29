@@ -121,7 +121,8 @@ export default function BuyProgramTicketsPage({
   refreshOrganizationInfo, 
   isFeatureExcluded,
   memberRole,
-  reloadMemberInfo
+  reloadMemberInfo,
+  hasBanner
 }) {
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [quantity, setQuantity] = useState(1);
@@ -821,22 +822,24 @@ export default function BuyProgramTicketsPage({
       <div className="max-w-7xl mx-auto">
         {!selectedProgram ? (
           <>
-            {/* Program Selection View */}
-            <div className="mb-8">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Buy unpacked tickets</h1>
-                  {/*
-                  <p className="text-slate-600">
-                    Purchase tickets for specific programs that can be used for any event in that program
-                  </p>
-                  */}
+            {/* Program Selection View - Header hidden when custom banner is present */}
+            {!hasBanner && (
+              <div className="mb-8">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Buy unpacked tickets</h1>
+                    {/*
+                    <p className="text-slate-600">
+                      Purchase tickets for specific programs that can be used for any event in that program
+                    </p>
+                    */}
+                  </div>
+                  {shouldShowTours && (
+                    <TourButton onClick={handleStartListTour} />
+                  )}
                 </div>
-                {shouldShowTours && (
-                  <TourButton onClick={handleStartListTour} />
-                )}
               </div>
-            </div>
+            )}
 
             <Card id="total-tickets-summary-card" className="border-slate-200 shadow-sm bg-gradient-to-br from-purple-50 to-blue-50 mb-8">
               <CardContent className="p-6">

@@ -15,7 +15,7 @@ import { toast } from "sonner";
 import { sendTeamMemberInvite } from "@/api/functions";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function TeamPage() {
+export default function TeamPage({ hasBanner }) {
   const { memberInfo, organizationInfo, isAdmin } = useMemberAccess();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -382,31 +382,34 @@ export default function TeamPage() {
     <TooltipProvider delayDuration={100}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-3">
-                <Users className="w-8 h-8 text-blue-600" />
-                <div>
-                  <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
-                    Team Directory
-                  </h1>
-                  <p className="text-slate-600">
-                    {organizationInfo?.name && `${organizationInfo.name} - `}
-                    {filteredMembers.length} {filteredMembers.length === 1 ? 'member' : 'members'}
-                  </p>
+          {/* Header - hidden when custom banner is present */}
+          {!hasBanner && (
+            <div className="mb-8">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-3">
+                  <Users className="w-8 h-8 text-blue-600" />
+                  <div>
+                    <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
+                      Team Directory
+                    </h1>
+                    <p className="text-slate-600">
+                      {organizationInfo?.name && `${organizationInfo.name} - `}
+                      {filteredMembers.length} {filteredMembers.length === 1 ? 'member' : 'members'}
+                    </p>
+                  </div>
                 </div>
+                {isAdmin && (
+                  <Button
+                    onClick={() => setShowInviteDialog(true)}
+                    className="bg-blue-600 hover:bg-blue-700"
+                  >
+                    <UserPlus className="w-4 h-4 mr-2" />
+                    Invite Member
+                  </Button>
+                )}
               </div>
-              {isAdmin && (
-                <Button
-                  onClick={() => setShowInviteDialog(true)}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <UserPlus className="w-4 h-4 mr-2" />
-                  Invite Member
-                </Button>
-              )}
             </div>
-          </div>
+          )}
 
           {/* Search and Filter Card */}
           <Card className="mb-6 border-slate-200">

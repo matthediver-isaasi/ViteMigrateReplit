@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { useResourceRealtime } from "@/hooks/useResourceRealtime";
 
-export default function ResourcesPage() {
+export default function ResourcesPage({ hasBanner }) {
   const { memberInfo, memberRole, isAdmin } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
@@ -285,31 +285,34 @@ export default function ResourcesPage() {
       `}</style>
       
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-                Resources
-              </h1>
-              <p className="text-slate-600">
-                Explore helpful resources curated for you
-              </p>
+        {/* Header - hidden when custom banner is present */}
+        {!hasBanner && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
+                  Resources
+                </h1>
+                <p className="text-slate-600">
+                  Explore helpful resources curated for you
+                </p>
+              </div>
+              <Button
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ['resources'] });
+                  toast.success('Refreshing resources...');
+                }}
+                variant="outline"
+                className="gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+                Force Refresh
+              </Button>
             </div>
-            <Button
-              onClick={() => {
-                queryClient.invalidateQueries({ queryKey: ['resources'] });
-                toast.success('Refreshing resources...');
-              }}
-              variant="outline"
-              className="gap-2"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Force Refresh
-            </Button>
           </div>
-        </div>
+        )}
 
         <div className="flex flex-col lg:flex-row gap-8">
           <div className="lg:w-64 flex-shrink-0">

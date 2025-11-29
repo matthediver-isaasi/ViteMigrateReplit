@@ -53,7 +53,7 @@ async function uploadImageToSupabase(file, bucket, folderPrefix = "") {
   return publicData.publicUrl;
 }
 
-export default function PreferencesPage() {
+export default function PreferencesPage({ hasBanner }) {
   // Resource prefs
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -1310,14 +1310,17 @@ export default function PreferencesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-            Preferences
-          </h1>
-          <p className="text-slate-600">
-            Manage your profile and content preferences
-          </p>
-        </div>
+        {/* Header - hidden when custom banner is present */}
+        {!hasBanner && (
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
+              Preferences
+            </h1>
+            <p className="text-slate-600">
+              Manage your profile and content preferences
+            </p>
+          </div>
+        )}
 
         {sectionOrder.map((sectionId) => renderSection(sectionId))}
       </div>

@@ -24,7 +24,7 @@ import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function BookingsPage() {
+export default function BookingsPage({ hasBanner }) {
   const { memberInfo, memberRole } = useMemberAccess();
   const [cancellingTicketId, setCancellingTicketId] = React.useState(null);
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
@@ -214,19 +214,22 @@ export default function BookingsPage() {
       )}
 
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
-              Bookings
-            </h1>
-            {shouldShowTours && (
-              <TourButton onClick={handleStartTour} />
-            )}
+        {/* Header - hidden when custom banner is present */}
+        {!hasBanner && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
+                Bookings
+              </h1>
+              {shouldShowTours && (
+                <TourButton onClick={handleStartTour} />
+              )}
+            </div>
+            <p className="text-slate-600">
+              View and manage your event registrations
+            </p>
           </div>
-          <p className="text-slate-600">
-            View and manage your event registrations
-          </p>
-        </div>
+        )}
 
         {isLoading ? (
           <div className="grid md:grid-cols-2 gap-6">

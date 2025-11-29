@@ -14,7 +14,7 @@ import { Loader2, User, Mail, FileText, Trophy, Search, Users, Shield, Calendar,
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function MemberDirectoryPage() {
+export default function MemberDirectoryPage({ hasBanner }) {
   const { memberInfo, isFeatureExcluded } = useMemberAccess();
   
   // Check if user can see the "Show disabled accounts" toggle
@@ -286,17 +286,20 @@ export default function MemberDirectoryPage() {
     <TooltipProvider delayDuration={100}>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
-              <Users className="w-8 h-8 text-blue-600" />
-              <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
-                Member Directory
-              </h1>
+          {/* Header - hidden when custom banner is present */}
+          {!hasBanner && (
+            <div className="mb-8">
+              <div className="flex items-center gap-3 mb-2">
+                <Users className="w-8 h-8 text-blue-600" />
+                <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
+                  Member Directory
+                </h1>
+              </div>
+              <p className="text-slate-600">
+                {filteredAndSortedMembers.length} {filteredAndSortedMembers.length === 1 ? 'member' : 'members'} across all organisations
+              </p>
             </div>
-            <p className="text-slate-600">
-              {filteredAndSortedMembers.length} {filteredAndSortedMembers.length === 1 ? 'member' : 'members'} across all organisations
-            </p>
-          </div>
+          )}
 
           <Card className="mb-6 border-slate-200">
             <CardContent className="p-4">

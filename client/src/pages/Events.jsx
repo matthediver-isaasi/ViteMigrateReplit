@@ -17,6 +17,7 @@ export default function EventsPage({
   memberInfo,
   memberRole,
   reloadMemberInfo,
+  hasBanner,
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
@@ -182,17 +183,19 @@ export default function EventsPage({
       )}
 
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
-              Register your tickets
-            </h1>
-            {shouldShowTours && typeof handleStartTour === "function" && (
-              <TourButton onClick={handleStartTour} />
-            )}
+        {/* Header - hidden when custom banner is present */}
+        {!hasBanner && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
+                Register your tickets
+              </h1>
+              {shouldShowTours && typeof handleStartTour === "function" && (
+                <TourButton onClick={handleStartTour} />
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Search and Filters */}
         {!isFeatureExcluded?.("element_EventsSearch") && (

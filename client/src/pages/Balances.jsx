@@ -8,7 +8,7 @@ import { Wallet, Ticket, Calendar, AlertCircle } from "lucide-react";
 import { format, differenceInDays } from "date-fns";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function BalancesPage() {
+export default function BalancesPage({ hasBanner }) {
   const { memberInfo, organizationInfo } = useMemberAccess();
   const { data: vouchers = [], isLoading } = useQuery({
     queryKey: ['vouchers', organizationInfo?.id],
@@ -44,15 +44,17 @@ export default function BalancesPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-            Account Balances
-          </h1>
-          <p className="text-slate-600">
-            View your organization's training fund and voucher balances
-          </p>
-        </div>
+        {/* Header - hidden when custom banner is present */}
+        {!hasBanner && (
+          <div className="mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
+              Account Balances
+            </h1>
+            <p className="text-slate-600">
+              View your organization's training fund and voucher balances
+            </p>
+          </div>
+        )}
 
         <div className="grid lg:grid-cols-2 gap-6 mb-8">
           {/* Training Fund Card */}

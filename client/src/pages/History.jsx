@@ -13,7 +13,7 @@ import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 
-export default function HistoryPage() {
+export default function HistoryPage({ hasBanner }) {
   const { memberInfo, organizationInfo, memberRole, isFeatureExcluded, reloadMemberInfo, refreshOrganizationInfo } = useMemberAccess();
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [downloadingInvoice, setDownloadingInvoice] = useState(null);
@@ -192,19 +192,21 @@ export default function HistoryPage() {
       }
 
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900" id="history-page-title">
-              History
-            </h1>
-            {shouldShowTours &&
-            <TourButton onClick={handleStartTour} />
-            }
+        {/* Header - hidden when custom banner is present */}
+        {!hasBanner && (
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-2">
+              <h1 className="text-3xl md:text-4xl font-bold text-slate-900" id="history-page-title">
+                History
+              </h1>
+              {shouldShowTours &&
+              <TourButton onClick={handleStartTour} />
+              }
+            </div>
+            <p className="text-slate-600">View your organisation's program ticket balances and transaction history
+            </p>
           </div>
-          <p className="text-slate-600">View your organisation's program ticket balances and transaction history
-
-          </p>
-        </div>
+        )}
 
         {/* Program Balance Cards */}
         {programs.length > 0 ?

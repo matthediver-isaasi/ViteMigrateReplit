@@ -977,7 +977,8 @@ const { data: portalBanner } = useQuery({
           }
         },
         isFeatureExcluded,
-        reloadMemberInfo // Add the new function to props
+        reloadMemberInfo, // Add the new function to props
+        hasBanner: !!portalBanner // Pass banner status to hide page headers when banner is present
       });
     }
     return child;

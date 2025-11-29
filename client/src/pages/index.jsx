@@ -10,7 +10,7 @@ import EventDetails from "./EventDetails";
 
 import BuyProgramTickets from "./BuyProgramTickets";
 
-import VerifyMagicLink from "./VerifyMagicLink";
+// VerifyMagicLink removed - using password authentication instead
 
 import TestLogin from "./TestLogin";
 
@@ -208,7 +208,7 @@ const PAGES = {
     
     BuyProgramTickets: BuyProgramTickets,
     
-    VerifyMagicLink: VerifyMagicLink,
+    // VerifyMagicLink removed - using password authentication
     
     TestLogin: TestLogin,
     

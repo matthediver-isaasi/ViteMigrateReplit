@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [mode, setMode] = useState("login"); // 'login', 'magic-link', 'set-password', 'forgot-password'
+  const [mode, setMode] = useState("login"); // 'login', 'set-password', 'forgot-password'
   const [emailSent, setEmailSent] = useState(false);
   const [passwordStatus, setPasswordStatus] = useState(null);
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -26,10 +26,9 @@ export default function LoginPage() {
       try {
         const response = await fetch('/api/auth/me', { credentials: 'include' });
         if (response.ok) {
-          const member = await response.json();
-          if (member && member.id) {
-            // Already logged in, redirect to default page
-            redirectToLandingPage(member);
+          const data = await response.json();
+          if (data.authenticated && data.member) {
+            redirectToLandingPage(data.member);
           }
         }
       } catch (err) {
@@ -78,29 +77,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleEmailSubmit = async (e) => {
-    e.preventDefault();
-    if (!email) return;
-    
-    setLoading(true);
-    setError("");
-    
-    const status = await checkPasswordStatus(email);
-    setLoading(false);
-    
-    if (!status?.exists) {
-      setError("No account found with this email address.");
-      return;
-    }
-    
-    if (status.hasPassword) {
-      setMode("login");
-    } else {
-      // Member exists but no password - offer to set one
-      setMode("set-password");
-    }
-  };
-
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -123,19 +99,18 @@ export default function LoginPage() {
         sessionStorage.setItem('agcas_member', JSON.stringify(memberInfo));
         
         // Check if temporary password
-        if (data.isTemporaryPassword) {
-          setMode("change-password");
-          setLoading(false);
-          return;
-        }
-        
-        await redirectToLandingPage(data.member);
-      } else {
-        if (data.needsPasswordSetup) {
+        if (data.requiresPasswordChange) {
           setMode("set-password");
+          setPassword("");
         } else {
-          setError(data.error || "Login failed");
+          redirectToLandingPage(data.member);
         }
+      } else if (data.needsPasswordSetup) {
+        // Member exists but no password set - show set password form
+        setMode("set-password");
+        setPassword("");
+      } else {
+        setError(data.error || "Invalid email or password");
       }
     } catch (err) {
       setError("An error occurred. Please try again.");
@@ -147,17 +122,17 @@ export default function LoginPage() {
   const handleSetPassword = async (e) => {
     e.preventDefault();
     setError("");
-    
+
     if (password.length < 8) {
       setError("Password must be at least 8 characters");
       return;
     }
-    
+
     if (password !== confirmPassword) {
       setError("Passwords do not match");
       return;
     }
-    
+
     setLoading(true);
 
     try {
@@ -165,13 +140,21 @@ export default function LoginPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email: email.toLowerCase().trim(), password })
+        body: JSON.stringify({ 
+          email: email.toLowerCase().trim(), 
+          password 
+        })
       });
 
       const data = await response.json();
 
       if (data.success) {
-        await redirectToLandingPage(data.member);
+        // Store member info
+        const sessionExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const memberInfo = { ...data.member, sessionExpiry };
+        sessionStorage.setItem('agcas_member', JSON.stringify(memberInfo));
+        
+        redirectToLandingPage(data.member);
       } else {
         setError(data.error || "Failed to set password");
       }
@@ -208,39 +191,14 @@ export default function LoginPage() {
     }
   };
 
-  const handleMagicLink = async (e) => {
-    e.preventDefault();
-    setError("");
-    setLoading(true);
-
-    try {
-      const response = await base44.functions.invoke('sendMagicLink', { email });
-      
-      if (response.data.success) {
-        setEmailSent(true);
-      } else {
-        setError(response.data.error || 'Unable to send login link');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'An error occurred. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const renderEmailSentSuccess = (type) => (
+  const renderEmailSentSuccess = () => (
     <div className="space-y-4">
       <div className="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
         <CheckCircle2 className="h-5 w-5 text-green-600 mt-0.5 flex-shrink-0" />
         <div>
-          <p className="font-medium text-green-800">
-            {type === 'magic-link' ? 'Check your email!' : 'Reset link sent!'}
-          </p>
+          <p className="font-medium text-green-800">Reset link sent!</p>
           <p className="text-sm text-green-700 mt-1">
-            {type === 'magic-link' 
-              ? "We've sent a secure login link to your email. Click the link to access your account."
-              : "We've sent a password reset link to your email. Click the link to reset your password."
-            }
+            We've sent a password reset link to your email. Click the link to reset your password.
           </p>
         </div>
       </div>
@@ -277,20 +235,18 @@ export default function LoginPage() {
           <CardHeader className="space-y-1 pb-4">
             <CardTitle className="text-2xl font-bold text-center">
               {mode === "login" && "Member Access"}
-              {mode === "magic-link" && "Magic Link Login"}
               {mode === "set-password" && "Create Your Password"}
               {mode === "forgot-password" && "Reset Password"}
             </CardTitle>
             <CardDescription className="text-center">
               {mode === "login" && "Enter your email and password to sign in"}
-              {mode === "magic-link" && "Enter your email to receive a secure login link"}
               {mode === "set-password" && "Create a password for your account"}
               {mode === "forgot-password" && "Enter your email to receive a reset link"}
             </CardDescription>
           </CardHeader>
           <CardContent>
             {emailSent ? (
-              renderEmailSentSuccess(mode === "magic-link" ? "magic-link" : "reset")
+              renderEmailSentSuccess()
             ) : (
               <>
                 {/* Error Message */}
@@ -362,76 +318,16 @@ export default function LoginPage() {
                       )}
                     </Button>
 
-                    <div className="flex items-center justify-between text-sm">
+                    <div className="text-center">
                       <button
                         type="button"
                         onClick={() => setMode("forgot-password")}
-                        className="text-blue-600 hover:text-blue-800"
+                        className="text-sm text-blue-600 hover:text-blue-800"
                         data-testid="link-forgot-password"
                       >
                         Forgot password?
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setMode("magic-link")}
-                        className="text-slate-500 hover:text-slate-700"
-                        data-testid="link-magic-link"
-                      >
-                        Use magic link instead
-                      </button>
                     </div>
-                  </form>
-                )}
-
-                {/* Magic Link Form */}
-                {mode === "magic-link" && (
-                  <form onSubmit={handleMagicLink} className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                        <Input
-                          id="email"
-                          type="email"
-                          placeholder="you@example.com"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="pl-10"
-                          required
-                          data-testid="input-email-magic"
-                        />
-                      </div>
-                    </div>
-
-                    <Button
-                      type="submit"
-                      className="w-full"
-                      disabled={loading || !email}
-                      data-testid="button-send-magic-link"
-                    >
-                      {loading ? (
-                        <>
-                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Mail className="mr-2 h-4 w-4" />
-                          Send Magic Link
-                        </>
-                      )}
-                    </Button>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => setMode("login")}
-                      data-testid="button-back-to-password"
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      Use password instead
-                    </Button>
                   </form>
                 )}
 
@@ -516,10 +412,11 @@ export default function LoginPage() {
                       type="button"
                       variant="outline"
                       className="w-full"
-                      onClick={() => { setMode("magic-link"); setPassword(""); setConfirmPassword(""); }}
-                      data-testid="button-use-magic-link-instead"
+                      onClick={() => { setMode("login"); setPassword(""); setConfirmPassword(""); }}
+                      data-testid="button-back-from-set"
                     >
-                      Use magic link instead
+                      <ArrowLeft className="h-4 w-4 mr-2" />
+                      Back to login
                     </Button>
                   </form>
                 )}
@@ -577,16 +474,10 @@ export default function LoginPage() {
           </CardContent>
         </Card>
 
-        {/* Footer link to test login (development only) */}
-        <div className="mt-6 text-center">
-          <a 
-            href="/test-login" 
-            className="text-sm text-slate-400 hover:text-slate-600"
-            data-testid="link-test-login"
-          >
-            Development: Test Login
-          </a>
-        </div>
+        {/* Footer */}
+        <p className="text-center text-sm text-slate-500 mt-6">
+          © {new Date().getFullYear()} AGCAS. All rights reserved.
+        </p>
       </div>
     </div>
   );

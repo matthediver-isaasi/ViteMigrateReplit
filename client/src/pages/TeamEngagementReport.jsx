@@ -4,7 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Search, ArrowUpDown, ArrowUp, ArrowDown, User, Trophy, Calendar, FileText, Briefcase, Users, Clock } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Loader2, Search, ArrowUpDown, ArrowUp, ArrowDown, User, Trophy, Calendar, FileText, Briefcase, Users, Clock, UserX } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 
@@ -14,14 +16,15 @@ export default function TeamEngagementReportPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortField, setSortField] = useState("totalScore");
   const [sortDirection, setSortDirection] = useState("desc");
+  const [includeInactive, setIncludeInactive] = useState(false);
 
-  // Fetch all members from the same organization
+  // Fetch all members from the same organization (include all, filter later based on toggle)
   const { data: teamMembers = [], isLoading: membersLoading } = useQuery({
     queryKey: ['team-members-report', memberInfo?.organization_id],
     queryFn: async () => {
       if (!memberInfo?.organization_id) return [];
       const allMembers = await base44.entities.Member.listAll();
-      return allMembers.filter(m => m.organization_id === memberInfo.organization_id && m.login_enabled !== false);
+      return allMembers.filter(m => m.organization_id === memberInfo.organization_id);
     },
     enabled: !!memberInfo?.organization_id
   });
@@ -61,7 +64,12 @@ export default function TeamEngagementReportPage() {
 
   // Calculate engagement data for all members
   const engagementData = useMemo(() => {
-    return teamMembers.map(member => {
+    // Filter based on includeInactive toggle
+    const membersToProcess = includeInactive 
+      ? teamMembers 
+      : teamMembers.filter(m => m.login_enabled !== false);
+
+    return membersToProcess.map(member => {
       const eventsAttended = allBookings.filter(
         b => b.member_id === member.id && b.status === 'confirmed'
       ).length;
@@ -93,6 +101,7 @@ export default function TeamEngagementReportPage() {
         name: `${member.first_name || ''} ${member.last_name || ''}`.trim() || 'Unknown',
         email: member.email,
         profilePhoto: member.profile_photo_url,
+        isActive: member.login_enabled !== false,
         eventsAttended,
         articlesPublished,
         jobsPosted,
@@ -101,7 +110,7 @@ export default function TeamEngagementReportPage() {
         lastActivity: member.last_activity ? new Date(member.last_activity).getTime() : 0
       };
     });
-  }, [teamMembers, allArticles, allBookings, allJobPostings, awards, offlineAssignments]);
+  }, [teamMembers, allArticles, allBookings, allJobPostings, awards, offlineAssignments, includeInactive]);
 
   // Filter and sort
   const filteredAndSortedData = useMemo(() => {
@@ -175,17 +184,32 @@ export default function TeamEngagementReportPage() {
           </div>
         </div>
 
-        {/* Search */}
+        {/* Search and Filters */}
         <Card className="mb-6 border-slate-200">
           <CardContent className="p-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-              <Input
-                placeholder="Search by name or email..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10"
+                  data-testid="input-search-members"
+                />
+              </div>
+              <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200">
+                <Switch
+                  id="include-inactive"
+                  checked={includeInactive}
+                  onCheckedChange={setIncludeInactive}
+                  data-testid="switch-include-inactive"
+                />
+                <Label htmlFor="include-inactive" className="text-sm text-slate-600 cursor-pointer flex items-center gap-2">
+                  <UserX className="w-4 h-4" />
+                  Include inactive members
+                </Label>
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -281,19 +305,28 @@ export default function TeamEngagementReportPage() {
                       <tr key={member.id} className="hover:bg-slate-50">
                         <td className="p-4">
                           <div className="flex items-center gap-3">
-                            {member.profilePhoto ? (
-                              <img 
-                                src={member.profilePhoto} 
-                                alt={member.name}
-                                className="w-10 h-10 rounded-full object-cover border border-slate-200"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center">
-                                <User className="w-5 h-5 text-slate-400" />
-                              </div>
-                            )}
+                            <div className="relative">
+                              {member.profilePhoto ? (
+                                <img 
+                                  src={member.profilePhoto} 
+                                  alt={member.name}
+                                  className={`w-10 h-10 rounded-full object-cover border ${member.isActive ? 'border-slate-200' : 'border-slate-300 opacity-60'}`}
+                                />
+                              ) : (
+                                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${member.isActive ? 'bg-slate-200' : 'bg-slate-300 opacity-60'}`}>
+                                  <User className="w-5 h-5 text-slate-400" />
+                                </div>
+                              )}
+                            </div>
                             <div>
-                              <div className="font-medium text-slate-900">{member.name}</div>
+                              <div className="flex items-center gap-2">
+                                <span className={`font-medium ${member.isActive ? 'text-slate-900' : 'text-slate-500'}`}>{member.name}</span>
+                                {!member.isActive && (
+                                  <Badge variant="secondary" className="bg-slate-200 text-slate-600 text-xs">
+                                    Inactive
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="text-xs text-slate-500">{member.email}</div>
                             </div>
                           </div>

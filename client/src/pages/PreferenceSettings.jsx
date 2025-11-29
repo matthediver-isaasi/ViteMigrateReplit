@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { GripVertical, Settings, Loader2, Building2, User, BarChart3, FolderHeart, Save, RotateCcw, Eye, EyeOff } from "lucide-react";
+import { GripVertical, Settings, Loader2, Building2, User, BarChart3, FolderHeart, Save, RotateCcw, Eye, EyeOff, Shield } from "lucide-react";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
@@ -14,6 +14,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 const DEFAULT_SECTION_ORDER = [
   { id: 'organization_logo', label: 'Organisation Logo', icon: Building2, description: 'Organisation branding and logo upload (shown to org members only)', visible: true },
   { id: 'profile_information', label: 'Profile Information', icon: User, description: 'Personal details, photo, biography and contact information', visible: true },
+  { id: 'password_security', label: 'Password & Security', icon: Shield, description: 'Change password and account security settings', visible: true },
   { id: 'engagement', label: 'Engagement', icon: BarChart3, description: 'Activity statistics, awards, and group memberships', visible: true },
   { id: 'resource_interests', label: 'Resource Interests', icon: FolderHeart, description: 'Content category preferences and subscriptions', visible: true }
 ];

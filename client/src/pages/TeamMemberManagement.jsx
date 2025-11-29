@@ -386,7 +386,7 @@ export default function TeamMemberManagementPage() {
                   <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <AlertCircle className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                     <p className="text-xs text-blue-800">
-                      After creating this team member, they can log in using the magic link system on the home page.
+                      After creating this team member, they can log in using their email on the login page. On first login, they will be prompted to create a password.
                     </p>
                   </div>
                 )}

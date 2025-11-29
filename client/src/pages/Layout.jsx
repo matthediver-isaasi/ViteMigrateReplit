@@ -741,8 +741,7 @@ useEffect(() => {
   };
 
   useEffect(() => {
-    // Check server session first for multi-tab persistence (password auth)
-    // Falls back to sessionStorage for legacy magic link users
+    // Check server session first for multi-tab persistence
     const checkServerSession = async () => {
       try {
         const response = await fetch('/api/auth/me', { credentials: 'include' });
@@ -792,7 +791,7 @@ useEffect(() => {
         // Member is logged in via sessionStorage, continue to validate
       }
 
-      // Fall back to sessionStorage for legacy magic link users
+      // Fall back to sessionStorage for backward compatibility
       const storedMember = sessionStorage.getItem('agcas_member');
       if (!storedMember) {
         window.location.href = createPageUrl('Home');

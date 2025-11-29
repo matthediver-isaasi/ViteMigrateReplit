@@ -17,7 +17,6 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [mode, setMode] = useState("login"); // 'login', 'set-password', 'forgot-password'
   const [emailSent, setEmailSent] = useState(false);
-  const [passwordStatus, setPasswordStatus] = useState(null);
   const [confirmPassword, setConfirmPassword] = useState("");
 
   // Check if user is already logged in
@@ -59,22 +58,6 @@ export default function LoginPage() {
     sessionStorage.setItem('agcas_member', JSON.stringify(memberInfo));
     
     window.location.href = createPageUrl(landingPage);
-  };
-
-  const checkPasswordStatus = async (emailToCheck) => {
-    try {
-      const response = await fetch('/api/auth/check-password-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailToCheck })
-      });
-      const data = await response.json();
-      setPasswordStatus(data);
-      return data;
-    } catch (err) {
-      console.error('Error checking password status:', err);
-      return null;
-    }
   };
 
   const handleLogin = async (e) => {

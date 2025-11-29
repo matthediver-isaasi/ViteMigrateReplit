@@ -384,6 +384,7 @@ const PAGES = {
 }
 
 function _getCurrentPage(url) {
+    console.log('[_getCurrentPage] Input URL:', url);
     if (url.endsWith('/')) {
         url = url.slice(0, -1);
     }
@@ -391,8 +392,16 @@ function _getCurrentPage(url) {
     if (urlLastPart.includes('?')) {
         urlLastPart = urlLastPart.split('?')[0];
     }
+    console.log('[_getCurrentPage] URL last part:', urlLastPart);
+    
+    // Handle root path - default to Events
+    if (!urlLastPart || urlLastPart === '') {
+        console.log('[_getCurrentPage] Root path detected, returning Events');
+        return 'Events';
+    }
 
     const pageName = Object.keys(PAGES).find(page => page.toLowerCase() === urlLastPart.toLowerCase());
+    console.log('[_getCurrentPage] Matched page name:', pageName || '_DynamicPage');
     // Return "_DynamicPage" for unrecognized routes (CMS pages like /homely)
     // This allows Layout to treat them as hybrid pages that handle their own auth
     return pageName || "_DynamicPage";
@@ -502,6 +511,7 @@ function PagesContent() {
                 <Route path="/NavigationManagement" element={<NavigationManagement />} />
                 
                 <Route path="/Preferences" element={<Preferences />} />
+                <Route path="/preferences" element={<Preferences />} />
                 
                 <Route path="/MyArticles" element={<MyArticles />} />
                 

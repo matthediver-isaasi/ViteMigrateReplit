@@ -54,6 +54,9 @@ async function uploadImageToSupabase(file, bucket, folderPrefix = "") {
 }
 
 export default function PreferencesPage({ hasBanner }) {
+  // Debug logging for hasBanner prop
+  console.log('[Preferences] hasBanner prop received:', hasBanner);
+  
   // Resource prefs
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");

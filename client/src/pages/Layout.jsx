@@ -526,6 +526,8 @@ const { data: portalBanner } = useQuery({
         filter: { is_active: true },
         sort: { display_order: 'asc' }
       });
+      console.log('[Layout] All active banners:', banners);
+      console.log('[Layout] Looking for portal page:', currentPortalPageId);
       // Find first banner that includes this portal page in its associated_pages array
       // Lower display_order takes priority
       const matchingBanner = banners?.find(banner => 
@@ -533,6 +535,7 @@ const { data: portalBanner } = useQuery({
         Array.isArray(banner.associated_pages) && 
         banner.associated_pages.includes(currentPortalPageId)
       );
+      console.log('[Layout] Matching banner found:', matchingBanner);
       return matchingBanner || null;
     } catch (error) {
       console.error('Error loading portal banner:', error);
@@ -540,6 +543,9 @@ const { data: portalBanner } = useQuery({
     }
   },
 });
+
+// Debug logging for banner detection
+console.log('[Layout] currentPageName:', currentPageName, 'portalPageId:', currentPortalPageId, 'hasBanner:', !!portalBanner);
 
 
   const publicPages = ["Home", "VerifyMagicLink", "TestLogin", "UnpackedInternationalEmployability", "PublicEvents", "PublicAbout", "PublicContact", "PublicResources", "PublicArticles", "PublicNews", "sharon", "content"];

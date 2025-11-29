@@ -13,12 +13,13 @@ export function IEditOrganisationDirectoryElementEditor({ element, onChange }) {
     backgroundColor: '#f8fafc',
     showSearch: true,
     showSortFilter: true,
+    showPagination: true,
     showLogo: true,
     showTitle: true,
     showDomains: false,
     showMemberCount: false,
     columns: '3',
-    maxRows: '0',
+    rowsPerPage: '4',
     cardBorderRadius: 8,
     headerText: '',
     headerFontSize: 32,
@@ -102,22 +103,22 @@ export function IEditOrganisationDirectoryElementEditor({ element, onChange }) {
           </Select>
         </div>
         <div>
-          <Label htmlFor="maxRows">Max Rows (0 = all)</Label>
+          <Label htmlFor="rowsPerPage">Rows Per Page</Label>
           <Select
-            value={content.maxRows || '0'}
-            onValueChange={(value) => updateContent('maxRows', value)}
+            value={content.rowsPerPage || '4'}
+            onValueChange={(value) => updateContent('rowsPerPage', value)}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="0">Show All</SelectItem>
-              <SelectItem value="1">1 Row</SelectItem>
               <SelectItem value="2">2 Rows</SelectItem>
               <SelectItem value="3">3 Rows</SelectItem>
               <SelectItem value="4">4 Rows</SelectItem>
               <SelectItem value="5">5 Rows</SelectItem>
               <SelectItem value="6">6 Rows</SelectItem>
+              <SelectItem value="8">8 Rows</SelectItem>
+              <SelectItem value="10">10 Rows</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -161,6 +162,19 @@ export function IEditOrganisationDirectoryElementEditor({ element, onChange }) {
           />
           <Label htmlFor="showSortFilter" className="cursor-pointer">
             Show A-Z / Z-A Sort Filter
+          </Label>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <input
+            type="checkbox"
+            id="showPagination"
+            checked={content.showPagination !== false}
+            onChange={(e) => updateContent('showPagination', e.target.checked)}
+            className="w-4 h-4"
+          />
+          <Label htmlFor="showPagination" className="cursor-pointer">
+            Show Pagination Controls
           </Label>
         </div>
 
@@ -229,12 +243,13 @@ export function IEditOrganisationDirectoryElementRenderer({ content, settings })
     backgroundColor = '#f8fafc',
     showSearch = true,
     showSortFilter = true,
+    showPagination = true,
     showLogo = true,
     showTitle = true,
     showDomains = false,
     showMemberCount = false,
     columns = '3',
-    maxRows = '0',
+    rowsPerPage = '4',
     cardBorderRadius = 8,
     headerText = '',
     headerFontSize = 32,
@@ -318,18 +333,15 @@ export function IEditOrganisationDirectoryElementRenderer({ content, settings })
   }, [organizations, searchQuery, displaySettings?.excludedOrgIds, sortOrder]);
 
   const columnsNum = parseInt(columns) || 3;
-  const maxRowsNum = parseInt(maxRows) || 0;
-  const itemsPerPage = maxRowsNum > 0 ? columnsNum * maxRowsNum : 12;
+  const rowsPerPageNum = parseInt(rowsPerPage) || 4;
+  const itemsPerPage = columnsNum * rowsPerPageNum;
   
-  const totalPages = maxRowsNum === 0 ? Math.ceil(filteredOrganizations.length / itemsPerPage) : 1;
+  const totalPages = Math.ceil(filteredOrganizations.length / itemsPerPage);
   
   const displayedOrganizations = useMemo(() => {
-    if (maxRowsNum > 0) {
-      return filteredOrganizations.slice(0, columnsNum * maxRowsNum);
-    }
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredOrganizations.slice(startIndex, startIndex + itemsPerPage);
-  }, [filteredOrganizations, currentPage, itemsPerPage, maxRowsNum, columnsNum]);
+  }, [filteredOrganizations, currentPage, itemsPerPage]);
 
   const getGridClass = () => {
     switch (columns) {
@@ -499,13 +511,14 @@ export function IEditOrganisationDirectoryElementRenderer({ content, settings })
               })}
             </div>
 
-            {maxRowsNum === 0 && totalPages > 1 && (
+            {showPagination && totalPages > 1 && (
               <div className="mt-6 flex justify-center items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
+                  data-testid="button-prev-page-org-element"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </Button>
@@ -517,6 +530,7 @@ export function IEditOrganisationDirectoryElementRenderer({ content, settings })
                   size="sm"
                   onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
                   disabled={currentPage === totalPages}
+                  data-testid="button-next-page-org-element"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </Button>

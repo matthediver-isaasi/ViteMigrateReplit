@@ -1,17 +1,26 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Building2, Search, Globe, Users, Loader2, ChevronLeft, ChevronRight, ArrowDownAZ, ArrowUpZA } from "lucide-react";
+import { Building2, Search, Globe, Users, Loader2, ChevronLeft, ChevronRight, ArrowDownAZ, ArrowUpZA, Pencil, Trash2, Upload, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { toast } from "sonner";
 
 export default function OrganisationDirectoryPage() {
+  const { isAdmin } = useMemberAccess();
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(12);
-  const [sortOrder, setSortOrder] = useState("asc"); // "asc" for A-Z, "desc" for Z-A
+  const [sortOrder, setSortOrder] = useState("asc");
+  const [editingOrg, setEditingOrg] = useState(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
 
   const { data: organizations = [], isLoading } = useQuery({
     queryKey: ['organizations'],
@@ -137,6 +146,67 @@ export default function OrganisationDirectoryPage() {
     setCurrentPage(1);
   }, [searchQuery]);
 
+  const updateLogoMutation = useMutation({
+    mutationFn: async ({ orgId, logoUrl }) => {
+      return await base44.entities.Organization.update(orgId, { logo_url: logoUrl });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizations'] });
+      toast.success('Logo updated successfully');
+      setEditingOrg(null);
+    },
+    onError: (error) => {
+      toast.error('Failed to update logo: ' + error.message);
+    }
+  });
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file || !editingOrg) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    setIsUploading(true);
+    try {
+      const result = await base44.integrations.Storage.uploadFile({
+        file,
+        folder: 'organisation-logos'
+      });
+      
+      if (result?.url) {
+        updateLogoMutation.mutate({ orgId: editingOrg.id, logoUrl: result.url });
+      }
+    } catch (error) {
+      toast.error('Failed to upload image: ' + error.message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDeleteLogo = () => {
+    if (!editingOrg) return;
+    updateLogoMutation.mutate({ orgId: editingOrg.id, logoUrl: null });
+    setShowDeleteConfirm(false);
+  };
+
+  const openEditDialog = (e, org) => {
+    e.stopPropagation();
+    setEditingOrg(org);
+  };
+
+  const openDeleteConfirm = (e) => {
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
@@ -225,7 +295,7 @@ export default function OrganisationDirectoryPage() {
                 >
                     <CardHeader className="flex flex-col items-center text-center pb-2">
                       {displaySettings?.showLogo && (
-                        <div className="w-[90%] aspect-square rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center mb-3">
+                        <div className="relative w-[90%] aspect-square rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center mb-3 group">
                           {org.logo_url ?
                             <img
                               src={org.logo_url}
@@ -233,6 +303,34 @@ export default function OrganisationDirectoryPage() {
                               className="w-full h-full object-contain" /> :
                             <Building2 className="w-16 h-16 text-slate-400" />
                           }
+                          {isAdmin && (
+                            <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <Button
+                                size="icon"
+                                variant="secondary"
+                                className="h-8 w-8 bg-white/90 hover:bg-white shadow-sm"
+                                onClick={(e) => openEditDialog(e, org)}
+                                data-testid={`button-edit-logo-${org.id}`}
+                              >
+                                <Pencil className="w-4 h-4 text-slate-600" />
+                              </Button>
+                              {org.logo_url && (
+                                <Button
+                                  size="icon"
+                                  variant="secondary"
+                                  className="h-8 w-8 bg-white/90 hover:bg-red-50 shadow-sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingOrg(org);
+                                    setShowDeleteConfirm(true);
+                                  }}
+                                  data-testid={`button-delete-logo-${org.id}`}
+                                >
+                                  <Trash2 className="w-4 h-4 text-red-500" />
+                                </Button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                       {displaySettings?.showTitle !== false && (
@@ -309,6 +407,93 @@ export default function OrganisationDirectoryPage() {
           </>
         }
       </div>
+
+      {/* Edit Logo Dialog */}
+      <Dialog open={!!editingOrg && !showDeleteConfirm} onOpenChange={(open) => !open && setEditingOrg(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Organisation Logo</DialogTitle>
+            <DialogDescription>
+              Upload a new logo for {editingOrg?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <div className="w-32 h-32 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
+                {editingOrg?.logo_url ? (
+                  <img
+                    src={editingOrg.logo_url}
+                    alt={editingOrg.name}
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <Building2 className="w-12 h-12 text-slate-400" />
+                )}
+              </div>
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <Button
+              className="w-full"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || updateLogoMutation.isPending}
+            >
+              {isUploading || updateLogoMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Uploading...
+                </>
+              ) : (
+                <>
+                  <Upload className="w-4 h-4 mr-2" />
+                  Upload New Logo
+                </>
+              )}
+            </Button>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingOrg(null)}>
+              Cancel
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove Logo</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to remove the logo for {editingOrg?.name}? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowDeleteConfirm(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteLogo}
+              disabled={updateLogoMutation.isPending}
+            >
+              {updateLogoMutation.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                'Remove Logo'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>);
 
 }

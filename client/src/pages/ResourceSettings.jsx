@@ -34,12 +34,15 @@ export default function ResourceSettingsPage() {
     refetchOnMount: true,
   });
 
-  const { data: authorSettings, isLoading: settingsLoading } = useQuery({
+  const { data: authorSettings, isLoading: settingsLoading, refetch: refetchSettings } = useQuery({
     queryKey: ['resource-author-settings'],
     queryFn: async () => {
       const settings = await base44.entities.ResourceAuthorSettings.list();
+      console.log('[ResourceSettings] Fetched settings:', settings);
       return settings.length > 0 ? settings[0] : null;
-    }
+    },
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   const [selectedRoles, setSelectedRoles] = useState([]);
@@ -61,24 +64,26 @@ export default function ResourceSettingsPage() {
 
   const saveMutation = useMutation({
     mutationFn: async ({ roleIds, limit, showFolders, socialIcons, hideEmpty }) => {
-      if (authorSettings) {
-        // Update existing settings
-        return await base44.entities.ResourceAuthorSettings.update(authorSettings.id, {
-          author_role_ids: roleIds,
-          description_character_limit: limit,
-          show_folders: showFolders,
-          enabled_social_icons: socialIcons,
-          hide_empty_subcategories: hideEmpty
-        });
+      const payload = {
+        author_role_ids: roleIds,
+        description_character_limit: limit,
+        show_folders: showFolders,
+        enabled_social_icons: socialIcons,
+        hide_empty_subcategories: hideEmpty
+      };
+      
+      // First, always get fresh settings from the database
+      const freshSettings = await base44.entities.ResourceAuthorSettings.list();
+      const currentSettings = freshSettings.length > 0 ? freshSettings[0] : null;
+      
+      console.log('[ResourceSettings] Saving with fresh settings ID:', currentSettings?.id);
+      
+      if (currentSettings) {
+        // Update existing settings using the fresh ID
+        return await base44.entities.ResourceAuthorSettings.update(currentSettings.id, payload);
       } else {
         // Create new settings
-        return await base44.entities.ResourceAuthorSettings.create({
-          author_role_ids: roleIds,
-          description_character_limit: limit,
-          show_folders: showFolders,
-          enabled_social_icons: socialIcons,
-          hide_empty_subcategories: hideEmpty
-        });
+        return await base44.entities.ResourceAuthorSettings.create(payload);
       }
     },
     onSuccess: () => {
@@ -86,6 +91,7 @@ export default function ResourceSettingsPage() {
       toast.success('Settings saved successfully');
     },
     onError: (error) => {
+      console.error('[ResourceSettings] Save error:', error);
       toast.error('Failed to save settings: ' + error.message);
     }
   });

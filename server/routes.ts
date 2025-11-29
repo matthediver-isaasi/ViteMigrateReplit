@@ -246,6 +246,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { entity, id } = req.params;
       const tableName = getTableName(entity);
 
+      console.log(`[Entity PATCH] ${entity}/${id} with payload:`, JSON.stringify(req.body));
+
       const { data, error } = await supabase
         .from(tableName)
         .update(req.body)
@@ -254,9 +256,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (error) {
+        console.error(`[Entity PATCH] ${entity}/${id} error:`, error);
+        // Handle "no rows found" as 404
+        if (error.code === 'PGRST116') {
+          return res.status(404).json({ error: `${entity} with id ${id} not found` });
+        }
         return res.status(500).json({ error: error.message });
       }
 
+      console.log(`[Entity PATCH] ${entity}/${id} success:`, data ? 'updated' : 'no data returned');
       res.json(data);
     } catch (error) {
       console.error('Entity update error:', error);

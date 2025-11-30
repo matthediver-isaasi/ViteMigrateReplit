@@ -20,6 +20,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
+import EventImageUpload from "@/components/events/EventImageUpload";
 
 export default function EditEvent() {
   const queryClient = useQueryClient();
@@ -352,20 +353,10 @@ export default function EditEvent() {
                 </p>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="image_url">Event Image URL</Label>
-                <Input
-                  id="image_url"
-                  type="url"
-                  value={formData.image_url}
-                  onChange={(e) => handleInputChange('image_url', e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  data-testid="input-image-url"
-                />
-                <p className="text-xs text-slate-500">
-                  Optional: Add an image to display on the event card
-                </p>
-              </div>
+              <EventImageUpload
+                value={formData.image_url}
+                onChange={(url) => handleInputChange('image_url', url)}
+              />
             </CardContent>
           </Card>
 

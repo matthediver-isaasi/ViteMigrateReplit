@@ -47,6 +47,7 @@ export default function CreateEvent() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [isOnline, setIsOnline] = useState(false);
+  const [showJoinLink, setShowJoinLink] = useState(false);
   const [selectedWebinarId, setSelectedWebinarId] = useState("");
   const [formData, setFormData] = useState({
     title: "",
@@ -140,14 +141,23 @@ export default function CreateEvent() {
     }
 
     // Build event data - only include fields that exist in the event table
-    // Note: delivery_mode, zoom_webinar_id, online_url columns may need to be added to Supabase
+    // For online events: store URL in location only if showJoinLink is true
+    let locationValue = formData.location;
+    if (isOnline) {
+      if (showJoinLink && formData.online_url) {
+        locationValue = `Online - ${formData.online_url}`;
+      } else {
+        locationValue = 'Online Event';
+      }
+    }
+
     const eventData = {
       title: formData.title,
       description: formData.description || null,
       program_tag: formData.program_tag,
       start_date: formData.start_date,
       end_date: formData.end_date || formData.start_date,
-      location: isOnline ? (formData.online_url ? `Online - ${formData.online_url}` : 'Online Event') : formData.location,
+      location: locationValue,
       image_url: formData.image_url || null,
       available_seats: isOnline ? null : (formData.available_seats ? parseInt(formData.available_seats) : null)
     };

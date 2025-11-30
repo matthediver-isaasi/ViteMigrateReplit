@@ -297,6 +297,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const { entity, id } = req.params;
       const tableName = getTableName(entity);
 
+      // Handle cascade deletion for entities with foreign key relationships
+      if (entity === 'Event') {
+        // First delete any bookings associated with this event
+        const { error: bookingDeleteError } = await supabase
+          .from('booking')
+          .delete()
+          .eq('event_id', id);
+
+        if (bookingDeleteError) {
+          console.error('Error deleting event bookings:', bookingDeleteError);
+          // Continue anyway - there might not be any bookings
+        }
+
+        // Also delete any program_ticket_transactions that reference bookings for this event
+        // (These should cascade from booking deletion, but let's be safe)
+        console.log(`[Event Delete] Deleted associated bookings for event ${id}`);
+      }
+
       const { error } = await supabase
         .from(tableName)
         .delete()

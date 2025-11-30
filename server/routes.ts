@@ -9258,12 +9258,21 @@ AGCAS Events Team
       // Get webinar
       const { data: webinar, error: fetchError } = await supabase
         .from('zoom_webinar')
-        .select('zoom_webinar_id')
+        .select('zoom_webinar_id, status, start_time')
         .eq('id', id)
         .single();
       
       if (fetchError) {
         return res.status(404).json({ error: 'Webinar not found' });
+      }
+      
+      // Validate webinar is scheduled and upcoming
+      if (webinar.status !== 'scheduled') {
+        return res.status(400).json({ error: 'Can only add panelists to scheduled webinars' });
+      }
+      
+      if (new Date(webinar.start_time) <= new Date()) {
+        return res.status(400).json({ error: 'Can only add panelists to upcoming webinars' });
       }
       
       const token = await getZoomAccessToken();
@@ -9329,12 +9338,21 @@ AGCAS Events Team
       // Get panelist and webinar info
       const { data: panelist, error: fetchError } = await supabase
         .from('zoom_webinar_panelist')
-        .select('*, zoom_webinar!inner(zoom_webinar_id)')
+        .select('*, zoom_webinar!inner(zoom_webinar_id, status, start_time)')
         .eq('id', panelistId)
         .single();
       
       if (fetchError) {
         return res.status(404).json({ error: 'Panelist not found' });
+      }
+      
+      // Validate webinar is scheduled and upcoming
+      if (panelist.zoom_webinar.status !== 'scheduled') {
+        return res.status(400).json({ error: 'Can only remove panelists from scheduled webinars' });
+      }
+      
+      if (new Date(panelist.zoom_webinar.start_time) <= new Date()) {
+        return res.status(400).json({ error: 'Can only remove panelists from upcoming webinars' });
       }
       
       // Remove from Zoom if we have the Zoom panelist ID
@@ -9453,12 +9471,21 @@ AGCAS Events Team
       // Get webinar to get Zoom ID
       const { data: webinar, error: fetchError } = await supabase
         .from('zoom_webinar')
-        .select('zoom_webinar_id, registration_required')
+        .select('zoom_webinar_id, registration_required, status, start_time')
         .eq('id', id)
         .single();
       
       if (fetchError) {
         return res.status(404).json({ error: 'Webinar not found' });
+      }
+      
+      // Validate webinar is scheduled and upcoming
+      if (webinar.status !== 'scheduled') {
+        return res.status(400).json({ error: 'Can only add registrants to scheduled webinars' });
+      }
+      
+      if (new Date(webinar.start_time) <= new Date()) {
+        return res.status(400).json({ error: 'Can only add registrants to upcoming webinars' });
       }
       
       if (!webinar.registration_required) {

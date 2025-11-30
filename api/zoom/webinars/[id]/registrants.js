@@ -125,12 +125,21 @@ export default async function handler(req, res) {
       
       const { data: webinar, error: fetchError } = await supabase
         .from('zoom_webinar')
-        .select('zoom_webinar_id, registration_required')
+        .select('zoom_webinar_id, registration_required, status, start_time')
         .eq('id', id)
         .single();
       
       if (fetchError) {
         return res.status(404).json({ error: 'Webinar not found' });
+      }
+      
+      // Validate webinar is scheduled and upcoming
+      if (webinar.status !== 'scheduled') {
+        return res.status(400).json({ error: 'Can only add registrants to scheduled webinars' });
+      }
+      
+      if (new Date(webinar.start_time) <= new Date()) {
+        return res.status(400).json({ error: 'Can only add registrants to upcoming webinars' });
       }
       
       if (!webinar.registration_required) {

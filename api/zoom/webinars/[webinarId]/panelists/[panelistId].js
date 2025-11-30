@@ -71,12 +71,21 @@ export default async function handler(req, res) {
   try {
     const { data: panelist, error: fetchError } = await supabase
       .from('zoom_webinar_panelist')
-      .select('*, zoom_webinar!inner(zoom_webinar_id)')
+      .select('*, zoom_webinar!inner(zoom_webinar_id, status, start_time)')
       .eq('id', panelistId)
       .single();
     
     if (fetchError) {
       return res.status(404).json({ error: 'Panelist not found' });
+    }
+    
+    // Validate webinar is scheduled and upcoming
+    if (panelist.zoom_webinar.status !== 'scheduled') {
+      return res.status(400).json({ error: 'Can only remove panelists from scheduled webinars' });
+    }
+    
+    if (new Date(panelist.zoom_webinar.start_time) <= new Date()) {
+      return res.status(400).json({ error: 'Can only remove panelists from upcoming webinars' });
     }
     
     if (panelist.zoom_panelist_id) {

@@ -94,6 +94,10 @@ export default function ZoomWebinarProvisioning() {
   const [registrants, setRegistrants] = useState([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [loadingRegistrants, setLoadingRegistrants] = useState(false);
+  
+  // States for adding panelists/registrants in details modal
+  const [detailsPanelist, setDetailsPanelist] = useState({ name: "", email: "" });
+  const [detailsRegistrant, setDetailsRegistrant] = useState({ first_name: "", last_name: "", email: "" });
 
   useEffect(() => {
     if (isAccessReady) {
@@ -178,6 +182,79 @@ export default function ZoomWebinarProvisioning() {
     },
     onError: (error) => {
       toast.error('Failed to update webinar: ' + (error.message || 'Unknown error'));
+    }
+  });
+
+  // Add panelist to existing webinar (from details modal)
+  const addPanelistMutation = useMutation({
+    mutationFn: async ({ webinarId, name, email }) => {
+      return apiRequest(`/api/zoom/webinars/${webinarId}/panelists`, {
+        method: 'POST',
+        body: JSON.stringify({ name, email }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: () => {
+      toast.success('Panelist added successfully');
+      setDetailsPanelist({ name: "", email: "" });
+      // Invalidate webinar list cache and refresh details
+      queryClient.invalidateQueries({ queryKey: ['/api/zoom/webinars'] });
+      if (selectedWebinar) {
+        fetchWebinarDetails(selectedWebinar.id);
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to add panelist: ' + (error.message || 'Unknown error'));
+    }
+  });
+
+  // Remove panelist from webinar
+  const removePanelistMutation = useMutation({
+    mutationFn: async ({ webinarId, panelistId }) => {
+      return apiRequest(`/api/zoom/webinars/${webinarId}/panelists/${panelistId}`, {
+        method: 'DELETE'
+      });
+    },
+    onSuccess: () => {
+      toast.success('Panelist removed successfully');
+      // Invalidate webinar list cache and refresh details
+      queryClient.invalidateQueries({ queryKey: ['/api/zoom/webinars'] });
+      if (selectedWebinar) {
+        fetchWebinarDetails(selectedWebinar.id);
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to remove panelist: ' + (error.message || 'Unknown error'));
+    }
+  });
+
+  // Add registrant to webinar
+  const addRegistrantMutation = useMutation({
+    mutationFn: async ({ webinarId, first_name, last_name, email }) => {
+      return apiRequest(`/api/zoom/webinars/${webinarId}/registrants`, {
+        method: 'POST',
+        body: JSON.stringify({ first_name, last_name, email }),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: async () => {
+      toast.success('Registrant added successfully');
+      setDetailsRegistrant({ first_name: "", last_name: "", email: "" });
+      // Refresh registrants list from Zoom to get accurate data
+      if (selectedWebinar) {
+        setLoadingRegistrants(true);
+        try {
+          const regData = await apiRequest(`/api/zoom/webinars/${selectedWebinar.id}/registrants`);
+          setRegistrants(regData.registrants || []);
+        } catch (error) {
+          console.error('Failed to refresh registrants:', error);
+        } finally {
+          setLoadingRegistrants(false);
+        }
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to add registrant: ' + (error.message || 'Unknown error'));
     }
   });
 
@@ -377,6 +454,8 @@ export default function ZoomWebinarProvisioning() {
   const openDetailsDialog = (webinar) => {
     setSelectedWebinar(webinar);
     setShowDetailsDialog(true);
+    setDetailsPanelist({ name: "", email: "" });
+    setDetailsRegistrant({ first_name: "", last_name: "", email: "" });
     fetchWebinarDetails(webinar.id);
   };
 
@@ -1001,97 +1080,224 @@ export default function ZoomWebinarProvisioning() {
               </TabsContent>
 
               <TabsContent value="panelists" className="flex-1 overflow-hidden mt-4">
-                <ScrollArea className="h-[300px]">
-                  {loadingDetails ? (
-                    <div className="flex items-center justify-center py-8">
-                      <RefreshCw className="w-6 h-6 animate-spin text-slate-400" />
-                    </div>
-                  ) : webinarDetails?.panelists?.length > 0 ? (
-                    <div className="space-y-2">
-                      {webinarDetails.panelists.map((panelist, index) => (
-                        <div 
-                          key={panelist.id || index}
-                          className="flex items-center gap-3 p-3 border rounded-lg"
-                          data-testid={`panelist-row-${index}`}
+                <div className="space-y-4">
+                  {/* Add Panelist Form */}
+                  {selectedWebinar?.status === 'scheduled' && new Date(selectedWebinar.start_time) > new Date() && (
+                    <div className="p-3 border rounded-lg bg-slate-50">
+                      <p className="text-sm font-medium text-slate-700 mb-2">Add Panelist</p>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Name"
+                          value={detailsPanelist.name}
+                          onChange={(e) => setDetailsPanelist(prev => ({ ...prev, name: e.target.value }))}
+                          className="flex-1"
+                          data-testid="input-add-panelist-name"
+                        />
+                        <Input
+                          placeholder="Email"
+                          type="email"
+                          value={detailsPanelist.email}
+                          onChange={(e) => setDetailsPanelist(prev => ({ ...prev, email: e.target.value }))}
+                          className="flex-1"
+                          data-testid="input-add-panelist-email"
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => {
+                            if (!detailsPanelist.name || !detailsPanelist.email) {
+                              toast.error('Please enter name and email');
+                              return;
+                            }
+                            addPanelistMutation.mutate({
+                              webinarId: selectedWebinar.id,
+                              name: detailsPanelist.name,
+                              email: detailsPanelist.email
+                            });
+                          }}
+                          disabled={addPanelistMutation.isPending || !detailsPanelist.name || !detailsPanelist.email}
+                          className="bg-purple-600 hover:bg-purple-700"
+                          data-testid="button-add-panelist"
                         >
-                          <div className="p-2 bg-purple-50 rounded-full">
-                            <User className="w-4 h-4 text-purple-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-slate-900 truncate">{panelist.name}</p>
-                            <p className="text-sm text-slate-500 truncate flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              {panelist.email}
-                            </p>
-                          </div>
-                          <Badge variant="outline" className="text-xs">
-                            {panelist.role || 'Panelist'}
-                          </Badge>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-slate-500">
-                      <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                      <p>No panelists added</p>
+                          {addPanelistMutation.isPending ? (
+                            <RefreshCw className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Plus className="w-4 h-4" />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   )}
-                </ScrollArea>
+
+                  {/* Panelists List */}
+                  <ScrollArea className="h-[220px]">
+                    {loadingDetails ? (
+                      <div className="flex items-center justify-center py-8">
+                        <RefreshCw className="w-6 h-6 animate-spin text-slate-400" />
+                      </div>
+                    ) : webinarDetails?.panelists?.length > 0 ? (
+                      <div className="space-y-2">
+                        {webinarDetails.panelists.map((panelist, index) => (
+                          <div 
+                            key={panelist.id || index}
+                            className="flex items-center gap-3 p-3 border rounded-lg"
+                            data-testid={`panelist-row-${index}`}
+                          >
+                            <div className="p-2 bg-purple-50 rounded-full">
+                              <User className="w-4 h-4 text-purple-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-900 truncate">{panelist.name}</p>
+                              <p className="text-sm text-slate-500 truncate flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                {panelist.email}
+                              </p>
+                            </div>
+                            <Badge variant="outline" className="text-xs">
+                              {panelist.role || 'Panelist'}
+                            </Badge>
+                            {selectedWebinar?.status === 'scheduled' && new Date(selectedWebinar.start_time) > new Date() && (
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => removePanelistMutation.mutate({
+                                  webinarId: selectedWebinar.id,
+                                  panelistId: panelist.id
+                                })}
+                                disabled={removePanelistMutation.isPending}
+                                data-testid={`button-remove-panelist-${index}`}
+                              >
+                                {removePanelistMutation.isPending ? (
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="w-4 h-4" />
+                                )}
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-slate-500">
+                        <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                        <p>No panelists added</p>
+                      </div>
+                    )}
+                  </ScrollArea>
+                </div>
               </TabsContent>
 
               <TabsContent value="registrants" className="flex-1 overflow-hidden mt-4">
-                <ScrollArea className="h-[300px]">
-                  {loadingRegistrants ? (
-                    <div className="flex items-center justify-center py-8">
-                      <RefreshCw className="w-6 h-6 animate-spin text-slate-400" />
-                    </div>
-                  ) : !selectedWebinar.registration_required ? (
-                    <div className="text-center py-8 text-slate-500">
-                      <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                      <p>Registration not required for this webinar</p>
-                    </div>
-                  ) : registrants.length > 0 ? (
-                    <div className="space-y-2">
-                      {registrants.map((registrant, index) => (
-                        <div 
-                          key={registrant.id || index}
-                          className="flex items-center gap-3 p-3 border rounded-lg"
-                          data-testid={`registrant-row-${index}`}
-                        >
-                          <div className="p-2 bg-green-50 rounded-full">
-                            <User className="w-4 h-4 text-green-600" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="font-medium text-slate-900 truncate">
-                              {registrant.first_name} {registrant.last_name}
-                            </p>
-                            <p className="text-sm text-slate-500 truncate flex items-center gap-1">
-                              <Mail className="w-3 h-3" />
-                              {registrant.email}
-                            </p>
-                          </div>
-                          <Badge 
-                            variant="outline" 
-                            className={`text-xs ${
-                              registrant.status === 'approved' 
-                                ? 'bg-green-50 text-green-700 border-green-200' 
-                                : registrant.status === 'pending'
-                                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                                : 'bg-slate-50 text-slate-700 border-slate-200'
-                            }`}
+                <div className="space-y-4">
+                  {/* Add Registrant Form */}
+                  {selectedWebinar?.registration_required && selectedWebinar?.status === 'scheduled' && new Date(selectedWebinar.start_time) > new Date() && (
+                    <div className="p-3 border rounded-lg bg-slate-50">
+                      <p className="text-sm font-medium text-slate-700 mb-2">Add Registrant</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        <Input
+                          placeholder="First Name"
+                          value={detailsRegistrant.first_name}
+                          onChange={(e) => setDetailsRegistrant(prev => ({ ...prev, first_name: e.target.value }))}
+                          data-testid="input-add-registrant-first-name"
+                        />
+                        <Input
+                          placeholder="Last Name"
+                          value={detailsRegistrant.last_name}
+                          onChange={(e) => setDetailsRegistrant(prev => ({ ...prev, last_name: e.target.value }))}
+                          data-testid="input-add-registrant-last-name"
+                        />
+                        <div className="flex gap-2">
+                          <Input
+                            placeholder="Email"
+                            type="email"
+                            value={detailsRegistrant.email}
+                            onChange={(e) => setDetailsRegistrant(prev => ({ ...prev, email: e.target.value }))}
+                            className="flex-1"
+                            data-testid="input-add-registrant-email"
+                          />
+                          <Button
+                            size="sm"
+                            onClick={() => {
+                              if (!detailsRegistrant.first_name || !detailsRegistrant.last_name || !detailsRegistrant.email) {
+                                toast.error('Please fill in all fields');
+                                return;
+                              }
+                              addRegistrantMutation.mutate({
+                                webinarId: selectedWebinar.id,
+                                first_name: detailsRegistrant.first_name,
+                                last_name: detailsRegistrant.last_name,
+                                email: detailsRegistrant.email
+                              });
+                            }}
+                            disabled={addRegistrantMutation.isPending || !detailsRegistrant.first_name || !detailsRegistrant.last_name || !detailsRegistrant.email}
+                            className="bg-green-600 hover:bg-green-700"
+                            data-testid="button-add-registrant"
                           >
-                            {registrant.status || 'Registered'}
-                          </Badge>
+                            {addRegistrantMutation.isPending ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Plus className="w-4 h-4" />
+                            )}
+                          </Button>
                         </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-slate-500">
-                      <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                      <p>No registrants yet</p>
+                      </div>
                     </div>
                   )}
-                </ScrollArea>
+
+                  {/* Registrants List */}
+                  <ScrollArea className="h-[220px]">
+                    {loadingRegistrants ? (
+                      <div className="flex items-center justify-center py-8">
+                        <RefreshCw className="w-6 h-6 animate-spin text-slate-400" />
+                      </div>
+                    ) : !selectedWebinar.registration_required ? (
+                      <div className="text-center py-8 text-slate-500">
+                        <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                        <p>Registration not required for this webinar</p>
+                      </div>
+                    ) : registrants.length > 0 ? (
+                      <div className="space-y-2">
+                        {registrants.map((registrant, index) => (
+                          <div 
+                            key={registrant.id || index}
+                            className="flex items-center gap-3 p-3 border rounded-lg"
+                            data-testid={`registrant-row-${index}`}
+                          >
+                            <div className="p-2 bg-green-50 rounded-full">
+                              <User className="w-4 h-4 text-green-600" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-slate-900 truncate">
+                                {registrant.first_name} {registrant.last_name}
+                              </p>
+                              <p className="text-sm text-slate-500 truncate flex items-center gap-1">
+                                <Mail className="w-3 h-3" />
+                                {registrant.email}
+                              </p>
+                            </div>
+                            <Badge 
+                              variant="outline" 
+                              className={`text-xs ${
+                                registrant.status === 'approved' 
+                                  ? 'bg-green-50 text-green-700 border-green-200' 
+                                  : registrant.status === 'pending'
+                                  ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                  : 'bg-slate-50 text-slate-700 border-slate-200'
+                              }`}
+                            >
+                              {registrant.status || 'Registered'}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8 text-slate-500">
+                        <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                        <p>No registrants yet</p>
+                      </div>
+                    )}
+                  </ScrollArea>
+                </div>
               </TabsContent>
             </Tabs>
           )}

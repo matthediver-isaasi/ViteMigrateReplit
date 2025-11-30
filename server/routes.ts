@@ -2858,10 +2858,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get member details
-      const { data: allMembers } = await supabase.from('member').select('*');
+      console.log('[createBooking] Looking up member with email:', memberEmail);
+      const { data: allMembers, error: memberError } = await supabase.from('member').select('*');
+      
+      if (memberError) {
+        console.error('[createBooking] Member query error:', memberError);
+      }
+      
+      console.log('[createBooking] Found members count:', allMembers?.length || 0);
+      
       const member = allMembers?.find((m: any) => m.email === memberEmail);
+      console.log('[createBooking] Member found:', member ? 'yes' : 'no', member?.email);
 
       if (!member) {
+        // Log all available member emails for debugging (first 5)
+        const sampleEmails = allMembers?.slice(0, 5).map((m: any) => m.email) || [];
+        console.log('[createBooking] Sample member emails in DB:', sampleEmails);
+        
         return res.status(404).json({
           success: false,
           error: 'Member not found'

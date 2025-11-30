@@ -14,7 +14,7 @@ import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as Lin
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, parseISO } from "date-fns";
-import { formatInTimeZone, toZonedTime } from "date-fns-tz";
+import { formatInTimeZone, toZonedTime, fromZonedTime } from "date-fns-tz";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
@@ -467,13 +467,17 @@ export default function ZoomWebinarProvisioning() {
     }
     console.log('[CreateWebinar] Passed date/time check');
     
-    // Create Date for validation only - allow a 5-minute buffer for form filling time
-    const startTime = new Date(`${formData.start_date}T${formData.start_time}`);
+    // Convert the entered time from the SELECTED timezone to UTC for proper comparison
+    // This ensures a user in CET entering a London time will compare correctly
+    const localDateTimeStr = `${formData.start_date}T${formData.start_time}:00`;
+    const startTimeUtc = fromZonedTime(localDateTimeStr, formData.timezone);
     const now = new Date();
     const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-    console.log('[CreateWebinar] startTime:', startTime.toISOString(), 'now:', now.toISOString());
+    console.log('[CreateWebinar] Selected timezone:', formData.timezone);
+    console.log('[CreateWebinar] Input time (in selected tz):', localDateTimeStr);
+    console.log('[CreateWebinar] startTimeUtc:', startTimeUtc.toISOString(), 'now:', now.toISOString());
     
-    if (startTime < fiveMinutesAgo) {
+    if (startTimeUtc < fiveMinutesAgo) {
       console.log('[CreateWebinar] Failed: time too far in past');
       toast.error('Start time must be in the future');
       return;

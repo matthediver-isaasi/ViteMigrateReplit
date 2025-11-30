@@ -3408,13 +3408,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get member's organization
-      const { data: allMembers } = await supabase.from('member').select('*');
+      // Get member's organization - use direct email filter for efficiency
+      const { data: memberData } = await supabase
+        .from('member')
+        .select('*')
+        .eq('email', memberEmail)
+        .maybeSingle();
       
-      // Try exact match first, then case-insensitive match
-      let member = allMembers?.find((m: any) => m.email === memberEmail);
+      // If not found, try case-insensitive search
+      let member = memberData;
       if (!member && memberEmail) {
-        member = allMembers?.find((m: any) => m.email?.toLowerCase() === memberEmail.toLowerCase());
+        const { data: memberByIlike } = await supabase
+          .from('member')
+          .select('*')
+          .ilike('email', memberEmail)
+          .maybeSingle();
+        member = memberByIlike;
       }
 
       if (!member || !member.organization_id) {
@@ -3423,12 +3432,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get organization
-      const { data: allOrgs } = await supabase.from('organization').select('*');
-      let org = allOrgs?.find((o: any) => o.id === member.organization_id);
+      // Get organization - use direct ID filter for efficiency
+      let { data: org } = await supabase
+        .from('organization')
+        .select('*')
+        .eq('id', member.organization_id)
+        .maybeSingle();
 
+      // Fallback: check if organization_id is actually a zoho_account_id
       if (!org) {
-        org = allOrgs?.find((o: any) => o.zoho_account_id === member.organization_id);
+        const { data: orgByZoho } = await supabase
+          .from('organization')
+          .select('*')
+          .eq('zoho_account_id', member.organization_id)
+          .maybeSingle();
+        org = orgByZoho;
       }
 
       if (!org) {

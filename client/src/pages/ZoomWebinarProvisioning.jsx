@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as LinkIcon, ExternalLink, Copy, Check, RefreshCw, AlertCircle, Edit, Save } from "lucide-react";
 import { format, parseISO } from "date-fns";
+import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
@@ -190,14 +191,15 @@ export default function ZoomWebinarProvisioning() {
 
   const openEditDialog = (webinar) => {
     setEditingWebinar(webinar);
-    const startDate = parseISO(webinar.start_time);
+    // Use the webinar's stored timezone for display, not the browser's local timezone
+    const webinarTimezone = webinar.timezone || "Europe/London";
     setFormData({
       topic: webinar.topic || "",
       agenda: webinar.agenda || "",
-      start_date: format(startDate, "yyyy-MM-dd"),
-      start_time: format(startDate, "HH:mm"),
+      start_date: formatInTimeZone(parseISO(webinar.start_time), webinarTimezone, "yyyy-MM-dd"),
+      start_time: formatInTimeZone(parseISO(webinar.start_time), webinarTimezone, "HH:mm"),
       duration_minutes: webinar.duration_minutes || 60,
-      timezone: webinar.timezone || "Europe/London",
+      timezone: webinarTimezone,
       registration_required: webinar.registration_required || false,
       host_id: webinar.zoom_host_id || "",
       panelists: webinar.panelists || []
@@ -244,12 +246,6 @@ export default function ZoomWebinarProvisioning() {
     try {
       // Send time as local time (without UTC conversion) with the selected timezone
       const startTimeLocal = `${formData.start_date}T${formData.start_time}:00`;
-      console.log('[ModalConflictCheck] Checking:', {
-        startTimeLocal,
-        duration_minutes: formData.duration_minutes,
-        timezone: formData.timezone,
-        exclude_webinar_id: editingWebinar?.id
-      });
       const response = await apiRequest('/api/zoom/check-conflicts', {
         method: 'POST',
         body: JSON.stringify({
@@ -261,7 +257,6 @@ export default function ZoomWebinarProvisioning() {
         }),
         headers: { 'Content-Type': 'application/json' }
       });
-      console.log('[ModalConflictCheck] Response:', response);
       setConflicts(response.conflicts || []);
     } catch (error) {
       console.error('Conflict check failed:', error);
@@ -356,9 +351,9 @@ export default function ZoomWebinarProvisioning() {
     }
   };
 
-  const formatWebinarDate = (dateStr) => {
+  const formatWebinarDate = (dateStr, timezone = "Europe/London") => {
     try {
-      return format(parseISO(dateStr), "EEE, d MMM yyyy 'at' HH:mm");
+      return formatInTimeZone(parseISO(dateStr), timezone, "EEE, d MMM yyyy 'at' HH:mm");
     } catch {
       return dateStr;
     }
@@ -377,32 +372,15 @@ export default function ZoomWebinarProvisioning() {
     const webinarStart = new Date(webinar.start_time);
     const webinarEnd = new Date(webinarStart.getTime() + webinar.duration_minutes * 60 * 1000);
     
-    console.log('[ConflictCheck]', webinar.topic, {
-      start: webinarStart.toISOString(),
-      end: webinarEnd.toISOString(),
-      upcomingCount: upcomingWebinars.length
-    });
-    
-    const conflicting = upcomingWebinars.filter(other => {
+    return upcomingWebinars.filter(other => {
       if (other.id === webinar.id) return false;
       
       const otherStart = new Date(other.start_time);
       const otherEnd = new Date(otherStart.getTime() + other.duration_minutes * 60 * 1000);
       
       // Check for overlap: webinar starts before other ends AND webinar ends after other starts
-      const overlaps = webinarStart < otherEnd && webinarEnd > otherStart;
-      
-      if (overlaps) {
-        console.log('[ConflictCheck] OVERLAP:', webinar.topic, 'with', other.topic, {
-          webinarRange: `${webinarStart.toISOString()} - ${webinarEnd.toISOString()}`,
-          otherRange: `${otherStart.toISOString()} - ${otherEnd.toISOString()}`
-        });
-      }
-      
-      return overlaps;
+      return webinarStart < otherEnd && webinarEnd > otherStart;
     });
-    
-    return conflicting;
   };
 
   if (!accessChecked) {
@@ -490,7 +468,7 @@ export default function ZoomWebinarProvisioning() {
                             </div>
                           )}
                         </div>
-                        <p className="text-sm text-slate-500">{formatWebinarDate(webinar.start_time)}</p>
+                        <p className="text-sm text-slate-500">{formatWebinarDate(webinar.start_time, webinar.timezone)}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -536,7 +514,7 @@ export default function ZoomWebinarProvisioning() {
                     </div>
                     <div>
                       <p className="font-medium text-slate-700">{webinar.topic}</p>
-                      <p className="text-sm text-slate-500">{formatWebinarDate(webinar.start_time)}</p>
+                      <p className="text-sm text-slate-500">{formatWebinarDate(webinar.start_time, webinar.timezone)}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -871,7 +849,7 @@ export default function ZoomWebinarProvisioning() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-slate-500">Date & Time</p>
-                  <p className="font-medium">{formatWebinarDate(selectedWebinar.start_time)}</p>
+                  <p className="font-medium">{formatWebinarDate(selectedWebinar.start_time, selectedWebinar.timezone)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-slate-500">Duration</p>
@@ -1197,7 +1175,7 @@ export default function ZoomWebinarProvisioning() {
               {webinarToDelete && (
                 <div className="p-3 bg-slate-50 rounded-md mt-2">
                   <p className="font-medium text-slate-900">{webinarToDelete.topic}</p>
-                  <p className="text-sm text-slate-500">{formatWebinarDate(webinarToDelete.start_time)}</p>
+                  <p className="text-sm text-slate-500">{formatWebinarDate(webinarToDelete.start_time, webinarToDelete.timezone)}</p>
                 </div>
               )}
               <p className="text-sm text-red-600 mt-2">

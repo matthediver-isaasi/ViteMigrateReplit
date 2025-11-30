@@ -3409,25 +3409,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get member's organization
-      console.log('[processProgramTicketPurchase] Looking for member with email:', memberEmail);
       const { data: allMembers } = await supabase.from('member').select('*');
-      console.log('[processProgramTicketPurchase] Total members in database:', allMembers?.length || 0);
       
       // Try exact match first, then case-insensitive match
       let member = allMembers?.find((m: any) => m.email === memberEmail);
       if (!member && memberEmail) {
-        // Try case-insensitive match
         member = allMembers?.find((m: any) => m.email?.toLowerCase() === memberEmail.toLowerCase());
-        if (member) {
-          console.log('[processProgramTicketPurchase] Found member via case-insensitive match');
-        }
       }
 
       if (!member || !member.organization_id) {
-        console.log('[processProgramTicketPurchase] Member not found or no org_id. memberEmail:', memberEmail, 'member found:', !!member);
         return res.status(404).json({
-          error: 'Member or organization not found',
-          debug: { memberEmail, memberFound: !!member }
+          error: 'Member or organization not found'
         });
       }
 

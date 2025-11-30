@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as LinkIcon, ExternalLink, Copy, Check, RefreshCw, AlertCircle, Edit, Save, Mail, User } from "lucide-react";
+import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as LinkIcon, ExternalLink, Copy, Check, RefreshCw, AlertCircle, Edit, Save, Mail, User, Eye, EyeOff } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, parseISO } from "date-fns";
@@ -18,6 +18,7 @@ import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { base44 } from "@/api/base44Client";
 
 async function apiRequest(url, options = {}) {
   const response = await fetch(url, {
@@ -122,6 +123,58 @@ export default function ZoomWebinarProvisioning() {
     queryFn: () => apiRequest('/api/zoom/users'),
     enabled: accessChecked,
     staleTime: 60000
+  });
+
+  // Query for webinar show join link settings
+  const { data: joinLinkSettings, refetch: refetchJoinLinkSettings } = useQuery({
+    queryKey: ['webinar-join-link-settings'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const setting = allSettings.find(s => s.setting_key === 'webinar_show_join_link');
+      if (setting && setting.setting_value) {
+        try {
+          return { id: setting.id, settings: JSON.parse(setting.setting_value) };
+        } catch {
+          return { id: setting.id, settings: {} };
+        }
+      }
+      return { id: null, settings: {} };
+    },
+    enabled: accessChecked
+  });
+
+  // Get show join link status for a webinar
+  const getShowJoinLink = (webinarId) => {
+    if (!joinLinkSettings?.settings || !webinarId) return false;
+    return joinLinkSettings.settings[webinarId] === true;
+  };
+
+  // Mutation to save join link settings
+  const saveJoinLinkSettingMutation = useMutation({
+    mutationFn: async ({ webinarId, showJoinLink }) => {
+      const currentSettings = joinLinkSettings?.settings || {};
+      const updatedSettings = { ...currentSettings, [webinarId]: showJoinLink };
+      const settingsJson = JSON.stringify(updatedSettings);
+
+      if (joinLinkSettings?.id) {
+        return await base44.entities.SystemSettings.update(joinLinkSettings.id, {
+          setting_value: settingsJson
+        });
+      } else {
+        return await base44.entities.SystemSettings.create({
+          setting_key: 'webinar_show_join_link',
+          setting_value: settingsJson,
+          description: 'Controls whether Zoom join links are visible on event pages'
+        });
+      }
+    },
+    onSuccess: () => {
+      refetchJoinLinkSettings();
+      toast.success('Join link visibility updated');
+    },
+    onError: (error) => {
+      toast.error('Failed to update setting: ' + (error.message || 'Unknown error'));
+    }
   });
 
   const createWebinarMutation = useMutation({
@@ -1025,6 +1078,38 @@ export default function ZoomWebinarProvisioning() {
                       </div>
                     </div>
                   )}
+
+                  {/* Show Join Link Toggle */}
+                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        {getShowJoinLink(selectedWebinar.id) ? (
+                          <Eye className="w-5 h-5 text-green-600" />
+                        ) : (
+                          <EyeOff className="w-5 h-5 text-slate-400" />
+                        )}
+                        <div>
+                          <p className="font-medium text-slate-900">Show Join Link on Events</p>
+                          <p className="text-sm text-slate-600">
+                            {getShowJoinLink(selectedWebinar.id) 
+                              ? "Join link will be visible to members on event pages" 
+                              : "Join link is hidden - members must register to receive it"}
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        checked={getShowJoinLink(selectedWebinar.id)}
+                        onCheckedChange={(checked) => {
+                          saveJoinLinkSettingMutation.mutate({
+                            webinarId: selectedWebinar.id,
+                            showJoinLink: checked
+                          });
+                        }}
+                        disabled={saveJoinLinkSettingMutation.isPending}
+                        data-testid="switch-show-join-link"
+                      />
+                    </div>
+                  </div>
 
                   {selectedWebinar.registration_url && (
                     <div className="space-y-2">

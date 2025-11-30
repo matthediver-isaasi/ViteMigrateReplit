@@ -47,7 +47,6 @@ export default function CreateEvent() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [isOnline, setIsOnline] = useState(false);
-  const [showJoinLink, setShowJoinLink] = useState(false);
   const [selectedWebinarId, setSelectedWebinarId] = useState("");
   const [formData, setFormData] = useState({
     title: "",
@@ -76,6 +75,30 @@ export default function CreateEvent() {
     },
     enabled: isOnline
   });
+
+  // Query for webinar show join link settings
+  const { data: joinLinkSettings, isLoading: loadingJoinLinkSettings } = useQuery({
+    queryKey: ['webinar-join-link-settings'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const setting = allSettings.find(s => s.setting_key === 'webinar_show_join_link');
+      if (setting && setting.setting_value) {
+        try {
+          return JSON.parse(setting.setting_value);
+        } catch {
+          return {};
+        }
+      }
+      return {};
+    },
+    enabled: isOnline
+  });
+
+  // Get show join link status for a webinar
+  const getShowJoinLink = (webinarId) => {
+    if (!joinLinkSettings || !webinarId) return false;
+    return joinLinkSettings[webinarId] === true;
+  };
 
   const selectedWebinar = webinars.find(w => w.id === selectedWebinarId);
 
@@ -135,15 +158,21 @@ export default function CreateEvent() {
       return;
     }
 
+    if (isOnline && loadingJoinLinkSettings) {
+      toast.error('Please wait for settings to load');
+      return;
+    }
+
     if (!formData.title) {
       toast.error('Please enter an event title');
       return;
     }
 
     // Build event data - only include fields that exist in the event table
-    // For online events: store URL in location only if showJoinLink is true
+    // For online events: store URL in location only if show join link setting is enabled
     let locationValue = formData.location;
     if (isOnline) {
+      const showJoinLink = getShowJoinLink(selectedWebinarId);
       if (showJoinLink && formData.online_url) {
         locationValue = `Online - ${formData.online_url}`;
       } else {
@@ -298,6 +327,21 @@ export default function CreateEvent() {
                         {selectedWebinar.timezone && (
                           <p><strong>Timezone:</strong> {selectedWebinar.timezone}</p>
                         )}
+                        <div className="mt-2 pt-2 border-t border-green-300">
+                          <p className="flex items-center gap-2">
+                            <strong>Join Link:</strong>
+                            {loadingJoinLinkSettings ? (
+                              <span className="text-slate-500">Loading settings...</span>
+                            ) : getShowJoinLink(selectedWebinarId) ? (
+                              <span className="text-green-700">Will be visible on event page</span>
+                            ) : (
+                              <span className="text-amber-700">Hidden - members must register via ticket purchase</span>
+                            )}
+                          </p>
+                          <p className="text-xs text-green-600 mt-1">
+                            Change this setting in Zoom Webinar Provisioning
+                          </p>
+                        </div>
                       </div>
                     </div>
                   )}

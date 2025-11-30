@@ -49,6 +49,34 @@ export default function EditEvent() {
     queryFn: () => base44.entities.Program.list()
   });
 
+  // Query for webinar show join link settings (for online events)
+  const { data: joinLinkSettings, isLoading: loadingJoinLinkSettings } = useQuery({
+    queryKey: ['webinar-join-link-settings'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const setting = allSettings.find(s => s.setting_key === 'webinar_show_join_link');
+      if (setting && setting.setting_value) {
+        try {
+          return JSON.parse(setting.setting_value);
+        } catch {
+          return {};
+        }
+      }
+      return {};
+    }
+  });
+
+  // Check if location has visible join link (starts with "Online - https")
+  const hasVisibleJoinLink = formData.location?.startsWith('Online - ');
+  
+  // Extract the URL from location if it's an online event with visible join link
+  const getJoinUrlFromLocation = () => {
+    if (hasVisibleJoinLink) {
+      return formData.location.replace('Online - ', '');
+    }
+    return null;
+  };
+
   const updateEventMutation = useMutation({
     mutationFn: async (eventData) => {
       return base44.entities.Event.update(eventId, eventData);
@@ -330,6 +358,28 @@ export default function EditEvent() {
                   <p className="text-xs text-slate-500">
                     Online event - location is managed by Zoom webinar
                   </p>
+                )}
+                {isOnlineEvent && (
+                  <div className="mt-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                    <p className="text-sm font-medium text-slate-700">Join Link Visibility</p>
+                    <p className="text-sm text-slate-600 mt-1">
+                      {hasVisibleJoinLink ? (
+                        <>
+                          <span className="text-green-700">Join link is visible on this event</span>
+                          {getJoinUrlFromLocation() && (
+                            <span className="block text-xs text-slate-500 mt-1 break-all">
+                              URL: {getJoinUrlFromLocation()}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-amber-700">Join link is hidden - members must register via ticket purchase</span>
+                      )}
+                    </p>
+                    <p className="text-xs text-slate-500 mt-2">
+                      To change visibility for future events using this webinar, update the setting in Zoom Webinar Provisioning
+                    </p>
+                  </div>
                 )}
               </div>
 

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, MapPin, Users, Clock, Ticket, AlertCircle, ShoppingCart, Pencil, Trash2 } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Ticket, AlertCircle, ShoppingCart, Pencil, Trash2, Video } from "lucide-react";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
@@ -153,8 +153,17 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
 
           {event.location && (
             <div className="flex items-center gap-2 text-sm text-slate-600">
-              <MapPin className="w-4 h-4 text-slate-400" />
-              <span className="line-clamp-1">{event.location}</span>
+              {event.location.toLowerCase().startsWith('online') ? (
+                <>
+                  <Video className="w-4 h-4 text-green-500" />
+                  <span className="text-green-600 font-medium">Online</span>
+                </>
+              ) : (
+                <>
+                  <MapPin className="w-4 h-4 text-slate-400" />
+                  <span className="line-clamp-1">{event.location}</span>
+                </>
+              )}
             </div>
           )}
 

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2 } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video } from "lucide-react";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
@@ -552,8 +552,17 @@ export default function EventDetailsPage() {
 
                   {event.location && (
                     <div className="flex items-center gap-3 text-slate-700">
-                      <MapPin className="w-5 h-5 text-slate-400" />
-                      <span>{event.location}</span>
+                      {event.location.toLowerCase().startsWith('online') ? (
+                        <>
+                          <Video className="w-5 h-5 text-green-500" />
+                          <span className="text-green-600 font-medium">Online Event</span>
+                        </>
+                      ) : (
+                        <>
+                          <MapPin className="w-5 h-5 text-slate-400" />
+                          <span>{event.location}</span>
+                        </>
+                      )}
                     </div>
                   )}
 

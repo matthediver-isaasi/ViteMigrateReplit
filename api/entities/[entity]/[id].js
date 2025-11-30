@@ -105,6 +105,22 @@ export default async function handler(req, res) {
       return res.json(data);
 
     } else if (req.method === 'DELETE') {
+      // Handle cascade deletion for entities with foreign key relationships
+      if (entity === 'Event') {
+        // First delete any bookings associated with this event
+        const { error: bookingDeleteError } = await supabase
+          .from('booking')
+          .delete()
+          .eq('event_id', id);
+
+        if (bookingDeleteError) {
+          console.error('Error deleting event bookings:', bookingDeleteError);
+          // Continue anyway - there might not be any bookings
+        } else {
+          console.log(`[Event Delete] Deleted associated bookings for event ${id}`);
+        }
+      }
+
       const { error } = await supabase
         .from(tableName)
         .delete()

@@ -260,6 +260,59 @@ export default function EventDetailsPage() {
     enabled: !!eventId
   });
 
+  // Query for webinar join link visibility settings
+  const { data: joinLinkSettings } = useQuery({
+    queryKey: ['webinar-join-link-settings'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const setting = allSettings.find(s => s.setting_key === 'webinar_show_join_link');
+      if (setting && setting.setting_value) {
+        try {
+          return JSON.parse(setting.setting_value);
+        } catch {
+          return {};
+        }
+      }
+      return {};
+    }
+  });
+
+  // Query for webinars to match URLs to webinar IDs
+  const { data: webinars = [] } = useQuery({
+    queryKey: ['/api/zoom/webinars'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/zoom/webinars');
+        if (!response.ok) return [];
+        return await response.json();
+      } catch {
+        return [];
+      }
+    }
+  });
+
+  // Determine if this is an online event and if join link should be shown
+  const isOnlineEvent = event?.location?.toLowerCase().startsWith('online');
+  const hasUrlInLocation = event?.location?.includes('https://') || event?.location?.includes('http://');
+  
+  // Find matching webinar by URL if location contains a URL
+  const getWebinarIdFromLocation = () => {
+    if (!hasUrlInLocation || !webinars?.length || !event?.location) return null;
+    const urlMatch = event.location.match(/https?:\/\/[^\s]+/);
+    if (!urlMatch) return null;
+    const url = urlMatch[0];
+    const matchingWebinar = webinars.find(w => w.join_url === url);
+    return matchingWebinar?.id || null;
+  };
+
+  // Check if join link should be shown based on settings
+  const shouldShowJoinLink = () => {
+    if (!isOnlineEvent || !hasUrlInLocation) return false;
+    const webinarId = getWebinarIdFromLocation();
+    if (!webinarId || !joinLinkSettings) return false;
+    return joinLinkSettings[webinarId] === true;
+  };
+
   const removeAttendee = (index) => {
     setAttendees(attendees.filter((_, i) => i !== index));
   };
@@ -552,10 +605,14 @@ export default function EventDetailsPage() {
 
                   {event.location && (
                     <div className="flex items-center gap-3 text-slate-700">
-                      {event.location.toLowerCase().startsWith('online') ? (
+                      {isOnlineEvent ? (
                         <>
                           <Video className="w-5 h-5 text-green-500" />
-                          <span className="text-green-600 font-medium">Online Event</span>
+                          {shouldShowJoinLink() && hasUrlInLocation ? (
+                            <span>{event.location}</span>
+                          ) : (
+                            <span className="text-green-600 font-medium">Online Event</span>
+                          )}
                         </>
                       ) : (
                         <>

@@ -99,6 +99,37 @@ export default function EventsPage({
     refetchOnMount: true,
   });
 
+  // Query for webinar join link visibility settings
+  const { data: joinLinkSettings } = useQuery({
+    queryKey: ['webinar-join-link-settings'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      const setting = allSettings.find(s => s.setting_key === 'webinar_show_join_link');
+      if (setting && setting.setting_value) {
+        try {
+          return JSON.parse(setting.setting_value);
+        } catch {
+          return {};
+        }
+      }
+      return {};
+    }
+  });
+
+  // Query for webinars to match URLs to webinar IDs
+  const { data: webinars = [] } = useQuery({
+    queryKey: ['/api/zoom/webinars'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/zoom/webinars');
+        if (!response.ok) return [];
+        return await response.json();
+      } catch {
+        return [];
+      }
+    }
+  });
+
   if (eventsError) {
     console.error("[Events] eventsError:", eventsError);
   }
@@ -308,6 +339,8 @@ export default function EventsPage({
                     organizationInfo={organizationInfo}
                     isFeatureExcluded={isFeatureExcluded}
                     isAdmin={isAdmin}
+                    joinLinkSettings={joinLinkSettings}
+                    webinars={webinars}
                   />
                 ))}
               </div>

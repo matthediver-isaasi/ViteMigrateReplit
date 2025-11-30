@@ -1,129 +1,85 @@
 
-import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
+import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, Mail } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { differenceInMinutes } from "date-fns";
+import { Loader2, Search, Mail, Users } from "lucide-react";
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Supabase client for direct queries
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function ColleagueSelector({ organizationId, onSelect, memberInfo }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [contacts, setContacts] = useState([]);
+  const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [syncing, setSyncing] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualEmail, setManualEmail] = useState("");
   const [validating, setValidating] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  const [organizationSynced, setOrganizationSynced] = useState(false);
-  const [base44OrgId, setBase44OrgId] = useState(null);
 
-  // Check if organization needs syncing (never synced or older than 15 minutes)
+  // Load active members from the same organization on mount
   useEffect(() => {
-    const checkAndSyncIfNeeded = async () => {
-      try {
-        const allOrgs = await base44.entities.Organization.list();
-        // organizationId might be Zoho Account ID, so we need to find by either ID or zoho_account_id
-        const org = allOrgs.find(o => o.id === organizationId || o.zoho_account_id === organizationId);
-        
-        console.log('Looking for organization with ID:', organizationId);
-        console.log('Found organization:', org);
-        console.log('Base44 Org ID:', org?.id);
-        console.log('Contacts synced at:', org?.contacts_synced_at);
-        
-        if (!org) {
-          console.error('Organization not found');
-          return;
-        }
+    const loadMembers = async () => {
+      if (!organizationId) {
+        setInitialLoading(false);
+        return;
+      }
 
-        setBase44OrgId(org.id);
+      setInitialLoading(true);
+      try {
+        console.log('[ColleagueSelector] Loading active members for organization:', organizationId);
         
-        // Check if sync is needed
-        const needsSync = !org.contacts_synced_at || 
-                         differenceInMinutes(new Date(), new Date(org.contacts_synced_at)) > 15;
-        
-        if (needsSync) {
-          console.log('Contacts need syncing (never synced or older than 15 minutes)');
-          // Trigger sync (pass the Zoho Account ID to the sync function)
-          await triggerSync(organizationId);
+        // Query the member table directly from Supabase
+        // Filter by organization_id and login_enabled = true (active members only)
+        const { data, error } = await supabase
+          .from('member')
+          .select('id, email, first_name, last_name, zoho_contact_id')
+          .eq('organization_id', organizationId)
+          .eq('login_enabled', true)
+          .order('first_name', { ascending: true });
+
+        if (error) {
+          console.error('[ColleagueSelector] Error loading members:', error);
+          setMembers([]);
         } else {
-          console.log('Contacts are up to date, loading from database');
-          setOrganizationSynced(true);
-          // Load contacts directly from database
-          loadContacts(org.id);
+          // Exclude the current member from the list
+          const filteredMembers = (data || []).filter(
+            m => m.email?.toLowerCase() !== memberInfo?.email?.toLowerCase()
+          );
+          console.log('[ColleagueSelector] Loaded', filteredMembers.length, 'active members');
+          setMembers(filteredMembers);
         }
       } catch (error) {
-        console.error('Failed to check org sync status:', error);
+        console.error('[ColleagueSelector] Failed to load members:', error);
+        setMembers([]);
+      } finally {
+        setInitialLoading(false);
       }
     };
 
-    if (organizationId) {
-      checkAndSyncIfNeeded();
-    }
-  }, [organizationId]);
+    loadMembers();
+  }, [organizationId, memberInfo?.email]);
 
-  const triggerSync = async (zohoAccountId) => {
-    setSyncing(true);
-    try {
-      console.log('Triggering sync for organization:', zohoAccountId);
-      const response = await base44.functions.invoke('syncOrganizationContacts', {
-        organizationId: zohoAccountId
-      });
-      
-      console.log('Sync response:', response.data);
-      
-      if (response.data.success) {
-        setOrganizationSynced(true);
-        // After sync, get the Base44 org ID and load contacts
-        const allOrgs = await base44.entities.Organization.list();
-        const org = allOrgs.find(o => o.zoho_account_id === zohoAccountId);
-        if (org) {
-          setBase44OrgId(org.id);
-          await loadContacts(org.id);
-        }
-      }
-    } catch (error) {
-      console.error('Sync failed:', error);
-    } finally {
-      setSyncing(false);
-    }
-  };
-
-  const loadContacts = async (orgId) => {
-    setLoading(true);
-    try {
-      console.log('Loading contacts for Base44 organization ID:', orgId);
-      const allContacts = await base44.entities.OrganizationContact.filter({
-        organization_id: orgId,
-        is_active: true
-      });
-      console.log('Loaded contacts:', allContacts.length);
-      console.log('Sample contact:', allContacts[0]);
-      setContacts(allContacts);
-    } catch (error) {
-      console.error('Failed to load contacts:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const filteredContacts = contacts.filter(contact => {
+  // Filter members based on search term
+  const filteredMembers = members.filter(member => {
     if (!searchTerm) return false;
     const search = searchTerm.toLowerCase();
-    const firstNameMatch = contact.first_name?.toLowerCase().includes(search);
-    const lastNameMatch = contact.last_name?.toLowerCase().includes(search);
-    const emailMatch = contact.email?.toLowerCase().includes(search);
+    const firstNameMatch = member.first_name?.toLowerCase().includes(search);
+    const lastNameMatch = member.last_name?.toLowerCase().includes(search);
+    const emailMatch = member.email?.toLowerCase().includes(search);
     
     return firstNameMatch || lastNameMatch || emailMatch;
   });
 
-  const handleContactSelect = (contact) => {
+  const handleMemberSelect = (member) => {
     onSelect({
-      email: contact.email,
-      first_name: contact.first_name,
-      last_name: contact.last_name,
-      zoho_contact_id: contact.zoho_contact_id,
+      email: member.email,
+      first_name: member.first_name,
+      last_name: member.last_name,
+      zoho_contact_id: member.zoho_contact_id,
       isValid: true,
       validationStatus: 'registered'
     });
@@ -137,37 +93,52 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
     setValidating(true);
     
     try {
-      // Validate the manually entered email
-      const response = await base44.functions.invoke('validateColleague', {
-        email: manualEmail,
-        memberEmail: memberInfo.email,
-        organizationId: organizationId
-      });
+      // Check if email exists in the member table for this organization
+      const { data: existingMember, error } = await supabase
+        .from('member')
+        .select('id, email, first_name, last_name, zoho_contact_id, login_enabled')
+        .eq('email', manualEmail.toLowerCase())
+        .eq('organization_id', organizationId)
+        .limit(1)
+        .single();
 
-      if (response.data.valid) {
-        onSelect({
-          email: manualEmail,
-          first_name: response.data.first_name || "",
-          last_name: response.data.last_name || "",
-          zoho_contact_id: response.data.zoho_contact_id,
-          isValid: true,
-          validationStatus: response.data.status,
-          validationMessage: response.data.message
-        });
-      } else {
+      if (error || !existingMember) {
+        // Member not found in organization
         onSelect({
           email: manualEmail,
           first_name: "",
           last_name: "",
           isValid: false,
-          validationStatus: response.data.status,
-          validationMessage: response.data.error
+          validationStatus: 'not_found',
+          validationMessage: 'This email is not registered as a member of your organisation'
+        });
+      } else if (!existingMember.login_enabled) {
+        // Member exists but is not active
+        onSelect({
+          email: manualEmail,
+          first_name: existingMember.first_name || "",
+          last_name: existingMember.last_name || "",
+          isValid: false,
+          validationStatus: 'inactive',
+          validationMessage: 'This member account is not currently active'
+        });
+      } else {
+        // Valid active member
+        onSelect({
+          email: manualEmail,
+          first_name: existingMember.first_name || "",
+          last_name: existingMember.last_name || "",
+          zoho_contact_id: existingMember.zoho_contact_id,
+          isValid: true,
+          validationStatus: 'registered',
+          validationMessage: 'Colleague verified'
         });
       }
       
       setManualEmail("");
       setShowManualEntry(false);
     } catch (error) {
+      console.error('[ColleagueSelector] Manual validation error:', error);
       onSelect({
         email: manualEmail,
         first_name: "",
@@ -183,12 +154,11 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
     }
   };
 
-  if (syncing) {
+  if (initialLoading) {
     return (
       <div className="p-4 border border-slate-200 rounded-lg bg-slate-50 text-center">
         <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
-        <p className="text-sm text-slate-600">Syncing organisation contacts...</p>
-        <p className="text-xs text-slate-500 mt-1">This may take a moment</p>
+        <p className="text-sm text-slate-600">Loading colleagues...</p>
       </div>
     );
   }
@@ -205,8 +175,9 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
             onKeyPress={(e) => e.key === 'Enter' && handleManualSubmit()}
             disabled={validating}
             autoFocus
+            data-testid="input-manual-colleague-email"
           />
-          <Button onClick={handleManualSubmit} size="sm" disabled={validating}>
+          <Button onClick={handleManualSubmit} size="sm" disabled={validating} data-testid="button-add-manual-colleague">
             {validating ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
@@ -220,6 +191,7 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
           onClick={() => setShowManualEntry(false)}
           className="text-xs"
           disabled={validating}
+          data-testid="button-back-to-search"
         >
           ← Back to search
         </Button>
@@ -241,8 +213,17 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
           onFocus={() => searchTerm && setShowDropdown(true)}
           className="pl-10"
           disabled={loading}
+          data-testid="input-colleague-search"
         />
       </div>
+
+      {/* Member count indicator */}
+      {members.length > 0 && !showDropdown && (
+        <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
+          <Users className="w-3 h-3" />
+          <span>{members.length} active colleague{members.length !== 1 ? 's' : ''} available</span>
+        </div>
+      )}
 
       {showDropdown && searchTerm && (
         <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -251,18 +232,19 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
               <Loader2 className="w-4 h-4 animate-spin mx-auto mb-1" />
               <p className="text-sm">Loading...</p>
             </div>
-          ) : filteredContacts.length > 0 ? (
+          ) : filteredMembers.length > 0 ? (
             <>
-              {filteredContacts.map((contact) => (
+              {filteredMembers.map((member) => (
                 <button
-                  key={contact.id}
-                  onClick={() => handleContactSelect(contact)}
+                  key={member.id}
+                  onClick={() => handleMemberSelect(member)}
                   className="w-full px-4 py-3 text-left hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors"
+                  data-testid={`button-select-colleague-${member.id}`}
                 >
                   <div className="font-medium text-slate-900">
-                    {contact.first_name} {contact.last_name}
+                    {member.first_name} {member.last_name}
                   </div>
-                  <div className="text-sm text-slate-500">{contact.email}</div>
+                  <div className="text-sm text-slate-500">{member.email}</div>
                 </button>
               ))}
               <button
@@ -271,6 +253,7 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
                   setShowDropdown(false);
                 }}
                 className="w-full px-4 py-3 text-left hover:bg-blue-50 border-t border-slate-200 transition-colors"
+                data-testid="button-enter-email-manually"
               >
                 <div className="flex items-center gap-2 text-blue-600">
                   <Mail className="w-4 h-4" />
@@ -287,6 +270,7 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
                   setShowDropdown(false);
                 }}
                 className="w-full px-4 py-2 text-left bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                data-testid="button-enter-email-manually-no-results"
               >
                 <div className="flex items-center gap-2 text-blue-600">
                   <Mail className="w-4 h-4" />

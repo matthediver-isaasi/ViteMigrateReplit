@@ -769,37 +769,81 @@ const functionHandlers = {
       return { success: false, error: 'Missing required parameters: eventId and memberEmail' };
     }
 
-    const { data: allMembers } = await supabase.from('member').select('*');
-    const member = allMembers?.find(m => m.email === memberEmail);
+    // Use case-insensitive email lookup
+    const normalizedEmail = memberEmail.toLowerCase();
+    console.log('[createBooking] Looking up member with email:', normalizedEmail);
+    
+    const { data: member, error: memberError } = await supabase
+      .from('member')
+      .select('*')
+      .ilike('email', normalizedEmail)
+      .maybeSingle();
+
+    if (memberError) {
+      console.error('[createBooking] Member query error:', memberError);
+      return { success: false, error: 'Database error looking up member' };
+    }
 
     if (!member) {
+      console.log('[createBooking] Member not found for email:', normalizedEmail);
       return { success: false, error: 'Member not found' };
     }
+    
+    console.log('[createBooking] Found member:', member.id, member.email);
 
-    const { data: allEvents } = await supabase.from('event').select('*');
-    const event = allEvents?.find(e => e.id === eventId);
+    // Direct event lookup by ID
+    const { data: event, error: eventError } = await supabase
+      .from('event')
+      .select('*')
+      .eq('id', eventId)
+      .maybeSingle();
+
+    if (eventError) {
+      console.error('[createBooking] Event query error:', eventError);
+      return { success: false, error: 'Database error looking up event' };
+    }
 
     if (!event) {
+      console.log('[createBooking] Event not found for id:', eventId);
       return { success: false, error: 'Event not found' };
     }
+    
+    console.log('[createBooking] Found event:', event.id, event.title);
 
     if (!programTag || !event.program_tag) {
       return { success: false, error: 'This event does not have a program association' };
     }
 
     if (!member.organization_id) {
+      console.log('[createBooking] Member has no organization_id');
       return { success: false, error: 'Member does not have an associated organization' };
     }
 
-    const { data: allOrgs } = await supabase.from('organization').select('*');
-    let org = allOrgs?.find(o => o.id === member.organization_id);
-    if (!org) {
-      org = allOrgs?.find(o => o.zoho_account_id === member.organization_id);
+    console.log('[createBooking] Looking up organization:', member.organization_id);
+    
+    // Try direct lookup by ID first
+    let { data: org, error: orgError } = await supabase
+      .from('organization')
+      .select('*')
+      .eq('id', member.organization_id)
+      .maybeSingle();
+    
+    // If not found, try by zoho_account_id
+    if (!org && !orgError) {
+      const { data: orgByZoho } = await supabase
+        .from('organization')
+        .select('*')
+        .eq('zoho_account_id', member.organization_id)
+        .maybeSingle();
+      org = orgByZoho;
     }
 
     if (!org) {
+      console.log('[createBooking] Organization not found for id:', member.organization_id);
       return { success: false, error: 'Organization not found' };
     }
+    
+    console.log('[createBooking] Found organization:', org.id, org.name);
 
     const currentBalances = org.program_ticket_balances || {};
     const currentBalance = currentBalances[programTag] || 0;

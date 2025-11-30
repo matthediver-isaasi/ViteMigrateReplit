@@ -46,10 +46,36 @@ export default function ZoomWebinarProvisioning() {
     start_date: "",
     start_time: "",
     duration_minutes: 60,
+    timezone: "Europe/London",
     registration_required: false,
     host_id: "",
     panelists: []
   });
+  
+  const timezoneOptions = [
+    { value: "Europe/London", label: "London (GMT/BST)" },
+    { value: "Europe/Dublin", label: "Dublin (GMT/IST)" },
+    { value: "Europe/Paris", label: "Paris (CET/CEST)" },
+    { value: "Europe/Berlin", label: "Berlin (CET/CEST)" },
+    { value: "Europe/Amsterdam", label: "Amsterdam (CET/CEST)" },
+    { value: "Europe/Brussels", label: "Brussels (CET/CEST)" },
+    { value: "Europe/Madrid", label: "Madrid (CET/CEST)" },
+    { value: "Europe/Rome", label: "Rome (CET/CEST)" },
+    { value: "Europe/Lisbon", label: "Lisbon (WET/WEST)" },
+    { value: "Europe/Athens", label: "Athens (EET/EEST)" },
+    { value: "America/New_York", label: "New York (EST/EDT)" },
+    { value: "America/Chicago", label: "Chicago (CST/CDT)" },
+    { value: "America/Denver", label: "Denver (MST/MDT)" },
+    { value: "America/Los_Angeles", label: "Los Angeles (PST/PDT)" },
+    { value: "America/Toronto", label: "Toronto (EST/EDT)" },
+    { value: "Asia/Dubai", label: "Dubai (GST)" },
+    { value: "Asia/Singapore", label: "Singapore (SGT)" },
+    { value: "Asia/Hong_Kong", label: "Hong Kong (HKT)" },
+    { value: "Asia/Tokyo", label: "Tokyo (JST)" },
+    { value: "Australia/Sydney", label: "Sydney (AEST/AEDT)" },
+    { value: "Pacific/Auckland", label: "Auckland (NZST/NZDT)" },
+    { value: "UTC", label: "UTC (Coordinated Universal Time)" }
+  ];
   
   const [newPanelist, setNewPanelist] = useState({ name: "", email: "" });
   const [conflicts, setConflicts] = useState([]);
@@ -128,6 +154,7 @@ export default function ZoomWebinarProvisioning() {
       start_date: "",
       start_time: "",
       duration_minutes: 60,
+      timezone: "Europe/London",
       registration_required: false,
       host_id: "",
       panelists: []
@@ -141,7 +168,7 @@ export default function ZoomWebinarProvisioning() {
     
     setCheckingConflicts(true);
     try {
-      // Send time as London local time (without UTC conversion)
+      // Send time as local time (without UTC conversion) with the selected timezone
       const startTimeLocal = `${formData.start_date}T${formData.start_time}:00`;
       const response = await apiRequest('/api/zoom/check-conflicts', {
         method: 'POST',
@@ -149,7 +176,7 @@ export default function ZoomWebinarProvisioning() {
           start_time: startTimeLocal,
           duration_minutes: formData.duration_minutes,
           host_id: formData.host_id || undefined,
-          timezone: 'Europe/London'
+          timezone: formData.timezone
         }),
         headers: { 'Content-Type': 'application/json' }
       });
@@ -166,7 +193,7 @@ export default function ZoomWebinarProvisioning() {
       const timer = setTimeout(checkForConflicts, 500);
       return () => clearTimeout(timer);
     }
-  }, [formData.start_date, formData.start_time, formData.duration_minutes, formData.host_id]);
+  }, [formData.start_date, formData.start_time, formData.duration_minutes, formData.host_id, formData.timezone]);
 
   const addPanelist = () => {
     if (!newPanelist.name || !newPanelist.email) {
@@ -209,8 +236,8 @@ export default function ZoomWebinarProvisioning() {
       return;
     }
     
-    // Send time as London local time (without UTC conversion)
-    // Zoom will apply the Europe/London timezone
+    // Send time as local time (without UTC conversion)
+    // Zoom will apply the selected timezone
     const startTimeLocal = `${formData.start_date}T${formData.start_time}:00`;
     
     createWebinarMutation.mutate({
@@ -218,7 +245,7 @@ export default function ZoomWebinarProvisioning() {
       agenda: formData.agenda,
       start_time: startTimeLocal,
       duration_minutes: formData.duration_minutes,
-      timezone: 'Europe/London',
+      timezone: formData.timezone,
       registration_required: formData.registration_required,
       host_id: formData.host_id || undefined,
       panelists: formData.panelists
@@ -457,7 +484,7 @@ export default function ZoomWebinarProvisioning() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="start_time">Time (UK) *</Label>
+                <Label htmlFor="start_time">Time *</Label>
                 <Input
                   id="start_time"
                   type="time"
@@ -466,6 +493,25 @@ export default function ZoomWebinarProvisioning() {
                   data-testid="input-start-time"
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="timezone">Timezone</Label>
+              <Select
+                value={formData.timezone}
+                onValueChange={(value) => setFormData(prev => ({ ...prev, timezone: value }))}
+              >
+                <SelectTrigger data-testid="select-timezone">
+                  <SelectValue placeholder="Select timezone" />
+                </SelectTrigger>
+                <SelectContent>
+                  {timezoneOptions.map(tz => (
+                    <SelectItem key={tz.value} value={tz.value}>
+                      {tz.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="grid grid-cols-2 gap-4">

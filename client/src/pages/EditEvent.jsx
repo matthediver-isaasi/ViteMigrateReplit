@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,9 +12,7 @@ import {
   MapPin, 
   ArrowLeft,
   Save,
-  Loader2,
-  Tag,
-  Users
+  Loader2
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
@@ -47,21 +45,6 @@ export default function EditEvent() {
     queryFn: () => base44.entities.Program.list()
   });
 
-  useEffect(() => {
-    if (event) {
-      setFormData({
-        title: event.title || "",
-        description: event.description || "",
-        program_tag: event.program_tag || "",
-        start_date: event.start_date || "",
-        end_date: event.end_date || "",
-        location: event.location || "",
-        image_url: event.image_url || "",
-        available_seats: event.available_seats !== null ? String(event.available_seats) : ""
-      });
-    }
-  }, [event]);
-
   const updateEventMutation = useMutation({
     mutationFn: async (eventData) => {
       return base44.entities.Event.update(eventId, eventData);
@@ -80,6 +63,23 @@ export default function EditEvent() {
       toast.error('Failed to update event: ' + errorMessage);
     }
   });
+
+  useEffect(() => {
+    if (event) {
+      setFormData({
+        title: event.title || "",
+        description: event.description || "",
+        program_tag: event.program_tag || "",
+        start_date: event.start_date || "",
+        end_date: event.end_date || "",
+        location: event.location || "",
+        image_url: event.image_url || "",
+        available_seats: event.available_seats !== null && event.available_seats !== undefined 
+          ? String(event.available_seats) 
+          : ""
+      });
+    }
+  }, [event]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -127,9 +127,9 @@ export default function EditEvent() {
     }
   };
 
-  if (!eventId) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+  const renderContent = () => {
+    if (!eventId) {
+      return (
         <div className="max-w-3xl mx-auto text-center py-16">
           <h1 className="text-2xl font-bold text-slate-900 mb-4">Event Not Found</h1>
           <p className="text-slate-600 mb-6">No event ID was provided.</p>
@@ -138,26 +138,22 @@ export default function EditEvent() {
             Back to Events
           </Button>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (loadingEvent) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+    if (loadingEvent) {
+      return (
         <div className="max-w-3xl mx-auto">
           <div className="flex items-center justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
             <span className="ml-3 text-slate-600">Loading event...</span>
           </div>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  if (eventError || !event) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+    if (eventError || !event) {
+      return (
         <div className="max-w-3xl mx-auto text-center py-16">
           <h1 className="text-2xl font-bold text-slate-900 mb-4">Event Not Found</h1>
           <p className="text-slate-600 mb-6">The event you're looking for doesn't exist or has been deleted.</p>
@@ -166,12 +162,10 @@ export default function EditEvent() {
             Back to Events
           </Button>
         </div>
-      </div>
-    );
-  }
+      );
+    }
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+    return (
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center gap-4 mb-6">
           <Button 
@@ -358,6 +352,12 @@ export default function EditEvent() {
           </div>
         </form>
       </div>
+    );
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      {renderContent()}
     </div>
   );
 }

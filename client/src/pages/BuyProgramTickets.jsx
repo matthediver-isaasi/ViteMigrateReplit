@@ -20,6 +20,7 @@ import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
 import { useLayoutContext } from "@/contexts/LayoutContext";
+import { useProgramTicketRealtime } from "@/hooks/useProgramTicketRealtime";
 
 // Load Stripe outside component to avoid recreating on every render
 let stripePromise = null;
@@ -178,6 +179,9 @@ export default function BuyProgramTicketsPage({
   const hasUpdatedExpiredVouchers = useRef(false);
 
   const queryClient = useQueryClient();
+
+  // Subscribe to realtime updates for ticket purchases
+  useProgramTicketRealtime(organizationInfo?.id, ['vouchers']);
 
   // Check if tours should be shown for this user's role
   const shouldShowTours = memberInfo && !memberInfo.is_team_member && memberRole && memberRole.show_tours !== false;

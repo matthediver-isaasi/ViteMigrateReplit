@@ -4,13 +4,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Ticket } from "lucide-react";
+import { Search, Calendar, Ticket, Plus } from "lucide-react";
 import EventCard from "../components/events/EventCard";
 import ProgramFilter from "../components/events/ProgramFilter";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
 import { base44 } from "@/api/base44Client";
 import { useLayoutContext } from "@/contexts/LayoutContext";
+import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { createPageUrl } from "@/utils";
 
 export default function EventsPage({
   organizationInfo: propsOrganizationInfo,
@@ -28,6 +30,7 @@ export default function EventsPage({
   
   // Use context organizationInfo if available, otherwise fall back to props
   const organizationInfo = contextOrganizationInfo || propsOrganizationInfo;
+  const { isAdmin } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
   const [showTour, setShowTour] = useState(false);
@@ -207,9 +210,21 @@ export default function EventsPage({
               <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
                 Register your tickets
               </h1>
-              {shouldShowTours && typeof handleStartTour === "function" && (
-                <TourButton onClick={handleStartTour} />
-              )}
+              <div className="flex items-center gap-2">
+                {isAdmin && (
+                  <Button
+                    onClick={() => window.location.href = createPageUrl('CreateEvent')}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    data-testid="button-create-event"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Event
+                  </Button>
+                )}
+                {shouldShowTours && typeof handleStartTour === "function" && (
+                  <TourButton onClick={handleStartTour} />
+                )}
+              </div>
             </div>
           </div>
         )}

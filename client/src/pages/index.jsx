@@ -194,6 +194,8 @@ import PreferenceSettings from "./PreferenceSettings";
 
 import ZoomWebinarProvisioning from "./ZoomWebinarProvisioning";
 
+import CreateEvent from "./CreateEvent";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
 import { ArticleUrlProvider } from '@/contexts/ArticleUrlContext';
@@ -393,6 +395,8 @@ const PAGES = {
     PreferenceSettings: PreferenceSettings,
     
     ZoomWebinarProvisioning: ZoomWebinarProvisioning,
+    
+    CreateEvent: CreateEvent,
     
 }
 
@@ -628,6 +632,8 @@ function PagesContent() {
                 <Route path="/PreferenceSettings" element={<PreferenceSettings />} />
                 
                 <Route path="/ZoomWebinarProvisioning" element={<ZoomWebinarProvisioning />} />
+                
+                <Route path="/CreateEvent" element={<CreateEvent />} />
                 
                 {/* /auth/verify route removed - using password auth */}
                 

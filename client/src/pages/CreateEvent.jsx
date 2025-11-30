@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,12 +26,27 @@ import {
   Link as LinkIcon
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 
+async function apiRequest(url, options = {}) {
+  const response = await fetch(url, {
+    ...options,
+    credentials: 'include',
+    headers: {
+      ...options.headers,
+    }
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({ error: 'Request failed' }));
+    throw new Error(error.error || 'Request failed');
+  }
+  return response.json();
+}
+
 export default function CreateEvent() {
   const location = useLocation();
+  const queryClient = useQueryClient();
   const [isOnline, setIsOnline] = useState(false);
   const [selectedWebinarId, setSelectedWebinarId] = useState("");
   const [formData, setFormData] = useState({
@@ -91,10 +106,14 @@ export default function CreateEvent() {
     onSuccess: () => {
       toast.success('Event created successfully');
       queryClient.invalidateQueries({ queryKey: ['events'] });
-      window.location.href = createPageUrl('Events');
+      setTimeout(() => {
+        window.location.href = createPageUrl('Events');
+      }, 500);
     },
     onError: (error) => {
-      toast.error('Failed to create event: ' + (error.message || 'Unknown error'));
+      console.error('Create event error:', error);
+      const errorMessage = error.message || error.error || 'Unknown error occurred';
+      toast.error('Failed to create event: ' + errorMessage);
     }
   });
 
@@ -116,15 +135,20 @@ export default function CreateEvent() {
       return;
     }
 
+    if (!formData.title) {
+      toast.error('Please enter an event title');
+      return;
+    }
+
     const eventData = {
       title: formData.title,
-      description: formData.description,
+      description: formData.description || null,
       program_tag: formData.program_tag,
       start_date: formData.start_date,
       end_date: formData.end_date || formData.start_date,
-      location: formData.location,
+      location: isOnline ? 'Online Event' : formData.location,
       image_url: formData.image_url || null,
-      available_seats: isOnline ? 0 : (parseInt(formData.available_seats) || null),
+      available_seats: isOnline ? null : (formData.available_seats ? parseInt(formData.available_seats) : null),
       delivery_mode: isOnline ? 'online' : 'offline',
       zoom_webinar_id: isOnline ? formData.zoom_webinar_id : null,
       online_url: isOnline ? formData.online_url : null,

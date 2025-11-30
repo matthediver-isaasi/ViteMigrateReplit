@@ -205,33 +205,32 @@ export default function BuyProgramTicketsPage({
   //   return () => { isMounted = false; };
   // }, []);
 
-  // Check tour status for list view
+  // Auto-show tours based on member role (simplified to prevent re-render loops)
   useEffect(() => {
-    if (!shouldShowTours || selectedProgram !== null || hasAutoStartedListTour.current) return;
+    if (!memberInfo || !memberRole || !shouldShowTours) return;
+    
+    // Only auto-show tour once per component mount
+    if (hasAutoStartedListTour.current) return;
     
     const pageToursSeen = memberInfo.page_tours_seen || {};
-    const tourKey = 'BuyProgramTickets_list';
-    
-    if (!pageToursSeen[tourKey]) {
-      hasAutoStartedListTour.current = true; // Mark as auto-started
-      setTourAutoShowList(true);
+    if (!pageToursSeen['BuyProgramTickets_list'] && selectedProgram === null) {
+      hasAutoStartedListTour.current = true;
       setShowListTour(true);
     }
-  }, [memberInfo, selectedProgram, shouldShowTours]);
+  }, []); // Empty deps - only run on mount
 
-  // Check tour status for form view
+  // Auto-show form tour when program is selected
   useEffect(() => {
-    if (!shouldShowTours || selectedProgram === null || hasAutoStartedFormTour.current) return;
+    if (!memberInfo || !memberRole || !shouldShowTours || selectedProgram === null) return;
+    
+    if (hasAutoStartedFormTour.current) return;
     
     const pageToursSeen = memberInfo.page_tours_seen || {};
-    const tourKey = 'BuyProgramTickets_form';
-    
-    if (!pageToursSeen[tourKey]) {
-      hasAutoStartedFormTour.current = true; // Mark as auto-started
-      setTourAutoShowForm(true);
+    if (!pageToursSeen['BuyProgramTickets_form']) {
+      hasAutoStartedFormTour.current = true;
       setShowFormTour(true);
     }
-  }, [memberInfo, selectedProgram, shouldShowTours]);
+  }, [selectedProgram?.id]);
 
 
   // Fetch programs

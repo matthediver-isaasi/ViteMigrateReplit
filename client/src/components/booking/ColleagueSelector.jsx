@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Loader2, Search, Mail, Users } from "lucide-react";
+import { Loader2, Search, Mail, Users, RefreshCw } from "lucide-react";
 import { createClient } from '@supabase/supabase-js';
 
 // Initialize Supabase client for direct queries
@@ -14,53 +14,76 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
   const [searchTerm, setSearchTerm] = useState("");
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
+  const [syncing, setSyncing] = useState(true);
+  const [syncComplete, setSyncComplete] = useState(false);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualEmail, setManualEmail] = useState("");
   const [validating, setValidating] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [syncError, setSyncError] = useState(null);
 
-  // Load active members from the same organization on mount
+  // Sync with CRM and then load contacts from Supabase
   useEffect(() => {
-    const loadMembers = async () => {
+    const syncAndLoadMembers = async () => {
       if (!organizationId) {
-        setInitialLoading(false);
+        setSyncing(false);
+        setSyncComplete(true);
         return;
       }
 
-      setInitialLoading(true);
+      setSyncing(true);
+      setSyncError(null);
+      
       try {
-        console.log('[ColleagueSelector] Loading active members for organization:', organizationId);
+        console.log('[ColleagueSelector] Starting CRM sync for organization:', organizationId);
         
-        // Query the member table directly from Supabase
-        // Filter by organization_id and login_enabled = true (active members only)
+        // Step 1: Sync contacts from CRM
+        const syncResponse = await fetch('/api/functions/syncOrganizationContacts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ organizationId })
+        });
+        
+        const syncResult = await syncResponse.json();
+        
+        if (!syncResponse.ok) {
+          console.error('[ColleagueSelector] CRM sync failed:', syncResult);
+          setSyncError('Failed to sync with CRM');
+        } else {
+          console.log('[ColleagueSelector] CRM sync complete:', syncResult);
+        }
+        
+        // Step 2: Load contacts from organization_contact table
+        console.log('[ColleagueSelector] Loading contacts from Supabase...');
         const { data, error } = await supabase
-          .from('member')
-          .select('id, email, first_name, last_name, zoho_contact_id')
+          .from('organization_contact')
+          .select('id, email, first_name, last_name, zoho_contact_id, is_active')
           .eq('organization_id', organizationId)
-          .eq('login_enabled', true)
+          .eq('is_active', true)
           .order('first_name', { ascending: true });
 
         if (error) {
-          console.error('[ColleagueSelector] Error loading members:', error);
+          console.error('[ColleagueSelector] Error loading contacts:', error);
           setMembers([]);
         } else {
           // Exclude the current member from the list
           const filteredMembers = (data || []).filter(
             m => m.email?.toLowerCase() !== memberInfo?.email?.toLowerCase()
           );
-          console.log('[ColleagueSelector] Loaded', filteredMembers.length, 'active members');
+          console.log('[ColleagueSelector] Loaded', filteredMembers.length, 'active contacts');
           setMembers(filteredMembers);
         }
       } catch (error) {
-        console.error('[ColleagueSelector] Failed to load members:', error);
+        console.error('[ColleagueSelector] Sync/load failed:', error);
+        setSyncError('Failed to load colleagues');
         setMembers([]);
       } finally {
-        setInitialLoading(false);
+        setSyncing(false);
+        setSyncComplete(true);
       }
     };
 
-    loadMembers();
+    syncAndLoadMembers();
   }, [organizationId, memberInfo?.email]);
 
   // Filter members based on search term
@@ -154,11 +177,15 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
     }
   };
 
-  if (initialLoading) {
+  if (syncing) {
     return (
       <div className="p-4 border border-slate-200 rounded-lg bg-slate-50 text-center">
-        <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
-        <p className="text-sm text-slate-600">Loading colleagues...</p>
+        <div className="flex items-center justify-center gap-2 mb-2">
+          <RefreshCw className="w-5 h-5 animate-spin text-blue-600" />
+          <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+        </div>
+        <p className="text-sm font-medium text-slate-700">Syncing with CRM...</p>
+        <p className="text-xs text-slate-500 mt-1">Loading your organisation's colleagues</p>
       </div>
     );
   }
@@ -201,10 +228,17 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
 
   return (
     <div className="relative">
+      {/* Sync error display */}
+      {syncError && (
+        <div className="mb-2 p-2 bg-amber-50 border border-amber-200 rounded-md text-xs text-amber-700">
+          {syncError} - showing cached data
+        </div>
+      )}
+      
       <div className="relative">
         <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
         <Input
-          placeholder="Search by name or email..."
+          placeholder={syncComplete ? "Search by name or email..." : "Syncing..."}
           value={searchTerm}
           onChange={(e) => {
             setSearchTerm(e.target.value);
@@ -212,13 +246,13 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
           }}
           onFocus={() => searchTerm && setShowDropdown(true)}
           className="pl-10"
-          disabled={loading}
+          disabled={!syncComplete || loading}
           data-testid="input-colleague-search"
         />
       </div>
 
       {/* Member count indicator */}
-      {members.length > 0 && !showDropdown && (
+      {syncComplete && members.length > 0 && !showDropdown && (
         <div className="mt-2 flex items-center gap-2 text-xs text-slate-500">
           <Users className="w-3 h-3" />
           <span>{members.length} active colleague{members.length !== 1 ? 's' : ''} available</span>

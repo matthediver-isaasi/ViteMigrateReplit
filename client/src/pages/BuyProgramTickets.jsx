@@ -182,41 +182,28 @@ export default function BuyProgramTicketsPage({
     initStripe();
   }, []);
 
-  // Update expired vouchers once on component mount
-  useEffect(() => {
-    // Only run once per component mount
-    if (hasUpdatedExpiredVouchers.current) return;
-    
-    let isMounted = true;
-
-    const updateExpiredVouchers = async () => {
-      try {
-        console.log('[BuyProgramTickets] Updating expired vouchers...');
-        const response = await base44.functions.invoke('updateExpiredVouchers');
-
-        if (!isMounted) return;
-
-        if (response.data.success && response.data.updated_count > 0) {
-          console.log('[BuyProgramTickets] Updated expired vouchers:', response.data.updated_count);
-          // Invalidate voucher queries to refetch with updated statuses
-          queryClient.invalidateQueries({ queryKey: ['vouchers'] });
-        } else {
-          console.log('[BuyProgramTickets] No expired vouchers found or update not needed');
-        }
-      } catch (error) {
-        console.error('[BuyProgramTickets] Failed to update expired vouchers:', error);
-      }
-    };
-
-    if (memberInfo && organizationInfo) {
-      hasUpdatedExpiredVouchers.current = true;
-      updateExpiredVouchers();
-    }
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  // Update expired vouchers - disabled to prevent infinite loop
+  // TODO: Re-implement this with proper state management
+  // useEffect(() => {
+  //   let isMounted = true;
+  //   const updateExpiredVouchers = async () => {
+  //     try {
+  //       console.log('[BuyProgramTickets] Updating expired vouchers...');
+  //       const response = await base44.functions.invoke('updateExpiredVouchers');
+  //       if (!isMounted) return;
+  //       if (response.data.success && response.data.updated_count > 0) {
+  //         console.log('[BuyProgramTickets] Updated expired vouchers:', response.data.updated_count);
+  //         queryClient.invalidateQueries({ queryKey: ['vouchers'] });
+  //       }
+  //     } catch (error) {
+  //       console.error('[BuyProgramTickets] Failed to update expired vouchers:', error);
+  //     }
+  //   };
+  //   if (memberInfo && organizationInfo) {
+  //     updateExpiredVouchers();
+  //   }
+  //   return () => { isMounted = false; };
+  // }, []);
 
   // Check tour status for list view
   useEffect(() => {

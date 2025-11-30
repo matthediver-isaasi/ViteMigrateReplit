@@ -106,14 +106,15 @@ export default async function handler(req, res) {
         return res.status(404).json({ error: 'Webinar not found' });
       }
       
-      if (updates.topic || updates.start_time || updates.duration_minutes || updates.agenda) {
+      if (updates.topic || updates.start_time || updates.duration_minutes || updates.agenda || updates.timezone) {
         const token = await getZoomAccessToken();
         
         const zoomUpdates = {};
         if (updates.topic) zoomUpdates.topic = updates.topic;
-        if (updates.start_time) zoomUpdates.start_time = new Date(updates.start_time).toISOString();
+        if (updates.start_time) zoomUpdates.start_time = updates.start_time;
         if (updates.duration_minutes) zoomUpdates.duration = updates.duration_minutes;
         if (updates.agenda) zoomUpdates.agenda = updates.agenda;
+        if (updates.timezone) zoomUpdates.timezone = updates.timezone;
         
         const zoomResponse = await fetch(
           `https://api.zoom.us/v2/webinars/${existing.zoom_webinar_id}`,

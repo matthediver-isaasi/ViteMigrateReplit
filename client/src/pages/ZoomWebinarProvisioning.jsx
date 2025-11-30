@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
-import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as LinkIcon, ExternalLink, Copy, Check, RefreshCw, AlertCircle } from "lucide-react";
+import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as LinkIcon, ExternalLink, Copy, Check, RefreshCw, AlertCircle, Edit, Save } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
@@ -37,7 +37,9 @@ export default function ZoomWebinarProvisioning() {
   
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedWebinar, setSelectedWebinar] = useState(null);
+  const [editingWebinar, setEditingWebinar] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
   
   const [formData, setFormData] = useState({
@@ -147,6 +149,26 @@ export default function ZoomWebinarProvisioning() {
     }
   });
 
+  const updateWebinarMutation = useMutation({
+    mutationFn: async ({ id, data }) => {
+      return apiRequest(`/api/zoom/webinars/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+        headers: { 'Content-Type': 'application/json' }
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/zoom/webinars'] });
+      toast.success('Webinar updated successfully');
+      setShowEditDialog(false);
+      setEditingWebinar(null);
+      resetForm();
+    },
+    onError: (error) => {
+      toast.error('Failed to update webinar: ' + (error.message || 'Unknown error'));
+    }
+  });
+
   const resetForm = () => {
     setFormData({
       topic: "",
@@ -163,6 +185,55 @@ export default function ZoomWebinarProvisioning() {
     setConflicts([]);
   };
 
+  const openEditDialog = (webinar) => {
+    setEditingWebinar(webinar);
+    const startDate = parseISO(webinar.start_time);
+    setFormData({
+      topic: webinar.topic || "",
+      agenda: webinar.agenda || "",
+      start_date: format(startDate, "yyyy-MM-dd"),
+      start_time: format(startDate, "HH:mm"),
+      duration_minutes: webinar.duration_minutes || 60,
+      timezone: webinar.timezone || "Europe/London",
+      registration_required: webinar.registration_required || false,
+      host_id: webinar.zoom_host_id || "",
+      panelists: webinar.panelists || []
+    });
+    setShowDetailsDialog(false);
+    setShowEditDialog(true);
+  };
+
+  const handleEditSubmit = () => {
+    if (!formData.topic) {
+      toast.error('Please enter a webinar topic');
+      return;
+    }
+    if (!formData.start_date || !formData.start_time) {
+      toast.error('Please select date and time');
+      return;
+    }
+    
+    const startTime = new Date(`${formData.start_date}T${formData.start_time}`);
+    
+    if (startTime < new Date()) {
+      toast.error('Start time must be in the future');
+      return;
+    }
+    
+    const startTimeLocal = `${formData.start_date}T${formData.start_time}:00`;
+    
+    updateWebinarMutation.mutate({
+      id: editingWebinar.id,
+      data: {
+        topic: formData.topic,
+        agenda: formData.agenda,
+        start_time: startTimeLocal,
+        duration_minutes: formData.duration_minutes,
+        timezone: formData.timezone
+      }
+    });
+  };
+
   const checkForConflicts = async () => {
     if (!formData.start_date || !formData.start_time) return;
     
@@ -176,7 +247,8 @@ export default function ZoomWebinarProvisioning() {
           start_time: startTimeLocal,
           duration_minutes: formData.duration_minutes,
           host_id: formData.host_id || undefined,
-          timezone: formData.timezone
+          timezone: formData.timezone,
+          exclude_webinar_id: editingWebinar?.id
         }),
         headers: { 'Content-Type': 'application/json' }
       });
@@ -193,7 +265,7 @@ export default function ZoomWebinarProvisioning() {
       const timer = setTimeout(checkForConflicts, 500);
       return () => clearTimeout(timer);
     }
-  }, [formData.start_date, formData.start_time, formData.duration_minutes, formData.host_id, formData.timezone]);
+  }, [formData.start_date, formData.start_time, formData.duration_minutes, formData.host_id, formData.timezone, editingWebinar?.id]);
 
   const addPanelist = () => {
     if (!newPanelist.name || !newPanelist.email) {
@@ -828,23 +900,33 @@ export default function ZoomWebinarProvisioning() {
 
           <DialogFooter className="flex-col sm:flex-row gap-2">
             {selectedWebinar?.status === 'scheduled' && new Date(selectedWebinar.start_time) > new Date() && (
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  if (confirm('Are you sure you want to cancel this webinar? This will also delete it from Zoom.')) {
-                    deleteWebinarMutation.mutate(selectedWebinar.id);
-                  }
-                }}
-                disabled={deleteWebinarMutation.isPending}
-                data-testid="button-cancel-webinar"
-              >
-                {deleteWebinarMutation.isPending ? (
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                ) : (
-                  <Trash2 className="w-4 h-4 mr-2" />
-                )}
-                Cancel Webinar
-              </Button>
+              <>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (confirm('Are you sure you want to cancel this webinar? This will also delete it from Zoom.')) {
+                      deleteWebinarMutation.mutate(selectedWebinar.id);
+                    }
+                  }}
+                  disabled={deleteWebinarMutation.isPending}
+                  data-testid="button-cancel-webinar"
+                >
+                  {deleteWebinarMutation.isPending ? (
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-4 h-4 mr-2" />
+                  )}
+                  Delete
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => openEditDialog(selectedWebinar)}
+                  data-testid="button-edit-webinar"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Edit
+                </Button>
+              </>
             )}
             <Button
               variant="outline"
@@ -852,6 +934,183 @@ export default function ZoomWebinarProvisioning() {
               data-testid="button-close-details"
             >
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Webinar Dialog */}
+      <Dialog open={showEditDialog} onOpenChange={(open) => {
+        setShowEditDialog(open);
+        if (!open) {
+          setEditingWebinar(null);
+          resetForm();
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit className="w-5 h-5" />
+              Edit Webinar
+            </DialogTitle>
+            <DialogDescription>
+              Update the webinar details. Changes will be synced with Zoom.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-6 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-topic">Webinar Title *</Label>
+              <Input
+                id="edit-topic"
+                placeholder="e.g., Monthly Member Webinar"
+                value={formData.topic}
+                onChange={(e) => setFormData(prev => ({ ...prev, topic: e.target.value }))}
+                data-testid="input-edit-topic"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-agenda">Description</Label>
+              <Textarea
+                id="edit-agenda"
+                placeholder="Brief description of the webinar"
+                value={formData.agenda}
+                onChange={(e) => setFormData(prev => ({ ...prev, agenda: e.target.value }))}
+                rows={3}
+                data-testid="input-edit-agenda"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-date">Date *</Label>
+                <Input
+                  id="edit-date"
+                  type="date"
+                  value={formData.start_date}
+                  onChange={(e) => setFormData(prev => ({ ...prev, start_date: e.target.value }))}
+                  min={format(new Date(), "yyyy-MM-dd")}
+                  data-testid="input-edit-date"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-time">Time *</Label>
+                <Input
+                  id="edit-time"
+                  type="time"
+                  value={formData.start_time}
+                  onChange={(e) => setFormData(prev => ({ ...prev, start_time: e.target.value }))}
+                  data-testid="input-edit-time"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-timezone">Timezone</Label>
+                <Select
+                  value={formData.timezone}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, timezone: value }))}
+                >
+                  <SelectTrigger data-testid="select-edit-timezone">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {timezoneOptions.map(tz => (
+                      <SelectItem key={tz.value} value={tz.value}>
+                        {tz.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-duration">Duration</Label>
+                <Select
+                  value={formData.duration_minutes.toString()}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, duration_minutes: parseInt(value) }))}
+                >
+                  <SelectTrigger data-testid="select-edit-duration">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="30">30 minutes</SelectItem>
+                    <SelectItem value="45">45 minutes</SelectItem>
+                    <SelectItem value="60">1 hour</SelectItem>
+                    <SelectItem value="90">1.5 hours</SelectItem>
+                    <SelectItem value="120">2 hours</SelectItem>
+                    <SelectItem value="180">3 hours</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {conflicts.length > 0 && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg" data-testid="edit-conflict-warning">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-amber-800">Scheduling Conflict Detected</p>
+                    <p className="text-sm text-amber-700 mt-1">
+                      The following {conflicts.length === 1 ? 'webinar overlaps' : 'webinars overlap'} with your selected time slot:
+                    </p>
+                    <div className="mt-3 space-y-2">
+                      {conflicts.filter(c => c.id !== editingWebinar?.id).map(c => {
+                        const startTime = parseISO(c.start_time);
+                        const endTime = new Date(startTime.getTime() + c.duration_minutes * 60 * 1000);
+                        return (
+                          <div key={c.id} className="p-3 bg-white/60 border border-amber-200 rounded-md">
+                            <p className="font-medium text-amber-900">{c.topic}</p>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-amber-700">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5" />
+                                {format(startTime, "EEE, d MMM yyyy")}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5" />
+                                {format(startTime, "HH:mm")} - {format(endTime, "HH:mm")}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowEditDialog(false);
+                setEditingWebinar(null);
+                resetForm();
+              }}
+              data-testid="button-cancel-edit"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditSubmit}
+              disabled={updateWebinarMutation.isPending || !formData.topic || !formData.start_date || !formData.start_time}
+              className="bg-amber-600 hover:bg-amber-700"
+              data-testid="button-save-webinar"
+            >
+              {updateWebinarMutation.isPending ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save Changes
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

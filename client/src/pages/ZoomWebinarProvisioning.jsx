@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -89,6 +89,7 @@ export default function ZoomWebinarProvisioning() {
   const [newPanelist, setNewPanelist] = useState({ name: "", email: "" });
   const [conflicts, setConflicts] = useState([]);
   const [checkingConflicts, setCheckingConflicts] = useState(false);
+  const isSubmitting = useRef(false);
   
   // States for webinar details (panelists and registrants)
   const [webinarDetails, setWebinarDetails] = useState(null);
@@ -442,6 +443,13 @@ export default function ZoomWebinarProvisioning() {
 
   const handleSubmit = () => {
     console.log('[CreateWebinar] handleSubmit called, formData:', formData);
+    
+    // Prevent double invocation (React StrictMode issue)
+    if (isSubmitting.current) {
+      console.log('[CreateWebinar] Already submitting, skipping');
+      return;
+    }
+    
     if (!formData.topic) {
       toast.error('Please enter a webinar topic');
       return;
@@ -459,20 +467,25 @@ export default function ZoomWebinarProvisioning() {
       return;
     }
     
-    // Send time as local time (without UTC conversion)
-    // Zoom will apply the selected timezone
-    const startTimeLocal = `${formData.start_date}T${formData.start_time}:00`;
-    
-    console.log('[CreateWebinar] Calling mutation.mutate() with startTimeLocal:', startTimeLocal);
-    createWebinarMutation.mutate({
+    // Capture form data before any state changes
+    const submitData = {
       topic: formData.topic,
       agenda: formData.agenda,
-      start_time: startTimeLocal,
+      start_time: `${formData.start_date}T${formData.start_time}:00`,
       duration_minutes: formData.duration_minutes,
       timezone: formData.timezone,
       registration_required: formData.registration_required,
       host_id: formData.host_id || undefined,
-      panelists: formData.panelists
+      panelists: [...formData.panelists]
+    };
+    
+    console.log('[CreateWebinar] Calling mutation.mutate() with data:', submitData);
+    isSubmitting.current = true;
+    
+    createWebinarMutation.mutate(submitData, {
+      onSettled: () => {
+        isSubmitting.current = false;
+      }
     });
   };
 

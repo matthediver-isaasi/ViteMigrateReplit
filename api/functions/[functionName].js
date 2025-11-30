@@ -854,22 +854,175 @@ const functionHandlers = {
 
     const bookingReference = `BK${Date.now().toString(36).toUpperCase()}${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
     const createdBookings = [];
+    const zoomRegistrationResults = [];
+
+    // Helper: Check if event is a Zoom event
+    const isZoomEvent = (evt) => {
+      if (!evt.location) return false;
+      const location = evt.location.toLowerCase();
+      return location.includes('zoom.us') || 
+             (location.startsWith('online') && location.includes('zoom'));
+    };
+
+    // Helper: Extract Zoom URL from location
+    const extractZoomUrl = (location) => {
+      if (!location) return null;
+      const urlMatch = location.match(/https?:\/\/[^\s]+zoom[^\s]*/i);
+      return urlMatch ? urlMatch[0] : null;
+    };
+
+    // Helper: Find webinar by event location
+    const findWebinarByLocation = async (eventLocation) => {
+      const zoomUrl = extractZoomUrl(eventLocation);
+      if (!zoomUrl) return null;
+      
+      console.log('[createBooking] Looking for webinar with join_url matching:', zoomUrl);
+      
+      const { data: webinars, error } = await supabase
+        .from('zoom_webinar')
+        .select('*')
+        .eq('status', 'scheduled');
+      
+      if (error || !webinars) {
+        console.error('[createBooking] Error fetching webinars:', error);
+        return null;
+      }
+      
+      const normalizeUrl = (url) => url.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase();
+      const normalizedZoomUrl = normalizeUrl(zoomUrl);
+      
+      const matchingWebinar = webinars.find((w) => {
+        if (!w.join_url) return false;
+        const normalizedJoinUrl = normalizeUrl(w.join_url);
+        return normalizedZoomUrl.includes(normalizedJoinUrl) || normalizedJoinUrl.includes(normalizedZoomUrl);
+      });
+      
+      if (matchingWebinar) {
+        console.log('[createBooking] Found matching webinar:', matchingWebinar.id, matchingWebinar.topic);
+      } else {
+        console.log('[createBooking] No matching webinar found for URL:', zoomUrl);
+      }
+      
+      return matchingWebinar || null;
+    };
+
+    // Helper: Register attendee with Zoom
+    const registerWithZoom = async (webinar, attendee) => {
+      try {
+        if (!webinar.zoom_webinar_id) {
+          return { success: false, error: 'Webinar not synced with Zoom' };
+        }
+        
+        if (!webinar.registration_required) {
+          console.log(`[createBooking] Registration not required for webinar ${webinar.zoom_webinar_id}`);
+          return { success: true };
+        }
+        
+        if (new Date(webinar.start_time) <= new Date()) {
+          return { success: false, error: 'Webinar has already started' };
+        }
+        
+        const token = await getZoomAccessToken();
+        
+        console.log(`[createBooking] Registering ${attendee.email} for webinar ${webinar.zoom_webinar_id}`);
+        
+        const zoomResponse = await fetch(
+          `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}/registrants`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              first_name: attendee.first_name,
+              last_name: attendee.last_name,
+              email: attendee.email,
+              auto_approve: true
+            })
+          }
+        );
+        
+        if (!zoomResponse.ok) {
+          const errorData = await zoomResponse.json().catch(() => ({}));
+          console.error(`[createBooking] Zoom registration error for ${attendee.email}:`, errorData);
+          
+          if (errorData.code === 3027) {
+            console.log(`[createBooking] ${attendee.email} already registered`);
+            return { success: true, error: 'Already registered' };
+          }
+          
+          return { success: false, error: errorData.message || 'Zoom registration failed' };
+        }
+        
+        const zoomData = await zoomResponse.json();
+        console.log(`[createBooking] ✓ Registered ${attendee.email}, registrant_id: ${zoomData.registrant_id}`);
+        
+        return { success: true, registrant_id: zoomData.registrant_id };
+      } catch (err) {
+        console.error(`[createBooking] Zoom registration failed for ${attendee.email}:`, err);
+        return { success: false, error: err.message };
+      }
+    };
+
+    // Determine event type and handle accordingly
+    const eventIsZoom = isZoomEvent(event) && !event.backstage_event_id;
+    const eventIsBackstage = !!event.backstage_event_id;
+    let matchingWebinar = null;
+
+    if (eventIsZoom && (registrationMode === 'self' || registrationMode === 'colleagues')) {
+      console.log('[createBooking] Event is a Zoom event, looking for matching webinar...');
+      matchingWebinar = await findWebinarByLocation(event.location);
+      
+      if (matchingWebinar) {
+        console.log('[createBooking] Found webinar, will register attendees with Zoom');
+        
+        for (const attendee of (attendees || [])) {
+          const result = await registerWithZoom(matchingWebinar, {
+            email: attendee.email,
+            first_name: attendee.first_name || 'Guest',
+            last_name: attendee.last_name || 'Attendee'
+          });
+          zoomRegistrationResults.push({ email: attendee.email, ...result });
+        }
+      } else {
+        console.log('[createBooking] No matching webinar found, proceeding without Zoom registration');
+      }
+    }
+
+    // Determine booking status based on event type
+    let bookingStatus = 'confirmed';
+    if (eventIsBackstage) {
+      bookingStatus = 'pending_backstage_sync';
+    } else if (eventIsZoom && matchingWebinar) {
+      bookingStatus = 'confirmed';
+    }
 
     if (registrationMode === 'self' || registrationMode === 'colleagues') {
       for (const attendee of (attendees || [])) {
+        // Find corresponding Zoom registration result
+        const zoomResult = zoomRegistrationResults.find(r => r.email === attendee.email);
+        
+        const bookingData = {
+          event_id: eventId,
+          member_id: member.id,
+          attendee_email: attendee.email,
+          attendee_first_name: attendee.first_name,
+          attendee_last_name: attendee.last_name,
+          ticket_price: event.ticket_price || 0,
+          booking_reference: bookingReference,
+          status: bookingStatus,
+          payment_method: 'program_ticket'
+        };
+
+        // Add Zoom registrant ID if available
+        if (zoomResult?.registrant_id) {
+          bookingData.zoom_registrant_id = zoomResult.registrant_id;
+        }
+
         const { data: booking } = await supabase
           .from('booking')
-          .insert({
-            event_id: eventId,
-            member_id: member.id,
-            attendee_email: attendee.email,
-            attendee_first_name: attendee.first_name,
-            attendee_last_name: attendee.last_name,
-            ticket_price: event.ticket_price || 0,
-            booking_reference: bookingReference,
-            status: 'pending_backstage_sync',
-            payment_method: 'program_ticket'
-          })
+          .insert(bookingData)
           .select()
           .single();
 
@@ -921,14 +1074,30 @@ const functionHandlers = {
         notes: `Used ${ticketsRequired} ${programTag} ticket(s) for ${event.title || 'event'}`
       });
 
-    return {
+    // Build response based on event type
+    const response = {
       success: true,
       booking_reference: bookingReference,
       bookings: createdBookings,
       tickets_used: ticketsRequired,
       remaining_balance: newBalance,
-      warning: 'Backstage sync not performed in serverless mode - admin may need to sync manually'
+      event_type: eventIsZoom ? 'zoom' : eventIsBackstage ? 'backstage' : 'regular'
     };
+
+    if (eventIsZoom) {
+      response.zoom_registration = {
+        webinar_found: !!matchingWebinar,
+        registrations: zoomRegistrationResults
+      };
+      if (!matchingWebinar) {
+        response.warning = 'Zoom webinar not found - attendees not registered with Zoom';
+      }
+    } else if (eventIsBackstage) {
+      response.warning = 'Backstage sync not performed in serverless mode - admin may need to sync manually';
+    }
+
+    console.log('[createBooking] Booking complete:', response);
+    return response;
   },
 
   async processProgramTicketPurchase(params) {

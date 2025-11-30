@@ -3344,7 +3344,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
     let stripe: any = null;
     if (stripeSecretKey) {
-      const Stripe = require('stripe');
+      const Stripe = (await import('stripe')).default;
       stripe = new Stripe(stripeSecretKey);
     }
 

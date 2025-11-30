@@ -9371,6 +9371,71 @@ AGCAS Events Team
     }
   });
 
+  // Get webinar registrants from Zoom
+  app.get('/api/zoom/webinars/:id/registrants', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { id } = req.params;
+      
+      // Get webinar to get Zoom ID
+      const { data: webinar, error: fetchError } = await supabase
+        .from('zoom_webinar')
+        .select('zoom_webinar_id, registration_required')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        return res.status(404).json({ error: 'Webinar not found' });
+      }
+      
+      // If registration is not required, return empty list
+      if (!webinar.registration_required) {
+        return res.json({ registrants: [], total_records: 0 });
+      }
+      
+      const token = await getZoomAccessToken();
+      
+      // Fetch registrants from Zoom
+      const zoomResponse = await fetch(
+        `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}/registrants?page_size=100`,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+      
+      if (!zoomResponse.ok) {
+        const errorText = await zoomResponse.text();
+        console.error('[Zoom] Fetch registrants error:', errorText);
+        return res.status(zoomResponse.status).json({ error: 'Failed to fetch registrants from Zoom' });
+      }
+      
+      const data = await zoomResponse.json() as {
+        registrants: Array<{
+          id: string;
+          email: string;
+          first_name: string;
+          last_name: string;
+          status: string;
+          create_time: string;
+        }>;
+        total_records: number;
+      };
+      
+      res.json({
+        registrants: data.registrants || [],
+        total_records: data.total_records || 0
+      });
+    } catch (error: any) {
+      console.error('[Zoom] Fetch registrants error:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch registrants' });
+    }
+  });
+
   // ============ Health Check ============
   app.get('/api/health', (req: Request, res: Response) => {
     res.json({ 

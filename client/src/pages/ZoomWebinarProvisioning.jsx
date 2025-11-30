@@ -10,7 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as LinkIcon, ExternalLink, Copy, Check, RefreshCw, AlertCircle, Edit, Save } from "lucide-react";
+import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as LinkIcon, ExternalLink, Copy, Check, RefreshCw, AlertCircle, Edit, Save, Mail, User } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, parseISO } from "date-fns";
 import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { toast } from "sonner";
@@ -86,6 +88,12 @@ export default function ZoomWebinarProvisioning() {
   const [newPanelist, setNewPanelist] = useState({ name: "", email: "" });
   const [conflicts, setConflicts] = useState([]);
   const [checkingConflicts, setCheckingConflicts] = useState(false);
+  
+  // States for webinar details (panelists and registrants)
+  const [webinarDetails, setWebinarDetails] = useState(null);
+  const [registrants, setRegistrants] = useState([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [loadingRegistrants, setLoadingRegistrants] = useState(false);
 
   useEffect(() => {
     if (isAccessReady) {
@@ -336,6 +344,42 @@ export default function ZoomWebinarProvisioning() {
     setTimeout(() => setCopiedField(null), 2000);
   };
 
+  // Fetch webinar details (with panelists) and registrants when opening details dialog
+  const fetchWebinarDetails = async (webinarId) => {
+    setLoadingDetails(true);
+    setLoadingRegistrants(true);
+    setWebinarDetails(null);
+    setRegistrants([]);
+    
+    try {
+      // Fetch webinar details with panelists
+      const details = await apiRequest(`/api/zoom/webinars/${webinarId}`);
+      setWebinarDetails(details);
+    } catch (error) {
+      console.error('Failed to fetch webinar details:', error);
+      toast.error('Failed to load panelist details');
+    } finally {
+      setLoadingDetails(false);
+    }
+    
+    try {
+      // Fetch registrants from Zoom
+      const regData = await apiRequest(`/api/zoom/webinars/${webinarId}/registrants`);
+      setRegistrants(regData.registrants || []);
+    } catch (error) {
+      console.error('Failed to fetch registrants:', error);
+      toast.error('Failed to load registrant list');
+    } finally {
+      setLoadingRegistrants(false);
+    }
+  };
+
+  const openDetailsDialog = (webinar) => {
+    setSelectedWebinar(webinar);
+    setShowDetailsDialog(true);
+    fetchWebinarDetails(webinar.id);
+  };
+
   const getStatusBadge = (status) => {
     switch (status) {
       case 'scheduled':
@@ -440,10 +484,7 @@ export default function ZoomWebinarProvisioning() {
                   <div 
                     key={webinar.id}
                     className={`flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors ${hasConflict ? 'border-amber-300 bg-amber-50/30' : ''}`}
-                    onClick={() => {
-                      setSelectedWebinar(webinar);
-                      setShowDetailsDialog(true);
-                    }}
+                    onClick={() => openDetailsDialog(webinar)}
                     data-testid={`webinar-row-${webinar.id}`}
                   >
                     <div className="flex items-center gap-4">
@@ -502,10 +543,7 @@ export default function ZoomWebinarProvisioning() {
                 <div 
                   key={webinar.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors opacity-75"
-                  onClick={() => {
-                    setSelectedWebinar(webinar);
-                    setShowDetailsDialog(true);
-                  }}
+                  onClick={() => openDetailsDialog(webinar)}
                   data-testid={`webinar-past-row-${webinar.id}`}
                 >
                   <div className="flex items-center gap-4">
@@ -827,125 +865,238 @@ export default function ZoomWebinarProvisioning() {
       </Dialog>
 
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Video className="w-5 h-5" />
               Webinar Details
             </DialogTitle>
+            <DialogDescription>
+              View webinar information, panelists, and registered attendees
+            </DialogDescription>
           </DialogHeader>
 
           {selectedWebinar && (
-            <div className="space-y-6 py-4">
-              <div>
-                <h3 className="font-semibold text-lg text-slate-900" data-testid="text-webinar-topic">
-                  {selectedWebinar.topic}
-                </h3>
-                {selectedWebinar.agenda && (
-                  <p className="text-slate-600 mt-1">{selectedWebinar.agenda}</p>
-                )}
-              </div>
+            <Tabs defaultValue="info" className="flex-1 overflow-hidden flex flex-col">
+              <TabsList className="grid w-full grid-cols-3">
+                <TabsTrigger value="info" data-testid="tab-webinar-info">
+                  Info
+                </TabsTrigger>
+                <TabsTrigger value="panelists" data-testid="tab-webinar-panelists">
+                  Panelists {webinarDetails?.panelists?.length > 0 && `(${webinarDetails.panelists.length})`}
+                </TabsTrigger>
+                <TabsTrigger value="registrants" data-testid="tab-webinar-registrants">
+                  Registrants {registrants.length > 0 && `(${registrants.length})`}
+                </TabsTrigger>
+              </TabsList>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-slate-500">Date & Time</p>
-                  <p className="font-medium">{formatWebinarDate(selectedWebinar.start_time, selectedWebinar.timezone)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-slate-500">Duration</p>
-                  <p className="font-medium">{selectedWebinar.duration_minutes} minutes</p>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm text-slate-500 mb-1">Status</p>
-                {getStatusBadge(selectedWebinar.status)}
-              </div>
-
-              {selectedWebinar.join_url && (
-                <div className="space-y-2">
-                  <p className="text-sm text-slate-500">Join URL</p>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={selectedWebinar.join_url}
-                      readOnly
-                      className="text-sm"
-                      data-testid="input-join-url"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(selectedWebinar.join_url, 'join')}
-                      data-testid="button-copy-join-url"
-                    >
-                      {copiedField === 'join' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => window.open(selectedWebinar.join_url, '_blank')}
-                      data-testid="button-open-join-url"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </Button>
+              <TabsContent value="info" className="flex-1 overflow-y-auto mt-4">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="font-semibold text-lg text-slate-900" data-testid="text-webinar-topic">
+                      {selectedWebinar.topic}
+                    </h3>
+                    {selectedWebinar.agenda && (
+                      <p className="text-slate-600 mt-1">{selectedWebinar.agenda}</p>
+                    )}
                   </div>
-                </div>
-              )}
 
-              {selectedWebinar.registration_url && (
-                <div className="space-y-2">
-                  <p className="text-sm text-slate-500">Registration URL</p>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={selectedWebinar.registration_url}
-                      readOnly
-                      className="text-sm"
-                      data-testid="input-registration-url"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(selectedWebinar.registration_url, 'reg')}
-                      data-testid="button-copy-registration-url"
-                    >
-                      {copiedField === 'reg' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </Button>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-slate-500">Date & Time</p>
+                      <p className="font-medium">{formatWebinarDate(selectedWebinar.start_time, selectedWebinar.timezone)}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-slate-500">Duration</p>
+                      <p className="font-medium">{selectedWebinar.duration_minutes} minutes</p>
+                    </div>
                   </div>
-                </div>
-              )}
 
-              {selectedWebinar.password && (
-                <div className="space-y-2">
-                  <p className="text-sm text-slate-500">Passcode</p>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={selectedWebinar.password}
-                      readOnly
-                      className="text-sm font-mono"
-                      data-testid="input-password"
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyToClipboard(selectedWebinar.password, 'pass')}
-                      data-testid="button-copy-password"
-                    >
-                      {copiedField === 'pass' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    </Button>
+                  <div>
+                    <p className="text-sm text-slate-500 mb-1">Status</p>
+                    {getStatusBadge(selectedWebinar.status)}
                   </div>
-                </div>
-              )}
 
-              {selectedWebinar.zoom_webinar_id && (
-                <div>
-                  <p className="text-sm text-slate-500">Zoom Webinar ID</p>
-                  <p className="font-mono text-sm">{selectedWebinar.zoom_webinar_id}</p>
+                  {selectedWebinar.join_url && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-slate-500">Join URL</p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={selectedWebinar.join_url}
+                          readOnly
+                          className="text-sm"
+                          data-testid="input-join-url"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyToClipboard(selectedWebinar.join_url, 'join')}
+                          data-testid="button-copy-join-url"
+                        >
+                          {copiedField === 'join' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => window.open(selectedWebinar.join_url, '_blank')}
+                          data-testid="button-open-join-url"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedWebinar.registration_url && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-slate-500">Registration URL</p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={selectedWebinar.registration_url}
+                          readOnly
+                          className="text-sm"
+                          data-testid="input-registration-url"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyToClipboard(selectedWebinar.registration_url, 'reg')}
+                          data-testid="button-copy-registration-url"
+                        >
+                          {copiedField === 'reg' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedWebinar.password && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-slate-500">Passcode</p>
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={selectedWebinar.password}
+                          readOnly
+                          className="text-sm font-mono"
+                          data-testid="input-password"
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => copyToClipboard(selectedWebinar.password, 'pass')}
+                          data-testid="button-copy-password"
+                        >
+                          {copiedField === 'pass' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedWebinar.zoom_webinar_id && (
+                    <div>
+                      <p className="text-sm text-slate-500">Zoom Webinar ID</p>
+                      <p className="font-mono text-sm">{selectedWebinar.zoom_webinar_id}</p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </TabsContent>
+
+              <TabsContent value="panelists" className="flex-1 overflow-hidden mt-4">
+                <ScrollArea className="h-[300px]">
+                  {loadingDetails ? (
+                    <div className="flex items-center justify-center py-8">
+                      <RefreshCw className="w-6 h-6 animate-spin text-slate-400" />
+                    </div>
+                  ) : webinarDetails?.panelists?.length > 0 ? (
+                    <div className="space-y-2">
+                      {webinarDetails.panelists.map((panelist, index) => (
+                        <div 
+                          key={panelist.id || index}
+                          className="flex items-center gap-3 p-3 border rounded-lg"
+                          data-testid={`panelist-row-${index}`}
+                        >
+                          <div className="p-2 bg-purple-50 rounded-full">
+                            <User className="w-4 h-4 text-purple-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-slate-900 truncate">{panelist.name}</p>
+                            <p className="text-sm text-slate-500 truncate flex items-center gap-1">
+                              <Mail className="w-3 h-3" />
+                              {panelist.email}
+                            </p>
+                          </div>
+                          <Badge variant="outline" className="text-xs">
+                            {panelist.role || 'Panelist'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                      <p>No panelists added</p>
+                    </div>
+                  )}
+                </ScrollArea>
+              </TabsContent>
+
+              <TabsContent value="registrants" className="flex-1 overflow-hidden mt-4">
+                <ScrollArea className="h-[300px]">
+                  {loadingRegistrants ? (
+                    <div className="flex items-center justify-center py-8">
+                      <RefreshCw className="w-6 h-6 animate-spin text-slate-400" />
+                    </div>
+                  ) : !selectedWebinar.registration_required ? (
+                    <div className="text-center py-8 text-slate-500">
+                      <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                      <p>Registration not required for this webinar</p>
+                    </div>
+                  ) : registrants.length > 0 ? (
+                    <div className="space-y-2">
+                      {registrants.map((registrant, index) => (
+                        <div 
+                          key={registrant.id || index}
+                          className="flex items-center gap-3 p-3 border rounded-lg"
+                          data-testid={`registrant-row-${index}`}
+                        >
+                          <div className="p-2 bg-green-50 rounded-full">
+                            <User className="w-4 h-4 text-green-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-slate-900 truncate">
+                              {registrant.first_name} {registrant.last_name}
+                            </p>
+                            <p className="text-sm text-slate-500 truncate flex items-center gap-1">
+                              <Mail className="w-3 h-3" />
+                              {registrant.email}
+                            </p>
+                          </div>
+                          <Badge 
+                            variant="outline" 
+                            className={`text-xs ${
+                              registrant.status === 'approved' 
+                                ? 'bg-green-50 text-green-700 border-green-200' 
+                                : registrant.status === 'pending'
+                                ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                                : 'bg-slate-50 text-slate-700 border-slate-200'
+                            }`}
+                          >
+                            {registrant.status || 'Registered'}
+                          </Badge>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-slate-500">
+                      <Users className="w-10 h-10 mx-auto mb-2 text-slate-300" />
+                      <p>No registrants yet</p>
+                    </div>
+                  )}
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
           )}
 
-          <DialogFooter className="flex-col sm:flex-row gap-2">
+          <DialogFooter className="flex-col sm:flex-row gap-2 pt-4 border-t">
             {selectedWebinar?.status === 'scheduled' && new Date(selectedWebinar.start_time) > new Date() && (
               <>
                 <Button

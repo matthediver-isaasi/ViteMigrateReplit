@@ -560,18 +560,36 @@ export default function ZoomWebinarProvisioning() {
               <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg" data-testid="conflict-warning">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-                  <div>
+                  <div className="flex-1">
                     <p className="font-medium text-amber-800">Scheduling Conflict Detected</p>
                     <p className="text-sm text-amber-700 mt-1">
-                      The following webinars overlap with your selected time:
+                      The following {conflicts.length === 1 ? 'webinar overlaps' : 'webinars overlap'} with your selected time slot:
                     </p>
-                    <ul className="mt-2 space-y-1">
-                      {conflicts.map(c => (
-                        <li key={c.id} className="text-sm text-amber-700">
-                          • {c.topic} ({formatWebinarDate(c.start_time)})
-                        </li>
-                      ))}
-                    </ul>
+                    <div className="mt-3 space-y-2">
+                      {conflicts.map(c => {
+                        const startTime = parseISO(c.start_time);
+                        const endTime = new Date(startTime.getTime() + c.duration_minutes * 60 * 1000);
+                        return (
+                          <div key={c.id} className="p-3 bg-white/60 border border-amber-200 rounded-md">
+                            <p className="font-medium text-amber-900">{c.topic}</p>
+                            <div className="flex items-center gap-4 mt-1 text-sm text-amber-700">
+                              <span className="flex items-center gap-1">
+                                <Calendar className="w-3.5 h-3.5" />
+                                {format(startTime, "EEE, d MMM yyyy")}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5" />
+                                {format(startTime, "HH:mm")} - {format(endTime, "HH:mm")}
+                              </span>
+                              <span>({c.duration_minutes} min)</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs text-amber-600 mt-3">
+                      You can still create this webinar despite the overlap. Zoom allows multiple webinars at the same time.
+                    </p>
                   </div>
                 </div>
               </div>
@@ -648,7 +666,13 @@ export default function ZoomWebinarProvisioning() {
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {conflicts.length > 0 && !createWebinarMutation.isPending && (
+              <p className="text-xs text-amber-600 sm:mr-auto flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                Overlaps with {conflicts.length} existing {conflicts.length === 1 ? 'webinar' : 'webinars'}
+              </p>
+            )}
             <Button
               variant="outline"
               onClick={() => setShowCreateDialog(false)}
@@ -659,13 +683,18 @@ export default function ZoomWebinarProvisioning() {
             <Button
               onClick={handleSubmit}
               disabled={createWebinarMutation.isPending || !formData.topic || !formData.start_date || !formData.start_time}
-              className="bg-amber-600 hover:bg-amber-700"
+              className={conflicts.length > 0 ? "bg-amber-600 hover:bg-amber-700" : "bg-amber-600 hover:bg-amber-700"}
               data-testid="button-submit-webinar"
             >
               {createWebinarMutation.isPending ? (
                 <>
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                   Creating...
+                </>
+              ) : conflicts.length > 0 ? (
+                <>
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  Create Anyway
                 </>
               ) : (
                 <>

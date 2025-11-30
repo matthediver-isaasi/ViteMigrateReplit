@@ -140,19 +140,17 @@ export default function CreateEvent() {
       return;
     }
 
+    // Build event data - only include fields that exist in the event table
+    // Note: delivery_mode, zoom_webinar_id, online_url columns may need to be added to Supabase
     const eventData = {
       title: formData.title,
       description: formData.description || null,
       program_tag: formData.program_tag,
       start_date: formData.start_date,
       end_date: formData.end_date || formData.start_date,
-      location: isOnline ? 'Online Event' : formData.location,
+      location: isOnline ? (formData.online_url ? `Online - ${formData.online_url}` : 'Online Event') : formData.location,
       image_url: formData.image_url || null,
-      available_seats: isOnline ? null : (formData.available_seats ? parseInt(formData.available_seats) : null),
-      delivery_mode: isOnline ? 'online' : 'offline',
-      zoom_webinar_id: isOnline ? formData.zoom_webinar_id : null,
-      online_url: isOnline ? formData.online_url : null,
-      source: 'manual'
+      available_seats: isOnline ? null : (formData.available_seats ? parseInt(formData.available_seats) : null)
     };
 
     createEventMutation.mutate(eventData);

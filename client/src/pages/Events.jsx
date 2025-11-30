@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Calendar, Ticket, Plus, History } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { parseISO } from "date-fns";
 import EventCard from "../components/events/EventCard";
 import ProgramFilter from "../components/events/ProgramFilter";
 import PageTour from "../components/tour/PageTour";
@@ -15,6 +16,8 @@ import { base44 } from "@/api/base44Client";
 import { useLayoutContext } from "@/contexts/LayoutContext";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
+
+const DEFAULT_TIMEZONE = "Europe/London";
 
 export default function EventsPage({
   organizationInfo: propsOrganizationInfo,
@@ -144,12 +147,19 @@ export default function EventsPage({
     return organizationInfo.program_ticket_balances[programTag] || 0;
   };
 
-  // Helper to check if event is in the past
+  // Helper to check if event is in the past (timezone-aware)
   const isEventPast = (event) => {
     if (!event.start_date) return false;
-    const eventDate = new Date(event.start_date);
-    const now = new Date();
-    return eventDate < now;
+    try {
+      // Parse the date string properly - the date is stored in ISO format
+      const eventDate = typeof event.start_date === 'string' 
+        ? parseISO(event.start_date) 
+        : new Date(event.start_date);
+      const now = new Date();
+      return eventDate < now;
+    } catch {
+      return false;
+    }
   };
 
   let filteredEvents = events.filter((event) => {

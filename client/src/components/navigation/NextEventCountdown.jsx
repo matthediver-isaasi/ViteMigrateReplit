@@ -3,8 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
 import { Calendar, Clock, Video, ExternalLink } from "lucide-react";
-import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, addMinutes } from "date-fns";
+import { format, parseISO, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, addMinutes } from "date-fns";
 import { Button } from "@/components/ui/button";
+
+// Helper to safely parse date strings
+const parseEventDate = (dateStr) => {
+  if (!dateStr) return null;
+  try {
+    return typeof dateStr === 'string' ? parseISO(dateStr) : new Date(dateStr);
+  } catch {
+    return new Date(dateStr);
+  }
+};
 
 async function apiRequest(url) {
   const response = await fetch(url, { credentials: 'include' });
@@ -63,8 +73,8 @@ export default function NextEventCountdown({ memberEmail }) {
     
     const relevantEvents = events
       .map(event => {
-        const startDate = new Date(event.start_date);
-        const endDate = event.end_date ? new Date(event.end_date) : addMinutes(startDate, 60);
+        const startDate = parseEventDate(event.start_date);
+        const endDate = event.end_date ? parseEventDate(event.end_date) : addMinutes(startDate, 60);
         
         const webinar = webinars.find(w => 
           w.zoom_webinar_id === event.zoom_webinar_id || 
@@ -79,7 +89,7 @@ export default function NextEventCountdown({ memberEmail }) {
           joinUrl: webinar?.join_url || event.online_url || null
         };
       })
-      .filter(event => event.endDate > now)
+      .filter(event => event.startDate && event.endDate > now)
       .sort((a, b) => a.startDate - b.startDate);
 
     return relevantEvents[0] || null;

@@ -5,8 +5,52 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Calendar, MapPin, Clock, Users } from "lucide-react";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
+import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { createPageUrl } from "@/utils";
+
+const DEFAULT_TIMEZONE = "Europe/London";
+
+// Helper function to format date in event's timezone
+const formatEventDate = (dateStr, timezone = DEFAULT_TIMEZONE, formatStr = "MMM d, yyyy") => {
+  if (!dateStr) return null;
+  try {
+    const date = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
+    return formatInTimeZone(date, timezone, formatStr);
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return format(new Date(dateStr), formatStr);
+  }
+};
+
+// Helper function to format time in event's timezone
+const formatEventTime = (dateStr, timezone = DEFAULT_TIMEZONE) => {
+  if (!dateStr) return null;
+  try {
+    const date = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
+    return formatInTimeZone(date, timezone, "h:mm a");
+  } catch (e) {
+    console.error('Error formatting time:', e);
+    return format(new Date(dateStr), "h:mm a");
+  }
+};
+
+// Helper to get timezone abbreviation for a specific date (handles DST correctly)
+const getTimezoneAbbr = (dateStr, timezone = DEFAULT_TIMEZONE) => {
+  try {
+    // Use the event date to get the correct DST-aware abbreviation
+    const eventDate = dateStr ? (typeof dateStr === 'string' ? parseISO(dateStr) : dateStr) : new Date();
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      timeZoneName: 'short'
+    });
+    const parts = formatter.formatToParts(eventDate);
+    const tzPart = parts.find(p => p.type === 'timeZoneName');
+    return tzPart ? tzPart.value : timezone;
+  } catch {
+    return timezone;
+  }
+};
 
 export default function PublicEventsPage() {
   const { data: events = [], isLoading } = useQuery({
@@ -58,7 +102,9 @@ export default function PublicEventsPage() {
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {events.map((event) => {
-              const startDate = event.start_date ? new Date(event.start_date) : null;
+              const eventTimezone = event.timezone || DEFAULT_TIMEZONE;
+              // Pass event date to get correct DST-aware abbreviation (GMT vs BST)
+              const timezoneAbbr = getTimezoneAbbr(event.start_date, eventTimezone);
               const hasUnlimitedCapacity = event.available_seats === 0 || event.available_seats === null;
 
               return (
@@ -88,17 +134,18 @@ export default function PublicEventsPage() {
                   </CardHeader>
 
                   <CardContent className="space-y-3">
-                    {startDate && (
+                    {event.start_date && (
                       <div className="flex items-center gap-2 text-sm text-slate-600">
                         <Calendar className="w-4 h-4 text-slate-400" />
-                        <span>{format(startDate, "MMM d, yyyy")}</span>
+                        <span>{formatEventDate(event.start_date, eventTimezone)}</span>
                       </div>
                     )}
 
-                    {startDate && (
+                    {event.start_date && (
                       <div className="flex items-center gap-2 text-sm text-slate-600">
                         <Clock className="w-4 h-4 text-slate-400" />
-                        <span>{format(startDate, "h:mm a")}</span>
+                        <span>{formatEventTime(event.start_date, eventTimezone)}</span>
+                        <span className="text-slate-400 text-xs">({timezoneAbbr})</span>
                       </div>
                     )}
 

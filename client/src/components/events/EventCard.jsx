@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, MapPin, Users, Clock, Ticket, AlertCircle, ShoppingCart, Pencil, Trash2, Video } from "lucide-react";
-import { format } from "date-fns";
+import { Calendar, MapPin, Users, Clock, Ticket, AlertCircle, ShoppingCart, Pencil, Trash2, Video, Globe } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
@@ -18,6 +19,63 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
+const DEFAULT_TIMEZONE = "Europe/London";
+
+// Helper function to format date in event's timezone
+const formatEventDate = (dateStr, timezone = DEFAULT_TIMEZONE, formatStr = "MMM d, yyyy") => {
+  if (!dateStr) return null;
+  try {
+    const date = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
+    return formatInTimeZone(date, timezone, formatStr);
+  } catch (e) {
+    console.error('Error formatting date:', e);
+    return format(new Date(dateStr), formatStr);
+  }
+};
+
+// Helper function to format time in event's timezone
+const formatEventTime = (dateStr, timezone = DEFAULT_TIMEZONE) => {
+  if (!dateStr) return null;
+  try {
+    const date = typeof dateStr === 'string' ? parseISO(dateStr) : dateStr;
+    return formatInTimeZone(date, timezone, "h:mm a");
+  } catch (e) {
+    console.error('Error formatting time:', e);
+    return format(new Date(dateStr), "h:mm a");
+  }
+};
+
+// Helper to get timezone abbreviation for a specific date (handles DST correctly)
+const getTimezoneAbbr = (dateStr, timezone = DEFAULT_TIMEZONE) => {
+  try {
+    // Use the event date to get the correct DST-aware abbreviation
+    const eventDate = dateStr ? (typeof dateStr === 'string' ? parseISO(dateStr) : dateStr) : new Date();
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      timeZoneName: 'short'
+    });
+    const parts = formatter.formatToParts(eventDate);
+    const tzPart = parts.find(p => p.type === 'timeZoneName');
+    return tzPart ? tzPart.value : timezone;
+  } catch {
+    return timezone;
+  }
+};
+
+// Check if event is past using timezone-aware comparison
+const isEventInPast = (event, timezone = DEFAULT_TIMEZONE) => {
+  if (!event.start_date) return false;
+  try {
+    const eventDate = typeof event.start_date === 'string' 
+      ? parseISO(event.start_date) 
+      : new Date(event.start_date);
+    const now = new Date();
+    return eventDate < now;
+  } catch {
+    return false;
+  }
+};
+
 const ZOHO_PUBLIC_BACKSTAGE_SUBDOMAIN = "agcasevents";
 
 export default function EventCard({ event, organizationInfo, isFeatureExcluded, isAdmin, onEventDeleted, joinLinkSettings, webinars }) {
@@ -25,11 +83,13 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   
-  const startDate = event.start_date ? new Date(event.start_date) : null;
-  const endDate = event.end_date ? new Date(event.end_date) : null;
+  // Get the event's timezone (default to Europe/London for UK events)
+  const eventTimezone = event.timezone || DEFAULT_TIMEZONE;
+  // Pass event date to get correct DST-aware abbreviation (GMT vs BST)
+  const timezoneAbbr = getTimezoneAbbr(event.start_date, eventTimezone);
   
-  // Check if event is in the past
-  const isEventPast = startDate ? startDate < new Date() : false;
+  // Check if event is in the past using timezone-aware comparison
+  const isEventPast = isEventInPast(event, eventTimezone);
 
   const hasUnlimitedCapacity = event.available_seats === 0 || event.available_seats === null;
 
@@ -176,20 +236,21 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {startDate && (
+          {event.start_date && (
             <div className="flex items-center gap-2 text-sm text-slate-600">
               <Calendar className="w-4 h-4 text-slate-400" />
-              <span>{format(startDate, "MMM d, yyyy")}</span>
-              {endDate && startDate.getTime() !== endDate.getTime() && (
-                <span className="text-slate-400">- {format(endDate, "MMM d, yyyy")}</span>
+              <span>{formatEventDate(event.start_date, eventTimezone)}</span>
+              {event.end_date && event.start_date !== event.end_date && (
+                <span className="text-slate-400">- {formatEventDate(event.end_date, eventTimezone)}</span>
               )}
             </div>
           )}
 
-          {startDate && (
+          {event.start_date && (
             <div className="flex items-center gap-2 text-sm text-slate-600">
               <Clock className="w-4 h-4 text-slate-400" />
-              <span>{format(startDate, "h:mm a")}</span>
+              <span>{formatEventTime(event.start_date, eventTimezone)}</span>
+              <span className="text-slate-400 text-xs">({timezoneAbbr})</span>
             </div>
           )}
 

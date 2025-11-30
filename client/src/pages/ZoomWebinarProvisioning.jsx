@@ -244,6 +244,12 @@ export default function ZoomWebinarProvisioning() {
     try {
       // Send time as local time (without UTC conversion) with the selected timezone
       const startTimeLocal = `${formData.start_date}T${formData.start_time}:00`;
+      console.log('[ModalConflictCheck] Checking:', {
+        startTimeLocal,
+        duration_minutes: formData.duration_minutes,
+        timezone: formData.timezone,
+        exclude_webinar_id: editingWebinar?.id
+      });
       const response = await apiRequest('/api/zoom/check-conflicts', {
         method: 'POST',
         body: JSON.stringify({
@@ -255,6 +261,7 @@ export default function ZoomWebinarProvisioning() {
         }),
         headers: { 'Content-Type': 'application/json' }
       });
+      console.log('[ModalConflictCheck] Response:', response);
       setConflicts(response.conflicts || []);
     } catch (error) {
       console.error('Conflict check failed:', error);
@@ -370,15 +377,32 @@ export default function ZoomWebinarProvisioning() {
     const webinarStart = new Date(webinar.start_time);
     const webinarEnd = new Date(webinarStart.getTime() + webinar.duration_minutes * 60 * 1000);
     
-    return upcomingWebinars.filter(other => {
+    console.log('[ConflictCheck]', webinar.topic, {
+      start: webinarStart.toISOString(),
+      end: webinarEnd.toISOString(),
+      upcomingCount: upcomingWebinars.length
+    });
+    
+    const conflicting = upcomingWebinars.filter(other => {
       if (other.id === webinar.id) return false;
       
       const otherStart = new Date(other.start_time);
       const otherEnd = new Date(otherStart.getTime() + other.duration_minutes * 60 * 1000);
       
       // Check for overlap: webinar starts before other ends AND webinar ends after other starts
-      return webinarStart < otherEnd && webinarEnd > otherStart;
+      const overlaps = webinarStart < otherEnd && webinarEnd > otherStart;
+      
+      if (overlaps) {
+        console.log('[ConflictCheck] OVERLAP:', webinar.topic, 'with', other.topic, {
+          webinarRange: `${webinarStart.toISOString()} - ${webinarEnd.toISOString()}`,
+          otherRange: `${otherStart.toISOString()} - ${otherEnd.toISOString()}`
+        });
+      }
+      
+      return overlaps;
     });
+    
+    return conflicting;
   };
 
   if (!accessChecked) {

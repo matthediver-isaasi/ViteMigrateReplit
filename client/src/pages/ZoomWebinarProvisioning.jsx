@@ -463,6 +463,7 @@ export default function ZoomWebinarProvisioning() {
     // Zoom will apply the selected timezone
     const startTimeLocal = `${formData.start_date}T${formData.start_time}:00`;
     
+    console.log('[CreateWebinar] Calling mutation.mutate() with startTimeLocal:', startTimeLocal);
     createWebinarMutation.mutate({
       topic: formData.topic,
       agenda: formData.agenda,

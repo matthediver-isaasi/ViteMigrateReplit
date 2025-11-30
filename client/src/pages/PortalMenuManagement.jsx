@@ -111,7 +111,8 @@ const availablePages = [
     { value: "TourManagement", label: "Tour Management" },
     { value: "UnpackedInternationalEmployability", label: "Unpacked International Employability" },
     { value: "ViewPage", label: "View Page" },
-    { value: "WallOfFameManagement", label: "Wall of Fame" }
+    { value: "WallOfFameManagement", label: "Wall of Fame" },
+    { value: "ZoomWebinarProvisioning", label: "Zoom Webinar Management" }
   ].sort((a, b) => a.label.localeCompare(b.label)))
 ];
 

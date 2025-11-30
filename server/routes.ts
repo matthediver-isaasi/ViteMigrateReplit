@@ -8888,10 +8888,12 @@ AGCAS Events Team
       let userId = host_id || 'me';
       
       // Create webinar on Zoom
+      // Note: We pass start_time as local time (without Z suffix) so Zoom applies the timezone correctly
+      // The frontend sends time as "YYYY-MM-DDTHH:MM:SS" and we pass it directly to let Zoom use the timezone field
       const webinarPayload = {
         topic,
         type: 5, // Scheduled webinar
-        start_time: new Date(start_time).toISOString(),
+        start_time: start_time,
         duration: duration_minutes,
         timezone,
         agenda: agenda || '',

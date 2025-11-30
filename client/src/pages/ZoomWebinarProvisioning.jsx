@@ -141,13 +141,15 @@ export default function ZoomWebinarProvisioning() {
     
     setCheckingConflicts(true);
     try {
-      const startTime = new Date(`${formData.start_date}T${formData.start_time}`);
+      // Send time as London local time (without UTC conversion)
+      const startTimeLocal = `${formData.start_date}T${formData.start_time}:00`;
       const response = await apiRequest('/api/zoom/check-conflicts', {
         method: 'POST',
         body: JSON.stringify({
-          start_time: startTime.toISOString(),
+          start_time: startTimeLocal,
           duration_minutes: formData.duration_minutes,
-          host_id: formData.host_id || undefined
+          host_id: formData.host_id || undefined,
+          timezone: 'Europe/London'
         }),
         headers: { 'Content-Type': 'application/json' }
       });
@@ -199,6 +201,7 @@ export default function ZoomWebinarProvisioning() {
       return;
     }
     
+    // Create Date for validation only
     const startTime = new Date(`${formData.start_date}T${formData.start_time}`);
     
     if (startTime < new Date()) {
@@ -206,10 +209,14 @@ export default function ZoomWebinarProvisioning() {
       return;
     }
     
+    // Send time as London local time (without UTC conversion)
+    // Zoom will apply the Europe/London timezone
+    const startTimeLocal = `${formData.start_date}T${formData.start_time}:00`;
+    
     createWebinarMutation.mutate({
       topic: formData.topic,
       agenda: formData.agenda,
-      start_time: startTime.toISOString(),
+      start_time: startTimeLocal,
       duration_minutes: formData.duration_minutes,
       timezone: 'Europe/London',
       registration_required: formData.registration_required,

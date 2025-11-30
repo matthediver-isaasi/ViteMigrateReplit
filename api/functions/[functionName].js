@@ -1023,28 +1023,50 @@ const functionHandlers = {
     };
 
     // Determine event type and handle accordingly
-    const eventIsZoom = isZoomEvent(event) && !event.backstage_event_id;
+    // Priority: 1) Direct zoom_webinar_id link, 2) URL matching fallback, 3) Backstage event
     const eventIsBackstage = !!event.backstage_event_id;
+    let eventIsZoom = false;
     let matchingWebinar = null;
 
-    if (eventIsZoom && (registrationMode === 'self' || registrationMode === 'colleagues')) {
-      console.log('[createBooking] Event is a Zoom event, looking for matching webinar...');
-      matchingWebinar = await findWebinarByLocation(event.location);
+    // First, check for direct zoom_webinar_id link (preferred method)
+    if (event.zoom_webinar_id && !eventIsBackstage) {
+      console.log('[createBooking] Event has direct zoom_webinar_id:', event.zoom_webinar_id);
       
-      if (matchingWebinar) {
-        console.log('[createBooking] Found webinar, will register attendees with Zoom');
-        
-        for (const attendee of (attendees || [])) {
-          const result = await registerWithZoom(matchingWebinar, {
-            email: attendee.email,
-            first_name: attendee.first_name || 'Guest',
-            last_name: attendee.last_name || 'Attendee'
-          });
-          zoomRegistrationResults.push({ email: attendee.email, ...result });
-        }
+      const { data: webinarById, error: webinarError } = await supabase
+        .from('zoom_webinar')
+        .select('*')
+        .eq('id', event.zoom_webinar_id)
+        .single();
+      
+      if (webinarById && !webinarError) {
+        matchingWebinar = webinarById;
+        eventIsZoom = true;
+        console.log('[createBooking] Found linked webinar:', matchingWebinar.topic, 'zoom_id:', matchingWebinar.zoom_webinar_id);
       } else {
-        console.log('[createBooking] No matching webinar found, proceeding without Zoom registration');
+        console.log('[createBooking] Failed to fetch linked webinar:', webinarError?.message);
       }
+    }
+    // Fallback: Try URL matching if no direct link and location contains zoom.us
+    else if (!eventIsBackstage && isZoomEvent(event)) {
+      console.log('[createBooking] No direct link, trying URL matching from location:', event.location);
+      matchingWebinar = await findWebinarByLocation(event.location);
+      eventIsZoom = !!matchingWebinar;
+    }
+
+    // Register attendees with Zoom if we found a webinar
+    if (eventIsZoom && matchingWebinar && (registrationMode === 'self' || registrationMode === 'colleagues')) {
+      console.log('[createBooking] Will register attendees with Zoom webinar:', matchingWebinar.zoom_webinar_id);
+      
+      for (const attendee of (attendees || [])) {
+        const result = await registerWithZoom(matchingWebinar, {
+          email: attendee.email,
+          first_name: attendee.first_name || 'Guest',
+          last_name: attendee.last_name || 'Attendee'
+        });
+        zoomRegistrationResults.push({ email: attendee.email, ...result });
+      }
+    } else if (eventIsZoom && !matchingWebinar) {
+      console.log('[createBooking] Event detected as Zoom but no matching webinar found');
     }
 
     // Determine booking status based on event type
@@ -1141,20 +1163,24 @@ const functionHandlers = {
       event_type: eventIsZoom ? 'zoom' : eventIsBackstage ? 'backstage' : 'regular'
     };
 
-    if (eventIsZoom) {
-      // Extract webinar ID from location for diagnostics
+    if (eventIsZoom || event.zoom_webinar_id) {
+      // Extract webinar ID from location for diagnostics (fallback method)
       const extractedWebinarId = extractZoomWebinarId(event.location);
       
       response.zoom_registration = {
         webinar_found: !!matchingWebinar,
         registrations: zoomRegistrationResults,
         debug: {
+          event_zoom_webinar_id: event.zoom_webinar_id || null,
           event_location: event.location,
           extracted_webinar_id: extractedWebinarId,
-          webinar_matched_id: matchingWebinar?.zoom_webinar_id || null
+          webinar_matched_id: matchingWebinar?.zoom_webinar_id || null,
+          match_method: event.zoom_webinar_id ? 'direct_link' : (matchingWebinar ? 'url_matching' : 'none')
         }
       };
-      if (!matchingWebinar) {
+      if (!matchingWebinar && event.zoom_webinar_id) {
+        response.warning = `Zoom webinar not found - event has zoom_webinar_id "${event.zoom_webinar_id}" but fetch failed`;
+      } else if (!matchingWebinar) {
         response.warning = `Zoom webinar not found - extracted ID "${extractedWebinarId}" from location "${event.location}"`;
       }
     } else if (eventIsBackstage) {

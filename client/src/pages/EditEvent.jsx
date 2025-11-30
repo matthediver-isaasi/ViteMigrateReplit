@@ -35,7 +35,8 @@ export default function EditEvent() {
     end_date: "",
     location: "",
     image_url: "",
-    available_seats: ""
+    available_seats: "",
+    zoom_webinar_id: null
   });
 
   const { data: event, isLoading: loadingEvent, error: eventError } = useQuery({
@@ -108,7 +109,8 @@ export default function EditEvent() {
         image_url: event.image_url || "",
         available_seats: event.available_seats !== null && event.available_seats !== undefined 
           ? String(event.available_seats) 
-          : ""
+          : "",
+        zoom_webinar_id: event.zoom_webinar_id || null
       });
     }
   }, [event]);
@@ -144,7 +146,8 @@ export default function EditEvent() {
       end_date: formData.end_date || formData.start_date,
       location: formData.location || null,
       image_url: formData.image_url || null,
-      available_seats: isNaN(parsedSeats) ? null : parsedSeats
+      available_seats: isNaN(parsedSeats) ? null : parsedSeats,
+      zoom_webinar_id: formData.zoom_webinar_id || null
     };
 
     updateEventMutation.mutate(eventData);

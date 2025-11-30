@@ -188,7 +188,8 @@ export default function CreateEvent() {
       end_date: formData.end_date || formData.start_date,
       location: locationValue,
       image_url: formData.image_url || null,
-      available_seats: isOnline ? null : (formData.available_seats ? parseInt(formData.available_seats) : null)
+      available_seats: isOnline ? null : (formData.available_seats ? parseInt(formData.available_seats) : null),
+      zoom_webinar_id: isOnline && selectedWebinarId ? selectedWebinarId : null
     };
 
     createEventMutation.mutate(eventData);

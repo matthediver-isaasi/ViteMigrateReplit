@@ -30,6 +30,7 @@ import BarePublicLayout from "@/components/layouts/BarePublicLayout";
 import FloaterDisplay from "@/components/floaters/FloaterDisplay";
 import NewsTickerBar from "@/components/news/NewsTickerBar";
 import PortalHeroBanner from "@/components/banners/PortalHeroBanner";
+import NextEventCountdown from "@/components/navigation/NextEventCountdown";
 
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from "@/api/base44Client";
@@ -1335,6 +1336,11 @@ useEffect(() => {
                     </div>
                   </SidebarGroupContent>
                 </SidebarGroup>
+              )}
+
+              {/* Next Event Countdown - show for members with bookings */}
+              {memberInfo && !memberInfo.is_team_member && (
+                <NextEventCountdown memberEmail={memberInfo.email} />
               )}
 
               <SidebarGroup className={memberInfo && !memberInfo.is_team_member && organizationInfo ? "mt-4" : ""}>

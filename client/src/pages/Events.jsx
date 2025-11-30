@@ -4,7 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Ticket, Plus } from "lucide-react";
+import { Search, Calendar, Ticket, Plus, History } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import EventCard from "../components/events/EventCard";
 import ProgramFilter from "../components/events/ProgramFilter";
 import PageTour from "../components/tour/PageTour";
@@ -33,6 +35,7 @@ export default function EventsPage({
   const { isAdmin } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
+  const [showPastEvents, setShowPastEvents] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourAutoShow, setTourAutoShow] = useState(false);
 
@@ -141,12 +144,24 @@ export default function EventsPage({
     return organizationInfo.program_ticket_balances[programTag] || 0;
   };
 
+  // Helper to check if event is in the past
+  const isEventPast = (event) => {
+    if (!event.start_date) return false;
+    const eventDate = new Date(event.start_date);
+    const now = new Date();
+    return eventDate < now;
+  };
+
   let filteredEvents = events.filter((event) => {
     const matchesSearch =
       event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesProgram = selectedProgram === "all" || event.program_tag === selectedProgram;
-    return matchesSearch && matchesProgram;
+    
+    // Filter out past events unless showPastEvents is enabled
+    const matchesTimeFilter = showPastEvents || !isEventPast(event);
+    
+    return matchesSearch && matchesProgram && matchesTimeFilter;
   });
 
   filteredEvents.sort((a, b) => {
@@ -154,6 +169,15 @@ export default function EventsPage({
     const dateB = new Date(b.start_date);
     return dateA.getTime() - dateB.getTime();
   });
+  
+  // Count past events for the toggle label
+  const pastEventsCount = events.filter(event => {
+    const matchesSearch =
+      event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      event.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesProgram = selectedProgram === "all" || event.program_tag === selectedProgram;
+    return matchesSearch && matchesProgram && isEventPast(event);
+  }).length;
 
   // Update member tour status via base44 client
   const updateMemberTourStatus = async (tourKey) => {
@@ -279,6 +303,25 @@ export default function EventsPage({
                 onProgramChange={setSelectedProgram}
               />
             </div>
+            
+            {/* Show Past Events Toggle */}
+            {pastEventsCount > 0 && (
+              <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-200">
+                <Switch
+                  id="show-past-events"
+                  checked={showPastEvents}
+                  onCheckedChange={setShowPastEvents}
+                  data-testid="switch-show-past-events"
+                />
+                <Label 
+                  htmlFor="show-past-events" 
+                  className="text-sm text-slate-600 cursor-pointer flex items-center gap-2"
+                >
+                  <History className="w-4 h-4" />
+                  Show past events ({pastEventsCount})
+                </Label>
+              </div>
+            )}
           </div>
         )}
 

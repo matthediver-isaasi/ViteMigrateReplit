@@ -27,6 +27,9 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
   
   const startDate = event.start_date ? new Date(event.start_date) : null;
   const endDate = event.end_date ? new Date(event.end_date) : null;
+  
+  // Check if event is in the past
+  const isEventPast = startDate ? startDate < new Date() : false;
 
   const hasUnlimitedCapacity = event.available_seats === 0 || event.available_seats === null;
 
@@ -116,13 +119,20 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
     <>
       <Card className="overflow-hidden hover:shadow-lg transition-shadow duration-300 border-slate-200 bg-white">
         {/* Program and Ticket Info - Above Image */}
-        <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50 border-b border-slate-200">
+        <div className={`p-4 border-b border-slate-200 ${isEventPast ? 'bg-gradient-to-r from-slate-100 to-slate-50' : 'bg-gradient-to-r from-slate-50 to-blue-50'}`}>
           <div className="flex items-start justify-between gap-2 mb-2">
-            {event.program_tag && (
-              <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">
-                 {event.program_tag}
-              </Badge>
-            )}
+            <div className="flex items-center gap-2 flex-wrap">
+              {isEventPast && (
+                <Badge variant="secondary" className="bg-slate-200 text-slate-600 border-slate-300">
+                  Past Event
+                </Badge>
+              )}
+              {event.program_tag && (
+                <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">
+                   {event.program_tag}
+                </Badge>
+              )}
+            </div>
             {organizationInfo && event.program_tag && (
               <div className="flex items-center gap-1 text-xs text-slate-600">
                 <Ticket className="w-3 h-3 text-purple-600" />
@@ -245,7 +255,16 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
               </div>
             )}
 
-            {needsTickets ? (
+            {isEventPast ? (
+              <Button 
+                className="w-full"
+                variant="secondary"
+                disabled
+                data-testid={`button-event-ended-${event.id}`}
+              >
+                Event Ended
+              </Button>
+            ) : needsTickets ? (
               <Button 
                 className="w-full bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700"
                 onClick={() => window.location.href = createPageUrl('BuyProgramTickets')}

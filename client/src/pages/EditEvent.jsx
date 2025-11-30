@@ -6,13 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { 
   Calendar, 
   MapPin, 
   ArrowLeft,
   Save,
-  Loader2
+  Loader2,
+  Video,
+  Globe
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
@@ -80,6 +83,10 @@ export default function EditEvent() {
       });
     }
   }, [event]);
+
+  const isOnlineEvent = formData.location?.toLowerCase().includes('online') || 
+                        formData.location?.includes('zoom.us') ||
+                        formData.location?.includes('https://');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -176,11 +183,31 @@ export default function EditEvent() {
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">Edit Event</h1>
+          <div className="flex-1">
+            <div className="flex items-center gap-3">
+              <h1 className="text-2xl font-bold text-slate-900">Edit Event</h1>
+              {isOnlineEvent && (
+                <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">
+                  <Video className="w-3 h-3 mr-1" />
+                  Online Event
+                </Badge>
+              )}
+            </div>
             <p className="text-slate-600">Update event details</p>
           </div>
         </div>
+
+        {isOnlineEvent && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Globe className="h-4 w-4 text-blue-600" />
+              <span className="font-medium text-blue-900">Online Event</span>
+            </div>
+            <p className="text-sm text-blue-800">
+              This is an online event linked to a Zoom webinar. The date, time, and location fields are managed by Zoom and cannot be edited here.
+            </p>
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <Card className="border-slate-200 shadow-sm mb-6">
@@ -252,8 +279,13 @@ export default function EditEvent() {
                     value={formatDateForInput(formData.start_date)}
                     onChange={(e) => handleInputChange('start_date', new Date(e.target.value).toISOString())}
                     required
+                    disabled={isOnlineEvent}
+                    className={isOnlineEvent ? "bg-slate-100 cursor-not-allowed" : ""}
                     data-testid="input-start-date"
                   />
+                  {isOnlineEvent && (
+                    <p className="text-xs text-slate-500">Managed by Zoom webinar</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="end_date">End Date & Time</Label>
@@ -262,8 +294,13 @@ export default function EditEvent() {
                     type="datetime-local"
                     value={formatDateForInput(formData.end_date)}
                     onChange={(e) => handleInputChange('end_date', new Date(e.target.value).toISOString())}
+                    disabled={isOnlineEvent}
+                    className={isOnlineEvent ? "bg-slate-100 cursor-not-allowed" : ""}
                     data-testid="input-end-date"
                   />
+                  {isOnlineEvent && (
+                    <p className="text-xs text-slate-500">Managed by Zoom webinar</p>
+                  )}
                 </div>
               </div>
             </CardContent>
@@ -284,8 +321,15 @@ export default function EditEvent() {
                   value={formData.location}
                   onChange={(e) => handleInputChange('location', e.target.value)}
                   placeholder="Enter venue address or location name"
+                  disabled={isOnlineEvent}
+                  className={isOnlineEvent ? "bg-slate-100 cursor-not-allowed" : ""}
                   data-testid="input-location"
                 />
+                {isOnlineEvent && (
+                  <p className="text-xs text-slate-500">
+                    Online event - location is managed by Zoom webinar
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -297,10 +341,14 @@ export default function EditEvent() {
                   value={formData.available_seats}
                   onChange={(e) => handleInputChange('available_seats', e.target.value)}
                   placeholder="Leave empty for unlimited"
+                  disabled={isOnlineEvent}
+                  className={isOnlineEvent ? "bg-slate-100 cursor-not-allowed" : ""}
                   data-testid="input-seats"
                 />
                 <p className="text-xs text-slate-500">
-                  Leave empty for unlimited capacity
+                  {isOnlineEvent 
+                    ? "Online events have unlimited capacity" 
+                    : "Leave empty for unlimited capacity"}
                 </p>
               </div>
 

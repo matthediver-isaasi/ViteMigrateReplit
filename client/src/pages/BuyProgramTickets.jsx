@@ -158,6 +158,7 @@ export default function BuyProgramTicketsPage({
   // Add refs to track if tours have been auto-started in this session
   const hasAutoStartedListTour = useRef(false);
   const hasAutoStartedFormTour = useRef(false);
+  const hasUpdatedExpiredVouchers = useRef(false);
 
   const queryClient = useQueryClient();
 
@@ -181,8 +182,11 @@ export default function BuyProgramTicketsPage({
     initStripe();
   }, []);
 
-  // Update expired vouchers on page load
+  // Update expired vouchers once on component mount
   useEffect(() => {
+    // Only run once per component mount
+    if (hasUpdatedExpiredVouchers.current) return;
+    
     let isMounted = true;
 
     const updateExpiredVouchers = async () => {
@@ -199,22 +203,20 @@ export default function BuyProgramTicketsPage({
         } else {
           console.log('[BuyProgramTickets] No expired vouchers found or update not needed');
         }
-
-        // Force a refetch of vouchers to ensure fresh data
-        queryClient.invalidateQueries({ queryKey: ['vouchers'] });
       } catch (error) {
         console.error('[BuyProgramTickets] Failed to update expired vouchers:', error);
       }
     };
 
     if (memberInfo && organizationInfo) {
+      hasUpdatedExpiredVouchers.current = true;
       updateExpiredVouchers();
     }
 
     return () => {
       isMounted = false;
     };
-  }, [memberInfo, organizationInfo?.id]);
+  }, []);
 
   // Check tour status for list view
   useEffect(() => {

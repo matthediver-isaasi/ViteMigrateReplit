@@ -1,0 +1,363 @@
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
+import { 
+  Calendar, 
+  MapPin, 
+  ArrowLeft,
+  Save,
+  Loader2,
+  Tag,
+  Users
+} from "lucide-react";
+import { base44 } from "@/api/base44Client";
+import { format } from "date-fns";
+import { createPageUrl } from "@/utils";
+
+export default function EditEvent() {
+  const queryClient = useQueryClient();
+  const urlParams = new URLSearchParams(window.location.search);
+  const eventId = urlParams.get('id');
+
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    program_tag: "",
+    start_date: "",
+    end_date: "",
+    location: "",
+    image_url: "",
+    available_seats: ""
+  });
+
+  const { data: event, isLoading: loadingEvent, error: eventError } = useQuery({
+    queryKey: ['event', eventId],
+    queryFn: () => base44.entities.Event.get(eventId),
+    enabled: !!eventId
+  });
+
+  const { data: programs = [], isLoading: loadingPrograms } = useQuery({
+    queryKey: ['/api/entities/Program'],
+    queryFn: () => base44.entities.Program.list()
+  });
+
+  useEffect(() => {
+    if (event) {
+      setFormData({
+        title: event.title || "",
+        description: event.description || "",
+        program_tag: event.program_tag || "",
+        start_date: event.start_date || "",
+        end_date: event.end_date || "",
+        location: event.location || "",
+        image_url: event.image_url || "",
+        available_seats: event.available_seats !== null ? String(event.available_seats) : ""
+      });
+    }
+  }, [event]);
+
+  const updateEventMutation = useMutation({
+    mutationFn: async (eventData) => {
+      return base44.entities.Event.update(eventId, eventData);
+    },
+    onSuccess: () => {
+      toast.success('Event updated successfully');
+      queryClient.invalidateQueries({ queryKey: ['events'] });
+      queryClient.invalidateQueries({ queryKey: ['event', eventId] });
+      setTimeout(() => {
+        window.location.href = createPageUrl('Events');
+      }, 500);
+    },
+    onError: (error) => {
+      console.error('Update event error:', error);
+      const errorMessage = error.message || error.error || 'Unknown error occurred';
+      toast.error('Failed to update event: ' + errorMessage);
+    }
+  });
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    if (!formData.program_tag) {
+      toast.error('Please select a program');
+      return;
+    }
+    
+    if (!formData.start_date) {
+      toast.error('Please set a start date');
+      return;
+    }
+
+    if (!formData.title) {
+      toast.error('Please enter an event title');
+      return;
+    }
+
+    const parsedSeats = formData.available_seats ? parseInt(formData.available_seats, 10) : null;
+    const eventData = {
+      title: formData.title,
+      description: formData.description || null,
+      program_tag: formData.program_tag,
+      start_date: formData.start_date,
+      end_date: formData.end_date || formData.start_date,
+      location: formData.location || null,
+      image_url: formData.image_url || null,
+      available_seats: isNaN(parsedSeats) ? null : parsedSeats
+    };
+
+    updateEventMutation.mutate(eventData);
+  };
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const formatDateForInput = (dateStr) => {
+    if (!dateStr) return "";
+    try {
+      return format(new Date(dateStr), "yyyy-MM-dd'T'HH:mm");
+    } catch {
+      return "";
+    }
+  };
+
+  if (!eventId) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+        <div className="max-w-3xl mx-auto text-center py-16">
+          <h1 className="text-2xl font-bold text-slate-900 mb-4">Event Not Found</h1>
+          <p className="text-slate-600 mb-6">No event ID was provided.</p>
+          <Button onClick={() => window.location.href = createPageUrl('Events')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Events
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadingEvent) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+            <span className="ml-3 text-slate-600">Loading event...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (eventError || !event) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+        <div className="max-w-3xl mx-auto text-center py-16">
+          <h1 className="text-2xl font-bold text-slate-900 mb-4">Event Not Found</h1>
+          <p className="text-slate-600 mb-6">The event you're looking for doesn't exist or has been deleted.</p>
+          <Button onClick={() => window.location.href = createPageUrl('Events')}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Events
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="flex items-center gap-4 mb-6">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            onClick={() => window.location.href = createPageUrl('Events')}
+            data-testid="button-back"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Edit Event</h1>
+            <p className="text-slate-600">Update event details</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <Card className="border-slate-200 shadow-sm mb-6">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Calendar className="h-5 w-5 text-blue-600" />
+                Event Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="program">Program *</Label>
+                <Select
+                  value={formData.program_tag}
+                  onValueChange={(value) => handleInputChange('program_tag', value)}
+                  disabled={loadingPrograms}
+                  data-testid="select-program"
+                >
+                  <SelectTrigger data-testid="select-program-trigger">
+                    <SelectValue placeholder={loadingPrograms ? "Loading programs..." : "Select a program"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {programs.map((program) => (
+                      <SelectItem 
+                        key={program.id} 
+                        value={program.tag || program.name}
+                        data-testid={`select-program-${program.id}`}
+                      >
+                        {program.name || program.tag}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500">
+                  The program determines ticket types that can be used for this event
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="title">Event Title *</Label>
+                <Input
+                  id="title"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange('title', e.target.value)}
+                  placeholder="Enter event title"
+                  required
+                  data-testid="input-title"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => handleInputChange('description', e.target.value)}
+                  placeholder="Describe the event..."
+                  rows={4}
+                  data-testid="input-description"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="start_date">Start Date & Time *</Label>
+                  <Input
+                    id="start_date"
+                    type="datetime-local"
+                    value={formatDateForInput(formData.start_date)}
+                    onChange={(e) => handleInputChange('start_date', new Date(e.target.value).toISOString())}
+                    required
+                    data-testid="input-start-date"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="end_date">End Date & Time</Label>
+                  <Input
+                    id="end_date"
+                    type="datetime-local"
+                    value={formatDateForInput(formData.end_date)}
+                    onChange={(e) => handleInputChange('end_date', new Date(e.target.value).toISOString())}
+                    data-testid="input-end-date"
+                  />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-slate-200 shadow-sm mb-6">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <MapPin className="h-5 w-5 text-blue-600" />
+                Location & Capacity
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="location">Venue / Location</Label>
+                <Input
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => handleInputChange('location', e.target.value)}
+                  placeholder="Enter venue address or location name"
+                  data-testid="input-location"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="available_seats">Available Seats</Label>
+                <Input
+                  id="available_seats"
+                  type="number"
+                  min="0"
+                  value={formData.available_seats}
+                  onChange={(e) => handleInputChange('available_seats', e.target.value)}
+                  placeholder="Leave empty for unlimited"
+                  data-testid="input-seats"
+                />
+                <p className="text-xs text-slate-500">
+                  Leave empty for unlimited capacity
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="image_url">Event Image URL</Label>
+                <Input
+                  id="image_url"
+                  type="url"
+                  value={formData.image_url}
+                  onChange={(e) => handleInputChange('image_url', e.target.value)}
+                  placeholder="https://example.com/image.jpg"
+                  data-testid="input-image-url"
+                />
+                <p className="text-xs text-slate-500">
+                  Optional: Add an image to display on the event card
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex items-center justify-end gap-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => window.location.href = createPageUrl('Events')}
+              disabled={updateEventMutation.isPending}
+              data-testid="button-cancel"
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={updateEventMutation.isPending}
+              className="bg-blue-600 hover:bg-blue-700"
+              data-testid="button-save-event"
+            >
+              {updateEventMutation.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}

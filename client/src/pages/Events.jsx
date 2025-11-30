@@ -307,6 +307,7 @@ export default function EventsPage({
                     event={event}
                     organizationInfo={organizationInfo}
                     isFeatureExcluded={isFeatureExcluded}
+                    isAdmin={isAdmin}
                   />
                 ))}
               </div>

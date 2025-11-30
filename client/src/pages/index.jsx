@@ -196,6 +196,8 @@ import ZoomWebinarProvisioning from "./ZoomWebinarProvisioning";
 
 import CreateEvent from "./CreateEvent";
 
+import EditEvent from "./EditEvent";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
 import { ArticleUrlProvider } from '@/contexts/ArticleUrlContext';
@@ -397,6 +399,8 @@ const PAGES = {
     ZoomWebinarProvisioning: ZoomWebinarProvisioning,
     
     CreateEvent: CreateEvent,
+    
+    EditEvent: EditEvent,
     
 }
 

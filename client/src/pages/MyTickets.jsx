@@ -47,29 +47,52 @@ export default function MyTicketsPage({ hasBanner }) {
     }
   }, [shouldShowTours, hasSeenTour, memberInfo]);
 
+  // Fetch only this user's tickets - filtered server-side
   const { data: myTickets = [], isLoading: loadingTickets } = useQuery({
     queryKey: ['my-tickets', memberInfo?.email],
     queryFn: async () => {
       if (!memberInfo?.email) return [];
-
-      const allBookings = await base44.entities.Booking.list('-created_date');
-      return allBookings.filter((b) => b.attendee_email === memberInfo.email);
+      // Use server-side filtering by attendee_email
+      return base44.entities.Booking.list({
+        filter: { attendee_email: memberInfo.email },
+        sort: { created_date: 'desc' }
+      });
     },
     enabled: !!memberInfo?.email,
     staleTime: 0,
     refetchOnMount: true,
   });
 
+  // Get unique event IDs from user's tickets, then fetch only those events
+  const eventIds = [...new Set(myTickets.map(t => t.event_id).filter(Boolean))];
+  
   const { data: events = [], isLoading: loadingEvents } = useQuery({
-    queryKey: ['events'],
-    queryFn: () => base44.entities.Event.list(),
+    queryKey: ['events-for-tickets', eventIds],
+    queryFn: async () => {
+      if (eventIds.length === 0) return [];
+      // Fetch only the events that are in user's bookings
+      return base44.entities.Event.list({
+        filter: { id: { in: eventIds } }
+      });
+    },
+    enabled: eventIds.length > 0,
     staleTime: 0,
     refetchOnMount: true,
   });
 
+  // Get unique member IDs from user's tickets (for "booked by" info)
+  const memberIds = [...new Set(myTickets.map(t => t.member_id).filter(Boolean))];
+  
   const { data: members = [], isLoading: loadingMembers } = useQuery({
-    queryKey: ['members'],
-    queryFn: () => base44.entities.Member.listAll(),
+    queryKey: ['members-for-tickets', memberIds],
+    queryFn: async () => {
+      if (memberIds.length === 0) return [];
+      // Fetch only the members who made these bookings
+      return base44.entities.Member.list({
+        filter: { id: { in: memberIds } }
+      });
+    },
+    enabled: memberIds.length > 0,
     staleTime: 0,
     refetchOnMount: true,
   });

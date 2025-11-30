@@ -2,11 +2,21 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
-import { Calendar, Clock } from "lucide-react";
-import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, isPast } from "date-fns";
+import { Calendar, Clock, Video, ExternalLink } from "lucide-react";
+import { format, differenceInDays, differenceInHours, differenceInMinutes, differenceInSeconds, addMinutes } from "date-fns";
+import { Button } from "@/components/ui/button";
+
+async function apiRequest(url) {
+  const response = await fetch(url, { credentials: 'include' });
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+  return response.json();
+}
 
 export default function NextEventCountdown({ memberEmail }) {
   const [timeLeft, setTimeLeft] = useState(null);
+  const [eventStatus, setEventStatus] = useState('upcoming'); // 'upcoming', 'live', 'ended'
 
   const { data: myBookings = [] } = useQuery({
     queryKey: ['next-event-bookings', memberEmail],
@@ -34,34 +44,74 @@ export default function NextEventCountdown({ memberEmail }) {
     staleTime: 60000,
   });
 
-  const upcomingEvents = events
-    .filter(event => {
-      const eventDate = new Date(event.start_date);
-      return !isPast(eventDate);
-    })
-    .sort((a, b) => new Date(a.start_date) - new Date(b.start_date));
+  // Fetch webinars to get join URLs
+  const { data: webinars = [] } = useQuery({
+    queryKey: ['zoom-webinars-for-countdown'],
+    queryFn: () => apiRequest('/api/zoom/webinars'),
+    staleTime: 60000,
+  });
 
-  const nextEvent = upcomingEvents[0];
+  // Find the next upcoming or currently live event
+  const now = new Date();
+  
+  const relevantEvents = events
+    .map(event => {
+      const startDate = new Date(event.start_date);
+      const endDate = event.end_date ? new Date(event.end_date) : addMinutes(startDate, 60);
+      
+      // Find matching webinar
+      const webinar = webinars.find(w => 
+        w.zoom_webinar_id === event.zoom_webinar_id || 
+        w.id === event.zoom_webinar_id
+      );
+      
+      return {
+        ...event,
+        startDate,
+        endDate,
+        webinar,
+        joinUrl: webinar?.join_url || event.online_url || null
+      };
+    })
+    .filter(event => {
+      // Include events that haven't ended yet
+      return event.endDate > now;
+    })
+    .sort((a, b) => a.startDate - b.startDate);
+
+  const nextEvent = relevantEvents[0];
 
   useEffect(() => {
     if (!nextEvent) {
       setTimeLeft(null);
+      setEventStatus('ended');
       return;
     }
 
     const calculateTimeLeft = () => {
-      const eventDate = new Date(nextEvent.start_date);
       const now = new Date();
+      const { startDate, endDate } = nextEvent;
 
-      if (isPast(eventDate)) {
+      // Check if event has ended
+      if (now > endDate) {
+        setEventStatus('ended');
         setTimeLeft(null);
         return;
       }
 
-      const days = differenceInDays(eventDate, now);
-      const hours = differenceInHours(eventDate, now) % 24;
-      const minutes = differenceInMinutes(eventDate, now) % 60;
-      const seconds = differenceInSeconds(eventDate, now) % 60;
+      // Check if event is currently live
+      if (now >= startDate && now <= endDate) {
+        setEventStatus('live');
+        setTimeLeft(null);
+        return;
+      }
+
+      // Event is upcoming - calculate countdown
+      setEventStatus('upcoming');
+      const days = differenceInDays(startDate, now);
+      const hours = differenceInHours(startDate, now) % 24;
+      const minutes = differenceInMinutes(startDate, now) % 60;
+      const seconds = differenceInSeconds(startDate, now) % 60;
 
       setTimeLeft({ days, hours, minutes, seconds });
     };
@@ -72,20 +122,33 @@ export default function NextEventCountdown({ memberEmail }) {
     return () => clearInterval(timer);
   }, [nextEvent]);
 
-  if (!nextEvent || !timeLeft) {
+  if (!nextEvent || eventStatus === 'ended') {
     return null;
   }
 
-  const eventDate = new Date(nextEvent.start_date);
-  const formattedDate = format(eventDate, "EEE, d MMM");
-  const formattedTime = format(eventDate, "HH:mm");
+  const formattedDate = format(nextEvent.startDate, "EEE, d MMM");
+  const formattedTime = format(nextEvent.startDate, "HH:mm");
+  const isOnlineEvent = nextEvent.location?.toLowerCase().includes('online') || nextEvent.joinUrl;
 
   return (
     <div className="px-3 py-2">
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg p-3 border border-blue-100">
+      <div className={`rounded-lg p-3 border ${
+        eventStatus === 'live' 
+          ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' 
+          : 'bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100'
+      }`}>
         <div className="flex items-center gap-2 mb-2">
-          <Clock className="w-4 h-4 text-blue-600" />
-          <span className="text-xs font-medium text-blue-700 uppercase tracking-wide">Next Event</span>
+          {eventStatus === 'live' ? (
+            <>
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+              <span className="text-xs font-medium text-green-700 uppercase tracking-wide">Live Now</span>
+            </>
+          ) : (
+            <>
+              <Clock className="w-4 h-4 text-blue-600" />
+              <span className="text-xs font-medium text-blue-700 uppercase tracking-wide">Next Event</span>
+            </>
+          )}
         </div>
         
         <Link 
@@ -103,24 +166,47 @@ export default function NextEventCountdown({ memberEmail }) {
           <span>{formattedDate} at {formattedTime}</span>
         </div>
 
-        <div className="grid grid-cols-4 gap-1" data-testid="countdown-timer">
-          <div className="bg-white rounded-md p-1.5 text-center shadow-sm">
-            <div className="text-lg font-bold text-blue-600" data-testid="countdown-days">{timeLeft.days}</div>
-            <div className="text-[10px] text-slate-500 uppercase">Days</div>
+        {eventStatus === 'live' && isOnlineEvent && nextEvent.joinUrl ? (
+          <a
+            href={nextEvent.joinUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+            data-testid="button-join-event"
+          >
+            <Button 
+              className="w-full bg-green-600 hover:bg-green-700 text-white gap-2"
+              size="sm"
+            >
+              <Video className="w-4 h-4" />
+              Join Event
+              <ExternalLink className="w-3 h-3" />
+            </Button>
+          </a>
+        ) : eventStatus === 'live' ? (
+          <div className="bg-green-100 rounded-md p-2 text-center">
+            <span className="text-sm font-medium text-green-700">Event is Live!</span>
           </div>
-          <div className="bg-white rounded-md p-1.5 text-center shadow-sm">
-            <div className="text-lg font-bold text-blue-600" data-testid="countdown-hours">{String(timeLeft.hours).padStart(2, '0')}</div>
-            <div className="text-[10px] text-slate-500 uppercase">Hrs</div>
+        ) : timeLeft && (
+          <div className="grid grid-cols-4 gap-1" data-testid="countdown-timer">
+            <div className="bg-white rounded-md p-1.5 text-center shadow-sm">
+              <div className="text-lg font-bold text-blue-600" data-testid="countdown-days">{timeLeft.days}</div>
+              <div className="text-[10px] text-slate-500 uppercase">Days</div>
+            </div>
+            <div className="bg-white rounded-md p-1.5 text-center shadow-sm">
+              <div className="text-lg font-bold text-blue-600" data-testid="countdown-hours">{String(timeLeft.hours).padStart(2, '0')}</div>
+              <div className="text-[10px] text-slate-500 uppercase">Hrs</div>
+            </div>
+            <div className="bg-white rounded-md p-1.5 text-center shadow-sm">
+              <div className="text-lg font-bold text-blue-600" data-testid="countdown-minutes">{String(timeLeft.minutes).padStart(2, '0')}</div>
+              <div className="text-[10px] text-slate-500 uppercase">Min</div>
+            </div>
+            <div className="bg-white rounded-md p-1.5 text-center shadow-sm">
+              <div className="text-lg font-bold text-blue-600" data-testid="countdown-seconds">{String(timeLeft.seconds).padStart(2, '0')}</div>
+              <div className="text-[10px] text-slate-500 uppercase">Sec</div>
+            </div>
           </div>
-          <div className="bg-white rounded-md p-1.5 text-center shadow-sm">
-            <div className="text-lg font-bold text-blue-600" data-testid="countdown-minutes">{String(timeLeft.minutes).padStart(2, '0')}</div>
-            <div className="text-[10px] text-slate-500 uppercase">Min</div>
-          </div>
-          <div className="bg-white rounded-md p-1.5 text-center shadow-sm">
-            <div className="text-lg font-bold text-blue-600" data-testid="countdown-seconds">{String(timeLeft.seconds).padStart(2, '0')}</div>
-            <div className="text-[10px] text-slate-500 uppercase">Sec</div>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   );

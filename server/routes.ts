@@ -3204,10 +3204,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ticket_price: event.ticket_price || 0,
             booking_reference: bookingReference,
             status: bookingStatus,
-            payment_method: 'program_ticket'
+            payment_method: 'program_ticket',
+            zoom_registrant_id: correspondingZoomReg?.zoomRegistrantId || null
           };
           
-          // Only add backstage_order_id if we have one (column may not exist for all deployments)
+          // Only add backstage_order_id if we have one
           if (correspondingOrder?.backstageOrderId) {
             bookingData.backstage_order_id = correspondingOrder.backstageOrderId;
           }

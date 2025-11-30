@@ -871,23 +871,67 @@ const functionHandlers = {
       return urlMatch ? urlMatch[0] : null;
     };
 
+    // Helper: Extract Zoom webinar ID from URL
+    const extractZoomWebinarId = (url) => {
+      if (!url) return null;
+      // Match patterns like /j/82859217632 or /w/82859217632
+      const match = url.match(/\/[jw]\/(\d+)/);
+      return match ? match[1] : null;
+    };
+
     // Helper: Find webinar by event location
     const findWebinarByLocation = async (eventLocation) => {
+      console.log('[createBooking] Event location:', eventLocation);
+      
       const zoomUrl = extractZoomUrl(eventLocation);
-      if (!zoomUrl) return null;
+      console.log('[createBooking] Extracted Zoom URL:', zoomUrl);
       
-      console.log('[createBooking] Looking for webinar with join_url matching:', zoomUrl);
+      if (!zoomUrl) {
+        console.log('[createBooking] Could not extract Zoom URL from location');
+        return null;
+      }
       
+      // Extract Zoom webinar ID from the URL for more reliable matching
+      const eventWebinarId = extractZoomWebinarId(zoomUrl);
+      console.log('[createBooking] Extracted webinar ID from event:', eventWebinarId);
+      
+      // Fetch all webinars (scheduled and synced)
       const { data: webinars, error } = await supabase
         .from('zoom_webinar')
-        .select('*')
-        .eq('status', 'scheduled');
+        .select('*');
       
       if (error || !webinars) {
         console.error('[createBooking] Error fetching webinars:', error);
         return null;
       }
       
+      console.log('[createBooking] Found', webinars.length, 'webinars in database');
+      
+      // Log all webinars for debugging
+      webinars.forEach((w, i) => {
+        console.log(`[createBooking] Webinar ${i+1}: id=${w.id}, zoom_id=${w.zoom_webinar_id}, status=${w.status}, join_url=${w.join_url?.substring(0, 50)}...`);
+      });
+      
+      // Try to match by webinar ID first (most reliable)
+      if (eventWebinarId) {
+        const matchByZoomId = webinars.find(w => w.zoom_webinar_id?.toString() === eventWebinarId);
+        if (matchByZoomId) {
+          console.log('[createBooking] Found webinar by Zoom ID match:', matchByZoomId.id, matchByZoomId.topic);
+          return matchByZoomId;
+        }
+        
+        // Also check join_url for the ID
+        const matchByJoinUrlId = webinars.find(w => {
+          const joinUrlId = extractZoomWebinarId(w.join_url);
+          return joinUrlId === eventWebinarId;
+        });
+        if (matchByJoinUrlId) {
+          console.log('[createBooking] Found webinar by join_url ID match:', matchByJoinUrlId.id, matchByJoinUrlId.topic);
+          return matchByJoinUrlId;
+        }
+      }
+      
+      // Fallback: Try URL substring matching
       const normalizeUrl = (url) => url.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase();
       const normalizedZoomUrl = normalizeUrl(zoomUrl);
       
@@ -898,9 +942,10 @@ const functionHandlers = {
       });
       
       if (matchingWebinar) {
-        console.log('[createBooking] Found matching webinar:', matchingWebinar.id, matchingWebinar.topic);
+        console.log('[createBooking] Found matching webinar by URL:', matchingWebinar.id, matchingWebinar.topic);
       } else {
         console.log('[createBooking] No matching webinar found for URL:', zoomUrl);
+        console.log('[createBooking] Event webinar ID:', eventWebinarId);
       }
       
       return matchingWebinar || null;

@@ -19,7 +19,11 @@ async function getZoomAccessToken() {
   const clientSecret = process.env.ZOOM_CLIENT_SECRET;
   
   if (!accountId || !clientId || !clientSecret) {
-    throw new Error('Zoom credentials not configured');
+    const missing = [];
+    if (!accountId) missing.push('ZOOM_ACCOUNT_ID');
+    if (!clientId) missing.push('ZOOM_CLIENT_ID');
+    if (!clientSecret) missing.push('ZOOM_CLIENT_SECRET');
+    throw new Error(`Zoom credentials not configured. Missing: ${missing.join(', ')}`);
   }
   
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
@@ -36,7 +40,7 @@ async function getZoomAccessToken() {
   if (!response.ok) {
     const errorText = await response.text();
     console.error('[Zoom] Token error:', errorText);
-    throw new Error(`Failed to get Zoom access token: ${response.status}`);
+    throw new Error(`Failed to get Zoom access token: ${response.status} - ${errorText}`);
   }
   
   const data = await response.json();
@@ -75,13 +79,20 @@ export default async function handler(req, res) {
     if (!response.ok) {
       const errorText = await response.text();
       console.error('[Zoom] Users API error:', errorText);
-      return res.status(response.status).json({ error: 'Failed to fetch Zoom users' });
+      return res.status(response.status).json({ 
+        error: 'Failed to fetch Zoom users',
+        details: errorText,
+        status: response.status
+      });
     }
     
     const data = await response.json();
     return res.json(data.users || []);
   } catch (error) {
     console.error('[Zoom] Users error:', error);
-    return res.status(500).json({ error: error.message || 'Failed to fetch Zoom users' });
+    return res.status(500).json({ 
+      error: error.message || 'Failed to fetch Zoom users',
+      stack: error.stack
+    });
   }
 }

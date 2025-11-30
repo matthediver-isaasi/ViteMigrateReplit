@@ -45,9 +45,12 @@ async function getZoomAccessToken() {
   
   const data = await response.json();
   
+  console.log('[Zoom] Token scopes:', data.scope);
+  
   zoomTokenCache = {
     token: data.access_token,
-    expiresAt: Date.now() + (data.expires_in * 1000)
+    expiresAt: Date.now() + (data.expires_in * 1000),
+    scopes: data.scope
   };
   
   return data.access_token;
@@ -69,6 +72,20 @@ export default async function handler(req, res) {
   // Force refresh token if requested
   if (req.query.refreshToken === 'true') {
     zoomTokenCache = null;
+  }
+
+  // Debug mode - show token scopes
+  if (req.query.debug === 'true') {
+    try {
+      const token = await getZoomAccessToken();
+      return res.json({ 
+        success: true, 
+        scopes: zoomTokenCache?.scopes || 'unknown',
+        message: 'Token generated successfully'
+      });
+    } catch (error) {
+      return res.status(500).json({ error: error.message });
+    }
   }
 
   try {

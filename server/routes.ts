@@ -2857,40 +2857,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get member details
+      // Get member details - query directly by email instead of fetching all
       console.log('[createBooking] Looking up member with email:', memberEmail);
-      const { data: allMembers, error: memberError } = await supabase.from('member').select('*');
+      const { data: memberData, error: memberError } = await supabase
+        .from('member')
+        .select('*')
+        .eq('email', memberEmail)
+        .single();
       
       if (memberError) {
         console.error('[createBooking] Member query error:', memberError);
-      }
-      
-      console.log('[createBooking] Found members count:', allMembers?.length || 0);
-      
-      const member = allMembers?.find((m: any) => m.email === memberEmail);
-      console.log('[createBooking] Member found:', member ? 'yes' : 'no', member?.email);
-
-      if (!member) {
-        // Log all available member emails for debugging (first 5)
-        const sampleEmails = allMembers?.slice(0, 5).map((m: any) => m.email) || [];
-        console.log('[createBooking] Sample member emails in DB:', sampleEmails);
-        
         return res.status(404).json({
           success: false,
           error: 'Member not found'
         });
       }
+      
+      const member = memberData;
+      console.log('[createBooking] Member found:', member?.id, member?.email);
 
-      // Get event details
-      const { data: allEvents } = await supabase.from('event').select('*');
-      const event = allEvents?.find((e: any) => e.id === eventId);
+      // Get event details - query directly by ID
+      const { data: eventData, error: eventError } = await supabase
+        .from('event')
+        .select('*')
+        .eq('id', eventId)
+        .single();
 
-      if (!event) {
+      if (eventError || !eventData) {
+        console.error('[createBooking] Event query error:', eventError);
         return res.status(404).json({
           success: false,
           error: 'Event not found'
         });
       }
+      const event = eventData;
 
       // Check if event requires program tickets
       if (!programTag || !event.program_tag) {
@@ -2908,14 +2908,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      const { data: allOrgs } = await supabase.from('organization').select('*');
-      let org = allOrgs?.find((o: any) => o.id === member.organization_id);
+      // Try to find organization by ID first
+      let { data: org, error: orgError } = await supabase
+        .from('organization')
+        .select('*')
+        .eq('id', member.organization_id)
+        .single();
 
-      if (!org) {
-        org = allOrgs?.find((o: any) => o.zoho_account_id === member.organization_id);
+      // If not found by ID, try by zoho_account_id
+      if (orgError || !org) {
+        const { data: orgByZoho } = await supabase
+          .from('organization')
+          .select('*')
+          .eq('zoho_account_id', member.organization_id)
+          .single();
+        org = orgByZoho;
       }
 
       if (!org) {
+        console.error('[createBooking] Organization not found for member.organization_id:', member.organization_id);
         return res.status(404).json({
           success: false,
           error: 'Organization not found'

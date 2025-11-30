@@ -3195,7 +3195,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           // Regular events default to 'confirmed'
 
-          const bookingData = {
+          const bookingData: any = {
             event_id: eventId,
             member_id: member.id,
             attendee_email: attendee.email,
@@ -3204,10 +3204,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
             ticket_price: event.ticket_price || 0,
             booking_reference: bookingReference,
             status: bookingStatus,
-            payment_method: 'program_ticket',
-            backstage_order_id: correspondingOrder?.backstageOrderId || null,
-            zoom_registrant_id: correspondingZoomReg?.zoomRegistrantId || null
+            payment_method: 'program_ticket'
           };
+          
+          // Only add backstage_order_id if we have one (column may not exist for all deployments)
+          if (correspondingOrder?.backstageOrderId) {
+            bookingData.backstage_order_id = correspondingOrder.backstageOrderId;
+          }
           
           console.log('[createBooking] Inserting booking:', JSON.stringify(bookingData));
           

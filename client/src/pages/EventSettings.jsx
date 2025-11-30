@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Calendar, Clock, MapPin, Ticket, RefreshCw, Save, Image as ImageIcon, Upload, X } from "lucide-react";
+import { Settings, Calendar, Clock, MapPin, Ticket, RefreshCw, Save, Image as ImageIcon, Upload, X, FileText } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
@@ -20,6 +21,7 @@ export default function EventSettingsPage() {
   const { isAdmin, isFeatureExcluded, isAccessReady } = useMemberAccess();
   const [accessChecked, setAccessChecked] = useState(false);
   const [cancellationDeadlineHours, setCancellationDeadlineHours] = useState(24);
+  const [xeroInvoiceEnabled, setXeroInvoiceEnabled] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editingEventImage, setEditingEventImage] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -73,11 +75,16 @@ export default function EventSettingsPage() {
     refetchOnMount: true,
   });
 
-  // Load current setting value
+  // Load current setting values
   useEffect(() => {
     const deadlineSetting = settings.find(s => s.setting_key === 'cancellation_deadline_hours');
     if (deadlineSetting) {
       setCancellationDeadlineHours(parseInt(deadlineSetting.setting_value) || 0);
+    }
+    
+    const xeroSetting = settings.find(s => s.setting_key === 'xero_invoice_enabled');
+    if (xeroSetting) {
+      setXeroInvoiceEnabled(xeroSetting.setting_value === 'true');
     }
   }, [settings]);
 
@@ -95,20 +102,35 @@ export default function EventSettingsPage() {
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
+      // Save cancellation deadline setting
       const deadlineSetting = settings.find(s => s.setting_key === 'cancellation_deadline_hours');
       
       if (deadlineSetting) {
-        // Update existing setting
         await base44.entities.SystemSettings.update(deadlineSetting.id, {
           setting_value: cancellationDeadlineHours.toString(),
           description: 'Number of hours before event start that cancellations are allowed'
         });
       } else {
-        // Create new setting
         await base44.entities.SystemSettings.create({
           setting_key: 'cancellation_deadline_hours',
           setting_value: cancellationDeadlineHours.toString(),
           description: 'Number of hours before event start that cancellations are allowed'
+        });
+      }
+      
+      // Save Xero invoice setting
+      const xeroSetting = settings.find(s => s.setting_key === 'xero_invoice_enabled');
+      
+      if (xeroSetting) {
+        await base44.entities.SystemSettings.update(xeroSetting.id, {
+          setting_value: xeroInvoiceEnabled.toString(),
+          description: 'Enable or disable Xero invoice generation for program ticket purchases'
+        });
+      } else {
+        await base44.entities.SystemSettings.create({
+          setting_key: 'xero_invoice_enabled',
+          setting_value: xeroInvoiceEnabled.toString(),
+          description: 'Enable or disable Xero invoice generation for program ticket purchases'
         });
       }
       
@@ -527,6 +549,47 @@ export default function EventSettingsPage() {
                   Members will not be able to cancel tickets within this timeframe before the event starts.
                   Set to 0 to allow cancellations up until the event start time.
                 </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Invoice Settings Section */}
+        <Card className="border-slate-200 shadow-sm mb-8">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <FileText className="w-5 h-5 text-green-600" />
+              <CardTitle>Invoice Settings</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="max-w-2xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="space-y-1">
+                  <Label htmlFor="xero-invoice-toggle">
+                    Generate Xero Invoices
+                  </Label>
+                  <p className="text-xs text-slate-500">
+                    When enabled, Xero invoices will be automatically generated for program ticket purchases.
+                    Disable this during testing to avoid creating invoices in your accounting system.
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <Switch
+                    id="xero-invoice-toggle"
+                    checked={xeroInvoiceEnabled}
+                    onCheckedChange={setXeroInvoiceEnabled}
+                    data-testid="switch-xero-invoice"
+                  />
+                  <Button
+                    onClick={handleSaveSettings}
+                    disabled={isSaving}
+                    size="sm"
+                  >
+                    <Save className="w-4 h-4 mr-2" />
+                    Save
+                  </Button>
+                </div>
               </div>
             </div>
           </CardContent>

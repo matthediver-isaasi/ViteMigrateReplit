@@ -3723,6 +3723,152 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Check if Xero invoice generation is enabled
+      let xeroInvoiceResult = null;
+      const { data: xeroSettings } = await supabase
+        .from('system_settings')
+        .select('*')
+        .eq('setting_key', 'xero_invoice_enabled')
+        .maybeSingle();
+      
+      // Default to disabled if setting doesn't exist
+      const xeroInvoiceEnabled = xeroSettings?.setting_value === 'true';
+      
+      // Only create Xero invoice if enabled and there's an account charge
+      if (xeroInvoiceEnabled && accountAmount > 0) {
+        try {
+          console.log('[processProgramTicketPurchase] Creating Xero invoice for account charge:', accountAmount);
+          
+          // Get valid Xero token
+          const { data: xeroToken } = await supabase
+            .from('xero_token')
+            .select('*')
+            .single();
+          
+          if (xeroToken && xeroToken.access_token && xeroToken.tenant_id) {
+            // Check if token needs refresh (5 min before expiry)
+            let accessToken = xeroToken.access_token;
+            const tenantId = xeroToken.tenant_id;
+            
+            if (new Date(xeroToken.expires_at) <= new Date(Date.now() + 5 * 60 * 1000)) {
+              // Refresh token
+              const XERO_CLIENT_ID = process.env.ZOHO_CLIENT_ID; // These are actually Xero credentials
+              const XERO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
+              
+              if (XERO_CLIENT_ID && XERO_CLIENT_SECRET) {
+                const tokenResponse = await fetch('https://identity.xero.com/connect/token', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': 'Basic ' + Buffer.from(`${XERO_CLIENT_ID}:${XERO_CLIENT_SECRET}`).toString('base64')
+                  },
+                  body: new URLSearchParams({
+                    grant_type: 'refresh_token',
+                    refresh_token: xeroToken.refresh_token
+                  }).toString()
+                });
+                
+                if (tokenResponse.ok) {
+                  const tokenData = await tokenResponse.json() as any;
+                  accessToken = tokenData.access_token;
+                  
+                  await supabase
+                    .from('xero_token')
+                    .update({
+                      access_token: tokenData.access_token,
+                      refresh_token: tokenData.refresh_token,
+                      expires_at: new Date(Date.now() + tokenData.expires_in * 1000).toISOString()
+                    })
+                    .eq('id', xeroToken.id);
+                }
+              }
+            }
+            
+            // Find or create Xero contact
+            // Use properly escaped contact name for Xero API
+            const escapedOrgName = org.name.replace(/"/g, '\\"');
+            const contactSearchResponse = await fetch(
+              `https://api.xero.com/api.xro/2.0/Contacts?where=${encodeURIComponent(`Name=="${escapedOrgName}"`)}`,
+              {
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'xero-tenant-id': tenantId,
+                  'Accept': 'application/json'
+                }
+              }
+            );
+            
+            let contactId: string;
+            const contactData = await contactSearchResponse.json() as any;
+            
+            if (contactData.Contacts && contactData.Contacts.length > 0) {
+              contactId = contactData.Contacts[0].ContactID;
+            } else {
+              // Create new contact
+              const createContactResponse = await fetch('https://api.xero.com/api.xro/2.0/Contacts', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'xero-tenant-id': tenantId,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ Contacts: [{ Name: org.name }] })
+              });
+              
+              const newContactData = await createContactResponse.json() as any;
+              if (newContactData.Contacts && newContactData.Contacts.length > 0) {
+                contactId = newContactData.Contacts[0].ContactID;
+              } else {
+                throw new Error('Failed to create Xero contact');
+              }
+            }
+            
+            // Create invoice
+            const invoicePayload = {
+              Type: 'ACCREC',
+              Contact: { ContactID: contactId },
+              LineItems: [{
+                Description: `${program.name} - ${quantity} ticket${quantity > 1 ? 's' : ''}${totalTicketsReceived > quantity ? ` (includes ${totalTicketsReceived - quantity} bonus ticket${totalTicketsReceived - quantity > 1 ? 's' : ''})` : ''}`,
+                Quantity: 1,
+                UnitAmount: accountAmount,
+                AccountCode: '200' // Sales account - adjust as needed
+              }],
+              Reference: purchaseOrderNumber || `PTT-${transaction?.id || Date.now()}`,
+              Status: 'AUTHORISED'
+            };
+            
+            const invoiceResponse = await fetch('https://api.xero.com/api.xro/2.0/Invoices', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'xero-tenant-id': tenantId,
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({ Invoices: [invoicePayload] })
+            });
+            
+            const invoiceData = await invoiceResponse.json() as any;
+            
+            if (invoiceData.Invoices && invoiceData.Invoices.length > 0) {
+              xeroInvoiceResult = {
+                invoice_id: invoiceData.Invoices[0].InvoiceID,
+                invoice_number: invoiceData.Invoices[0].InvoiceNumber,
+                total: invoiceData.Invoices[0].Total,
+                status: invoiceData.Invoices[0].Status
+              };
+              console.log('[processProgramTicketPurchase] Xero invoice created:', xeroInvoiceResult);
+            }
+          } else {
+            console.log('[processProgramTicketPurchase] Xero not configured, skipping invoice creation');
+          }
+        } catch (xeroError: any) {
+          console.error('[processProgramTicketPurchase] Xero invoice creation failed:', xeroError.message);
+          // Don't fail the purchase, just log the error
+        }
+      } else if (!xeroInvoiceEnabled) {
+        console.log('[processProgramTicketPurchase] Xero invoice generation is disabled');
+      }
+
       res.json({
         success: true,
         message: `Successfully added ${totalTicketsReceived} ${program.name} ticket${totalTicketsReceived > 1 ? 's' : ''} to ${org.name}`,
@@ -3745,7 +3891,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           payment_method: paymentMethod,
           stripe_payment_intent_id: stripePaymentIntentId
         },
-        xero_invoice: null,
+        xero_invoice: xeroInvoiceResult,
+        xero_invoice_enabled: xeroInvoiceEnabled,
         is_simulated_payment: false
       });
 

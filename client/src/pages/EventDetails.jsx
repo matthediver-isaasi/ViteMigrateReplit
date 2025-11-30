@@ -564,14 +564,27 @@ export default function EventDetailsPage() {
         
         // Debug mode: show full response before redirect
         if (debugMode) {
-          const debugInfo = {
-            event_type: response.data.event_type,
-            event_location: event.location,
-            backstage_event_id: event.backstage_event_id,
-            zoom_registration: response.data.zoom_registration,
-            warning: response.data.warning
-          };
-          alert('DEBUG MODE - Booking Response:\n\n' + JSON.stringify(debugInfo, null, 2));
+          try {
+            const zoomReg = response.data.zoom_registration || {};
+            const debugText = [
+              'DEBUG MODE - Booking Response:',
+              '',
+              'Event Type: ' + (response.data.event_type || 'unknown'),
+              'Event Location: ' + (event.location || 'null'),
+              'Backstage Event ID: ' + (event.backstage_event_id || 'null'),
+              '',
+              '--- Zoom Registration ---',
+              'Webinar Found: ' + (zoomReg.webinar_found ? 'YES' : 'NO'),
+              'Extracted Webinar ID: ' + (zoomReg.debug?.extracted_webinar_id || 'null'),
+              'Matched Webinar ID: ' + (zoomReg.debug?.webinar_matched_id || 'null'),
+              'Registration Count: ' + (zoomReg.registrations?.length || 0),
+              '',
+              'Warning: ' + (response.data.warning || 'none')
+            ].join('\n');
+            alert(debugText);
+          } catch (e) {
+            alert('Debug Error: ' + e.message);
+          }
         }
         
         // Defer organization refresh to avoid React state update conflicts

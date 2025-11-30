@@ -117,14 +117,31 @@ function StripePaymentForm({ clientSecret, onSuccess, onCancel, amount }) {
 }
 
 export default function BuyProgramTicketsPage({ 
-  memberInfo, 
-  organizationInfo, 
-  refreshOrganizationInfo, 
-  isFeatureExcluded,
-  memberRole,
-  reloadMemberInfo,
+  memberInfo: propsMemberInfo, 
+  organizationInfo: propsOrganizationInfo, 
+  refreshOrganizationInfo: propsRefreshOrganizationInfo, 
+  isFeatureExcluded: propsIsFeatureExcluded,
+  memberRole: propsMemberRole,
+  reloadMemberInfo: propsReloadMemberInfo,
 }) {
-  const { hasBanner } = useLayoutContext();
+  // Get values from context (preferred) or fall back to props
+  const { 
+    hasBanner,
+    memberInfo: contextMemberInfo,
+    organizationInfo: contextOrganizationInfo,
+    memberRole: contextMemberRole,
+    isFeatureExcluded: contextIsFeatureExcluded,
+    refreshOrganizationInfo: contextRefreshOrganizationInfo,
+    reloadMemberInfo: contextReloadMemberInfo,
+  } = useLayoutContext();
+
+  // Use context values if available, otherwise fall back to props
+  const memberInfo = contextMemberInfo || propsMemberInfo;
+  const organizationInfo = contextOrganizationInfo || propsOrganizationInfo;
+  const memberRole = contextMemberRole || propsMemberRole;
+  const isFeatureExcluded = contextIsFeatureExcluded || propsIsFeatureExcluded || (() => false);
+  const refreshOrganizationInfo = contextRefreshOrganizationInfo || propsRefreshOrganizationInfo || (() => {});
+  const reloadMemberInfo = contextReloadMemberInfo || propsReloadMemberInfo || (() => {});
   const [selectedProgram, setSelectedProgram] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState("");

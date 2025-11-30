@@ -548,8 +548,18 @@ const { data: portalBanner } = useQuery({
   },
 });
 
-// Get the layout context to update banner status
-const { setHasBanner, setPortalBanner } = useLayoutContext();
+// Get the layout context to update banner status and share member/org info
+const { 
+  setHasBanner, 
+  setPortalBanner,
+  setMemberInfo: setContextMemberInfo,
+  setOrganizationInfo: setContextOrganizationInfo,
+  setMemberRole: setContextMemberRole,
+  setIsAdmin: setContextIsAdmin,
+  setIsFeatureExcluded: setContextIsFeatureExcluded,
+  setRefreshOrganizationInfo: setContextRefreshOrganizationInfo,
+  setReloadMemberInfo: setContextReloadMemberInfo,
+} = useLayoutContext();
 
 // Update the context whenever the portal banner changes
 useEffect(() => {
@@ -557,6 +567,18 @@ useEffect(() => {
   setPortalBanner(portalBanner || null);
 }, [portalBanner, setHasBanner, setPortalBanner]);
 
+// Update the context with member and organization info for child pages
+useEffect(() => {
+  setContextMemberInfo(memberInfo);
+}, [memberInfo, setContextMemberInfo]);
+
+useEffect(() => {
+  setContextOrganizationInfo(organizationInfo);
+}, [organizationInfo, setContextOrganizationInfo]);
+
+useEffect(() => {
+  setContextMemberRole(memberRole);
+}, [memberRole, setContextMemberRole]);
 
   const publicPages = ["Home", "TestLogin", "Login", "ResetPassword", "UnpackedInternationalEmployability", "PublicEvents", "PublicAbout", "PublicContact", "PublicResources", "PublicArticles", "PublicNews", "sharon", "content"];
   
@@ -713,9 +735,46 @@ useEffect(() => {
       console.error('Unexpected error fetching organization:', error);
     }
   };
-  
 
+  // Update context with isAdmin status when memberRole changes
+  useEffect(() => {
+    setContextIsAdmin(memberRole?.is_admin === true);
+  }, [memberRole, setContextIsAdmin]);
 
+  // Update context with isFeatureExcluded function when memberInfo or memberRole changes
+  useEffect(() => {
+    const isFeatureExcludedFn = (featureId) => {
+      if (!memberInfo || !featureId) return false;
+      const roleExclusions = memberRole?.excluded_features || [];
+      const memberExclusions = memberInfo.member_excluded_features || [];
+      const allExclusions = [...new Set([...roleExclusions, ...memberExclusions])];
+      return allExclusions.includes(featureId);
+    };
+    setContextIsFeatureExcluded(isFeatureExcludedFn);
+  }, [memberInfo, memberRole, setContextIsFeatureExcluded]);
+
+  // Update context with reloadMemberInfo function
+  useEffect(() => {
+    const reloadFn = () => {
+      const storedMember = sessionStorage.getItem('agcas_member');
+      if (storedMember) {
+        const member = JSON.parse(storedMember);
+        setMemberInfo(member);
+        console.log('[Layout] memberInfo reloaded from sessionStorage via context');
+      }
+    };
+    setContextReloadMemberInfo(reloadFn);
+  }, [setContextReloadMemberInfo]);
+
+  // Update context with refreshOrganizationInfo function
+  useEffect(() => {
+    const refreshFn = () => {
+      if (memberInfo && !memberInfo.is_team_member) {
+        fetchOrganizationInfo(memberInfo.organization_id);
+      }
+    };
+    setContextRefreshOrganizationInfo(refreshFn);
+  }, [memberInfo, setContextRefreshOrganizationInfo]);
 
   // Get layout context for dynamic pages that need to force public layout
   const { forcePublicLayout } = useLayoutContext();

@@ -265,78 +265,71 @@ export default function BuyProgramTicketsPage({
     refetchOnMount: true,
   });
 
-  // Effect to load saved program purchase data or initialize default states
+  // Load saved program purchase data on program selection (only depends on selectedProgram ID)
   useEffect(() => {
-    if (selectedProgram) {
-      const savedPurchase = sessionStorage.getItem(`program_purchase_${selectedProgram.id}`);
-
-      if (savedPurchase) {
-        const { selectedVouchers: saved, trainingFund, paymentMethod, po, qty } = JSON.parse(savedPurchase);
-
-        // Filter selectedVouchers to only include IDs that exist in current active vouchers
-        const validVoucherIds = (saved || []).filter((voucherId) =>
-          vouchers.some((v) => v.id === voucherId)
-        );
-
-        setSelectedVouchers(validVoucherIds); // Corrected from setSelectedVoucherIds to setSelectedVouchers
-        setTrainingFundAmount(trainingFund || 0);
-        setRemainingBalancePaymentMethod(paymentMethod || 'account');
-        setPurchaseOrderNumber(po || "");
-        setQuantity(qty || 1);
-      } else {
-        // If no saved data for this program, initialize with default states
-        setSelectedVouchers([]); // Corrected from setSelectedVoucherIds to setSelectedVouchers
-        setTrainingFundAmount(0);
-        setRemainingBalancePaymentMethod('account');
-        setPurchaseOrderNumber("");
-        setQuantity(1);
-        setAppliedDiscount(null); // Clear discount when no saved data or new program
-        setDiscountCodeInput("");
-      }
-    } else {
-      // If no program is selected (e.g., returning to program list), reset all purchase states
-      setSelectedVouchers([]); // Corrected from setSelectedVoucherIds to setSelectedVouchers
+    if (!selectedProgram) {
+      // Reset all states when no program is selected
+      setSelectedVouchers([]);
       setTrainingFundAmount(0);
       setRemainingBalancePaymentMethod('account');
       setPurchaseOrderNumber("");
       setQuantity(1);
-      setAppliedDiscount(null); // Clear discount when no program is selected
+      setAppliedDiscount(null);
+      setDiscountCodeInput("");
+      return;
+    }
+
+    // Load saved data for this program
+    const savedPurchase = sessionStorage.getItem(`program_purchase_${selectedProgram.id}`);
+    if (savedPurchase) {
+      try {
+        const { selectedVouchers: saved, trainingFund, paymentMethod, po, qty } = JSON.parse(savedPurchase);
+        setSelectedVouchers(saved || []);
+        setTrainingFundAmount(trainingFund || 0);
+        setRemainingBalancePaymentMethod(paymentMethod || 'account');
+        setPurchaseOrderNumber(po || "");
+        setQuantity(qty || 1);
+        setAppliedDiscount(null);
+        setDiscountCodeInput("");
+      } catch (e) {
+        // Invalid saved data, reset to defaults
+        setSelectedVouchers([]);
+        setTrainingFundAmount(0);
+        setRemainingBalancePaymentMethod('account');
+        setPurchaseOrderNumber("");
+        setQuantity(1);
+        setAppliedDiscount(null);
+        setDiscountCodeInput("");
+      }
+    } else {
+      // No saved data for this program, initialize defaults
+      setSelectedVouchers([]);
+      setTrainingFundAmount(0);
+      setRemainingBalancePaymentMethod('account');
+      setPurchaseOrderNumber("");
+      setQuantity(1);
+      setAppliedDiscount(null);
       setDiscountCodeInput("");
     }
-  }, [selectedProgram, vouchers]);
+  }, [selectedProgram?.id]);
 
-  // Additional effect to clean up selectedVouchers if vouchers list changes
+  // Save purchase state to sessionStorage (non-blocking side effect)
   useEffect(() => {
-    if (selectedVouchers.length > 0 && vouchers.length > 0) {
-      const validVoucherIds = selectedVouchers.filter((voucherId) =>
-        vouchers.some((v) => v.id === voucherId)
-      );
+    if (!selectedProgram) return;
 
-      // Only update state if there's a mismatch (to avoid infinite loops)
-      if (validVoucherIds.length !== selectedVouchers.length) {
-        console.log('[BuyProgramTickets] Cleaning up invalid voucher IDs from state');
-        setSelectedVouchers(validVoucherIds); // Corrected from setSelectedVoucherIds to setSelectedVouchers
-      }
-    }
-  }, [vouchers, selectedVouchers]);
+    const state = {
+      selectedVouchers,
+      trainingFund: trainingFundAmount,
+      paymentMethod: remainingBalancePaymentMethod,
+      po: purchaseOrderNumber,
+      qty: quantity
+    };
+    sessionStorage.setItem(`program_purchase_${selectedProgram.id}`, JSON.stringify(state));
+  }, [selectedProgram?.id, selectedVouchers, trainingFundAmount, remainingBalancePaymentMethod, purchaseOrderNumber, quantity]);
 
-  // Save state whenever it changes
+  // Clear discount when quantity changes
   useEffect(() => {
-    if (selectedProgram) {
-      const state = {
-        selectedVouchers,
-        trainingFund: trainingFundAmount,
-        paymentMethod: remainingBalancePaymentMethod,
-        po: purchaseOrderNumber,
-        qty: quantity
-      };
-      sessionStorage.setItem(`program_purchase_${selectedProgram.id}`, JSON.stringify(state));
-    }
-  }, [selectedProgram, selectedVouchers, trainingFundAmount, remainingBalancePaymentMethod, purchaseOrderNumber, quantity]);
-
-  // Clear discount when quantity or program changes
-  useEffect(() => {
-    if (selectedProgram) {
+    if (quantity !== 1 && selectedProgram) {
       setAppliedDiscount(null);
       setDiscountCodeInput("");
     }

@@ -66,6 +66,11 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
+  // Force refresh token if requested
+  if (req.query.refreshToken === 'true') {
+    zoomTokenCache = null;
+  }
+
   try {
     const token = await getZoomAccessToken();
     

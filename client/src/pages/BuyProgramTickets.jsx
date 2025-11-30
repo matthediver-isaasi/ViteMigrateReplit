@@ -184,6 +184,14 @@ export default function BuyProgramTicketsPage({
   // Pass refreshOrganizationInfo to update the Layout context when changes are detected
   useProgramTicketRealtime(organizationInfo?.id, ['vouchers'], refreshOrganizationInfo);
 
+  // Refresh organization info on mount to get latest ticket balances
+  useEffect(() => {
+    if (refreshOrganizationInfo) {
+      console.log('[BuyProgramTickets] Refreshing organization info on mount');
+      refreshOrganizationInfo();
+    }
+  }, []); // Only run on mount
+
   // Check if tours should be shown for this user's role
   const shouldShowTours = memberInfo && !memberInfo.is_team_member && memberRole && memberRole.show_tours !== false;
 

@@ -695,39 +695,42 @@ useEffect(() => {
     }
   };
 
-  const fetchOrganizationInfo = async (orgId) => {
+  const fetchOrganizationInfo = async (orgId, forceRefresh = false) => {
     if (!orgId) return;
     
-    // Check if cached organization matches the requested orgId
-    const cachedOrg = sessionStorage.getItem('agcas_organization');
-    if (cachedOrg) {
-      try {
-        const parsed = JSON.parse(cachedOrg);
-        // Validate that cached org matches the member's organization
-        if (parsed.id === orgId || parsed.base44_id === orgId || parsed.zoho_account_id === orgId) {
-          if (!organizationInfo || organizationInfo.id !== parsed.id) {
-            setOrganizationInfo(parsed);
+    // Check if cached organization matches the requested orgId (skip if force refresh)
+    if (!forceRefresh) {
+      const cachedOrg = sessionStorage.getItem('agcas_organization');
+      if (cachedOrg) {
+        try {
+          const parsed = JSON.parse(cachedOrg);
+          // Validate that cached org matches the member's organization
+          if (parsed.id === orgId || parsed.base44_id === orgId || parsed.zoho_account_id === orgId) {
+            if (!organizationInfo || organizationInfo.id !== parsed.id) {
+              setOrganizationInfo(parsed);
+            }
+            return;
+          } else {
+            // Cached org doesn't match member's org - clear it
+            console.log('[Layout] Cached organization mismatch, clearing cache');
+            sessionStorage.removeItem('agcas_organization');
           }
-          return;
-        } else {
-          // Cached org doesn't match member's org - clear it
-          console.log('[Layout] Cached organization mismatch, clearing cache');
+        } catch (e) {
+          console.warn('Failed to parse cached organization, ignoring cache:', e);
           sessionStorage.removeItem('agcas_organization');
         }
-      } catch (e) {
-        console.warn('Failed to parse cached organization, ignoring cache:', e);
-        sessionStorage.removeItem('agcas_organization');
       }
     }
 
     try {
+      console.log('[Layout] Fetching organization from API (forceRefresh:', forceRefresh, ')');
       const orgs = await base44.entities.Organization.list({ filter: { id: orgId } });
       const org = orgs && orgs.length > 0 ? orgs[0] : null;
 
       if (org) {
         sessionStorage.setItem('agcas_organization', JSON.stringify(org));
         setOrganizationInfo(org);
-        console.log('[Layout] Fetched and cached organization:', org.name);
+        console.log('[Layout] Fetched and cached organization:', org.name, 'balances:', org.program_ticket_balances);
       } else {
         console.warn('Organization not found for id:', orgId);
       }
@@ -770,7 +773,8 @@ useEffect(() => {
   useEffect(() => {
     const refreshFn = () => {
       if (memberInfo && !memberInfo.is_team_member) {
-        fetchOrganizationInfo(memberInfo.organization_id);
+        // Force refresh to bypass cache and get latest data from API
+        fetchOrganizationInfo(memberInfo.organization_id, true);
       }
     };
     setContextRefreshOrganizationInfo(refreshFn);

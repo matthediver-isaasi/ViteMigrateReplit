@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as LinkIcon, ExternalLink, Copy, Check, RefreshCw, AlertCircle, Edit, Save } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { toast } from "sonner";
@@ -38,8 +39,10 @@ export default function ZoomWebinarProvisioning() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedWebinar, setSelectedWebinar] = useState(null);
   const [editingWebinar, setEditingWebinar] = useState(null);
+  const [webinarToDelete, setWebinarToDelete] = useState(null);
   const [copiedField, setCopiedField] = useState(null);
   
   const [formData, setFormData] = useState({
@@ -904,9 +907,8 @@ export default function ZoomWebinarProvisioning() {
                 <Button
                   variant="destructive"
                   onClick={() => {
-                    if (confirm('Are you sure you want to cancel this webinar? This will also delete it from Zoom.')) {
-                      deleteWebinarMutation.mutate(selectedWebinar.id);
-                    }
+                    setWebinarToDelete(selectedWebinar);
+                    setShowDeleteConfirm(true);
                   }}
                   disabled={deleteWebinarMutation.isPending}
                   data-testid="button-cancel-webinar"
@@ -1115,6 +1117,55 @@ export default function ZoomWebinarProvisioning() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-red-500" />
+              Delete Webinar
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>Are you sure you want to delete this webinar?</p>
+              {webinarToDelete && (
+                <div className="p-3 bg-slate-50 rounded-md mt-2">
+                  <p className="font-medium text-slate-900">{webinarToDelete.topic}</p>
+                  <p className="text-sm text-slate-500">{formatWebinarDate(webinarToDelete.start_time)}</p>
+                </div>
+              )}
+              <p className="text-sm text-red-600 mt-2">
+                This will permanently remove the webinar from Zoom and cannot be undone.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setShowDeleteConfirm(false);
+                setWebinarToDelete(null);
+              }}
+              data-testid="button-cancel-delete"
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (webinarToDelete) {
+                  deleteWebinarMutation.mutate(webinarToDelete.id);
+                  setShowDeleteConfirm(false);
+                  setWebinarToDelete(null);
+                }
+              }}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="button-confirm-delete"
+            >
+              <Trash2 className="w-4 h-4 mr-2" />
+              Delete Webinar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       </div>
     </div>
   );

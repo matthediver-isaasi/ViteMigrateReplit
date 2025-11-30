@@ -467,6 +467,14 @@ export default function EventDetailsPage() {
   const showAvailableSeats = !isFeatureExcluded || !isFeatureExcluded('element_AvailableSeatsDisplay');
 
   const handleConfirmBooking = async () => {
+    console.log('[EventDetails] handleConfirmBooking called');
+    console.log('[EventDetails] canConfirmBooking:', canConfirmBooking);
+    console.log('[EventDetails] hasEnoughTickets:', hasEnoughTickets);
+    console.log('[EventDetails] event.program_tag:', event?.program_tag);
+    console.log('[EventDetails] submitting:', submitting);
+    console.log('[EventDetails] ticketsRequired:', ticketsRequired);
+    console.log('[EventDetails] attendees:', attendees);
+    
     // Validate attendees have all required information
     if (registrationMode === 'colleagues' || registrationMode === 'self') {
       const invalidAttendees = attendees.filter((a) => {
@@ -719,7 +727,11 @@ export default function EventDetailsPage() {
                       
                       <div className="pt-4 border-t border-slate-200">
                         <Button
-                          onClick={handleConfirmBooking}
+                          onClick={() => {
+                            console.log('[EventDetails] Button clicked!');
+                            console.log('[EventDetails] Button disabled state:', !canConfirmBooking);
+                            handleConfirmBooking();
+                          }}
                           disabled={!canConfirmBooking}
                           className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
                           size="lg"

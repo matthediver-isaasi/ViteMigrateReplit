@@ -442,7 +442,8 @@ export default function ZoomWebinarProvisioning() {
   };
 
   const handleSubmit = () => {
-    console.log('[CreateWebinar] handleSubmit called, formData:', formData);
+    console.log('[CreateWebinar] handleSubmit called, formData:', JSON.stringify(formData));
+    console.log('[CreateWebinar] isSubmitting.current:', isSubmitting.current);
     
     // Prevent double invocation (React StrictMode issue)
     if (isSubmitting.current) {
@@ -450,22 +451,33 @@ export default function ZoomWebinarProvisioning() {
       return;
     }
     
+    console.log('[CreateWebinar] Passed isSubmitting check');
+    
     if (!formData.topic) {
+      console.log('[CreateWebinar] Failed: no topic');
       toast.error('Please enter a webinar topic');
       return;
     }
+    console.log('[CreateWebinar] Passed topic check');
+    
     if (!formData.start_date || !formData.start_time) {
+      console.log('[CreateWebinar] Failed: no date/time');
       toast.error('Please select date and time');
       return;
     }
+    console.log('[CreateWebinar] Passed date/time check');
     
     // Create Date for validation only
     const startTime = new Date(`${formData.start_date}T${formData.start_time}`);
+    const now = new Date();
+    console.log('[CreateWebinar] startTime:', startTime.toISOString(), 'now:', now.toISOString());
     
-    if (startTime < new Date()) {
+    if (startTime < now) {
+      console.log('[CreateWebinar] Failed: time in past');
       toast.error('Start time must be in the future');
       return;
     }
+    console.log('[CreateWebinar] Passed future time check');
     
     // Capture form data before any state changes
     const submitData = {
@@ -479,14 +491,21 @@ export default function ZoomWebinarProvisioning() {
       panelists: [...formData.panelists]
     };
     
-    console.log('[CreateWebinar] Calling mutation.mutate() with data:', submitData);
+    console.log('[CreateWebinar] About to call mutation.mutate() with data:', JSON.stringify(submitData));
     isSubmitting.current = true;
     
-    createWebinarMutation.mutate(submitData, {
-      onSettled: () => {
-        isSubmitting.current = false;
-      }
-    });
+    try {
+      createWebinarMutation.mutate(submitData, {
+        onSettled: () => {
+          console.log('[CreateWebinar] onSettled called');
+          isSubmitting.current = false;
+        }
+      });
+      console.log('[CreateWebinar] mutation.mutate() called successfully');
+    } catch (e) {
+      console.error('[CreateWebinar] Error calling mutate:', e);
+      isSubmitting.current = false;
+    }
   };
 
   const copyToClipboard = (text, field) => {

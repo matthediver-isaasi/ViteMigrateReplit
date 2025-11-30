@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Link } from "react-router-dom";
@@ -16,7 +16,7 @@ async function apiRequest(url) {
 
 export default function NextEventCountdown({ memberEmail }) {
   const [timeLeft, setTimeLeft] = useState(null);
-  const [eventStatus, setEventStatus] = useState('upcoming'); // 'upcoming', 'live', 'ended'
+  const [eventStatus, setEventStatus] = useState('upcoming');
 
   const { data: myBookings = [] } = useQuery({
     queryKey: ['next-event-bookings', memberEmail],
@@ -28,9 +28,13 @@ export default function NextEventCountdown({ memberEmail }) {
     },
     enabled: !!memberEmail,
     staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
-  const eventIds = [...new Set(myBookings.map(b => b.event_id).filter(Boolean))];
+  const eventIds = useMemo(() => 
+    [...new Set(myBookings.map(b => b.event_id).filter(Boolean))],
+    [myBookings]
+  );
 
   const { data: events = [] } = useQuery({
     queryKey: ['next-event-details', eventIds],
@@ -42,76 +46,79 @@ export default function NextEventCountdown({ memberEmail }) {
     },
     enabled: eventIds.length > 0,
     staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
-  // Fetch webinars to get join URLs
   const { data: webinars = [] } = useQuery({
     queryKey: ['zoom-webinars-for-countdown'],
     queryFn: () => apiRequest('/api/zoom/webinars'),
     staleTime: 60000,
+    refetchOnWindowFocus: false,
   });
 
-  // Find the next upcoming or currently live event
-  const now = new Date();
-  
-  const relevantEvents = events
-    .map(event => {
-      const startDate = new Date(event.start_date);
-      const endDate = event.end_date ? new Date(event.end_date) : addMinutes(startDate, 60);
-      
-      // Find matching webinar
-      const webinar = webinars.find(w => 
-        w.zoom_webinar_id === event.zoom_webinar_id || 
-        w.id === event.zoom_webinar_id
-      );
-      
-      return {
-        ...event,
-        startDate,
-        endDate,
-        webinar,
-        joinUrl: webinar?.join_url || event.online_url || null
-      };
-    })
-    .filter(event => {
-      // Include events that haven't ended yet
-      return event.endDate > now;
-    })
-    .sort((a, b) => a.startDate - b.startDate);
+  const nextEvent = useMemo(() => {
+    if (!events.length) return null;
+    
+    const now = new Date();
+    
+    const relevantEvents = events
+      .map(event => {
+        const startDate = new Date(event.start_date);
+        const endDate = event.end_date ? new Date(event.end_date) : addMinutes(startDate, 60);
+        
+        const webinar = webinars.find(w => 
+          w.zoom_webinar_id === event.zoom_webinar_id || 
+          w.id === event.zoom_webinar_id
+        );
+        
+        return {
+          ...event,
+          startDate,
+          endDate,
+          webinar,
+          joinUrl: webinar?.join_url || event.online_url || null
+        };
+      })
+      .filter(event => event.endDate > now)
+      .sort((a, b) => a.startDate - b.startDate);
 
-  const nextEvent = relevantEvents[0];
+    return relevantEvents[0] || null;
+  }, [events, webinars]);
+
+  const nextEventId = nextEvent?.id;
+  const startTime = nextEvent?.startDate?.getTime();
+  const endTime = nextEvent?.endDate?.getTime();
 
   useEffect(() => {
-    if (!nextEvent) {
+    if (!nextEventId || !startTime || !endTime) {
       setTimeLeft(null);
       setEventStatus('ended');
       return;
     }
 
     const calculateTimeLeft = () => {
-      const now = new Date();
-      const { startDate, endDate } = nextEvent;
+      const now = Date.now();
 
-      // Check if event has ended
-      if (now > endDate) {
+      if (now > endTime) {
         setEventStatus('ended');
         setTimeLeft(null);
         return;
       }
 
-      // Check if event is currently live
-      if (now >= startDate && now <= endDate) {
+      if (now >= startTime && now <= endTime) {
         setEventStatus('live');
         setTimeLeft(null);
         return;
       }
 
-      // Event is upcoming - calculate countdown
       setEventStatus('upcoming');
-      const days = differenceInDays(startDate, now);
-      const hours = differenceInHours(startDate, now) % 24;
-      const minutes = differenceInMinutes(startDate, now) % 60;
-      const seconds = differenceInSeconds(startDate, now) % 60;
+      const startDate = new Date(startTime);
+      const nowDate = new Date(now);
+      
+      const days = differenceInDays(startDate, nowDate);
+      const hours = differenceInHours(startDate, nowDate) % 24;
+      const minutes = differenceInMinutes(startDate, nowDate) % 60;
+      const seconds = differenceInSeconds(startDate, nowDate) % 60;
 
       setTimeLeft({ days, hours, minutes, seconds });
     };
@@ -120,7 +127,7 @@ export default function NextEventCountdown({ memberEmail }) {
     const timer = setInterval(calculateTimeLeft, 1000);
 
     return () => clearInterval(timer);
-  }, [nextEvent]);
+  }, [nextEventId, startTime, endTime]);
 
   if (!nextEvent || eventStatus === 'ended') {
     return null;

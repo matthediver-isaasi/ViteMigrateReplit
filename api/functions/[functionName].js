@@ -951,25 +951,35 @@ const functionHandlers = {
       return matchingWebinar || null;
     };
 
-    // Helper: Register attendee with Zoom
+    // Helper: Register attendee with Zoom (uses same logic as /api/zoom/webinars/[id]/registrants)
     const registerWithZoom = async (webinar, attendee) => {
       try {
+        // Use the database ID (webinar.id) for logging
+        console.log(`[createBooking] registerWithZoom called for webinar db_id=${webinar.id}, zoom_id=${webinar.zoom_webinar_id}`);
+        
         if (!webinar.zoom_webinar_id) {
+          console.log(`[createBooking] Webinar not synced with Zoom (no zoom_webinar_id)`);
           return { success: false, error: 'Webinar not synced with Zoom' };
         }
         
         if (!webinar.registration_required) {
-          console.log(`[createBooking] Registration not required for webinar ${webinar.zoom_webinar_id}`);
-          return { success: true };
+          console.log(`[createBooking] Registration not required for webinar ${webinar.zoom_webinar_id} - skipping`);
+          return { success: true, skipped: true, reason: 'Registration not required' };
+        }
+        
+        if (webinar.status !== 'scheduled') {
+          console.log(`[createBooking] Webinar status is '${webinar.status}', not 'scheduled'`);
+          return { success: false, error: `Webinar status is ${webinar.status}` };
         }
         
         if (new Date(webinar.start_time) <= new Date()) {
+          console.log(`[createBooking] Webinar has already started (${webinar.start_time})`);
           return { success: false, error: 'Webinar has already started' };
         }
         
+        console.log(`[createBooking] Getting Zoom access token...`);
         const token = await getZoomAccessToken();
-        
-        console.log(`[createBooking] Registering ${attendee.email} for webinar ${webinar.zoom_webinar_id}`);
+        console.log(`[createBooking] Got token, registering ${attendee.email} for webinar ${webinar.zoom_webinar_id}`);
         
         const zoomResponse = await fetch(
           `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}/registrants`,
@@ -988,16 +998,18 @@ const functionHandlers = {
           }
         );
         
+        console.log(`[createBooking] Zoom API response status: ${zoomResponse.status}`);
+        
         if (!zoomResponse.ok) {
           const errorData = await zoomResponse.json().catch(() => ({}));
-          console.error(`[createBooking] Zoom registration error for ${attendee.email}:`, errorData);
+          console.error(`[createBooking] Zoom registration error for ${attendee.email}:`, JSON.stringify(errorData));
           
           if (errorData.code === 3027) {
             console.log(`[createBooking] ${attendee.email} already registered`);
-            return { success: true, error: 'Already registered' };
+            return { success: true, already_registered: true };
           }
           
-          return { success: false, error: errorData.message || 'Zoom registration failed' };
+          return { success: false, error: errorData.message || 'Zoom registration failed', code: errorData.code };
         }
         
         const zoomData = await zoomResponse.json();
@@ -1005,7 +1017,7 @@ const functionHandlers = {
         
         return { success: true, registrant_id: zoomData.registrant_id };
       } catch (err) {
-        console.error(`[createBooking] Zoom registration failed for ${attendee.email}:`, err);
+        console.error(`[createBooking] Zoom registration exception for ${attendee.email}:`, err.message);
         return { success: false, error: err.message };
       }
     };

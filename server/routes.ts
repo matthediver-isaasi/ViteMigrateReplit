@@ -3072,16 +3072,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
           anyBackstageSyncFailed = true;
           backstageSyncErrors.push(`Backstage Provisioning Error: ${backstageError.message}`);
         }
-      } else if ((registrationMode === 'self' || registrationMode === 'colleagues') && !event.backstage_event_id) {
-        console.warn('[createBooking] Backstage provisioning skipped: Missing backstage_event_id');
-        anyBackstageSyncFailed = true;
-        backstageSyncErrors.push('Backstage provisioning skipped due to missing event configuration.');
+      }
+
+      // Track Zoom registration results
+      let anyZoomSyncFailed = false;
+      const zoomSyncErrors: string[] = [];
+      const individualZoomRegistrationDetails: Array<{
+        attendeeEmail: string;
+        zoomRegistrantId?: string;
+        success: boolean;
+        error?: string;
+      }> = [];
+
+      // For self/colleagues mode, check if this is a Zoom event (not a Backstage event)
+      if ((registrationMode === 'self' || registrationMode === 'colleagues') && !event.backstage_event_id && isZoomEvent(event)) {
+        console.log('[createBooking] Detected Zoom event, checking for webinar registration...');
+        
+        try {
+          // Find the matching webinar by URL in event location
+          const matchingWebinar = await findWebinarByEventLocation(event.location);
+          
+          if (matchingWebinar) {
+            console.log(`[createBooking] Found matching webinar: ${matchingWebinar.id} (${matchingWebinar.topic})`);
+            
+            if (matchingWebinar.registration_required) {
+              console.log('[createBooking] Webinar requires registration, registering attendees...');
+              
+              // Register each attendee with Zoom
+              for (const attendee of attendees) {
+                const registrationResult = await registerAttendeeWithZoom(matchingWebinar, {
+                  email: attendee.email,
+                  first_name: attendee.first_name,
+                  last_name: attendee.last_name
+                });
+                
+                if (registrationResult.success) {
+                  individualZoomRegistrationDetails.push({
+                    attendeeEmail: attendee.email,
+                    zoomRegistrantId: registrationResult.registrant_id,
+                    success: true
+                  });
+                  console.log(`[createBooking] ✓ Zoom registration successful for ${attendee.email}`);
+                } else {
+                  anyZoomSyncFailed = true;
+                  zoomSyncErrors.push(`Zoom registration failed for ${attendee.email}: ${registrationResult.error}`);
+                  individualZoomRegistrationDetails.push({
+                    attendeeEmail: attendee.email,
+                    success: false,
+                    error: registrationResult.error
+                  });
+                  console.error(`[createBooking] ✗ Zoom registration failed for ${attendee.email}: ${registrationResult.error}`);
+                }
+              }
+            } else {
+              console.log('[createBooking] Webinar does not require registration, skipping Zoom registration');
+              // Mark all as successful (no registration needed)
+              for (const attendee of attendees) {
+                individualZoomRegistrationDetails.push({
+                  attendeeEmail: attendee.email,
+                  success: true
+                });
+              }
+            }
+          } else {
+            console.warn('[createBooking] Zoom event but no matching webinar found in database');
+            // This is a Zoom event but we couldn't find a matching webinar - still allow booking
+            for (const attendee of attendees) {
+              individualZoomRegistrationDetails.push({
+                attendeeEmail: attendee.email,
+                success: true // Allow booking even without webinar match
+              });
+            }
+          }
+        } catch (zoomError: any) {
+          console.error('[createBooking] ✗ Zoom registration processing failed:', zoomError);
+          anyZoomSyncFailed = true;
+          zoomSyncErrors.push(`Zoom Registration Error: ${zoomError.message}`);
+        }
+      } else if ((registrationMode === 'self' || registrationMode === 'colleagues') && !event.backstage_event_id && !isZoomEvent(event)) {
+        // Not a Backstage event and not a Zoom event - just a regular event
+        console.log('[createBooking] Regular event (not Backstage or Zoom), no external registration needed');
       }
 
       // Create booking records
       if (registrationMode === 'self' || registrationMode === 'colleagues') {
         for (const attendee of attendees) {
           const correspondingOrder = individualBackstageOrderDetails.find(d => d.attendeeEmail === attendee.email);
+          const correspondingZoomReg = individualZoomRegistrationDetails.find(d => d.attendeeEmail === attendee.email);
+          
+          // Determine booking status based on event type and registration results
+          let bookingStatus = 'confirmed';
+          if (event.backstage_event_id) {
+            // Backstage event
+            bookingStatus = correspondingOrder?.success ? 'confirmed' : 'pending_backstage_sync';
+          } else if (isZoomEvent(event)) {
+            // Zoom event
+            bookingStatus = correspondingZoomReg?.success ? 'confirmed' : 'pending_zoom_sync';
+          }
+          // Regular events default to 'confirmed'
 
           const { data: booking } = await supabase
             .from('booking')
@@ -3093,9 +3181,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
               attendee_last_name: attendee.last_name,
               ticket_price: event.ticket_price || 0,
               booking_reference: bookingReference,
-              status: correspondingOrder?.success ? 'confirmed' : 'pending_backstage_sync',
+              status: bookingStatus,
               payment_method: 'program_ticket',
-              backstage_order_id: correspondingOrder?.backstageOrderId || null
+              backstage_order_id: correspondingOrder?.backstageOrderId || null,
+              zoom_registrant_id: correspondingZoomReg?.zoomRegistrantId || null
             })
             .select()
             .single();
@@ -3142,6 +3231,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
         .eq('id', org.id);
 
+      // Build sync status notes for transaction record
+      let syncNotes = '';
+      if (anyBackstageSyncFailed) {
+        syncNotes = ' - Backstage sync failed for some tickets';
+      } else if (anyZoomSyncFailed) {
+        syncNotes = ' - Zoom registration failed for some tickets';
+      }
+
       // Create program ticket transaction record
       await supabase
         .from('program_ticket_transaction')
@@ -3153,7 +3250,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           booking_reference: bookingReference,
           event_name: event.title || 'Unknown Event',
           member_email: memberEmail,
-          notes: `Used ${ticketsRequired} ${programTag} ticket${ticketsRequired > 1 ? 's' : ''} for ${event.title || 'event'}${registrationMode === 'links' ? ' (link generation)' : registrationMode === 'self' ? ' (self registration)' : ''}${anyBackstageSyncFailed ? ' - Backstage sync failed for some tickets' : ''}`
+          notes: `Used ${ticketsRequired} ${programTag} ticket${ticketsRequired > 1 ? 's' : ''} for ${event.title || 'event'}${registrationMode === 'links' ? ' (link generation)' : registrationMode === 'self' ? ' (self registration)' : ''}${syncNotes}`
         });
 
       const response: any = {
@@ -3167,6 +3264,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (anyBackstageSyncFailed) {
         response.warning = 'Some bookings created successfully, but Backstage provisioning failed for one or more tickets. An admin may need to manually sync these.';
         response.backstage_sync_errors = backstageSyncErrors;
+      }
+
+      if (anyZoomSyncFailed) {
+        response.warning = (response.warning ? response.warning + ' ' : '') + 
+          'Some bookings created successfully, but Zoom registration failed for one or more attendees. The attendees may need to register manually.';
+        response.zoom_sync_errors = zoomSyncErrors;
       }
 
       res.json(response);
@@ -8769,6 +8872,126 @@ AGCAS Events Team
     
     console.log('[Zoom] Access token obtained successfully');
     return data.access_token;
+  }
+
+  // Helper function to check if an event is a Zoom event (has Zoom URL in location)
+  function isZoomEvent(event: any): boolean {
+    if (!event.location) return false;
+    const location = event.location.toLowerCase();
+    // Check for Zoom URLs in the location field
+    return location.includes('zoom.us') || 
+           (location.startsWith('online') && (location.includes('zoom.us') || location.includes('zoom')));
+  }
+
+  // Helper function to extract Zoom URL from event location
+  function extractZoomUrlFromLocation(location: string): string | null {
+    if (!location) return null;
+    const urlMatch = location.match(/https?:\/\/[^\s]+zoom[^\s]*/i);
+    return urlMatch ? urlMatch[0] : null;
+  }
+
+  // Helper function to find a webinar by matching its join_url with the event location
+  async function findWebinarByEventLocation(eventLocation: string): Promise<any | null> {
+    if (!supabase || !eventLocation) return null;
+    
+    const zoomUrl = extractZoomUrlFromLocation(eventLocation);
+    if (!zoomUrl) return null;
+    
+    console.log('[Zoom] Looking for webinar with join_url matching:', zoomUrl);
+    
+    // Fetch all webinars and find one with matching join_url
+    const { data: webinars, error } = await supabase
+      .from('zoom_webinar')
+      .select('*')
+      .eq('status', 'scheduled');
+    
+    if (error || !webinars) {
+      console.error('[Zoom] Error fetching webinars:', error);
+      return null;
+    }
+    
+    // Match by join_url (the URL in location might be slightly different, so we normalize)
+    const normalizeUrl = (url: string) => url.replace(/^https?:\/\//, '').replace(/\/$/, '').toLowerCase();
+    const normalizedZoomUrl = normalizeUrl(zoomUrl);
+    
+    const matchingWebinar = webinars.find((w: any) => {
+      if (!w.join_url) return false;
+      const normalizedJoinUrl = normalizeUrl(w.join_url);
+      return normalizedZoomUrl.includes(normalizedJoinUrl) || normalizedJoinUrl.includes(normalizedZoomUrl);
+    });
+    
+    if (matchingWebinar) {
+      console.log('[Zoom] Found matching webinar:', matchingWebinar.id, matchingWebinar.topic);
+    } else {
+      console.log('[Zoom] No matching webinar found for URL:', zoomUrl);
+    }
+    
+    return matchingWebinar || null;
+  }
+
+  // Helper function to register an attendee with a Zoom webinar
+  async function registerAttendeeWithZoom(
+    webinar: any,
+    attendee: { email: string; first_name: string; last_name: string }
+  ): Promise<{ success: boolean; registrant_id?: string; error?: string }> {
+    try {
+      if (!webinar.zoom_webinar_id) {
+        return { success: false, error: 'Webinar not synced with Zoom' };
+      }
+      
+      if (!webinar.registration_required) {
+        // No registration needed, treat as success but without registrant_id
+        console.log(`[Zoom] Registration not required for webinar ${webinar.zoom_webinar_id}, skipping registration`);
+        return { success: true };
+      }
+      
+      // Validate webinar is upcoming
+      if (new Date(webinar.start_time) <= new Date()) {
+        return { success: false, error: 'Webinar has already started or ended' };
+      }
+      
+      const token = await getZoomAccessToken();
+      
+      console.log(`[Zoom] Registering ${attendee.email} for webinar ${webinar.zoom_webinar_id}`);
+      
+      const zoomResponse = await fetch(
+        `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}/registrants`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            first_name: attendee.first_name,
+            last_name: attendee.last_name,
+            email: attendee.email,
+            auto_approve: true
+          })
+        }
+      );
+      
+      if (!zoomResponse.ok) {
+        const errorData = await zoomResponse.json().catch(() => ({}));
+        console.error(`[Zoom] Registration error for ${attendee.email}:`, errorData);
+        
+        // Handle duplicate registration gracefully
+        if (errorData.code === 3027) {
+          console.log(`[Zoom] ${attendee.email} is already registered, treating as success`);
+          return { success: true, error: 'Already registered' };
+        }
+        
+        return { success: false, error: errorData.message || 'Failed to register with Zoom' };
+      }
+      
+      const zoomData = await zoomResponse.json();
+      console.log(`[Zoom] ✓ Successfully registered ${attendee.email}, registrant_id: ${zoomData.registrant_id}`);
+      
+      return { success: true, registrant_id: zoomData.registrant_id };
+    } catch (error: any) {
+      console.error(`[Zoom] Registration failed for ${attendee.email}:`, error);
+      return { success: false, error: error.message || 'Zoom registration failed' };
+    }
   }
   
   // Get Zoom users (hosts)

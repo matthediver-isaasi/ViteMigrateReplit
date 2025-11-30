@@ -66,7 +66,7 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Supabase not configured' });
   }
 
-  const { webinarId, panelistId } = req.query;
+  const { id, panelistId } = req.query;
 
   try {
     const { data: panelist, error: fetchError } = await supabase

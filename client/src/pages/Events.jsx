@@ -19,8 +19,8 @@ export default function EventsPage({
   memberRole,
   reloadMemberInfo,
 }) {
-  // Get hasBanner from layout context
-  const { hasBanner } = useLayoutContext();
+  // Get hasBanner and refreshOrganizationInfo from layout context
+  const { hasBanner, refreshOrganizationInfo } = useLayoutContext();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
   const [showTour, setShowTour] = useState(false);
@@ -42,6 +42,14 @@ export default function EventsPage({
   const hasSeenTour = memberInfo?.page_tours_seen?.Events === true;
 
   console.log("[Events] shouldShowTours:", shouldShowTours, "hasSeenTour:", hasSeenTour);
+
+  // Refresh organization info on mount to get latest ticket balances
+  useEffect(() => {
+    if (refreshOrganizationInfo) {
+      console.log('[Events] Refreshing organization info on mount');
+      refreshOrganizationInfo();
+    }
+  }, []); // Only run on mount
 
   // Auto-show tour on first visit if tours are enabled
   useEffect(() => {

@@ -17,6 +17,49 @@ const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zoho
 const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
 const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
 
+// Zoom OAuth token cache
+let zoomTokenCache = null;
+
+async function getZoomAccessToken() {
+  if (zoomTokenCache && Date.now() < zoomTokenCache.expiresAt - 60000) {
+    return zoomTokenCache.token;
+  }
+  
+  const accountId = process.env.ZOOM_ACCOUNT_ID;
+  const clientId = process.env.ZOOM_CLIENT_ID;
+  const clientSecret = process.env.ZOOM_CLIENT_SECRET;
+  
+  if (!accountId || !clientId || !clientSecret) {
+    throw new Error('Zoom credentials not configured');
+  }
+  
+  const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+  
+  const response = await fetch('https://zoom.us/oauth/token', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${credentials}`,
+      'Content-Type': 'application/x-www-form-urlencoded'
+    },
+    body: `grant_type=account_credentials&account_id=${accountId}`
+  });
+  
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('[Zoom] Token error:', errorText);
+    throw new Error(`Failed to get Zoom access token: ${response.status}`);
+  }
+  
+  const data = await response.json();
+  
+  zoomTokenCache = {
+    token: data.access_token,
+    expiresAt: Date.now() + (data.expires_in * 1000)
+  };
+  
+  return data.access_token;
+}
+
 async function getValidZohoAccessToken() {
   if (!supabase) throw new Error('Supabase not configured');
   
@@ -1933,6 +1976,203 @@ const functionHandlers = {
     }).toString();
 
     return { authUrl };
+  },
+
+  async registerAttendeeToZoom(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { eventId, bookingId, attendeeEmail, attendeeFirstName, attendeeLastName } = params;
+
+    if (!eventId || !attendeeEmail) {
+      return { success: false, error: 'Missing required parameters: eventId and attendeeEmail' };
+    }
+
+    // Get the event
+    const { data: event, error: eventError } = await supabase
+      .from('event')
+      .select('*')
+      .eq('id', eventId)
+      .single();
+
+    if (eventError || !event) {
+      return { success: false, error: 'Event not found' };
+    }
+
+    // Check if event has a Zoom webinar
+    if (!event.zoom_webinar_id) {
+      return { success: false, error: 'Event does not have an associated Zoom webinar' };
+    }
+
+    // Get the webinar details
+    const { data: webinar, error: webinarError } = await supabase
+      .from('zoom_webinar')
+      .select('*')
+      .eq('id', event.zoom_webinar_id)
+      .single();
+
+    if (webinarError || !webinar) {
+      return { success: false, error: 'Zoom webinar not found' };
+    }
+
+    if (!webinar.registration_required) {
+      return { success: false, error: 'Webinar does not require registration' };
+    }
+
+    if (!webinar.zoom_webinar_id) {
+      return { success: false, error: 'Webinar not synced with Zoom' };
+    }
+
+    // Register the attendee to Zoom
+    try {
+      const token = await getZoomAccessToken();
+      
+      console.log(`[Zoom] Registering ${attendeeEmail} for webinar ${webinar.zoom_webinar_id}`);
+      
+      const zoomResponse = await fetch(
+        `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}/registrants`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            first_name: attendeeFirstName || 'Guest',
+            last_name: attendeeLastName || 'Attendee',
+            email: attendeeEmail,
+            auto_approve: true
+          })
+        }
+      );
+
+      if (!zoomResponse.ok) {
+        const errorData = await zoomResponse.json().catch(() => ({}));
+        console.error('[Zoom] Registration error:', errorData);
+        
+        if (errorData.code === 3027) {
+          return { success: true, message: 'Already registered for this webinar' };
+        }
+        
+        return { 
+          success: false, 
+          error: errorData.message || 'Failed to register with Zoom'
+        };
+      }
+
+      const zoomData = await zoomResponse.json();
+      
+      // Update booking with Zoom registrant ID if bookingId provided
+      if (bookingId && zoomData.registrant_id) {
+        await supabase
+          .from('booking')
+          .update({ zoom_registrant_id: zoomData.registrant_id })
+          .eq('id', bookingId);
+      }
+
+      return {
+        success: true,
+        registrant_id: zoomData.registrant_id,
+        join_url: zoomData.join_url
+      };
+    } catch (error) {
+      console.error('[Zoom] Registration error:', error);
+      return { success: false, error: error.message || 'Failed to register with Zoom' };
+    }
+  },
+
+  async registerBookingAttendeesToZoom(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { bookingReference } = params;
+
+    if (!bookingReference) {
+      return { success: false, error: 'Booking reference is required' };
+    }
+
+    // Get all bookings with this reference
+    const { data: bookings, error: bookingsError } = await supabase
+      .from('booking')
+      .select('*')
+      .eq('booking_reference', bookingReference);
+
+    if (bookingsError || !bookings || bookings.length === 0) {
+      return { success: false, error: 'Bookings not found' };
+    }
+
+    const eventId = bookings[0].event_id;
+
+    // Get the event
+    const { data: event, error: eventError } = await supabase
+      .from('event')
+      .select('*')
+      .eq('id', eventId)
+      .single();
+
+    if (eventError || !event || !event.zoom_webinar_id) {
+      return { success: true, message: 'Event has no Zoom webinar', registered: 0 };
+    }
+
+    // Get the webinar
+    const { data: webinar, error: webinarError } = await supabase
+      .from('zoom_webinar')
+      .select('*')
+      .eq('id', event.zoom_webinar_id)
+      .single();
+
+    if (webinarError || !webinar || !webinar.registration_required || !webinar.zoom_webinar_id) {
+      return { success: true, message: 'Webinar does not require registration', registered: 0 };
+    }
+
+    const token = await getZoomAccessToken();
+    const results = [];
+
+    for (const booking of bookings) {
+      if (!booking.attendee_email || booking.zoom_registrant_id) {
+        continue;
+      }
+
+      try {
+        const zoomResponse = await fetch(
+          `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}/registrants`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              first_name: booking.attendee_first_name || 'Guest',
+              last_name: booking.attendee_last_name || 'Attendee',
+              email: booking.attendee_email,
+              auto_approve: true
+            })
+          }
+        );
+
+        if (zoomResponse.ok) {
+          const zoomData = await zoomResponse.json();
+          
+          await supabase
+            .from('booking')
+            .update({ zoom_registrant_id: zoomData.registrant_id })
+            .eq('id', booking.id);
+          
+          results.push({ email: booking.attendee_email, success: true, registrant_id: zoomData.registrant_id });
+        } else {
+          const errorData = await zoomResponse.json().catch(() => ({}));
+          results.push({ email: booking.attendee_email, success: false, error: errorData.message || 'Registration failed' });
+        }
+      } catch (error) {
+        results.push({ email: booking.attendee_email, success: false, error: error.message });
+      }
+    }
+
+    return {
+      success: true,
+      registered: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      results
+    };
   }
 };
 

@@ -856,14 +856,48 @@ const functionHandlers = {
       stripePaymentIntentId
     } = params;
 
-    if (!organizationId || !programName || !quantity) {
+    if (!programName || !quantity) {
       return { success: false, error: 'Missing required parameters' };
     }
 
-    const { data: allOrgs } = await supabase.from('organization').select('*');
-    let org = allOrgs?.find(o => o.id === organizationId);
-    if (!org) {
-      org = allOrgs?.find(o => o.zoho_account_id === organizationId);
+    let org = null;
+
+    // Try to find organization by ID first
+    if (organizationId) {
+      const { data: orgById } = await supabase
+        .from('organization')
+        .select('*')
+        .eq('id', organizationId)
+        .maybeSingle();
+      org = orgById;
+
+      // Fallback: check if organizationId is actually a zoho_account_id
+      if (!org) {
+        const { data: orgByZoho } = await supabase
+          .from('organization')
+          .select('*')
+          .eq('zoho_account_id', organizationId)
+          .maybeSingle();
+        org = orgByZoho;
+      }
+    }
+
+    // If no org found by ID, try to find via member email
+    if (!org && memberEmail) {
+      const { data: member } = await supabase
+        .from('member')
+        .select('*')
+        .ilike('email', memberEmail)
+        .maybeSingle();
+
+      if (member?.organization_id) {
+        const { data: orgByMember } = await supabase
+          .from('organization')
+          .select('*')
+          .eq('id', member.organization_id)
+          .maybeSingle();
+        org = orgByMember;
+      }
     }
 
     if (!org) {

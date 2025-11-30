@@ -476,6 +476,7 @@ export default function EventDetailsPage() {
     console.log('[EventDetails] attendees:', attendees);
     
     // Validate attendees have all required information
+    console.log('[EventDetails] Checking attendee validation, registrationMode:', registrationMode);
     if (registrationMode === 'colleagues' || registrationMode === 'self') {
       const invalidAttendees = attendees.filter((a) => {
         const needsManualName = !a.isSelf && (
@@ -490,30 +491,39 @@ export default function EventDetailsPage() {
       });
 
       if (invalidAttendees.length > 0) {
+        console.log('[EventDetails] Invalid attendees found:', invalidAttendees);
         toast.error('Please provide first and last names for all attendees');
         return;
       }
     }
+    console.log('[EventDetails] Passed attendee validation');
 
     if (!hasEnoughTickets) {
+      console.log('[EventDetails] Not enough tickets');
       toast.error("Insufficient program tickets. Please purchase more tickets first.");
       return;
     }
+    console.log('[EventDetails] Passed ticket check');
 
     if (registrationMode === 'colleagues' && attendees.some((a) => !a.isValid)) {
+      console.log('[EventDetails] Some attendees are invalid');
       toast.error("Please remove or fix invalid attendee emails");
       return;
     }
+    console.log('[EventDetails] Passed colleagues validation');
 
     if (ticketsRequired === 0) {
+      console.log('[EventDetails] No tickets required');
       toast.error("Please add at least one attendee or specify number of links");
       return;
     }
+    console.log('[EventDetails] All validation passed, setting submitting=true');
 
     setSubmitting(true);
 
     try {
-      const response = await base44.functions.invoke('createBooking', {
+      console.log('[EventDetails] About to call createBooking API');
+      const requestPayload = {
         eventId: event.id,
         memberEmail: currentMemberInfo.email,
         attendees: registrationMode === 'colleagues' || registrationMode === 'self' ? attendees.filter((a) => a.isValid) : [],
@@ -521,7 +531,11 @@ export default function EventDetailsPage() {
         numberOfLinks: registrationMode === 'links' ? 0 : 0,
         ticketsRequired: ticketsRequired,
         programTag: event.program_tag
-      });
+      };
+      console.log('[EventDetails] Request payload:', JSON.stringify(requestPayload));
+      
+      const response = await base44.functions.invoke('createBooking', requestPayload);
+      console.log('[EventDetails] createBooking response:', response);
 
       if (response.data.success) {
         sessionStorage.removeItem(`event_registration_${event.id}`);
@@ -535,10 +549,12 @@ export default function EventDetailsPage() {
           window.location.href = createPageUrl('Bookings');
         }, 1500);
       } else {
+        console.log('[EventDetails] Booking failed:', response.data.error);
         toast.error(response.data.error || "Failed to create booking");
       }
     } catch (error) {
-      toast.error(error.response?.data?.error || "Failed to create booking");
+      console.error('[EventDetails] createBooking error:', error);
+      toast.error(error.message || error.response?.data?.error || "Failed to create booking");
     } finally {
       setSubmitting(false);
     }

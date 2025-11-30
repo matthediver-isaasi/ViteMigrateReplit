@@ -183,10 +183,14 @@ export default function BuyProgramTicketsPage({
 
   // Update expired vouchers on page load
   useEffect(() => {
+    let isMounted = true;
+
     const updateExpiredVouchers = async () => {
       try {
         console.log('[BuyProgramTickets] Updating expired vouchers...');
         const response = await base44.functions.invoke('updateExpiredVouchers');
+
+        if (!isMounted) return;
 
         if (response.data.success && response.data.updated_count > 0) {
           console.log('[BuyProgramTickets] Updated expired vouchers:', response.data.updated_count);
@@ -206,7 +210,11 @@ export default function BuyProgramTicketsPage({
     if (memberInfo && organizationInfo) {
       updateExpiredVouchers();
     }
-  }, [memberInfo, organizationInfo, queryClient]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [memberInfo, organizationInfo?.id]);
 
   // Check tour status for list view
   useEffect(() => {

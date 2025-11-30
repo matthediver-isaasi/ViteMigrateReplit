@@ -639,6 +639,8 @@ function PagesContent() {
                 
                 <Route path="/CreateEvent" element={<CreateEvent />} />
                 
+                <Route path="/EditEvent" element={<EditEvent />} />
+                
                 {/* /auth/verify route removed - using password auth */}
                 
                 {/* Dynamic CMS pages - catch-all route for IEdit pages by slug */}

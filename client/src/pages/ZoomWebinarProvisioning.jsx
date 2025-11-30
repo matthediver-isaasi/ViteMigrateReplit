@@ -365,6 +365,22 @@ export default function ZoomWebinarProvisioning() {
   );
   const cancelledWebinars = webinars.filter(w => w.status === 'cancelled');
 
+  // Check if a webinar has conflicts with other upcoming webinars
+  const getWebinarConflicts = (webinar) => {
+    const webinarStart = new Date(webinar.start_time);
+    const webinarEnd = new Date(webinarStart.getTime() + webinar.duration_minutes * 60 * 1000);
+    
+    return upcomingWebinars.filter(other => {
+      if (other.id === webinar.id) return false;
+      
+      const otherStart = new Date(other.start_time);
+      const otherEnd = new Date(otherStart.getTime() + other.duration_minutes * 60 * 1000);
+      
+      // Check for overlap: webinar starts before other ends AND webinar ends after other starts
+      return webinarStart < otherEnd && webinarEnd > otherStart;
+    });
+  };
+
   if (!accessChecked) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
@@ -414,31 +430,57 @@ export default function ZoomWebinarProvisioning() {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {upcomingWebinars.map(webinar => (
-                <div 
-                  key={webinar.id}
-                  className="flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
-                  onClick={() => {
-                    setSelectedWebinar(webinar);
-                    setShowDetailsDialog(true);
-                  }}
-                  data-testid={`webinar-row-${webinar.id}`}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="p-2 bg-blue-50 rounded-lg">
-                      <Video className="w-5 h-5 text-blue-600" />
+              {upcomingWebinars.map(webinar => {
+                const webinarConflicts = getWebinarConflicts(webinar);
+                const hasConflict = webinarConflicts.length > 0;
+                
+                return (
+                  <div 
+                    key={webinar.id}
+                    className={`flex items-center justify-between p-4 border rounded-lg hover:bg-slate-50 cursor-pointer transition-colors ${hasConflict ? 'border-amber-300 bg-amber-50/30' : ''}`}
+                    onClick={() => {
+                      setSelectedWebinar(webinar);
+                      setShowDetailsDialog(true);
+                    }}
+                    data-testid={`webinar-row-${webinar.id}`}
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className={`p-2 rounded-lg ${hasConflict ? 'bg-amber-100' : 'bg-blue-50'}`}>
+                        <Video className={`w-5 h-5 ${hasConflict ? 'text-amber-600' : 'text-blue-600'}`} />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-slate-900">{webinar.topic}</p>
+                          {hasConflict && (
+                            <div className="group relative">
+                              <AlertTriangle className="w-4 h-4 text-amber-500" />
+                              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 hidden group-hover:block z-50">
+                                <div className="bg-slate-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+                                  <p className="font-medium mb-1">Scheduling overlap with:</p>
+                                  {webinarConflicts.map(c => (
+                                    <p key={c.id} className="text-slate-300">• {c.topic}</p>
+                                  ))}
+                                </div>
+                                <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-slate-900"></div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm text-slate-500">{formatWebinarDate(webinar.start_time)}</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-slate-900">{webinar.topic}</p>
-                      <p className="text-sm text-slate-500">{formatWebinarDate(webinar.start_time)}</p>
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm text-slate-500">{webinar.duration_minutes} min</span>
+                      {hasConflict && (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200">
+                          Overlap
+                        </Badge>
+                      )}
+                      {getStatusBadge(webinar.status)}
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm text-slate-500">{webinar.duration_minutes} min</span>
-                    {getStatusBadge(webinar.status)}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </CardContent>
         </Card>

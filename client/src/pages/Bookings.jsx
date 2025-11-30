@@ -54,19 +54,24 @@ export default function BookingsPage() {
   }, [shouldShowTours, hasSeenTour, memberInfo]);
 
   const { data: bookings = [], isLoading: loadingBookings } = useQuery({
-    queryKey: ['my-bookings', memberInfo?.email],
+    queryKey: ['my-bookings', memberInfo?.id || memberInfo?.email],
     queryFn: async () => {
-      if (!memberInfo?.email) return [];
+      if (!memberInfo) return [];
       
-      const allMembers = await base44.entities.Member.listAll();
-      const currentMember = allMembers.find(m => m.email === memberInfo.email);
+      // Use member ID directly from memberInfo if available
+      const memberId = memberInfo.id;
       
-      if (!currentMember) return [];
+      if (!memberId) {
+        console.log('[Bookings] No member ID in memberInfo');
+        return [];
+      }
       
-      const allBookings = await base44.entities.Booking.list('-created_date');
-      return allBookings.filter(b => b.member_id === currentMember.id);
+      // Filter bookings by member_id directly using the filter API
+      const myBookings = await base44.entities.Booking.filter({ member_id: memberId });
+      // Sort by created_date descending
+      return myBookings.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
     },
-    enabled: !!memberInfo?.email,
+    enabled: !!memberInfo?.id,
     staleTime: 0,
     refetchOnMount: true,
   });
@@ -100,20 +105,15 @@ export default function BookingsPage() {
   };
 
   const updateMemberTourStatus = async (tourKey) => {
-    if (memberInfo && !memberInfo.is_team_member) {
+    if (memberInfo && !memberInfo.is_team_member && memberInfo.id) {
       try {
-        const allMembers = await base44.entities.Member.listAll();
-        const currentMember = allMembers.find(m => m.email === memberInfo.email);
+        const updatedTours = { ...(memberInfo.page_tours_seen || {}), [tourKey]: true };
+        await base44.entities.Member.update(memberInfo.id, {
+          page_tours_seen: updatedTours
+        });
         
-        if (currentMember) {
-          const updatedTours = { ...(currentMember.page_tours_seen || {}), [tourKey]: true };
-          await base44.entities.Member.update(currentMember.id, {
-            page_tours_seen: updatedTours
-          });
-          
-          const updatedMemberInfo = { ...memberInfo, page_tours_seen: updatedTours };
-          sessionStorage.setItem('agcas_member', JSON.stringify(updatedMemberInfo));
-        }
+        const updatedMemberInfo = { ...memberInfo, page_tours_seen: updatedTours };
+        sessionStorage.setItem('agcas_member', JSON.stringify(updatedMemberInfo));
       } catch (error) {
         console.error('Failed to update tour status:', error);
       }

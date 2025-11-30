@@ -484,14 +484,14 @@ export default function ZoomWebinarProvisioning() {
               <div className="space-y-2">
                 <Label htmlFor="host">Host</Label>
                 <Select
-                  value={formData.host_id}
-                  onValueChange={(value) => setFormData(prev => ({ ...prev, host_id: value }))}
+                  value={formData.host_id || "default"}
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, host_id: value === "default" ? "" : value }))}
                 >
                   <SelectTrigger data-testid="select-host">
                     <SelectValue placeholder="Select host (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Default (account owner)</SelectItem>
+                    <SelectItem value="default">Default (account owner)</SelectItem>
                     {zoomUsers.map(user => (
                       <SelectItem key={user.id} value={user.id}>
                         {user.first_name} {user.last_name} ({user.email})

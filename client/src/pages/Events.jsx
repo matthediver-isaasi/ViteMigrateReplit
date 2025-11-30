@@ -13,14 +13,21 @@ import { base44 } from "@/api/base44Client";
 import { useLayoutContext } from "@/contexts/LayoutContext";
 
 export default function EventsPage({
-  organizationInfo,
+  organizationInfo: propsOrganizationInfo,
   isFeatureExcluded,
   memberInfo,
   memberRole,
   reloadMemberInfo,
 }) {
-  // Get hasBanner and refreshOrganizationInfo from layout context
-  const { hasBanner, refreshOrganizationInfo } = useLayoutContext();
+  // Get hasBanner, refreshOrganizationInfo, and organizationInfo from layout context
+  const { 
+    hasBanner, 
+    refreshOrganizationInfo,
+    organizationInfo: contextOrganizationInfo 
+  } = useLayoutContext();
+  
+  // Use context organizationInfo if available, otherwise fall back to props
+  const organizationInfo = contextOrganizationInfo || propsOrganizationInfo;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
   const [showTour, setShowTour] = useState(false);

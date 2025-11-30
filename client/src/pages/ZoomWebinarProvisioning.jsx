@@ -467,13 +467,14 @@ export default function ZoomWebinarProvisioning() {
     }
     console.log('[CreateWebinar] Passed date/time check');
     
-    // Create Date for validation only
+    // Create Date for validation only - allow a 5-minute buffer for form filling time
     const startTime = new Date(`${formData.start_date}T${formData.start_time}`);
     const now = new Date();
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
     console.log('[CreateWebinar] startTime:', startTime.toISOString(), 'now:', now.toISOString());
     
-    if (startTime < now) {
-      console.log('[CreateWebinar] Failed: time in past');
+    if (startTime < fiveMinutesAgo) {
+      console.log('[CreateWebinar] Failed: time too far in past');
       toast.error('Start time must be in the future');
       return;
     }

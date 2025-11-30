@@ -3195,25 +3195,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           }
           // Regular events default to 'confirmed'
 
-          const { data: booking } = await supabase
+          const bookingData = {
+            event_id: eventId,
+            member_id: member.id,
+            attendee_email: attendee.email,
+            attendee_first_name: attendee.first_name,
+            attendee_last_name: attendee.last_name,
+            ticket_price: event.ticket_price || 0,
+            booking_reference: bookingReference,
+            status: bookingStatus,
+            payment_method: 'program_ticket',
+            backstage_order_id: correspondingOrder?.backstageOrderId || null,
+            zoom_registrant_id: correspondingZoomReg?.zoomRegistrantId || null
+          };
+          
+          console.log('[createBooking] Inserting booking:', JSON.stringify(bookingData));
+          
+          const { data: booking, error: bookingError } = await supabase
             .from('booking')
-            .insert({
-              event_id: eventId,
-              member_id: member.id,
-              attendee_email: attendee.email,
-              attendee_first_name: attendee.first_name,
-              attendee_last_name: attendee.last_name,
-              ticket_price: event.ticket_price || 0,
-              booking_reference: bookingReference,
-              status: bookingStatus,
-              payment_method: 'program_ticket',
-              backstage_order_id: correspondingOrder?.backstageOrderId || null,
-              zoom_registrant_id: correspondingZoomReg?.zoomRegistrantId || null
-            })
+            .insert(bookingData)
             .select()
             .single();
 
-          if (booking) createdBookings.push(booking);
+          if (bookingError) {
+            console.error('[createBooking] ✗ Booking insert failed:', bookingError);
+          } else if (booking) {
+            console.log('[createBooking] ✓ Booking created:', booking.id);
+            createdBookings.push(booking);
+          }
         }
       } else if (registrationMode === 'links') {
         for (let i = 0; i < numberOfLinks; i++) {

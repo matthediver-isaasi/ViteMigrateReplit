@@ -533,15 +533,33 @@ export default function EventDetailsPage() {
         programTag: event.program_tag
       };
       console.log('[EventDetails] Request payload:', JSON.stringify(requestPayload));
+      console.log('[EventDetails] Event location:', event.location);
+      console.log('[EventDetails] Event backstage_event_id:', event.backstage_event_id);
       
       const response = await base44.functions.invoke('createBooking', requestPayload);
-      console.log('[EventDetails] createBooking response:', response);
+      console.log('[EventDetails] createBooking FULL response:', JSON.stringify(response.data, null, 2));
+      console.log('[EventDetails] Event type:', response.data.event_type);
+      console.log('[EventDetails] Zoom registration:', JSON.stringify(response.data.zoom_registration, null, 2));
+      
+      if (response.data.warning) {
+        console.warn('[EventDetails] Warning:', response.data.warning);
+      }
 
       if (response.data.success) {
         console.log('[EventDetails] Booking succeeded!');
         sessionStorage.removeItem(`event_registration_${event.id}`);
 
-        toast.success("Booking confirmed!");
+        // Show different messages based on event type
+        if (response.data.event_type === 'zoom') {
+          if (response.data.zoom_registration?.webinar_found) {
+            const successCount = response.data.zoom_registration.registrations?.filter(r => r.success).length || 0;
+            toast.success(`Booking confirmed! ${successCount} attendee(s) registered with Zoom.`);
+          } else {
+            toast.success("Booking confirmed! (Zoom webinar not found - manual registration may be needed)");
+          }
+        } else {
+          toast.success("Booking confirmed!");
+        }
         
         // Defer organization refresh to avoid React state update conflicts
         setTimeout(() => {

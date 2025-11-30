@@ -2,12 +2,14 @@ import { useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { supabase, isSupabaseConfigured } from '@/api/supabaseClient';
 
-export function useProgramTicketRealtime(organizationId, queryKeys = []) {
+export function useProgramTicketRealtime(organizationId, queryKeys = [], onOrganizationUpdate = null) {
   const queryClient = useQueryClient();
   const keysRef = useRef(queryKeys);
   const orgIdRef = useRef(organizationId);
+  const onUpdateRef = useRef(onOrganizationUpdate);
   keysRef.current = queryKeys;
   orgIdRef.current = organizationId;
+  onUpdateRef.current = onOrganizationUpdate;
 
   useEffect(() => {
     if (!isSupabaseConfigured || !supabase) {
@@ -15,7 +17,12 @@ export function useProgramTicketRealtime(organizationId, queryKeys = []) {
       return;
     }
 
-    console.log('[useProgramTicketRealtime] Setting up realtime subscriptions for ticket purchases');
+    if (!orgIdRef.current) {
+      console.log('[useProgramTicketRealtime] No organization ID, skipping subscription');
+      return;
+    }
+
+    console.log('[useProgramTicketRealtime] Setting up realtime subscriptions for org:', orgIdRef.current);
 
     const channelName = 'program-ticket-changes-' + Math.random().toString(36).substr(2, 9);
     const channel = supabase
@@ -36,6 +43,11 @@ export function useProgramTicketRealtime(organizationId, queryKeys = []) {
           
           queryClient.invalidateQueries({ queryKey: ['/api/entities/ProgramTicketTransaction'] });
           queryClient.invalidateQueries({ queryKey: ['/api/entities/Organization'] });
+          
+          if (onUpdateRef.current) {
+            console.log('[useProgramTicketRealtime] Calling organization refresh callback');
+            onUpdateRef.current();
+          }
         }
       )
       .on(
@@ -44,7 +56,7 @@ export function useProgramTicketRealtime(organizationId, queryKeys = []) {
           event: 'UPDATE',
           schema: 'public',
           table: 'organization',
-          filter: orgIdRef.current ? `id=eq.${orgIdRef.current}` : undefined
+          filter: `id=eq.${orgIdRef.current}`
         },
         (payload) => {
           console.log('[useProgramTicketRealtime] Organization update detected:', payload.new?.id);
@@ -54,6 +66,11 @@ export function useProgramTicketRealtime(organizationId, queryKeys = []) {
           });
           
           queryClient.invalidateQueries({ queryKey: ['/api/entities/Organization'] });
+          
+          if (onUpdateRef.current) {
+            console.log('[useProgramTicketRealtime] Calling organization refresh callback');
+            onUpdateRef.current();
+          }
         }
       )
       .subscribe((status) => {

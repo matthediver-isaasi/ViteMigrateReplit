@@ -181,7 +181,8 @@ export default function BuyProgramTicketsPage({
   const queryClient = useQueryClient();
 
   // Subscribe to realtime updates for ticket purchases
-  useProgramTicketRealtime(organizationInfo?.id, ['vouchers']);
+  // Pass refreshOrganizationInfo to update the Layout context when changes are detected
+  useProgramTicketRealtime(organizationInfo?.id, ['vouchers'], refreshOrganizationInfo);
 
   // Check if tours should be shown for this user's role
   const shouldShowTours = memberInfo && !memberInfo.is_team_member && memberRole && memberRole.show_tours !== false;

@@ -292,14 +292,15 @@ export default function ZoomWebinarProvisioning() {
 
   if (!accessChecked) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-amber-600"></div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+        <div className="animate-pulse text-slate-600">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="container max-w-6xl py-8" data-testid="zoom-webinar-page">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto" data-testid="zoom-webinar-page">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900" data-testid="text-page-title">Zoom Webinar Provisioning</h1>
@@ -826,6 +827,7 @@ export default function ZoomWebinarProvisioning() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   );
 }

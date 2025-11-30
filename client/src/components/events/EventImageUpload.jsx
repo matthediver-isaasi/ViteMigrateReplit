@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -24,6 +24,12 @@ export default function EventImageUpload({
   const [activeTab, setActiveTab] = useState(value ? "preview" : "upload");
   const [urlInput, setUrlInput] = useState("");
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    if (value && activeTab !== "preview") {
+      setActiveTab("preview");
+    }
+  }, [value]);
 
   const handleFileSelect = async (e) => {
     const file = e.target.files?.[0];

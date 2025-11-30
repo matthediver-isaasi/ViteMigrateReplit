@@ -3362,10 +3362,40 @@ export async function registerRoutes(app: Express): Promise<Server> {
         appliedDiscountId = null
       } = req.body;
 
-      if (!memberEmail || !programName || !quantity) {
+      // Try to get member from session first, fall back to email from request
+      const sessionMemberId = (req.session as any)?.memberId;
+      let member: any = null;
+
+      if (sessionMemberId) {
+        // Prefer session-based authentication
+        const { data: sessionMember } = await supabase
+          .from('member')
+          .select('*')
+          .eq('id', sessionMemberId)
+          .single();
+        member = sessionMember;
+      }
+      
+      // Fall back to email lookup if session not available
+      if (!member && memberEmail) {
+        const { data: emailMember } = await supabase
+          .from('member')
+          .select('*')
+          .ilike('email', memberEmail)
+          .maybeSingle();
+        member = emailMember;
+      }
+
+      if (!member) {
+        return res.status(401).json({
+          error: 'Not authenticated - please log in again'
+        });
+      }
+
+      if (!programName || !quantity) {
         return res.status(400).json({
           error: 'Missing required parameters',
-          required: ['memberEmail', 'programName', 'quantity']
+          required: ['programName', 'quantity']
         });
       }
 
@@ -3408,31 +3438,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Get member's organization - use direct email filter for efficiency
-      const { data: memberData } = await supabase
-        .from('member')
-        .select('*')
-        .eq('email', memberEmail)
-        .maybeSingle();
-      
-      // If not found, try case-insensitive search
-      let member = memberData;
-      if (!member && memberEmail) {
-        const { data: memberByIlike } = await supabase
-          .from('member')
-          .select('*')
-          .ilike('email', memberEmail)
-          .maybeSingle();
-        member = memberByIlike;
-      }
-
-      if (!member || !member.organization_id) {
+      if (!member.organization_id) {
         return res.status(404).json({
-          error: 'Member or organization not found'
+          error: 'Member has no organization assigned'
         });
       }
 
-      // Get organization - use direct ID filter for efficiency
+      // Get organization using member's organization_id
       let { data: org } = await supabase
         .from('organization')
         .select('*')

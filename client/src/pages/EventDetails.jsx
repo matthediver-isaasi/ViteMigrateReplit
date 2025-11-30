@@ -538,16 +538,19 @@ export default function EventDetailsPage() {
       console.log('[EventDetails] createBooking response:', response);
 
       if (response.data.success) {
+        console.log('[EventDetails] Booking succeeded!');
         sessionStorage.removeItem(`event_registration_${event.id}`);
 
-        if (refreshOrganizationInfo) {
-          refreshOrganizationInfo();
-        }
-
         toast.success("Booking confirmed!");
+        
+        // Defer organization refresh to avoid React state update conflicts
         setTimeout(() => {
+          if (refreshOrganizationInfo) {
+            refreshOrganizationInfo();
+          }
           window.location.href = createPageUrl('Bookings');
         }, 1500);
+        return; // Exit early, don't setSubmitting(false) as we're navigating away
       } else {
         console.log('[EventDetails] Booking failed:', response.data.error);
         toast.error(response.data.error || "Failed to create booking");
@@ -555,9 +558,8 @@ export default function EventDetailsPage() {
     } catch (error) {
       console.error('[EventDetails] createBooking error:', error);
       toast.error(error.message || error.response?.data?.error || "Failed to create booking");
-    } finally {
-      setSubmitting(false);
     }
+    setSubmitting(false);
   };
 
   return (

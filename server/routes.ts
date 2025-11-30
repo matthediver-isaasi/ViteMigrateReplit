@@ -9436,6 +9436,91 @@ AGCAS Events Team
     }
   });
 
+  // Add registrant to webinar
+  app.post('/api/zoom/webinars/:id/registrants', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { id } = req.params;
+      const { first_name, last_name, email } = req.body;
+      
+      if (!first_name || !last_name || !email) {
+        return res.status(400).json({ error: 'First name, last name, and email are required' });
+      }
+      
+      // Get webinar to get Zoom ID
+      const { data: webinar, error: fetchError } = await supabase
+        .from('zoom_webinar')
+        .select('zoom_webinar_id, registration_required')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        return res.status(404).json({ error: 'Webinar not found' });
+      }
+      
+      if (!webinar.registration_required) {
+        return res.status(400).json({ error: 'Registration is not enabled for this webinar' });
+      }
+      
+      if (!webinar.zoom_webinar_id) {
+        return res.status(400).json({ error: 'Webinar not synced with Zoom' });
+      }
+      
+      const token = await getZoomAccessToken();
+      
+      // Add registrant to Zoom
+      const zoomResponse = await fetch(
+        `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}/registrants`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            first_name,
+            last_name,
+            email,
+            auto_approve: true
+          })
+        }
+      );
+      
+      if (!zoomResponse.ok) {
+        const errorData = await zoomResponse.json().catch(() => ({}));
+        console.error('[Zoom] Add registrant error:', errorData);
+        
+        // Handle specific Zoom errors
+        if (errorData.code === 3027) {
+          return res.status(400).json({ error: 'This email is already registered for this webinar' });
+        }
+        
+        return res.status(zoomResponse.status).json({ 
+          error: errorData.message || 'Failed to add registrant to Zoom' 
+        });
+      }
+      
+      const zoomData = await zoomResponse.json();
+      
+      res.json({
+        id: zoomData.id,
+        registrant_id: zoomData.registrant_id,
+        start_time: zoomData.start_time,
+        topic: zoomData.topic,
+        first_name,
+        last_name,
+        email,
+        status: 'approved'
+      });
+    } catch (error: any) {
+      console.error('[Zoom] Add registrant error:', error);
+      res.status(500).json({ error: error.message || 'Failed to add registrant' });
+    }
+  });
+
   // ============ Health Check ============
   app.get('/api/health', (req: Request, res: Response) => {
     res.json({ 

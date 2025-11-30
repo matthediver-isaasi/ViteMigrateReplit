@@ -8722,6 +8722,652 @@ AGCAS Events Team
     }
   });
 
+  // ============ Zoom Webinar API ============
+  
+  // Zoom Server-to-Server OAuth token cache
+  let zoomTokenCache: { token: string; expiresAt: number } | null = null;
+  
+  // Get Zoom access token using Server-to-Server OAuth
+  async function getZoomAccessToken(): Promise<string> {
+    // Check cache
+    if (zoomTokenCache && Date.now() < zoomTokenCache.expiresAt - 60000) {
+      return zoomTokenCache.token;
+    }
+    
+    const accountId = process.env.ZOOM_ACCOUNT_ID;
+    const clientId = process.env.ZOOM_CLIENT_ID;
+    const clientSecret = process.env.ZOOM_CLIENT_SECRET;
+    
+    if (!accountId || !clientId || !clientSecret) {
+      throw new Error('Zoom credentials not configured');
+    }
+    
+    const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+    
+    const response = await fetch('https://zoom.us/oauth/token', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Basic ${credentials}`,
+        'Content-Type': 'application/x-www-form-urlencoded'
+      },
+      body: `grant_type=account_credentials&account_id=${accountId}`
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[Zoom] Token error:', errorText);
+      throw new Error(`Failed to get Zoom access token: ${response.status}`);
+    }
+    
+    const data = await response.json() as { access_token: string; expires_in: number };
+    
+    // Cache the token
+    zoomTokenCache = {
+      token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in * 1000)
+    };
+    
+    console.log('[Zoom] Access token obtained successfully');
+    return data.access_token;
+  }
+  
+  // Get Zoom users (hosts)
+  app.get('/api/zoom/users', async (req: Request, res: Response) => {
+    try {
+      const token = await getZoomAccessToken();
+      
+      const response = await fetch('https://api.zoom.us/v2/users?status=active', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[Zoom] Users API error:', errorText);
+        return res.status(response.status).json({ error: 'Failed to fetch Zoom users' });
+      }
+      
+      const data = await response.json() as { users: any[] };
+      res.json(data.users || []);
+    } catch (error: any) {
+      console.error('[Zoom] Users error:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch Zoom users' });
+    }
+  });
+  
+  // Check for scheduling conflicts
+  app.post('/api/zoom/check-conflicts', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { start_time, duration_minutes, host_id, exclude_webinar_id } = req.body;
+      
+      if (!start_time || !duration_minutes) {
+        return res.status(400).json({ error: 'start_time and duration_minutes are required' });
+      }
+      
+      const startDate = new Date(start_time);
+      const endDate = new Date(startDate.getTime() + duration_minutes * 60 * 1000);
+      
+      // Check existing webinars in our database
+      let query = supabase
+        .from('zoom_webinar')
+        .select('*')
+        .neq('status', 'cancelled');
+      
+      if (exclude_webinar_id) {
+        query = query.neq('id', exclude_webinar_id);
+      }
+      
+      if (host_id) {
+        query = query.eq('zoom_host_id', host_id);
+      }
+      
+      const { data: webinars, error } = await query;
+      
+      if (error) {
+        console.error('[Zoom] Conflict check DB error:', error);
+        return res.status(500).json({ error: 'Failed to check conflicts' });
+      }
+      
+      // Find overlapping webinars
+      const conflicts = (webinars || []).filter((w: any) => {
+        const wStart = new Date(w.start_time);
+        const wEnd = new Date(wStart.getTime() + w.duration_minutes * 60 * 1000);
+        
+        // Check for overlap: starts before other ends AND ends after other starts
+        return startDate < wEnd && endDate > wStart;
+      });
+      
+      res.json({
+        hasConflicts: conflicts.length > 0,
+        conflicts: conflicts.map((c: any) => ({
+          id: c.id,
+          topic: c.topic,
+          start_time: c.start_time,
+          duration_minutes: c.duration_minutes,
+          zoom_webinar_id: c.zoom_webinar_id
+        }))
+      });
+    } catch (error: any) {
+      console.error('[Zoom] Conflict check error:', error);
+      res.status(500).json({ error: error.message || 'Failed to check conflicts' });
+    }
+  });
+  
+  // Create a new webinar
+  app.post('/api/zoom/webinars', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { 
+        topic, 
+        agenda, 
+        start_time, 
+        duration_minutes = 60, 
+        timezone = 'Europe/London',
+        registration_required = false,
+        host_id,
+        panelists = [],
+        created_by_member_id
+      } = req.body;
+      
+      if (!topic || !start_time) {
+        return res.status(400).json({ error: 'topic and start_time are required' });
+      }
+      
+      const token = await getZoomAccessToken();
+      
+      // Determine which user to create webinar for
+      let userId = host_id || 'me';
+      
+      // Create webinar on Zoom
+      const webinarPayload = {
+        topic,
+        type: 5, // Scheduled webinar
+        start_time: new Date(start_time).toISOString(),
+        duration: duration_minutes,
+        timezone,
+        agenda: agenda || '',
+        settings: {
+          host_video: true,
+          panelists_video: true,
+          practice_session: true,
+          hd_video: true,
+          approval_type: registration_required ? 0 : 2, // 0 = auto approve, 2 = no registration
+          registration_type: registration_required ? 1 : undefined,
+          audio: 'both',
+          auto_recording: 'cloud',
+          enforce_login: false,
+          close_registration: false,
+          show_share_button: true,
+          allow_multiple_devices: true,
+          on_demand: true // Allow on-demand viewing after
+        }
+      };
+      
+      console.log('[Zoom] Creating webinar:', JSON.stringify(webinarPayload, null, 2));
+      
+      const zoomResponse = await fetch(`https://api.zoom.us/v2/users/${userId}/webinars`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(webinarPayload)
+      });
+      
+      if (!zoomResponse.ok) {
+        const errorText = await zoomResponse.text();
+        console.error('[Zoom] Create webinar error:', errorText);
+        return res.status(zoomResponse.status).json({ 
+          error: 'Failed to create Zoom webinar', 
+          details: errorText 
+        });
+      }
+      
+      const zoomData = await zoomResponse.json() as {
+        id: number;
+        host_id: string;
+        join_url: string;
+        registration_url?: string;
+        password: string;
+      };
+      
+      console.log('[Zoom] Webinar created:', zoomData.id);
+      
+      // Save to our database
+      const { data: webinar, error: dbError } = await supabase
+        .from('zoom_webinar')
+        .insert({
+          topic,
+          agenda,
+          start_time,
+          duration_minutes,
+          timezone,
+          registration_required,
+          zoom_webinar_id: String(zoomData.id),
+          zoom_host_id: zoomData.host_id,
+          join_url: zoomData.join_url,
+          registration_url: zoomData.registration_url,
+          password: zoomData.password,
+          status: 'scheduled',
+          created_by_member_id
+        })
+        .select()
+        .single();
+      
+      if (dbError) {
+        console.error('[Zoom] DB save error:', dbError);
+        return res.status(500).json({ error: 'Webinar created on Zoom but failed to save locally' });
+      }
+      
+      // Add panelists if provided
+      if (panelists.length > 0) {
+        const panelistResults = [];
+        
+        for (const panelist of panelists) {
+          try {
+            // Add panelist to Zoom
+            const panelistResponse = await fetch(
+              `https://api.zoom.us/v2/webinars/${zoomData.id}/panelists`,
+              {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${token}`,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  panelists: [{
+                    name: panelist.name,
+                    email: panelist.email
+                  }]
+                })
+              }
+            );
+            
+            if (panelistResponse.ok) {
+              const panelistData = await panelistResponse.json() as { id?: string };
+              
+              // Save panelist to our database
+              const { data: savedPanelist } = await supabase
+                .from('zoom_webinar_panelist')
+                .insert({
+                  webinar_id: webinar.id,
+                  name: panelist.name,
+                  email: panelist.email,
+                  role: panelist.role || 'panelist',
+                  zoom_panelist_id: panelistData.id,
+                  status: 'invited'
+                })
+                .select()
+                .single();
+              
+              panelistResults.push({ success: true, panelist: savedPanelist });
+            } else {
+              const errorText = await panelistResponse.text();
+              console.error('[Zoom] Panelist add error:', errorText);
+              panelistResults.push({ success: false, email: panelist.email, error: errorText });
+            }
+          } catch (pError: any) {
+            console.error('[Zoom] Panelist error:', pError);
+            panelistResults.push({ success: false, email: panelist.email, error: pError.message });
+          }
+        }
+        
+        res.json({ 
+          success: true, 
+          webinar, 
+          panelistResults 
+        });
+      } else {
+        res.json({ success: true, webinar });
+      }
+    } catch (error: any) {
+      console.error('[Zoom] Create webinar error:', error);
+      res.status(500).json({ error: error.message || 'Failed to create webinar' });
+    }
+  });
+  
+  // List webinars from our database
+  app.get('/api/zoom/webinars', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { status, upcoming } = req.query;
+      
+      let query = supabase
+        .from('zoom_webinar')
+        .select('*')
+        .order('start_time', { ascending: true });
+      
+      if (status) {
+        query = query.eq('status', status);
+      }
+      
+      if (upcoming === 'true') {
+        query = query.gte('start_time', new Date().toISOString());
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) {
+        console.error('[Zoom] List webinars error:', error);
+        return res.status(500).json({ error: 'Failed to list webinars' });
+      }
+      
+      res.json(data || []);
+    } catch (error: any) {
+      console.error('[Zoom] List webinars error:', error);
+      res.status(500).json({ error: error.message || 'Failed to list webinars' });
+    }
+  });
+  
+  // Get single webinar with panelists
+  app.get('/api/zoom/webinars/:id', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { id } = req.params;
+      
+      // Get webinar
+      const { data: webinar, error: webinarError } = await supabase
+        .from('zoom_webinar')
+        .select('*')
+        .eq('id', id)
+        .single();
+      
+      if (webinarError) {
+        if (webinarError.code === 'PGRST116') {
+          return res.status(404).json({ error: 'Webinar not found' });
+        }
+        return res.status(500).json({ error: webinarError.message });
+      }
+      
+      // Get panelists
+      const { data: panelists } = await supabase
+        .from('zoom_webinar_panelist')
+        .select('*')
+        .eq('webinar_id', id)
+        .order('created_at', { ascending: true });
+      
+      res.json({ ...webinar, panelists: panelists || [] });
+    } catch (error: any) {
+      console.error('[Zoom] Get webinar error:', error);
+      res.status(500).json({ error: error.message || 'Failed to get webinar' });
+    }
+  });
+  
+  // Update webinar
+  app.patch('/api/zoom/webinars/:id', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { id } = req.params;
+      const updates = req.body;
+      
+      // Get current webinar to get Zoom ID
+      const { data: existing, error: fetchError } = await supabase
+        .from('zoom_webinar')
+        .select('zoom_webinar_id')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        return res.status(404).json({ error: 'Webinar not found' });
+      }
+      
+      // If updating Zoom-related fields, update on Zoom first
+      if (updates.topic || updates.start_time || updates.duration_minutes || updates.agenda) {
+        const token = await getZoomAccessToken();
+        
+        const zoomUpdates: any = {};
+        if (updates.topic) zoomUpdates.topic = updates.topic;
+        if (updates.start_time) zoomUpdates.start_time = new Date(updates.start_time).toISOString();
+        if (updates.duration_minutes) zoomUpdates.duration = updates.duration_minutes;
+        if (updates.agenda) zoomUpdates.agenda = updates.agenda;
+        
+        const zoomResponse = await fetch(
+          `https://api.zoom.us/v2/webinars/${existing.zoom_webinar_id}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(zoomUpdates)
+          }
+        );
+        
+        if (!zoomResponse.ok && zoomResponse.status !== 204) {
+          const errorText = await zoomResponse.text();
+          console.error('[Zoom] Update webinar error:', errorText);
+          return res.status(zoomResponse.status).json({ error: 'Failed to update Zoom webinar' });
+        }
+      }
+      
+      // Update in our database
+      const { data: webinar, error: updateError } = await supabase
+        .from('zoom_webinar')
+        .update({ ...updates, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      
+      if (updateError) {
+        console.error('[Zoom] DB update error:', updateError);
+        return res.status(500).json({ error: 'Failed to update webinar' });
+      }
+      
+      res.json(webinar);
+    } catch (error: any) {
+      console.error('[Zoom] Update webinar error:', error);
+      res.status(500).json({ error: error.message || 'Failed to update webinar' });
+    }
+  });
+  
+  // Cancel/delete webinar
+  app.delete('/api/zoom/webinars/:id', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { id } = req.params;
+      const { deleteFromZoom = true } = req.query;
+      
+      // Get webinar
+      const { data: webinar, error: fetchError } = await supabase
+        .from('zoom_webinar')
+        .select('zoom_webinar_id')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        return res.status(404).json({ error: 'Webinar not found' });
+      }
+      
+      // Delete from Zoom if requested
+      if (deleteFromZoom === 'true' && webinar.zoom_webinar_id) {
+        const token = await getZoomAccessToken();
+        
+        const zoomResponse = await fetch(
+          `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        
+        if (!zoomResponse.ok && zoomResponse.status !== 204 && zoomResponse.status !== 404) {
+          const errorText = await zoomResponse.text();
+          console.error('[Zoom] Delete webinar error:', errorText);
+          return res.status(zoomResponse.status).json({ error: 'Failed to delete from Zoom' });
+        }
+      }
+      
+      // Update status in our database (soft delete)
+      const { error: updateError } = await supabase
+        .from('zoom_webinar')
+        .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+        .eq('id', id);
+      
+      if (updateError) {
+        console.error('[Zoom] DB update error:', updateError);
+        return res.status(500).json({ error: 'Failed to cancel webinar' });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Zoom] Delete webinar error:', error);
+      res.status(500).json({ error: error.message || 'Failed to delete webinar' });
+    }
+  });
+  
+  // Add panelist to existing webinar
+  app.post('/api/zoom/webinars/:id/panelists', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { id } = req.params;
+      const { name, email, role = 'panelist' } = req.body;
+      
+      if (!name || !email) {
+        return res.status(400).json({ error: 'name and email are required' });
+      }
+      
+      // Get webinar
+      const { data: webinar, error: fetchError } = await supabase
+        .from('zoom_webinar')
+        .select('zoom_webinar_id')
+        .eq('id', id)
+        .single();
+      
+      if (fetchError) {
+        return res.status(404).json({ error: 'Webinar not found' });
+      }
+      
+      const token = await getZoomAccessToken();
+      
+      // Add to Zoom
+      const zoomResponse = await fetch(
+        `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}/panelists`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            panelists: [{ name, email }]
+          })
+        }
+      );
+      
+      if (!zoomResponse.ok) {
+        const errorText = await zoomResponse.text();
+        console.error('[Zoom] Add panelist error:', errorText);
+        return res.status(zoomResponse.status).json({ error: 'Failed to add panelist to Zoom' });
+      }
+      
+      const zoomData = await zoomResponse.json() as { id?: string };
+      
+      // Save to database
+      const { data: panelist, error: dbError } = await supabase
+        .from('zoom_webinar_panelist')
+        .insert({
+          webinar_id: id,
+          name,
+          email,
+          role,
+          zoom_panelist_id: zoomData.id,
+          status: 'invited'
+        })
+        .select()
+        .single();
+      
+      if (dbError) {
+        console.error('[Zoom] DB save panelist error:', dbError);
+        return res.status(500).json({ error: 'Panelist added to Zoom but failed to save locally' });
+      }
+      
+      res.json(panelist);
+    } catch (error: any) {
+      console.error('[Zoom] Add panelist error:', error);
+      res.status(500).json({ error: error.message || 'Failed to add panelist' });
+    }
+  });
+  
+  // Remove panelist from webinar
+  app.delete('/api/zoom/webinars/:webinarId/panelists/:panelistId', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { webinarId, panelistId } = req.params;
+      
+      // Get panelist and webinar info
+      const { data: panelist, error: fetchError } = await supabase
+        .from('zoom_webinar_panelist')
+        .select('*, zoom_webinar!inner(zoom_webinar_id)')
+        .eq('id', panelistId)
+        .single();
+      
+      if (fetchError) {
+        return res.status(404).json({ error: 'Panelist not found' });
+      }
+      
+      // Remove from Zoom if we have the Zoom panelist ID
+      if (panelist.zoom_panelist_id) {
+        const token = await getZoomAccessToken();
+        
+        await fetch(
+          `https://api.zoom.us/v2/webinars/${panelist.zoom_webinar.zoom_webinar_id}/panelists/${panelist.zoom_panelist_id}`,
+          {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          }
+        );
+        // Ignore errors - panelist might already be removed from Zoom
+      }
+      
+      // Remove from database
+      const { error: deleteError } = await supabase
+        .from('zoom_webinar_panelist')
+        .delete()
+        .eq('id', panelistId);
+      
+      if (deleteError) {
+        console.error('[Zoom] DB delete panelist error:', deleteError);
+        return res.status(500).json({ error: 'Failed to remove panelist' });
+      }
+      
+      res.json({ success: true });
+    } catch (error: any) {
+      console.error('[Zoom] Remove panelist error:', error);
+      res.status(500).json({ error: error.message || 'Failed to remove panelist' });
+    }
+  });
+
   // ============ Health Check ============
   app.get('/api/health', (req: Request, res: Response) => {
     res.json({ 

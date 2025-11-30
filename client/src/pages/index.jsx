@@ -192,6 +192,8 @@ import TeamSettings from "./TeamSettings";
 
 import PreferenceSettings from "./PreferenceSettings";
 
+import ZoomWebinarProvisioning from "./ZoomWebinarProvisioning";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
 import { ArticleUrlProvider } from '@/contexts/ArticleUrlContext';
@@ -389,6 +391,8 @@ const PAGES = {
     TeamSettings: TeamSettings,
     
     PreferenceSettings: PreferenceSettings,
+    
+    ZoomWebinarProvisioning: ZoomWebinarProvisioning,
     
 }
 
@@ -622,6 +626,8 @@ function PagesContent() {
                 <Route path="/TeamSettings" element={<TeamSettings />} />
                 
                 <Route path="/PreferenceSettings" element={<PreferenceSettings />} />
+                
+                <Route path="/ZoomWebinarProvisioning" element={<ZoomWebinarProvisioning />} />
                 
                 {/* /auth/verify route removed - using password auth */}
                 

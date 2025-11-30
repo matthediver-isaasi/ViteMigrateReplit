@@ -93,4 +93,5 @@ export const PAGE_NAMES = [
   "MemberGroupGuestManagement",
   "TeamSettings",
   "PreferenceSettings",
+  "ZoomWebinarProvisioning",
 ];

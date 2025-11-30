@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Calendar, User, CreditCard, LogOut, Ticket, Wallet, Shield, Users, Settings, Sparkles, ShoppingCart, History, BarChart3, Briefcase, FileEdit, Image, FileText, AtSign, FolderTree, Square, Trophy, BookOpen, Mail, MousePointer2, Building, Download, HelpCircle, Menu, ChevronRight } from "lucide-react";
+import { Calendar, User, CreditCard, LogOut, Ticket, Wallet, Shield, Users, Settings, Sparkles, ShoppingCart, History, BarChart3, Briefcase, FileEdit, Image, FileText, AtSign, FolderTree, Square, Trophy, BookOpen, Mail, MousePointer2, Building, Download, HelpCircle, Menu, ChevronRight, Video } from "lucide-react";
 import { useLayoutContext } from "@/contexts/LayoutContext";
 import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 import {
@@ -395,6 +395,12 @@ const adminNavigationItems = [
     url: createPageUrl("TourManagement"),
     icon: Sparkles,
     featureId: "page_TourManagement"
+  },
+  {
+    title: "Zoom Webinars",
+    url: createPageUrl("ZoomWebinarProvisioning"),
+    icon: Video,
+    featureId: "page_ZoomWebinarProvisioning"
   },
   ];
 

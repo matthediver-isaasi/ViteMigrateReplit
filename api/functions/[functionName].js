@@ -1130,12 +1130,20 @@ const functionHandlers = {
     };
 
     if (eventIsZoom) {
+      // Extract webinar ID from location for diagnostics
+      const extractedWebinarId = extractZoomWebinarId(event.location);
+      
       response.zoom_registration = {
         webinar_found: !!matchingWebinar,
-        registrations: zoomRegistrationResults
+        registrations: zoomRegistrationResults,
+        debug: {
+          event_location: event.location,
+          extracted_webinar_id: extractedWebinarId,
+          webinar_matched_id: matchingWebinar?.zoom_webinar_id || null
+        }
       };
       if (!matchingWebinar) {
-        response.warning = 'Zoom webinar not found - attendees not registered with Zoom';
+        response.warning = `Zoom webinar not found - extracted ID "${extractedWebinarId}" from location "${event.location}"`;
       }
     } else if (eventIsBackstage) {
       response.warning = 'Backstage sync not performed in serverless mode - admin may need to sync manually';

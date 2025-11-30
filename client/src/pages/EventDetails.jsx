@@ -39,6 +39,7 @@ export default function EventDetailsPage() {
 
   const urlParams = new URLSearchParams(window.location.search);
   const eventId = urlParams.get('id');
+  const debugMode = urlParams.get('debugZoom') === '1';
 
   // Determine if tours should be shown for this user
   const shouldShowTours = memberRole?.show_tours !== false;
@@ -561,13 +562,25 @@ export default function EventDetailsPage() {
           toast.success("Booking confirmed!");
         }
         
+        // Debug mode: show full response before redirect
+        if (debugMode) {
+          const debugInfo = {
+            event_type: response.data.event_type,
+            event_location: event.location,
+            backstage_event_id: event.backstage_event_id,
+            zoom_registration: response.data.zoom_registration,
+            warning: response.data.warning
+          };
+          alert('DEBUG MODE - Booking Response:\n\n' + JSON.stringify(debugInfo, null, 2));
+        }
+        
         // Defer organization refresh to avoid React state update conflicts
         setTimeout(() => {
           if (refreshOrganizationInfo) {
             refreshOrganizationInfo();
           }
           window.location.href = createPageUrl('Bookings');
-        }, 1500);
+        }, debugMode ? 100 : 1500);
         return; // Exit early, don't setSubmitting(false) as we're navigating away
       } else {
         console.log('[EventDetails] Booking failed:', response.data.error);

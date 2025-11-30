@@ -179,12 +179,19 @@ export default function ZoomWebinarProvisioning() {
 
   const createWebinarMutation = useMutation({
     mutationFn: async (data) => {
-      const response = await apiRequest('/api/zoom/webinars', {
-        method: 'POST',
-        body: JSON.stringify(data),
-        headers: { 'Content-Type': 'application/json' }
-      });
-      return response;
+      console.log('[CreateWebinar] Starting mutation with data:', data);
+      try {
+        const response = await apiRequest('/api/zoom/webinars', {
+          method: 'POST',
+          body: JSON.stringify(data),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        console.log('[CreateWebinar] Success response:', response);
+        return response;
+      } catch (error) {
+        console.error('[CreateWebinar] Error:', error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['/api/zoom/webinars'] });
@@ -434,6 +441,7 @@ export default function ZoomWebinarProvisioning() {
   };
 
   const handleSubmit = () => {
+    console.log('[CreateWebinar] handleSubmit called, formData:', formData);
     if (!formData.topic) {
       toast.error('Please enter a webinar topic');
       return;

@@ -24,6 +24,10 @@ localPort = 33499
 externalPort = 5000
 
 [[ports]]
+localPort = 39121
+externalPort = 3000
+
+[[ports]]
 localPort = 42121
 externalPort = 3001
 
@@ -58,3 +62,9 @@ author = "agent"
 task = "shell.exec"
 args = "npm run dev"
 waitForPort = 5000
+
+[userenv]
+
+[userenv.shared]
+STRIPE_PUBLISHABLE_KEY = "pk_live_51SHkUK5sVUUL0E5QBd9WC7S1uLExAGWkW0UmFytZlDa7gjlak3tHuCxoNFxMjn0ReC6ueZJvqhhccKp0mCSqu8ie00pgt8kfKk"
+STRIPE_SECRET_KEY = "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"

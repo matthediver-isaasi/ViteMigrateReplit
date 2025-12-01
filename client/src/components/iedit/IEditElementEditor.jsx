@@ -18,6 +18,7 @@ import { IEditButtonBlockElementEditor } from "./elements/IEditButtonBlockElemen
 import { IEditPageHeaderHeroElementEditor } from "./elements/IEditPageHeaderHeroElement";
 import { IEditHeroElementEditor } from "./elements/IEditHeroElement";
 import { IEditOrganisationDirectoryElementEditor } from "./elements/IEditOrganisationDirectoryElement";
+import { IEditTextBlockElementEditor } from "./elements/IEditTextBlockElement";
 
 export default function IEditElementEditor({ element, onClose, onSave }) {
   const [editedContent, setEditedContent] = useState(element.content || {});
@@ -125,6 +126,9 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
 
   // Check if this is an Organisation Directory element (custom editor)
   const isOrganisationDirectory = element.element_type === 'organisation_directory';
+
+  // Check if this is a Text Block element (custom editor with rich text)
+  const isTextBlock = element.element_type === 'text_block';
 
   // Check if this is a Form element (needs form selector)
   const isFormElement = element.element_type === 'form';
@@ -439,6 +443,11 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
             />
           ) : isOrganisationDirectory ? (
             <IEditOrganisationDirectoryElementEditor 
+              element={{ ...element, content: editedContent }}
+              onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
+            />
+          ) : isTextBlock ? (
+            <IEditTextBlockElementEditor 
               element={{ ...element, content: editedContent }}
               onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
             />

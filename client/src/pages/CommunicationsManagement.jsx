@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Plus, Pencil, Trash2, Users, ArrowLeft, Shield, AlertTriangle } from "lucide-react";
+import { Mail, Plus, Pencil, Trash2, Users, ArrowLeft, Shield, AlertTriangle, Download, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
@@ -59,13 +59,84 @@ export default function CommunicationsManagementPage() {
 
   const { data: preferences = [] } = useQuery({
     queryKey: ['member-communication-preferences'],
-    queryFn: () => base44.entities.MemberCommunicationPreference.list({ filter: { is_subscribed: true } }),
+    queryFn: () => base44.entities.MemberCommunicationPreference.list(),
     staleTime: 0,
     retry: 1,
   });
 
+  const { data: allMembers = [], isLoading: membersLoading } = useQuery({
+    queryKey: ['all-members-for-export'],
+    queryFn: () => base44.entities.Member.listAll(),
+    staleTime: 60000,
+  });
+
+  const [exportingCategory, setExportingCategory] = useState(null);
+
+  const getSubscribersForCategory = (categoryId) => {
+    const assignedRoleIds = getCategoryRoles(categoryId);
+    if (assignedRoleIds.length === 0) return [];
+    
+    const eligibleMembers = allMembers.filter(member => 
+      assignedRoleIds.includes(member.role_id)
+    );
+    
+    const optedOutMemberIds = preferences
+      .filter(p => p.category_id === categoryId && p.is_subscribed === false)
+      .map(p => p.member_id);
+    
+    return eligibleMembers.filter(member => !optedOutMemberIds.includes(member.id));
+  };
+
   const getSubscriberCount = (categoryId) => {
-    return preferences.filter(p => p.category_id === categoryId && p.is_subscribed).length;
+    return getSubscribersForCategory(categoryId).length;
+  };
+
+  const handleExportSubscribers = async (category) => {
+    setExportingCategory(category.id);
+    try {
+      const subscribers = getSubscribersForCategory(category.id);
+      
+      if (subscribers.length === 0) {
+        toast.info('No subscribers to export for this category');
+        setExportingCategory(null);
+        return;
+      }
+
+      const headers = ['Name', 'Organisation', 'Job Title', 'Email'];
+      
+      const rows = subscribers.map(member => {
+        const name = [member.first_name, member.last_name].filter(Boolean).join(' ') || 'N/A';
+        const org = member.organization_name || 'N/A';
+        const jobTitle = member.job_title || 'N/A';
+        const email = member.email || 'N/A';
+        
+        return [name, org, jobTitle, email].map(val => {
+          const escaped = String(val).replace(/"/g, '""');
+          return `"${escaped}"`;
+        }).join(',');
+      });
+
+      const csvContent = [headers.join(','), ...rows].join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      const safeFileName = category.name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+      const date = new Date().toISOString().split('T')[0];
+      link.setAttribute('href', url);
+      link.setAttribute('download', `${safeFileName}_subscribers_${date}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast.success(`Exported ${subscribers.length} subscribers`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export subscribers');
+    } finally {
+      setExportingCategory(null);
+    }
   };
 
   const getCategoryRoles = (categoryId) => {
@@ -427,6 +498,21 @@ CREATE POLICY "Service role has full access to member_communication_preference"
                                 <span className="text-sm text-slate-600">
                                   <span className="font-medium text-slate-900">{subscriberCount}</span> subscribers
                                 </span>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  onClick={() => handleExportSubscribers(category)}
+                                  disabled={exportingCategory === category.id || subscriberCount === 0 || membersLoading}
+                                  title={membersLoading ? 'Loading members...' : subscriberCount === 0 ? 'No subscribers to export' : 'Export subscribers to CSV'}
+                                  data-testid={`button-export-category-${category.id}`}
+                                >
+                                  {exportingCategory === category.id || membersLoading ? (
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                  ) : (
+                                    <Download className="w-4 h-4" />
+                                  )}
+                                </Button>
                               </div>
                             </div>
                           </div>

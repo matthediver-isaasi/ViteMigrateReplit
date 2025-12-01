@@ -43,7 +43,7 @@ const pageToPortalPageMap = {
 };
 
 export default function PublicLayout({ children, currentPageName }) {
-  const { getPublicArticlesUrl, articleDisplayName, urlSlug, publicSlug, isCustomSlug } = useArticleUrl();
+  const { getPublicArticlesUrl, articleDisplayName, urlSlug, publicSlug, isCustomSlug, isLoading: articleUrlLoading } = useArticleUrl();
   const [banners, setBanners] = useState([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
   const [showNewsletterDialog, setShowNewsletterDialog] = useState(false);
@@ -57,26 +57,35 @@ export default function PublicLayout({ children, currentPageName }) {
     
     // Handle dynamic article slugs - if articles are renamed (e.g., to "Blog"),
     // the URLs change but banners are still associated with portal_articles
-    if (isCustomSlug) {
-      const lowerPageName = pageName?.toLowerCase() || '';
-      const lowerUrlSlug = urlSlug?.toLowerCase() || '';
-      const lowerPublicSlug = publicSlug?.toLowerCase() || '';
-      
-      // Check if this page matches the custom article slugs
-      if (lowerPageName === lowerUrlSlug || 
-          lowerPageName === lowerPublicSlug ||
-          pageName === 'Articles' || 
-          pageName === 'PublicArticles') {
-        return 'portal_articles';
-      }
+    // Check both when isCustomSlug is true AND by matching common article-related patterns
+    const lowerPageName = pageName?.toLowerCase() || '';
+    const lowerUrlSlug = urlSlug?.toLowerCase() || '';
+    const lowerPublicSlug = publicSlug?.toLowerCase() || '';
+    
+    // Check if this page matches the custom article slugs or common article patterns
+    if (lowerPageName === lowerUrlSlug || 
+        lowerPageName === lowerPublicSlug ||
+        lowerPageName === 'articles' ||
+        lowerPageName === 'publicarticles' ||
+        // Also check for blog-related patterns as common renames
+        lowerPageName === 'blog' ||
+        lowerPageName === 'publicblog' ||
+        lowerPageName === 'blogs' ||
+        lowerPageName === 'publicblogs') {
+      return 'portal_articles';
     }
     
     return null;
   };
 
-  // Fetch banners for current page
+  // Fetch banners for current page - wait for article URL context to load first
   useEffect(() => {
     const fetchBanners = async () => {
+      // Wait for article URL context to finish loading before resolving page IDs
+      if (articleUrlLoading) {
+        return;
+      }
+      
       if (!currentPageName) {
         setLoadingBanners(false);
         return;
@@ -90,7 +99,7 @@ export default function PublicLayout({ children, currentPageName }) {
         // Get the portal page identifier for this page (handles dynamic article slugs)
         const portalPageId = resolvePortalPageId(currentPageName);
         
-        console.log('[PublicLayout] Fetching banners for page:', currentPageName, 'portalPageId:', portalPageId, 'isCustomSlug:', isCustomSlug);
+        console.log('[PublicLayout] Fetching banners for page:', currentPageName, 'portalPageId:', portalPageId, 'isCustomSlug:', isCustomSlug, 'urlSlug:', urlSlug);
         console.log('[PublicLayout] All banners found:', allBanners?.length);
         
         // Filter banners that include this page (check both portal ID and page name for compatibility)
@@ -116,7 +125,7 @@ export default function PublicLayout({ children, currentPageName }) {
     };
 
     fetchBanners();
-  }, [currentPageName, isCustomSlug, urlSlug, publicSlug]);
+  }, [currentPageName, isCustomSlug, urlSlug, publicSlug, articleUrlLoading]);
 
   return (
     <>

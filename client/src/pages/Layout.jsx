@@ -414,7 +414,7 @@ const adminNavigationItems = [
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
-  const { getArticleListUrl, getMyArticlesUrl, articleDisplayName, isCustomSlug, urlSlug } = useArticleUrl();
+  const { getArticleListUrl, getMyArticlesUrl, articleDisplayName, isCustomSlug, urlSlug, publicSlug, viewSlug, editorSlug, mySlug } = useArticleUrl();
   
   // Initialize from sessionStorage immediately to prevent flicker
   const [memberInfo, setMemberInfo] = useState(() => {
@@ -1325,12 +1325,45 @@ useEffect(() => {
     );
   }
 
+  // Resolve effective page name for dynamic article routes
+  // When _DynamicPage is rendering a public article page, pass the canonical component name
+  const getEffectivePageName = () => {
+    if (currentPageName !== '_DynamicPage') {
+      return currentPageName;
+    }
+    
+    // Check if this is a dynamic article route
+    if (isCustomSlug && urlSlug) {
+      const pathname = location.pathname.toLowerCase();
+      const slug = pathname.replace(/^\//, ''); // Remove leading slash
+      
+      if (slug === publicSlug?.toLowerCase()) {
+        return 'PublicArticles';
+      }
+      if (slug === urlSlug?.toLowerCase()) {
+        return 'Articles';
+      }
+      if (slug === viewSlug?.toLowerCase()) {
+        return 'ArticleView';
+      }
+      if (slug === mySlug?.toLowerCase()) {
+        return 'MyArticles';
+      }
+      if (slug === editorSlug?.toLowerCase()) {
+        return 'ArticleEditor';
+      }
+    }
+    
+    return currentPageName;
+  };
+
   // Render public layout for truly public pages
   if (isPublicPage()) {
+    const effectivePageName = getEffectivePageName();
     if (bareLayoutPages.includes(currentPageName)) {
       return <BarePublicLayout>{children}</BarePublicLayout>;
     }
-    return <PublicLayout currentPageName={currentPageName}>{children}</PublicLayout>;
+    return <PublicLayout currentPageName={effectivePageName}>{children}</PublicLayout>;
   }
 
   return (

@@ -814,7 +814,7 @@ export default function MemberDirectoryPage() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>{emailCopied ? "Copied!" : "Copy email address"}</p>
+                        <p>{emailCopied ? "Copied!" : "Copy"}</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>

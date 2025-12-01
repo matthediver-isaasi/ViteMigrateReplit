@@ -9826,6 +9826,88 @@ AGCAS Events Team
     }
   });
 
+  // Get personalized join link for a registered attendee
+  app.get('/api/zoom/webinars/:id/my-join-link', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+    
+    try {
+      const { id } = req.params;
+      const email = req.query.email as string;
+      
+      if (!email) {
+        return res.status(400).json({ error: 'Email parameter is required' });
+      }
+      
+      // Get webinar details
+      const { data: webinar, error: webinarError } = await supabase
+        .from('zoom_webinar')
+        .select('zoom_webinar_id, registration_required')
+        .eq('id', id)
+        .single();
+      
+      if (webinarError) {
+        if (webinarError.code === 'PGRST116') {
+          return res.status(404).json({ error: 'Webinar not found' });
+        }
+        return res.status(500).json({ error: webinarError.message });
+      }
+      
+      if (!webinar.registration_required || !webinar.zoom_webinar_id) {
+        return res.json({ join_url: null, message: 'Registration not required for this webinar' });
+      }
+      
+      const accessToken = await getZoomAccessToken();
+      
+      // Fetch registrants from Zoom
+      const zoomResponse = await fetch(
+        `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}/registrants?page_size=300&status=approved`,
+        {
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      if (!zoomResponse.ok) {
+        const errorText = await zoomResponse.text();
+        console.error('[Zoom] Fetch registrants error:', errorText);
+        return res.status(zoomResponse.status).json({ error: 'Failed to fetch registrants from Zoom' });
+      }
+      
+      const data = await zoomResponse.json() as {
+        registrants: Array<{
+          id: string;
+          email: string;
+          join_url: string;
+          status: string;
+        }>;
+      };
+      
+      const registrants = data.registrants || [];
+      
+      // Find the registrant with matching email (case-insensitive)
+      const matchingRegistrant = registrants.find(
+        r => r.email.toLowerCase() === email.toLowerCase()
+      );
+      
+      if (!matchingRegistrant) {
+        return res.json({ join_url: null, message: 'User not registered for this webinar' });
+      }
+      
+      res.json({
+        join_url: matchingRegistrant.join_url,
+        registrant_id: matchingRegistrant.id,
+        status: matchingRegistrant.status
+      });
+    } catch (error: any) {
+      console.error('[Zoom] Fetch join link error:', error);
+      res.status(500).json({ error: error.message || 'Failed to fetch join link' });
+    }
+  });
+
   // ============ Health Check ============
   app.get('/api/health', (req: Request, res: Response) => {
     res.json({ 

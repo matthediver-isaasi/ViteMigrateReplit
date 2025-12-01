@@ -27,6 +27,7 @@ async function apiRequest(url) {
 export default function NextEventCountdown({ memberEmail }) {
   const [timeLeft, setTimeLeft] = useState(null);
   const [eventStatus, setEventStatus] = useState('upcoming');
+  const [personalizedJoinUrl, setPersonalizedJoinUrl] = useState(null);
 
   const { data: myBookings = [] } = useQuery({
     queryKey: ['next-event-bookings', memberEmail],
@@ -86,7 +87,8 @@ export default function NextEventCountdown({ memberEmail }) {
           startDate,
           endDate,
           webinar,
-          joinUrl: webinar?.join_url || event.online_url || null
+          // Use generic join_url as fallback, but personalized link will be fetched separately
+          genericJoinUrl: webinar?.join_url || event.online_url || null
         };
       })
       .filter(event => event.startDate && event.endDate > now)
@@ -94,6 +96,35 @@ export default function NextEventCountdown({ memberEmail }) {
 
     return relevantEvents[0] || null;
   }, [events, webinars]);
+
+  // Fetch personalized join link when we have a webinar and member email
+  useEffect(() => {
+    const fetchPersonalizedLink = async () => {
+      if (!nextEvent?.webinar?.id || !memberEmail) {
+        setPersonalizedJoinUrl(null);
+        return;
+      }
+      
+      try {
+        const response = await apiRequest(
+          `/api/zoom/webinars/${nextEvent.webinar.id}/my-join-link?email=${encodeURIComponent(memberEmail)}`
+        );
+        if (response.join_url) {
+          setPersonalizedJoinUrl(response.join_url);
+        } else {
+          setPersonalizedJoinUrl(null);
+        }
+      } catch (error) {
+        console.error('[NextEventCountdown] Failed to fetch personalized join link:', error);
+        setPersonalizedJoinUrl(null);
+      }
+    };
+    
+    fetchPersonalizedLink();
+  }, [nextEvent?.webinar?.id, memberEmail]);
+
+  // Use personalized link if available, otherwise fall back to generic
+  const effectiveJoinUrl = personalizedJoinUrl || nextEvent?.genericJoinUrl;
 
   const nextEventId = nextEvent?.id;
   const startTime = nextEvent?.startDate?.getTime();
@@ -145,7 +176,7 @@ export default function NextEventCountdown({ memberEmail }) {
 
   const formattedDate = format(nextEvent.startDate, "EEE, d MMM");
   const formattedTime = format(nextEvent.startDate, "HH:mm");
-  const isOnlineEvent = nextEvent.location?.toLowerCase().includes('online') || nextEvent.joinUrl;
+  const isOnlineEvent = nextEvent.location?.toLowerCase().includes('online') || effectiveJoinUrl;
 
   return (
     <div className="px-3 py-2">
@@ -183,9 +214,9 @@ export default function NextEventCountdown({ memberEmail }) {
           <span>{formattedDate} at {formattedTime}</span>
         </div>
 
-        {eventStatus === 'live' && isOnlineEvent && nextEvent.joinUrl ? (
+        {eventStatus === 'live' && isOnlineEvent && effectiveJoinUrl ? (
           <a
-            href={nextEvent.joinUrl}
+            href={effectiveJoinUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="block"

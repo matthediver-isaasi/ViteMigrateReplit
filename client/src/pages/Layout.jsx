@@ -526,7 +526,30 @@ const pageToPortalPageMap = {
 };
 
 // Get the portal page identifier for the current page
-const currentPortalPageId = pageToPortalPageMap[currentPageName] || null;
+// Handle dynamic article routes (e.g., /blogs when display name is "Blogs")
+const getPortalPageId = () => {
+  // First check if there's a direct mapping
+  if (pageToPortalPageMap[currentPageName]) {
+    return pageToPortalPageMap[currentPageName];
+  }
+  
+  // If currentPageName is "_DynamicPage", check if the path matches a custom article route
+  if (currentPageName === '_DynamicPage' && isCustomSlug && urlSlug) {
+    const pathname = location.pathname.toLowerCase();
+    
+    // Check if the path matches the custom article slug patterns
+    if (pathname === `/${urlSlug}`) {
+      return 'portal_articles';
+    }
+    if (pathname === `/my${urlSlug}`) {
+      return 'portal_my_articles';
+    }
+  }
+  
+  return null;
+};
+
+const currentPortalPageId = getPortalPageId();
 
 // Fetch portal banner for the current page
 const { data: portalBanner } = useQuery({

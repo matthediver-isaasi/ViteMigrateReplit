@@ -169,7 +169,7 @@ export default function NewsEditorPage() {
       setLastSaved(new Date());
       
       if (!isEditing) {
-        window.location.href = `${createPageUrl('NewsEditor')}?id=${data.id}`;
+        window.location.href = createPageUrl('News');
       }
     },
     onError: (error) => {

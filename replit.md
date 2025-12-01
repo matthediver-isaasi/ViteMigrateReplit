@@ -31,7 +31,14 @@ Preferred communication style: Simple, everyday language.
 - `PATCH /api/entities/:entity/:id`
 - `DELETE /api/entities/:entity/:id`
 
-**Authentication:** Magic link-based authentication with session management using `express-session`. Endpoints include `/api/auth/me` and `/api/auth/logout`.
+**Authentication:** Password-based authentication with server-side session management using `express-session`. Endpoints include `/api/auth/me` (returns member data with `isAdmin` flag), `/api/auth/login`, `/api/auth/logout`, `/api/auth/change-password`, and `/api/auth/request-password-reset`.
+
+**Admin Security Model:** Admin-only operations use server-validated routes that verify admin status via session:
+- `/api/admin/members/:id` (GET/PATCH) - Fetch/update member profile with field allowlist
+- `/api/admin/organizations/:id` (PATCH) - Update organization with field allowlist  
+- `/api/admin/members/:memberId/communication-preferences/:categoryId` (PATCH) - Update member communication preferences
+- Admin status is verified via `verifyAdminSession()` helper which checks `req.session.memberId` against the database role's `is_admin` flag
+- Frontend uses `useServerAdminAuth` hook to verify admin access via `/api/auth/me` response
 
 **Function Handlers:** Server-side functions via `/api/functions/:functionName` for operations like magic link generation, Stripe payments, bookings, and event synchronization.
 

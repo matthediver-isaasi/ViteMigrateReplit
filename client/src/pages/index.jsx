@@ -202,6 +202,8 @@ import PageVisibilitySettings from "./PageVisibilitySettings";
 
 import CommunicationsManagement from "./CommunicationsManagement";
 
+import AdminMemberEdit from "./AdminMemberEdit";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
 import { ArticleUrlProvider } from '@/contexts/ArticleUrlContext';
@@ -409,6 +411,8 @@ const PAGES = {
     PageVisibilitySettings: PageVisibilitySettings,
     
     CommunicationsManagement: CommunicationsManagement,
+    
+    AdminMemberEdit: AdminMemberEdit,
     
 }
 
@@ -653,6 +657,8 @@ function PagesContent() {
                 <Route path="/PageVisibilitySettings" element={<PageVisibilitySettings />} />
                 
                 <Route path="/CommunicationsManagement" element={<CommunicationsManagement />} />
+                
+                <Route path="/AdminMemberEdit" element={<AdminMemberEdit />} />
                 
                 {/* /auth/verify route removed - using password auth */}
                 

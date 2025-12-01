@@ -766,6 +766,7 @@ CREATE POLICY "Service role has full access to member_communication_preference"
                     
                     return (
                       <>
+                        <p className="text-xs text-slate-500 mb-3">Click on a member to edit their details</p>
                         <Table>
                           <TableHeader>
                             <TableRow>
@@ -777,8 +778,16 @@ CREATE POLICY "Service role has full access to member_communication_preference"
                           </TableHeader>
                           <TableBody>
                             {subscribers.map((member) => (
-                              <TableRow key={member.id} data-testid={`row-subscriber-${member.id}`}>
-                                <TableCell className="font-medium">
+                              <TableRow 
+                                key={member.id} 
+                                data-testid={`row-subscriber-${member.id}`}
+                                className="cursor-pointer hover:bg-blue-50 transition-colors"
+                                onClick={() => {
+                                  setShowSubscribersDialog(false);
+                                  navigate(`/AdminMemberEdit?id=${member.id}`);
+                                }}
+                              >
+                                <TableCell className="font-medium text-blue-600 hover:text-blue-700">
                                   {[member.first_name, member.last_name].filter(Boolean).join(' ') || 'N/A'}
                                 </TableCell>
                                 <TableCell>{member.organization_name || 'N/A'}</TableCell>

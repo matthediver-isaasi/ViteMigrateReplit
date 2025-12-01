@@ -365,8 +365,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(200).json(null);
       }
 
-      // Return member directly - matches Vercel API format
-      res.json(data);
+      // Fetch role to determine admin status
+      let isAdmin = false;
+      if (data.role_id) {
+        const { data: role } = await supabase
+          .from('role')
+          .select('is_admin')
+          .eq('id', data.role_id)
+          .single();
+        isAdmin = role?.is_admin === true;
+      }
+
+      // Return member with isAdmin flag - extends Vercel API format
+      res.json({ ...data, isAdmin });
     } catch (error) {
       console.error('Auth me error:', error);
       res.status(500).json({ error: 'Failed to get user' });
@@ -891,6 +902,277 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Change password error:', error);
       res.status(500).json({ success: false, error: 'Failed to change password' });
+    }
+  });
+
+  // ============ Admin Member Routes ============
+  // These routes verify admin status server-side to prevent privilege escalation
+
+  // Helper function to verify admin status from session
+  const verifyAdminSession = async (req: Request): Promise<{ isAdmin: boolean; memberId: string | null; error?: string }> => {
+    if (!req.session.memberId) {
+      return { isAdmin: false, memberId: null, error: 'Not authenticated' };
+    }
+
+    if (!supabase) {
+      return { isAdmin: false, memberId: null, error: 'Database not configured' };
+    }
+
+    try {
+      // Get the authenticated member's role from server
+      const { data: member, error: memberError } = await supabase
+        .from('member')
+        .select('id, role_id')
+        .eq('id', req.session.memberId)
+        .single();
+
+      if (memberError || !member) {
+        return { isAdmin: false, memberId: null, error: 'Member not found' };
+      }
+
+      if (!member.role_id) {
+        return { isAdmin: false, memberId: member.id };
+      }
+
+      // Get the role's admin status
+      const { data: role, error: roleError } = await supabase
+        .from('role')
+        .select('is_admin')
+        .eq('id', member.role_id)
+        .single();
+
+      if (roleError) {
+        return { isAdmin: false, memberId: member.id };
+      }
+
+      return { isAdmin: role?.is_admin === true, memberId: member.id };
+    } catch (error) {
+      console.error('[Admin Verify] Error:', error);
+      return { isAdmin: false, memberId: null, error: 'Verification failed' };
+    }
+  };
+
+  // Get member by ID (admin only)
+  app.get('/api/admin/members/:id', async (req: Request, res: Response) => {
+    const { isAdmin, error } = await verifyAdminSession(req);
+    
+    if (error) {
+      return res.status(401).json({ error });
+    }
+    
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    try {
+      const memberId = req.params.id;
+      
+      const { data: member, error: memberError } = await supabase
+        .from('member')
+        .select('*')
+        .eq('id', memberId)
+        .single();
+
+      if (memberError || !member) {
+        return res.status(404).json({ error: 'Member not found' });
+      }
+
+      res.json(member);
+    } catch (error) {
+      console.error('[Admin Get Member] Error:', error);
+      res.status(500).json({ error: 'Failed to get member' });
+    }
+  });
+
+  // Update member by ID (admin only)
+  app.patch('/api/admin/members/:id', async (req: Request, res: Response) => {
+    const { isAdmin, error } = await verifyAdminSession(req);
+    
+    if (error) {
+      return res.status(401).json({ error });
+    }
+    
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    try {
+      const memberId = req.params.id;
+      const rawUpdates = req.body;
+
+      // Explicit allowlist of fields that can be updated by admin
+      // This prevents privilege escalation via role_id changes or other sensitive fields
+      const allowedFields = [
+        'first_name', 'last_name', 'job_title', 'biography',
+        'profile_photo_url', 'linkedin_url', 'show_in_directory',
+        'twitter_url', 'phone_number', 'pronouns', 'location_summary'
+      ];
+
+      const updates: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (rawUpdates[field] !== undefined) {
+          updates[field] = rawUpdates[field];
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+
+      const { data: updatedMember, error: updateError } = await supabase
+        .from('member')
+        .update(updates)
+        .eq('id', memberId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('[Admin Update Member] Error:', updateError);
+        return res.status(500).json({ error: updateError.message });
+      }
+
+      res.json(updatedMember);
+    } catch (error) {
+      console.error('[Admin Update Member] Error:', error);
+      res.status(500).json({ error: 'Failed to update member' });
+    }
+  });
+
+  // Update organization by ID (admin only)
+  app.patch('/api/admin/organizations/:id', async (req: Request, res: Response) => {
+    const { isAdmin, error } = await verifyAdminSession(req);
+    
+    if (error) {
+      return res.status(401).json({ error });
+    }
+    
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    try {
+      const orgId = req.params.id;
+      const rawUpdates = req.body;
+
+      // Explicit allowlist of fields that can be updated by admin
+      const allowedFields = [
+        'logo_url', 'name', 'description', 'website_url'
+      ];
+
+      const updates: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (rawUpdates[field] !== undefined) {
+          updates[field] = rawUpdates[field];
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+
+      const { data: updatedOrg, error: updateError } = await supabase
+        .from('organization')
+        .update(updates)
+        .eq('id', orgId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('[Admin Update Org] Error:', updateError);
+        return res.status(500).json({ error: updateError.message });
+      }
+
+      res.json(updatedOrg);
+    } catch (error) {
+      console.error('[Admin Update Org] Error:', error);
+      res.status(500).json({ error: 'Failed to update organization' });
+    }
+  });
+
+  // Update communication preference for a member (admin only)
+  app.patch('/api/admin/members/:memberId/communication-preferences/:categoryId', async (req: Request, res: Response) => {
+    const { isAdmin, error } = await verifyAdminSession(req);
+    
+    if (error) {
+      return res.status(401).json({ error });
+    }
+    
+    if (!isAdmin) {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    try {
+      const { memberId, categoryId } = req.params;
+      const { is_subscribed } = req.body;
+
+      if (typeof is_subscribed !== 'boolean') {
+        return res.status(400).json({ error: 'is_subscribed must be a boolean' });
+      }
+
+      // Check if preference exists
+      const { data: existingPref } = await supabase
+        .from('member_communication_preference')
+        .select('id')
+        .eq('member_id', memberId)
+        .eq('category_id', categoryId)
+        .single();
+
+      if (existingPref) {
+        // Update existing preference
+        const { data, error: updateError } = await supabase
+          .from('member_communication_preference')
+          .update({ 
+            is_subscribed,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingPref.id)
+          .select()
+          .single();
+
+        if (updateError) {
+          console.error('[Admin Update Comm Pref] Error:', updateError);
+          return res.status(500).json({ error: updateError.message });
+        }
+
+        return res.json(data);
+      } else {
+        // Create new preference
+        const { data, error: insertError } = await supabase
+          .from('member_communication_preference')
+          .insert({
+            member_id: memberId,
+            category_id: categoryId,
+            is_subscribed
+          })
+          .select()
+          .single();
+
+        if (insertError) {
+          console.error('[Admin Create Comm Pref] Error:', insertError);
+          return res.status(500).json({ error: insertError.message });
+        }
+
+        return res.json(data);
+      }
+    } catch (error) {
+      console.error('[Admin Comm Pref] Error:', error);
+      res.status(500).json({ error: 'Failed to update communication preference' });
     }
   });
 

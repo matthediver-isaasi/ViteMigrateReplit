@@ -474,7 +474,7 @@ export default function WallOfFameManagementPage() {
 
         {/* Section Dialog */}
         <Dialog open={showSectionDialog} onOpenChange={setShowSectionDialog}>
-          <DialogContent>
+          <DialogContent aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>{editingSection?.id ? 'Edit Section' : 'Create Section'}</DialogTitle>
             </DialogHeader>
@@ -503,7 +503,7 @@ export default function WallOfFameManagementPage() {
 
         {/* Category Dialog */}
         <Dialog open={showCategoryDialog} onOpenChange={setShowCategoryDialog}>
-          <DialogContent>
+          <DialogContent aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>{editingCategory?.id ? 'Edit Category' : 'Create Category'}</DialogTitle>
             </DialogHeader>
@@ -549,7 +549,7 @@ export default function WallOfFameManagementPage() {
             setMemberSearchQuery(''); 
           } 
         }}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" aria-describedby={undefined}>
             <DialogHeader>
               <DialogTitle>{editingPerson?.id ? 'Edit Person' : 'Add Person'}</DialogTitle>
             </DialogHeader>

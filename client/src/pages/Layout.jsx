@@ -1325,9 +1325,27 @@ useEffect(() => {
     );
   }
 
-  // Resolve effective page name for dynamic article routes
-  // When _DynamicPage is rendering a public article page, pass the canonical component name
+  // Resolve effective page name for dynamic article routes and public page variants
+  // When _DynamicPage is rendering a public page, pass the canonical component name
+  // Also handles mapping portal pages to their public equivalents for unauthenticated users
   const getEffectivePageName = () => {
+    const isAuthenticated = !!memberInfo;
+    
+    // Map portal pages to their public equivalents for unauthenticated visitors
+    // This ensures public visitors see PublicResources instead of Resources, etc.
+    const portalToPublicMap = {
+      'Resources': 'PublicResources',
+      'Articles': 'PublicArticles', 
+      'News': 'PublicNews',
+      'Events': 'PublicEvents',
+    };
+    
+    // If user is not authenticated and we're on a page with a public equivalent
+    if (!isAuthenticated && portalToPublicMap[currentPageName]) {
+      console.log('[Layout] getEffectivePageName: Mapping', currentPageName, 'to', portalToPublicMap[currentPageName], 'for unauthenticated user');
+      return portalToPublicMap[currentPageName];
+    }
+    
     if (currentPageName !== '_DynamicPage') {
       return currentPageName;
     }
@@ -1341,7 +1359,7 @@ useEffect(() => {
         return 'PublicArticles';
       }
       if (slug === urlSlug?.toLowerCase()) {
-        return 'Articles';
+        return isAuthenticated ? 'Articles' : 'PublicArticles';
       }
       if (slug === viewSlug?.toLowerCase()) {
         return 'ArticleView';

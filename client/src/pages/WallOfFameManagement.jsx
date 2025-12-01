@@ -30,6 +30,8 @@ export default function WallOfFameManagementPage() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState({});
   const [profilePhotoSize, setProfilePhotoSize] = useState("medium");
+  const [selectedOrganizationForMember, setSelectedOrganizationForMember] = useState("");
+  const [memberSearchQuery, setMemberSearchQuery] = useState("");
 
   const queryClient = useQueryClient();
 
@@ -48,9 +50,34 @@ export default function WallOfFameManagementPage() {
     queryFn: () => base44.entities.WallOfFamePerson.list(),
   });
 
-  const { data: members = [] } = useQuery({
-    queryKey: ['members-for-selection'],
-    queryFn: () => base44.entities.Member.listAll(),
+  // Fetch organizations when person dialog is open
+  const { data: organizations = [], isLoading: organizationsLoading } = useQuery({
+    queryKey: ['organizations-for-member-selection'],
+    queryFn: async () => {
+      const orgs = await base44.entities.Organization.list({ limit: 5000 });
+      return orgs.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    },
+    enabled: showPersonDialog
+  });
+
+  // Fetch members filtered by selected organization
+  const { data: members = [], isLoading: membersLoading } = useQuery({
+    queryKey: ['members-for-selection', selectedOrganizationForMember],
+    queryFn: async () => {
+      if (selectedOrganizationForMember === '__no_org__') {
+        // Fetch members without an organization
+        const allMembers = await base44.entities.Member.list({ limit: 5000 });
+        return allMembers.filter(m => !m.organization_id);
+      } else if (selectedOrganizationForMember) {
+        // Fetch members for the selected organization
+        return await base44.entities.Member.list({ 
+          filter: { organization_id: selectedOrganizationForMember },
+          limit: 1000
+        });
+      }
+      return [];
+    },
+    enabled: showPersonDialog && !!selectedOrganizationForMember
   });
 
   const { data: photoSizeSetting } = useQuery({
@@ -335,7 +362,7 @@ export default function WallOfFameManagementPage() {
 
           <TabsContent value="people">
             <div className="mb-4">
-              <Button onClick={() => { setEditingPerson({ category_id: '', first_name: '', last_name: '', job_title: '', biography: '', profile_photo_url: '', linkedin_url: '', email: '', display_order: 0, is_active: true }); setShowPersonDialog(true); }} className="bg-blue-600 hover:bg-blue-700">
+              <Button onClick={() => { setEditingPerson({ category_id: '', first_name: '', last_name: '', job_title: '', biography: '', profile_photo_url: '', linkedin_url: '', email: '', display_order: 0, is_active: true }); setSelectedOrganizationForMember(''); setMemberSearchQuery(''); setShowPersonDialog(true); }} className="bg-blue-600 hover:bg-blue-700">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Person
               </Button>
@@ -389,7 +416,7 @@ export default function WallOfFameManagementPage() {
                                           {person.member_id && <Badge variant="outline" className="text-xs mt-1">Linked Member</Badge>}
                                         </div>
                                         <div className="flex gap-2">
-                                          <Button variant="ghost" size="sm" onClick={() => { setEditingPerson(person); setShowPersonDialog(true); }}>
+                                          <Button variant="ghost" size="sm" onClick={() => { setEditingPerson(person); setSelectedOrganizationForMember(''); setMemberSearchQuery(''); setShowPersonDialog(true); }}>
                                             <Pencil className="w-3 h-3" />
                                           </Button>
                                           <Button variant="ghost" size="sm" onClick={() => deletePersonMutation.mutate(person.id)} className="text-red-600">
@@ -515,7 +542,13 @@ export default function WallOfFameManagementPage() {
         </Dialog>
 
         {/* Person Dialog */}
-        <Dialog open={showPersonDialog} onOpenChange={setShowPersonDialog}>
+        <Dialog open={showPersonDialog} onOpenChange={(open) => { 
+          setShowPersonDialog(open); 
+          if (!open) { 
+            setSelectedOrganizationForMember(''); 
+            setMemberSearchQuery(''); 
+          } 
+        }}>
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{editingPerson?.id ? 'Edit Person' : 'Add Person'}</DialogTitle>
@@ -534,18 +567,102 @@ export default function WallOfFameManagementPage() {
                   </Select>
                 </div>
 
+                {/* Step 1: Select Organization */}
                 <div className="space-y-2">
-                  <Label>Link to Existing Member (Optional)</Label>
-                  <Select value={editingPerson.member_id || ''} onValueChange={handleMemberSelect}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a member or create ad-hoc entry" />
+                  <Label>Step 1: Select Organisation (to link member)</Label>
+                  <Select 
+                    value={selectedOrganizationForMember} 
+                    onValueChange={(value) => {
+                      setSelectedOrganizationForMember(value);
+                      setMemberSearchQuery("");
+                      setEditingPerson({ ...editingPerson, member_id: null });
+                    }}
+                  >
+                    <SelectTrigger data-testid="select-organization-for-member">
+                      <SelectValue placeholder={organizationsLoading ? "Loading organisations..." : "Select an organisation first..."} />
                     </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={null}>Create ad-hoc entry</SelectItem>
-                      {members.map(m => <SelectItem key={m.id} value={m.id}>{m.first_name} {m.last_name} ({m.email})</SelectItem>)}
+                    <SelectContent className="max-h-[300px]">
+                      <SelectItem value="__skip__">Skip - Create ad-hoc entry</SelectItem>
+                      <SelectItem value="__no_org__">Members without organisation</SelectItem>
+                      {organizations.map(org => (
+                        <SelectItem key={org.id} value={org.id}>
+                          {org.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
+
+                {/* Step 2: Select Member (only shown after organization is selected) */}
+                {selectedOrganizationForMember && selectedOrganizationForMember !== '__skip__' && (
+                  <div className="space-y-2">
+                    <Label>Step 2: Search & Select Member</Label>
+                    <Input
+                      value={memberSearchQuery}
+                      onChange={(e) => setMemberSearchQuery(e.target.value)}
+                      placeholder="Search by name or email..."
+                      data-testid="input-member-search"
+                    />
+                    <div className="border border-slate-200 rounded-lg max-h-[200px] overflow-y-auto">
+                      {membersLoading ? (
+                        <div className="p-4 text-center text-slate-500">
+                          <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+                          Loading members...
+                        </div>
+                      ) : members.length === 0 ? (
+                        <div className="p-4 text-center text-slate-500">
+                          No members found in this organisation
+                        </div>
+                      ) : (
+                        <div className="divide-y divide-slate-200">
+                          {members
+                            .filter(m => {
+                              if (!memberSearchQuery) return true;
+                              const search = memberSearchQuery.toLowerCase();
+                              return (
+                                m.first_name?.toLowerCase().includes(search) ||
+                                m.last_name?.toLowerCase().includes(search) ||
+                                m.email?.toLowerCase().includes(search)
+                              );
+                            })
+                            .map(member => (
+                              <button
+                                key={member.id}
+                                type="button"
+                                onClick={() => handleMemberSelect(member.id)}
+                                className={`w-full p-3 text-left hover:bg-slate-50 transition-colors ${
+                                  editingPerson.member_id === member.id ? 'bg-blue-50 hover:bg-blue-100' : ''
+                                }`}
+                                data-testid={`button-select-member-${member.id}`}
+                              >
+                                <div className="font-medium text-sm">
+                                  {member.first_name} {member.last_name}
+                                </div>
+                                <div className="text-xs text-slate-500">{member.email}</div>
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                    {editingPerson.member_id && (
+                      <div className="flex items-center gap-2 p-2 bg-green-50 rounded border border-green-200">
+                        <User className="w-4 h-4 text-green-600" />
+                        <span className="text-sm text-green-700">
+                          Member linked: {members.find(m => m.id === editingPerson.member_id)?.first_name} {members.find(m => m.id === editingPerson.member_id)?.last_name}
+                        </span>
+                        <Button 
+                          type="button" 
+                          variant="ghost" 
+                          size="sm" 
+                          className="ml-auto h-6 text-xs"
+                          onClick={() => setEditingPerson({ ...editingPerson, member_id: null })}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">

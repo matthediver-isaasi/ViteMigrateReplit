@@ -123,8 +123,10 @@ export default function ArticleCard({
         )}
       </CardHeader>
 
-      <div className="mt-auto flex items-end justify-between">
-        <ActionButtons />
+      <div className="mt-auto flex items-end justify-end">
+        <div className="mr-auto">
+          <ActionButtons />
+        </div>
         <Link 
           to={articleUrl}
           className="inline-flex items-center justify-center w-12 h-12 bg-black hover:bg-gray-800 transition-colors duration-200"

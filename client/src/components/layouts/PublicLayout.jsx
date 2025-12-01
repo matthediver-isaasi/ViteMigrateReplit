@@ -10,6 +10,30 @@ import PageBannerDisplay from "../banners/PageBannerDisplay";
 import FloaterDisplay from "../floaters/FloaterDisplay";
 import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 
+// Map page names to portal page identifiers for banner matching
+// These identifiers must match the PORTAL_PAGES values in PageBannerManagement.jsx
+const pageToPortalPageMap = {
+  'Events': 'portal_events',
+  'Bookings': 'portal_bookings',
+  'MyTickets': 'portal_my_tickets',
+  'BuyProgramTickets': 'portal_buy_tickets',
+  'MemberDirectory': 'portal_member_directory',
+  'OrganisationDirectory': 'portal_org_directory',
+  'Resources': 'portal_resources',
+  'Articles': 'portal_articles',
+  'MyArticles': 'portal_my_articles',
+  'Team': 'portal_team',
+  'Balances': 'portal_balances',
+  'History': 'portal_history',
+  'Profile': 'portal_profile',
+  'JobBoard': 'portal_job_board',
+  'News': 'portal_news',
+  'MyJobPostings': 'portal_my_job_postings',
+  'Preferences': 'portal_preferences',
+  'Support': 'portal_support',
+  'Dashboard': 'portal_dashboard'
+};
+
 export default function PublicLayout({ children, currentPageName }) {
   const { getPublicArticlesUrl, articleDisplayName } = useArticleUrl();
   const [banners, setBanners] = useState([]);
@@ -29,9 +53,17 @@ export default function PublicLayout({ children, currentPageName }) {
           is_active: true
         });
         
-        // Filter banners that include this page
+        // Get the portal page identifier for this page
+        const portalPageId = pageToPortalPageMap[currentPageName];
+        
+        // Filter banners that include this page (check both portal ID and page name for compatibility)
         const pageBanners = allBanners
-          .filter(banner => banner.associated_pages && banner.associated_pages.includes(currentPageName))
+          .filter(banner => {
+            if (!banner.associated_pages) return false;
+            // Check for portal page ID (primary) or direct page name (fallback)
+            return banner.associated_pages.includes(portalPageId) || 
+                   banner.associated_pages.includes(currentPageName);
+          })
           .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
         
         setBanners(pageBanners);

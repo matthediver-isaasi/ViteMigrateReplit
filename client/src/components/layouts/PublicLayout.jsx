@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import PublicHeader from "./PublicHeader";
 import PageBannerDisplay from "../banners/PageBannerDisplay";
+import PortalHeroBanner from "../banners/PortalHeroBanner";
 import FloaterDisplay from "../floaters/FloaterDisplay";
 import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 
@@ -56,16 +57,23 @@ export default function PublicLayout({ children, currentPageName }) {
         // Get the portal page identifier for this page
         const portalPageId = pageToPortalPageMap[currentPageName];
         
+        console.log('[PublicLayout] Fetching banners for page:', currentPageName, 'portalPageId:', portalPageId);
+        console.log('[PublicLayout] All banners found:', allBanners?.length);
+        
         // Filter banners that include this page (check both portal ID and page name for compatibility)
         const pageBanners = allBanners
           .filter(banner => {
             if (!banner.associated_pages) return false;
-            // Check for portal page ID (primary) or direct page name (fallback)
-            return banner.associated_pages.includes(portalPageId) || 
+            const matches = banner.associated_pages.includes(portalPageId) || 
                    banner.associated_pages.includes(currentPageName);
+            if (matches) {
+              console.log('[PublicLayout] Matched banner:', banner.name, banner.associated_pages);
+            }
+            return matches;
           })
           .sort((a, b) => (a.display_order || 0) - (b.display_order || 0));
         
+        console.log('[PublicLayout] Matched banners:', pageBanners.length);
         setBanners(pageBanners);
       } catch (error) {
         console.error('Failed to fetch banners:', error);
@@ -107,10 +115,11 @@ export default function PublicLayout({ children, currentPageName }) {
         <PublicHeader />
 
         {/* Page Banners - Displayed between header and main content */}
+        {/* Use PortalHeroBanner to support both regular banners and hero content */}
         {!loadingBanners && banners.length > 0 && (
           <div className="w-full">
             {banners.map((banner) => (
-              <PageBannerDisplay key={banner.id} banner={banner} />
+              <PortalHeroBanner key={banner.id} banner={banner} />
             ))}
           </div>
         )}

@@ -13,8 +13,10 @@ import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
+import { useLayoutContext } from "@/contexts/LayoutContext";
 
-export default function NewsPage({ hasBanner }) {
+export default function NewsPage() {
+  const { hasBanner } = useLayoutContext();
   const { memberInfo, isFeatureExcluded, isAdmin } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);

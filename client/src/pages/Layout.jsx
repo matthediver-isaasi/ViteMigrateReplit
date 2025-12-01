@@ -1088,28 +1088,7 @@ useEffect(() => {
     window.location.href = createPageUrl('Home');
   };
 
-  // Wait for visibility settings to load before rendering layout
-  // This prevents layout flicker and React errors when settings change layout type
-  if (!visibilitySettingsFetched) {
-    // Show minimal loading state while settings are being fetched
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
-        <div className="animate-pulse text-slate-400">Loading...</div>
-      </div>
-    );
-  }
-
-  // Render public layout for truly public pages
-  if (isPublicPage()) {
-    // Use BarePublicLayout for specific pages (like Home)
-    if (bareLayoutPages.includes(currentPageName)) {
-      return <BarePublicLayout>{children}</BarePublicLayout>;
-    }
-    // Use the new PublicLayout for other public pages
-    return <PublicLayout currentPageName={currentPageName}>{children}</PublicLayout>;
-  }
-
-  // Icon mapping object
+  // Icon mapping object - must be defined before useMemo hooks that depend on it
   const iconMap = {
     Menu, Calendar, CreditCard, Ticket, Wallet, ShoppingCart, History, Sparkles, FileText, 
     Briefcase, Settings, BookOpen, Building, HelpCircle, Users, Shield, BarChart3, FileEdit, 
@@ -1117,6 +1096,7 @@ useEffect(() => {
   };
 
   // Build navigation structure from dynamic items
+  // Defined as a stable function for use in useMemo
   const buildNavigationFromDB = (section) => {
     const items = dynamicNavItems.filter(item => item.is_active && item.section === section);
     const topLevelItems = items.filter(item => !item.parent_id);
@@ -1335,7 +1315,23 @@ useEffect(() => {
     return child;
   });
 
+  // EARLY RETURNS - must come AFTER all hooks to avoid React error #310
+  // Wait for visibility settings to load before rendering layout
+  if (!visibilitySettingsFetched) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-pulse text-slate-400">Loading...</div>
+      </div>
+    );
+  }
 
+  // Render public layout for truly public pages
+  if (isPublicPage()) {
+    if (bareLayoutPages.includes(currentPageName)) {
+      return <BarePublicLayout>{children}</BarePublicLayout>;
+    }
+    return <PublicLayout currentPageName={currentPageName}>{children}</PublicLayout>;
+  }
 
   return (
     <div style={{ fontFamily: 'Poppins, sans-serif' }}>

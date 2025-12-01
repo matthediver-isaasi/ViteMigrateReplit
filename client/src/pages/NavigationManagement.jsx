@@ -265,10 +265,13 @@ export default function NavigationManagementPage() {
     }
 
     if (editingItem.id) {
-      const { id, created_date, updated_date, created_by, ...dataToUpdate } = editingItem;
+      // Remove fields that shouldn't be sent to the API
+      const { id, created_date, updated_date, created_by, children, ...dataToUpdate } = editingItem;
       updateMutation.mutate({ id, data: dataToUpdate });
     } else {
-      createMutation.mutate(editingItem);
+      // Also strip children from new items just in case
+      const { children, ...dataToCreate } = editingItem;
+      createMutation.mutate(dataToCreate);
     }
   };
 

@@ -45,6 +45,8 @@ Preferred communication style: Simple, everyday language.
 
 **Configuration:** NavigationItem, PortalMenu, PageBanner, TourGroup/TourStep, SystemSettings.
 
+**Communications:** CommunicationCategory (marketing segment categories), CommunicationCategoryRole (role-based category assignments), MemberCommunicationPreference (member opt-in/opt-out preferences).
+
 ## Deployment Architecture
 
 **Development (Replit):** Express.js with Vite middleware, full API functionality, hot module replacement.

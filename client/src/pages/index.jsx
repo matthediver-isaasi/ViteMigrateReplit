@@ -200,6 +200,8 @@ import EditEvent from "./EditEvent";
 
 import PageVisibilitySettings from "./PageVisibilitySettings";
 
+import CommunicationsManagement from "./CommunicationsManagement";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
 import { ArticleUrlProvider } from '@/contexts/ArticleUrlContext';
@@ -405,6 +407,8 @@ const PAGES = {
     EditEvent: EditEvent,
     
     PageVisibilitySettings: PageVisibilitySettings,
+    
+    CommunicationsManagement: CommunicationsManagement,
     
 }
 
@@ -647,6 +651,8 @@ function PagesContent() {
                 <Route path="/EditEvent" element={<EditEvent />} />
                 
                 <Route path="/PageVisibilitySettings" element={<PageVisibilitySettings />} />
+                
+                <Route path="/CommunicationsManagement" element={<CommunicationsManagement />} />
                 
                 {/* /auth/verify route removed - using password auth */}
                 

@@ -10,11 +10,12 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Shield, Plus, Pencil, Trash2, AlertCircle } from "lucide-react";
+import { Shield, Plus, Pencil, Trash2, AlertCircle, Mail } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { PAGE_NAMES } from "./pageRegistry.js";
+import { useNavigate } from "react-router-dom";
 
 // List of all available feature IDs in the system
 // Note: Feature IDs now include section prefixes (page_user_* or page_admin_*) to match PortalMenu structure
@@ -125,6 +126,7 @@ export default function RoleManagementPage() {
   const [roleToDelete, setRoleToDelete] = useState(null);
   const [accessChecked, setAccessChecked] = useState(false);
 
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   // Redirect non-super-admins (check both isAdmin and feature exclusion)
@@ -441,10 +443,20 @@ export default function RoleManagementPage() {
               Define roles and control what features members can access
             </p>
           </div>
-          <Button onClick={handleCreateNew} className="bg-blue-600 hover:bg-blue-700">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Role
-          </Button>
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate(createPageUrl('CommunicationsManagement'))}
+              data-testid="button-manage-communications"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              Communications
+            </Button>
+            <Button onClick={handleCreateNew} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="w-4 h-4 mr-2" />
+              Create Role
+            </Button>
+          </div>
         </div>
 
         {isLoading ? (

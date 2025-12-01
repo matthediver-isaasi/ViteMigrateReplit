@@ -32,6 +32,7 @@ import {
   Shield,
   Check,
   AlertCircle,
+  Mail,
 } from "lucide-react";
 import { format } from "date-fns";
 import ResourceFilter from "../components/resources/ResourceFilter";
@@ -97,6 +98,9 @@ export default function PreferencesPage() {
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [passwordError, setPasswordError] = useState("");
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Communication preferences state
+  const [updatingCommPrefs, setUpdatingCommPrefs] = useState(new Set());
 
   const queryClient = useQueryClient();
 
@@ -318,11 +322,68 @@ export default function PreferencesPage() {
     },
   });
 
+  // --- Communication categories with role assignments ---
+  const { data: communicationCategories = [], isLoading: communicationCategoriesLoading } = useQuery({
+    queryKey: ["communicationCategories"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("communication_category")
+        .select(`
+          *,
+          communication_category_role(role_id)
+        `)
+        .eq("is_active", true)
+        .order("display_order", { ascending: true });
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // --- Member's communication preferences ---
+  const { data: communicationPreferences = [] } = useQuery({
+    queryKey: ["communicationPreferences", memberRecord?.id],
+    enabled: !!memberRecord?.id,
+    queryFn: async () => {
+      if (!memberRecord?.id) return [];
+      const { data, error } = await supabase
+        .from("member_communication_preference")
+        .select("*")
+        .eq("member_id", memberRecord.id);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
+  // --- Get member's role IDs ---
+  const memberRoleIds = useMemo(() => {
+    if (!memberRecord?.role_id) return [];
+    // role_id can be a single ID or an array
+    if (Array.isArray(memberRecord.role_id)) {
+      return memberRecord.role_id;
+    }
+    return [memberRecord.role_id];
+  }, [memberRecord?.role_id]);
+
+  // --- Filter categories available to this member based on their role(s) ---
+  const availableCategories = useMemo(() => {
+    if (!communicationCategories.length) return [];
+    
+    return communicationCategories.filter(category => {
+      // If no roles assigned to category, it's available to everyone
+      if (!category.communication_category_role?.length) return true;
+      
+      // Check if member has any of the required roles
+      const categoryRoleIds = category.communication_category_role.map(r => r.role_id);
+      return memberRoleIds.some(roleId => categoryRoleIds.includes(roleId));
+    });
+  }, [communicationCategories, memberRoleIds]);
+
   // --- Section order and visibility for Preferences page layout ---
   const DEFAULT_SECTION_CONFIG = [
     { id: 'organization_logo', visible: true },
     { id: 'profile_information', visible: true },
     { id: 'password_security', visible: true },
+    { id: 'communications', visible: true },
     { id: 'engagement', visible: true },
     { id: 'resource_interests', visible: true }
   ];
@@ -604,6 +665,54 @@ export default function PreferencesPage() {
     setExpandedCategories({});
     setSearchQuery("");
     setHasUnsavedChanges(true);
+  };
+
+  // Handle communication preference toggle
+  const handleCommunicationToggle = async (categoryId, isSubscribed) => {
+    if (!memberRecord?.id) return;
+    
+    setUpdatingCommPrefs(prev => new Set(prev).add(categoryId));
+    
+    try {
+      const existingPref = communicationPreferences.find(p => p.category_id === categoryId);
+      
+      if (existingPref) {
+        // Update existing preference
+        const { error } = await supabase
+          .from("member_communication_preference")
+          .update({ 
+            is_subscribed: isSubscribed,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", existingPref.id);
+        
+        if (error) throw error;
+      } else {
+        // Create new preference
+        const { error } = await supabase
+          .from("member_communication_preference")
+          .insert({
+            member_id: memberRecord.id,
+            category_id: categoryId,
+            is_subscribed: isSubscribed
+          });
+        
+        if (error) throw error;
+      }
+      
+      // Invalidate query to refresh data
+      queryClient.invalidateQueries({ queryKey: ["communicationPreferences", memberRecord.id] });
+      toast.success(isSubscribed ? "Subscribed to updates" : "Unsubscribed from updates");
+    } catch (error) {
+      console.error("Failed to update communication preference:", error);
+      toast.error("Failed to update preference");
+    } finally {
+      setUpdatingCommPrefs(prev => {
+        const next = new Set(prev);
+        next.delete(categoryId);
+        return next;
+      });
+    }
   };
 
   // Password validation helpers
@@ -1586,221 +1695,56 @@ export default function PreferencesPage() {
         </Card>
         );
 
-      case 'password_security':
+      case 'communications':
         return (
-          <Card key="password_security" className="border-slate-200 shadow-sm">
+          <Card key="communications" className="border-slate-200 shadow-sm">
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <Shield className="w-5 h-5 text-blue-600" />
-                Password & Security
+                <Mail className="w-5 h-5 text-blue-600" />
+                Communication Preferences
               </CardTitle>
               <CardDescription>
-                Change your password to keep your account secure
+                Choose which types of communications you'd like to receive
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
-              {passwordSuccess ? (
-                <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <Check className="w-5 h-5 text-green-600" />
-                  <span className="text-green-800">Password changed successfully!</span>
+            <CardContent className="space-y-4">
+              {communicationCategoriesLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                </div>
+              ) : availableCategories.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <Mail className="w-12 h-12 mx-auto mb-3 text-slate-300" />
+                  <p>No communication categories available for your role.</p>
                 </div>
               ) : (
-                <>
-                  {passwordError && (
-                    <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg">
-                      <AlertCircle className="w-5 h-5 text-red-600" />
-                      <span className="text-red-800">{passwordError}</span>
-                    </div>
-                  )}
-                  
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="currentPassword">Current Password</Label>
-                      <div className="relative">
-                        <Input
-                          id="currentPassword"
-                          type={showCurrentPassword ? "text" : "password"}
-                          value={currentPassword}
-                          onChange={(e) => {
-                            setCurrentPassword(e.target.value);
-                            setPasswordError("");
-                            setPasswordSuccess(false);
-                          }}
-                          placeholder="Enter your current password"
-                          className="pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowCurrentPassword(!showCurrentPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                        >
-                          {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="newPassword">New Password</Label>
-                      <div className="relative">
-                        <Input
-                          id="newPassword"
-                          type={showNewPassword ? "text" : "password"}
-                          value={newPassword}
-                          onChange={(e) => {
-                            setNewPassword(e.target.value);
-                            setPasswordError("");
-                            setPasswordSuccess(false);
-                          }}
-                          placeholder="Enter your new password"
-                          className="pr-10"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setShowNewPassword(!showNewPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-                        >
-                          {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </button>
-                      </div>
-                      
-                      {/* Password Strength Indicator */}
-                      {newPassword && (
-                        <div className="space-y-2">
-                          <div className="flex gap-1">
-                            {[1, 2, 3, 4, 5].map((level) => {
-                              const strength = (() => {
-                                let score = 0;
-                                if (newPassword.length >= 8) score++;
-                                if (/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword)) score++;
-                                if (/[0-9]/.test(newPassword)) score++;
-                                if (/[^a-zA-Z0-9]/.test(newPassword)) score++;
-                                if (newPassword.length >= 12) score++;
-                                return score;
-                              })();
-                              return (
-                                <div
-                                  key={level}
-                                  className={`h-1 flex-1 rounded-full ${
-                                    level <= strength
-                                      ? strength <= 2
-                                        ? 'bg-red-500'
-                                        : strength <= 3
-                                        ? 'bg-yellow-500'
-                                        : 'bg-green-500'
-                                      : 'bg-slate-200'
-                                  }`}
-                                />
-                              );
-                            })}
-                          </div>
-                          <div className="text-xs text-slate-500 space-y-1">
-                            <div className={`flex items-center gap-1 ${newPassword.length >= 8 ? 'text-green-600' : ''}`}>
-                              {newPassword.length >= 8 ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
-                              At least 8 characters
-                            </div>
-                            <div className={`flex items-center gap-1 ${/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? 'text-green-600' : ''}`}>
-                              {/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
-                              Upper and lowercase letters
-                            </div>
-                            <div className={`flex items-center gap-1 ${/[0-9]/.test(newPassword) ? 'text-green-600' : ''}`}>
-                              {/[0-9]/.test(newPassword) ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
-                              At least one number
-                            </div>
-                            <div className={`flex items-center gap-1 ${/[^a-zA-Z0-9]/.test(newPassword) ? 'text-green-600' : ''}`}>
-                              {/[^a-zA-Z0-9]/.test(newPassword) ? <Check className="w-3 h-3" /> : <span className="w-3 h-3" />}
-                              At least one special character
-                            </div>
-                          </div>
+                <div className="space-y-4">
+                  {availableCategories.map((category) => {
+                    const pref = communicationPreferences.find(p => p.category_id === category.id);
+                    const isSubscribed = pref ? pref.is_subscribed : true;
+                    
+                    return (
+                      <div 
+                        key={category.id} 
+                        className="flex items-center justify-between p-4 bg-slate-50 rounded-lg border border-slate-200"
+                        data-testid={`comm-category-${category.id}`}
+                      >
+                        <div className="space-y-1">
+                          <h4 className="font-medium text-slate-900">{category.name}</h4>
+                          {category.description && (
+                            <p className="text-sm text-slate-500">{category.description}</p>
+                          )}
                         </div>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword">Confirm New Password</Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        value={confirmPassword}
-                        onChange={(e) => {
-                          setConfirmPassword(e.target.value);
-                          setPasswordError("");
-                          setPasswordSuccess(false);
-                        }}
-                        placeholder="Confirm your new password"
-                      />
-                      {confirmPassword && newPassword !== confirmPassword && (
-                        <p className="text-xs text-red-500">Passwords do not match</p>
-                      )}
-                      {confirmPassword && newPassword === confirmPassword && (
-                        <p className="text-xs text-green-600 flex items-center gap-1">
-                          <Check className="w-3 h-3" /> Passwords match
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <Button
-                    onClick={async () => {
-                      if (!currentPassword || !newPassword || !confirmPassword) {
-                        setPasswordError("Please fill in all fields");
-                        return;
-                      }
-                      if (newPassword !== confirmPassword) {
-                        setPasswordError("New passwords do not match");
-                        return;
-                      }
-                      if (newPassword.length < 8) {
-                        setPasswordError("Password must be at least 8 characters");
-                        return;
-                      }
-                      
-                      setIsChangingPassword(true);
-                      setPasswordError("");
-                      
-                      try {
-                        const response = await fetch('/api/auth/change-password', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          credentials: 'include',
-                          body: JSON.stringify({
-                            currentPassword,
-                            newPassword
-                          })
-                        });
-                        
-                        const data = await response.json();
-                        
-                        if (!response.ok) {
-                          setPasswordError(data.error || 'Failed to change password');
-                        } else {
-                          setPasswordSuccess(true);
-                          setCurrentPassword("");
-                          setNewPassword("");
-                          setConfirmPassword("");
-                          toast.success("Password changed successfully!");
-                        }
-                      } catch (error) {
-                        setPasswordError("An error occurred. Please try again.");
-                      } finally {
-                        setIsChangingPassword(false);
-                      }
-                    }}
-                    disabled={isChangingPassword || !currentPassword || !newPassword || !confirmPassword || newPassword !== confirmPassword}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {isChangingPassword ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Changing Password...
-                      </>
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4 mr-2" />
-                        Change Password
-                      </>
-                    )}
-                  </Button>
-                </>
+                        <Switch
+                          checked={isSubscribed}
+                          onCheckedChange={(checked) => handleCommunicationToggle(category.id, checked)}
+                          disabled={updatingCommPrefs.has(category.id)}
+                          data-testid={`switch-comm-${category.id}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
               )}
             </CardContent>
           </Card>

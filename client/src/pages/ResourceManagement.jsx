@@ -46,6 +46,11 @@ export default function ResourceManagementPage() {
   // File selector folder navigation states
   const [fileSelectorFolder, setFileSelectorFolder] = useState(null);
   const [fileSelectorExpandedFolders, setFileSelectorExpandedFolders] = useState({});
+  
+  // File selector pagination and search states
+  const [fileSelectorPage, setFileSelectorPage] = useState(1);
+  const [fileSelectorItemsPerPage] = useState(12);
+  const [fileSelectorSearch, setFileSelectorSearch] = useState("");
 
   // Drag and drop states
   const [draggedResources, setDraggedResources] = useState([]);
@@ -310,20 +315,66 @@ export default function ResourceManagementPage() {
     });
   }, [resources, selectedFolder, filterCategory, searchQuery, categories]);
 
-  // Filter files in file selector by selected folder
+  // Filter files in file selector by selected folder and search
   const filteredRepositoryFiles = useMemo(() => {
     return repositoryFiles.filter(file => {
       const matchesFolder = fileSelectorFolder === null
         ? !file.folder_id
         : file.folder_id === fileSelectorFolder;
       
+      // Filter by search query
+      const matchesSearch = !fileSelectorSearch || 
+        file.file_name?.toLowerCase().includes(fileSelectorSearch.toLowerCase()) ||
+        file.description?.toLowerCase().includes(fileSelectorSearch.toLowerCase());
+      
       // Filter by type if needed
       if (showFileSelector === 'image') {
-        return matchesFolder && file.file_type === 'image';
+        return matchesFolder && matchesSearch && file.file_type === 'image';
       }
-      return matchesFolder;
+      return matchesFolder && matchesSearch;
     });
-  }, [repositoryFiles, fileSelectorFolder, showFileSelector]);
+  }, [repositoryFiles, fileSelectorFolder, showFileSelector, fileSelectorSearch]);
+
+  // Reset file selector page when folder or search changes
+  useEffect(() => {
+    setFileSelectorPage(1);
+  }, [fileSelectorFolder, fileSelectorSearch, showFileSelector]);
+
+  // File selector pagination calculations
+  const fileSelectorTotalPages = Math.ceil(filteredRepositoryFiles.length / fileSelectorItemsPerPage);
+  const fileSelectorStartIndex = (fileSelectorPage - 1) * fileSelectorItemsPerPage;
+  const fileSelectorEndIndex = fileSelectorStartIndex + fileSelectorItemsPerPage;
+  const paginatedRepositoryFiles = filteredRepositoryFiles.slice(fileSelectorStartIndex, fileSelectorEndIndex);
+
+  // Generate page numbers for file selector pagination
+  const getFileSelectorPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    
+    if (fileSelectorTotalPages <= maxVisible) {
+      for (let i = 1; i <= fileSelectorTotalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (fileSelectorPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        if (fileSelectorTotalPages > 5) pages.push('...');
+        pages.push(fileSelectorTotalPages);
+      } else if (fileSelectorPage >= fileSelectorTotalPages - 2) {
+        pages.push(1);
+        if (fileSelectorTotalPages > 5) pages.push('...');
+        for (let i = fileSelectorTotalPages - 3; i <= fileSelectorTotalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = fileSelectorPage - 1; i <= fileSelectorPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(fileSelectorTotalPages);
+      }
+    }
+    
+    return pages;
+  };
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -2274,12 +2325,34 @@ export default function ResourceManagementPage() {
           setShowFileSelector(null);
           setFileSelectorFolder(null);
           setFileSelectorExpandedFolders({});
+          setFileSelectorSearch("");
+          setFileSelectorPage(1);
         }}>
           <DialogContent className="max-w-6xl max-h-[90vh] grid grid-rows-[auto_1fr_auto] gap-4">
             <DialogHeader>
               <DialogTitle>
                 Select {showFileSelector === 'image' ? 'Image' : 'File'} from Repository
               </DialogTitle>
+              <div className="pt-2">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder="Search files by name or description..."
+                    value={fileSelectorSearch}
+                    onChange={(e) => setFileSelectorSearch(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-file-selector-search"
+                  />
+                  {fileSelectorSearch && (
+                    <button
+                      onClick={() => setFileSelectorSearch("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              </div>
             </DialogHeader>
 
             <div className="grid md:grid-cols-4 gap-4 py-4">
@@ -2332,46 +2405,110 @@ export default function ResourceManagementPage() {
               </div>
 
               {/* Files Grid */}
-              <div className="md:col-span-3 overflow-y-auto">
-                {filteredRepositoryFiles.length === 0 ? (
-                  <div className="text-center py-12">
-                    <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-                    <p className="text-slate-600">No files in this folder</p>
-                    <p className="text-sm text-slate-500 mt-2">
-                      {fileSelectorFolder 
-                        ? "Try selecting a different folder"
-                        : "Upload files in the File Repository page"}
-                    </p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                    {filteredRepositoryFiles.map((file) => (
-                      <button
-                        key={file.id}
-                        onClick={() => handleSelectFile(file.file_url, showFileSelector, file.file_name)}
-                        className="text-left border-2 border-slate-200 rounded-lg hover:border-blue-500 transition-colors p-2"
-                      >
-                        {file.file_type === 'image' ? (
-                          <img
-                            src={file.file_url}
-                            alt={file.file_name}
-                            className="w-full h-32 object-cover rounded mb-2"
-                          />
-                        ) : (
-                          <div className="w-full h-32 bg-slate-100 rounded flex items-center justify-center mb-2">
-                            <FileText className="w-12 h-12 text-slate-400" />
-                          </div>
-                        )}
-                        <p className="text-sm font-medium text-slate-900 truncate">
-                          {file.file_name}
-                        </p>
-                        {file.description && (
-                          <p className="text-xs text-slate-500 truncate mt-1">
-                            {file.description}
+              <div className="md:col-span-3 flex flex-col">
+                {/* File count and info */}
+                <div className="flex items-center justify-between mb-3 text-sm text-slate-600">
+                  <span>
+                    {filteredRepositoryFiles.length} file{filteredRepositoryFiles.length !== 1 ? 's' : ''} 
+                    {fileSelectorSearch && ` matching "${fileSelectorSearch}"`}
+                  </span>
+                  {fileSelectorTotalPages > 1 && (
+                    <span>
+                      Page {fileSelectorPage} of {fileSelectorTotalPages}
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex-1 overflow-y-auto">
+                  {filteredRepositoryFiles.length === 0 ? (
+                    <div className="text-center py-12">
+                      <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                      <p className="text-slate-600">
+                        {fileSelectorSearch 
+                          ? "No files match your search"
+                          : "No files in this folder"}
+                      </p>
+                      <p className="text-sm text-slate-500 mt-2">
+                        {fileSelectorSearch 
+                          ? "Try a different search term or browse folders"
+                          : fileSelectorFolder 
+                            ? "Try selecting a different folder"
+                            : "Upload files in the File Repository page"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {paginatedRepositoryFiles.map((file) => (
+                        <button
+                          key={file.id}
+                          onClick={() => handleSelectFile(file.file_url, showFileSelector, file.file_name)}
+                          className="text-left border-2 border-slate-200 rounded-lg hover:border-blue-500 transition-colors p-2"
+                          data-testid={`file-select-${file.id}`}
+                        >
+                          {file.file_type === 'image' ? (
+                            <img
+                              src={file.file_url}
+                              alt={file.file_name}
+                              className="w-full h-32 object-cover rounded mb-2"
+                            />
+                          ) : (
+                            <div className="w-full h-32 bg-slate-100 rounded flex items-center justify-center mb-2">
+                              <FileText className="w-12 h-12 text-slate-400" />
+                            </div>
+                          )}
+                          <p className="text-sm font-medium text-slate-900 truncate">
+                            {file.file_name}
                           </p>
-                        )}
-                      </button>
+                          {file.description && (
+                            <p className="text-xs text-slate-500 truncate mt-1">
+                              {file.description}
+                            </p>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Pagination Controls */}
+                {fileSelectorTotalPages > 1 && (
+                  <div className="flex items-center justify-center gap-2 mt-4 pt-4 border-t border-slate-200">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFileSelectorPage(p => Math.max(1, p - 1))}
+                      disabled={fileSelectorPage === 1}
+                      data-testid="button-file-selector-prev"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    
+                    {getFileSelectorPageNumbers().map((page, idx) => (
+                      page === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-slate-400">...</span>
+                      ) : (
+                        <Button
+                          key={page}
+                          variant={fileSelectorPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setFileSelectorPage(page)}
+                          className={fileSelectorPage === page ? "bg-blue-600 hover:bg-blue-700" : ""}
+                          data-testid={`button-file-selector-page-${page}`}
+                        >
+                          {page}
+                        </Button>
+                      )
                     ))}
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setFileSelectorPage(p => Math.min(fileSelectorTotalPages, p + 1))}
+                      disabled={fileSelectorPage === fileSelectorTotalPages}
+                      data-testid="button-file-selector-next"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
                   </div>
                 )}
               </div>
@@ -2382,6 +2519,8 @@ export default function ResourceManagementPage() {
                 setShowFileSelector(null);
                 setFileSelectorFolder(null);
                 setFileSelectorExpandedFolders({});
+                setFileSelectorSearch("");
+                setFileSelectorPage(1);
               }}>
                 Cancel
               </Button>

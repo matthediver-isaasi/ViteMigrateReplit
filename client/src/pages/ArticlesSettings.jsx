@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Settings, Loader2, ThumbsUp, ThumbsDown, MessageSquare } from "lucide-react";
+import { Settings, Loader2, ThumbsUp, ThumbsDown, MessageSquare, User } from "lucide-react";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
@@ -17,6 +17,7 @@ export default function ArticlesSettingsPage() {
   const [displayName, setDisplayName] = useState("");
   const [showThumbsUp, setShowThumbsUp] = useState(true);
   const [showThumbsDown, setShowThumbsDown] = useState(true);
+  const [showAuthorBio, setShowAuthorBio] = useState(true);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -39,16 +40,18 @@ export default function ArticlesSettingsPage() {
     staleTime: 0
   });
 
-  // Fetch reaction settings
+  // Fetch reaction and author settings
   const { data: reactionSettings, isLoading: reactionsLoading } = useQuery({
     queryKey: ['article-reaction-settings'],
     queryFn: async () => {
       const allSettings = await base44.entities.SystemSettings.list();
       const thumbsUpSetting = allSettings.find(s => s.setting_key === 'article_show_thumbs_up');
       const thumbsDownSetting = allSettings.find(s => s.setting_key === 'article_show_thumbs_down');
+      const authorBioSetting = allSettings.find(s => s.setting_key === 'article_show_author_bio');
       return {
         thumbsUp: thumbsUpSetting,
-        thumbsDown: thumbsDownSetting
+        thumbsDown: thumbsDownSetting,
+        authorBio: authorBioSetting
       };
     },
     staleTime: 0
@@ -62,11 +65,12 @@ export default function ArticlesSettingsPage() {
     }
   }, [settings]);
 
-  // Initialize reaction toggles from settings
+  // Initialize reaction and author bio toggles from settings
   React.useEffect(() => {
     if (reactionSettings) {
       setShowThumbsUp(reactionSettings.thumbsUp?.setting_value !== 'false');
       setShowThumbsDown(reactionSettings.thumbsDown?.setting_value !== 'false');
+      setShowAuthorBio(reactionSettings.authorBio?.setting_value !== 'false');
     }
   }, [reactionSettings]);
 
@@ -145,6 +149,15 @@ export default function ArticlesSettingsPage() {
       key: 'article_show_thumbs_down',
       value: checked,
       existingSetting: reactionSettings?.thumbsDown
+    });
+  };
+
+  const handleAuthorBioToggle = (checked) => {
+    setShowAuthorBio(checked);
+    updateReactionSettingMutation.mutate({
+      key: 'article_show_author_bio',
+      value: checked,
+      existingSetting: reactionSettings?.authorBio
     });
   };
 
@@ -275,6 +288,43 @@ export default function ArticlesSettingsPage() {
                       onCheckedChange={handleThumbsDownToggle}
                       disabled={updateReactionSettingMutation.isPending}
                       data-testid="switch-thumbs-down"
+                    />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="w-5 h-5" />
+                  Author Section
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-900">
+                    Control what information is displayed in the author section when viewing an article.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div 
+                    className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => handleAuthorBioToggle(!showAuthorBio)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <User className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <Label className="font-medium text-slate-900 cursor-pointer">Show Author Biography</Label>
+                        <p className="text-sm text-slate-500">Display the author's professional biography in the author section</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={showAuthorBio}
+                      onCheckedChange={handleAuthorBioToggle}
+                      disabled={updateReactionSettingMutation.isPending}
+                      data-testid="switch-author-bio"
                     />
                   </div>
                 </div>

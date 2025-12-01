@@ -41,7 +41,7 @@ export default function ResourcesPage() {
     queryKey: ['resources'],
     queryFn: async () => {
       console.log('[Resources] Fetching at:', new Date().toISOString());
-      const allResources = await base44.entities.Resource.list('-published_date');
+      const allResources = await base44.entities.Resource.list('-release_date');
       
       console.log('[Resources Debug] Raw resources from DB:', allResources.length, allResources[0]);
       

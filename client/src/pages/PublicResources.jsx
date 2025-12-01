@@ -36,7 +36,7 @@ export default function PublicResourcesPage() {
     queryKey: ['public-resources'],
     queryFn: async () => {
       console.log('[PublicResources] Fetching at:', new Date().toISOString());
-      const allResources = await base44.entities.Resource.list('-published_date');
+      const allResources = await base44.entities.Resource.list('-release_date');
       // Return all active resources (both public and non-public), but filter out drafts
       return allResources.filter(r => r.status !== 'draft');
     },

@@ -68,6 +68,9 @@ const entityToTable = {
   'MemberGroupGuest': 'member_group_guest',
   'MemberCredentials': 'member_credentials',
   'PageVisibility': 'page_visibility',
+  'CommunicationCategory': 'communication_category',
+  'CommunicationCategoryRole': 'communication_category_role',
+  'MemberCommunicationPreference': 'member_communication_preference',
 };
 
 const getTableName = (entity) => entityToTable[entity] || entity.toLowerCase().replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');

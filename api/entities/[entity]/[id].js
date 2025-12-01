@@ -68,6 +68,9 @@ const entityToTable = {
   'MemberGroupGuest': 'member_group_guest',
   'MemberCredentials': 'member_credentials',
   'PageVisibility': 'page_visibility',
+  'CommunicationCategory': 'communication_category',
+  'CommunicationCategoryRole': 'communication_category_role',
+  'MemberCommunicationPreference': 'member_communication_preference',
 };
 
 const getTableName = (entity) => entityToTable[entity] || entity.toLowerCase().replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');
@@ -162,6 +165,24 @@ export default async function handler(req, res) {
         if (viewsError) console.error('Error deleting blog views:', viewsError);
 
         console.log(`[BlogPost Delete] Deleted related records for blog post ${id}`);
+      }
+
+      if (entity === 'CommunicationCategory') {
+        // Delete associated role assignments
+        const { error: rolesError } = await supabase
+          .from('communication_category_role')
+          .delete()
+          .eq('category_id', id);
+        if (rolesError) console.error('Error deleting category role assignments:', rolesError);
+
+        // Delete associated member preferences
+        const { error: prefsError } = await supabase
+          .from('member_communication_preference')
+          .delete()
+          .eq('category_id', id);
+        if (prefsError) console.error('Error deleting member preferences:', prefsError);
+
+        console.log(`[CommunicationCategory Delete] Deleted related records for category ${id}`);
       }
 
       const { error } = await supabase

@@ -232,6 +232,8 @@ class EntitiesProxy {
   get CommunicationCategory() { return this._getEntity('CommunicationCategory'); }
   get CommunicationCategoryRole() { return this._getEntity('CommunicationCategoryRole'); }
   get MemberCommunicationPreference() { return this._getEntity('MemberCommunicationPreference'); }
+  get PreferenceField() { return this._getEntity('PreferenceField'); }
+  get MemberPreferenceValue() { return this._getEntity('MemberPreferenceValue'); }
 }
 
 class CoreIntegration {

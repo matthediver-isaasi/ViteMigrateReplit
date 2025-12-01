@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { createClient } from "@supabase/supabase-js";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import pgSession from "connect-pg-simple";
 import multer from "multer";
 import bcrypt from "bcryptjs";
 
@@ -86,8 +86,12 @@ declare module 'express-session' {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Session middleware
-  const SessionStore = MemoryStore(session);
+  // Session middleware with PostgreSQL store for persistence across serverless instances
+  const PgStore = pgSession(session);
+  
+  // Build connection string from Supabase credentials
+  const databaseUrl = process.env.DATABASE_URL;
+  
   app.use(session({
     secret: process.env.SESSION_SECRET || 'iconnect-session-secret-change-in-production',
     resave: false,
@@ -98,8 +102,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       sameSite: 'lax', // Allows cookies to work across tabs
       maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days for better persistence
     },
-    store: new SessionStore({
-      checkPeriod: 86400000 // prune expired entries every 24h
+    store: new PgStore({
+      conString: databaseUrl,
+      tableName: 'session', // Use existing session table
+      createTableIfMissing: false, // We created it manually
+      pruneSessionInterval: 60 * 15 // Prune expired sessions every 15 minutes
     }),
     name: 'iconnect.sid' // Custom session cookie name
   }));

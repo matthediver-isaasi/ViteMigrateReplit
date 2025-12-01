@@ -9,6 +9,7 @@ export default function AGCASButton({
   customBgColor,
   customTextColor,
   customBorderColor,
+  transparentBg = false,
   openInNewTab = false,
   size = 'medium',
   showArrow = false,
@@ -37,13 +38,22 @@ export default function AGCASButton({
     }
   }, [buttonStyleId]);
 
-  // Custom colors override button style
-  const hasCustomColors = customBgColor || customTextColor || customBorderColor;
+  // Custom colors override button style - only if actually set (not empty strings)
+  const hasCustomColors = (customBgColor && customBgColor !== '') || 
+                          (customTextColor && customTextColor !== '') || 
+                          (customBorderColor && customBorderColor !== '') ||
+                          transparentBg;
+  
+  const getBackgroundColor = () => {
+    if (transparentBg) return 'transparent';
+    if (customBgColor && customBgColor !== '') return customBgColor;
+    return undefined;
+  };
   
   const buttonStyles = hasCustomColors ? {
-    backgroundColor: customBgColor || 'transparent',
-    color: customTextColor || '#ffffff',
-    ...(customBorderColor ? { border: `2px solid ${customBorderColor}` } : {}),
+    backgroundColor: getBackgroundColor() || 'transparent',
+    color: (customTextColor && customTextColor !== '') ? customTextColor : '#ffffff',
+    ...((customBorderColor && customBorderColor !== '') ? { border: `2px solid ${customBorderColor}` } : {}),
     fontFamily: 'Poppins, sans-serif'
   } : buttonStyle ? {
     backgroundColor: buttonStyle.background_color || 'transparent',

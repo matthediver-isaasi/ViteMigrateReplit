@@ -170,6 +170,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
                   customBgColor={button.custom_bg_color}
                   customTextColor={button.custom_text_color}
                   customBorderColor={button.custom_border_color}
+                  transparentBg={button.transparent_bg}
                   openInNewTab={button.open_in_new_tab}
                   size={button.size || 'large'}
                   showArrow={button.show_arrow}
@@ -261,6 +262,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
               customBgColor={button.custom_bg_color}
               customTextColor={button.custom_text_color}
               customBorderColor={button.custom_border_color}
+              transparentBg={button.transparent_bg}
               openInNewTab={button.open_in_new_tab}
               size={button.size || 'large'}
               showArrow={button.show_arrow}
@@ -280,9 +282,10 @@ export function IEditHeroElementEditor({ element, onChange }) {
     open_in_new_tab: false, 
     size: 'large', 
     show_arrow: false, 
-    custom_bg_color: '#000000', 
-    custom_text_color: '#ffffff', 
-    custom_border_color: '' 
+    custom_bg_color: '', 
+    custom_text_color: '', 
+    custom_border_color: '',
+    transparent_bg: false
   };
 
   const content = element.content || {};
@@ -921,9 +924,10 @@ export function IEditHeroElementEditor({ element, onChange }) {
               id="transparent-bg-hero"
               checked={button.transparent_bg || false}
               onChange={(e) => {
-                updateButton('transparent_bg', e.target.checked);
-                if (e.target.checked) {
-                  updateButton('custom_bg_color', 'transparent');
+                const isTransparent = e.target.checked;
+                updateButton('transparent_bg', isTransparent);
+                if (isTransparent) {
+                  updateButton('custom_bg_color', '');
                 }
               }}
               className="w-4 h-4"
@@ -936,16 +940,21 @@ export function IEditHeroElementEditor({ element, onChange }) {
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-sm font-medium mb-1">Background</label>
-              <input
-                type="color"
-                value={button.custom_bg_color === 'transparent' ? '#000000' : (button.custom_bg_color || '#000000')}
-                onChange={(e) => {
-                  updateButton('custom_bg_color', e.target.value);
-                  updateButton('transparent_bg', false);
-                }}
-                className={`w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer ${button.transparent_bg ? 'opacity-50' : ''}`}
-                disabled={button.transparent_bg}
-              />
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  value={button.custom_bg_color || '#000000'}
+                  onChange={(e) => {
+                    updateButton('custom_bg_color', e.target.value);
+                    updateButton('transparent_bg', false);
+                  }}
+                  className={`w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer ${button.transparent_bg ? 'opacity-50' : ''}`}
+                  disabled={button.transparent_bg}
+                />
+              </div>
+              {button.transparent_bg && (
+                <p className="text-xs text-slate-500 mt-1">Using transparent</p>
+              )}
             </div>
             <div>
               <label className="block text-sm font-medium mb-1">Text</label>
@@ -960,7 +969,7 @@ export function IEditHeroElementEditor({ element, onChange }) {
               <label className="block text-sm font-medium mb-1">Border</label>
               <input
                 type="color"
-                value={button.custom_border_color || ''}
+                value={button.custom_border_color || '#000000'}
                 onChange={(e) => updateButton('custom_border_color', e.target.value)}
                 className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
               />

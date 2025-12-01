@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Mail, Plus, Pencil, Trash2, Users, ArrowLeft, Shield, AlertTriangle, Download, Loader2 } from "lucide-react";
+import { Mail, Plus, Pencil, Trash2, Users, ArrowLeft, Shield, AlertTriangle, Download, Loader2, ChevronLeft, ChevronRight, X } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
@@ -71,6 +72,10 @@ export default function CommunicationsManagementPage() {
   });
 
   const [exportingCategory, setExportingCategory] = useState(null);
+  const [showSubscribersDialog, setShowSubscribersDialog] = useState(false);
+  const [viewingCategory, setViewingCategory] = useState(null);
+  const [subscribersPage, setSubscribersPage] = useState(1);
+  const SUBSCRIBERS_PER_PAGE = 10;
 
   const getSubscribersForCategory = (categoryId) => {
     const assignedRoleIds = getCategoryRoles(categoryId);
@@ -89,6 +94,22 @@ export default function CommunicationsManagementPage() {
 
   const getSubscriberCount = (categoryId) => {
     return getSubscribersForCategory(categoryId).length;
+  };
+
+  const openSubscribersView = (category) => {
+    setViewingCategory(category);
+    setSubscribersPage(1);
+    setShowSubscribersDialog(true);
+  };
+
+  const getPaginatedSubscribers = () => {
+    if (!viewingCategory) return { subscribers: [], totalPages: 0, total: 0 };
+    const allSubscribers = getSubscribersForCategory(viewingCategory.id);
+    const total = allSubscribers.length;
+    const totalPages = Math.ceil(total / SUBSCRIBERS_PER_PAGE);
+    const start = (subscribersPage - 1) * SUBSCRIBERS_PER_PAGE;
+    const subscribers = allSubscribers.slice(start, start + SUBSCRIBERS_PER_PAGE);
+    return { subscribers, totalPages, total };
   };
 
   const handleExportSubscribers = async (category) => {
@@ -495,9 +516,15 @@ CREATE POLICY "Service role has full access to member_communication_preference"
                               
                               <div className="flex items-center gap-2">
                                 <Users className="w-4 h-4 text-slate-400" />
-                                <span className="text-sm text-slate-600">
-                                  <span className="font-medium text-slate-900">{subscriberCount}</span> subscribers
-                                </span>
+                                <button
+                                  className="text-sm text-slate-600 hover:text-blue-600 hover:underline cursor-pointer bg-transparent border-0 p-0"
+                                  onClick={() => openSubscribersView(category)}
+                                  disabled={membersLoading}
+                                  title={membersLoading ? 'Loading members...' : 'View subscribers'}
+                                  data-testid={`button-view-subscribers-${category.id}`}
+                                >
+                                  <span className="font-medium text-slate-900 hover:text-blue-600">{subscriberCount}</span> subscribers
+                                </button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -680,6 +707,126 @@ CREATE POLICY "Service role has full access to member_communication_preference"
                 Delete
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={showSubscribersDialog} onOpenChange={setShowSubscribersDialog}>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-hidden flex flex-col" aria-describedby="subscribers-dialog-description">
+            <DialogHeader className="flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Users className="w-5 h-5 text-blue-600" />
+                    {viewingCategory?.name} Subscribers
+                  </DialogTitle>
+                  <DialogDescription id="subscribers-dialog-description" className="mt-1">
+                    {(() => {
+                      const { total } = getPaginatedSubscribers();
+                      return `${total} member${total !== 1 ? 's' : ''} subscribed to this category`;
+                    })()}
+                  </DialogDescription>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => viewingCategory && handleExportSubscribers(viewingCategory)}
+                  disabled={exportingCategory === viewingCategory?.id || membersLoading}
+                  className="flex items-center gap-2"
+                  data-testid="button-export-from-dialog"
+                >
+                  {exportingCategory === viewingCategory?.id ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  Export CSV
+                </Button>
+              </div>
+            </DialogHeader>
+            
+            <div className="flex-1 overflow-auto mt-4">
+              {membersLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-600 mr-2" />
+                  <span className="text-slate-600">Loading members...</span>
+                </div>
+              ) : (
+                <>
+                  {(() => {
+                    const { subscribers, totalPages, total } = getPaginatedSubscribers();
+                    
+                    if (total === 0) {
+                      return (
+                        <div className="text-center py-12">
+                          <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                          <p className="text-slate-600">No subscribers for this category</p>
+                        </div>
+                      );
+                    }
+                    
+                    return (
+                      <>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Organisation</TableHead>
+                              <TableHead>Job Title</TableHead>
+                              <TableHead>Email</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {subscribers.map((member) => (
+                              <TableRow key={member.id} data-testid={`row-subscriber-${member.id}`}>
+                                <TableCell className="font-medium">
+                                  {[member.first_name, member.last_name].filter(Boolean).join(' ') || 'N/A'}
+                                </TableCell>
+                                <TableCell>{member.organization_name || 'N/A'}</TableCell>
+                                <TableCell>{member.job_title || 'N/A'}</TableCell>
+                                <TableCell className="text-slate-600">{member.email || 'N/A'}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                        
+                        {totalPages > 1 && (
+                          <div className="flex items-center justify-between mt-4 pt-4 border-t">
+                            <div className="text-sm text-slate-600">
+                              Showing {((subscribersPage - 1) * SUBSCRIBERS_PER_PAGE) + 1} - {Math.min(subscribersPage * SUBSCRIBERS_PER_PAGE, total)} of {total}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSubscribersPage(p => Math.max(1, p - 1))}
+                                disabled={subscribersPage === 1}
+                                data-testid="button-prev-page"
+                              >
+                                <ChevronLeft className="w-4 h-4" />
+                                Previous
+                              </Button>
+                              <span className="text-sm text-slate-600 px-2">
+                                Page {subscribersPage} of {totalPages}
+                              </span>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => setSubscribersPage(p => Math.min(totalPages, p + 1))}
+                                disabled={subscribersPage === totalPages}
+                                data-testid="button-next-page"
+                              >
+                                Next
+                                <ChevronRight className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
+                </>
+              )}
+            </div>
           </DialogContent>
         </Dialog>
       </div>

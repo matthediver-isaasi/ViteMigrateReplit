@@ -401,14 +401,25 @@ export default function PreferencesPage() {
         try {
           const parsed = JSON.parse(data[0].setting_value);
           if (Array.isArray(parsed)) {
+            let storedConfig;
             // Handle both old format (array of strings) and new format (array of objects)
             if (parsed.length > 0 && typeof parsed[0] === 'object') {
               // New format: [{ id: 'section_id', visible: true }, ...]
-              return parsed;
+              storedConfig = parsed;
             } else {
               // Old format: ['section_id', ...] - convert to new format with all visible
-              return parsed.map(id => ({ id, visible: true }));
+              storedConfig = parsed.map(id => ({ id, visible: true }));
             }
+            
+            // Merge with DEFAULT_SECTION_CONFIG to include any new sections
+            // that weren't in the stored config (like 'communications')
+            const storedIds = storedConfig.map(s => s.id);
+            const newSections = DEFAULT_SECTION_CONFIG.filter(
+              defaultSection => !storedIds.includes(defaultSection.id)
+            );
+            
+            // Add new sections at the end of the stored config
+            return [...storedConfig, ...newSections];
           }
         } catch {
           return DEFAULT_SECTION_CONFIG;

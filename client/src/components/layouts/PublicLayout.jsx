@@ -43,10 +43,36 @@ const pageToPortalPageMap = {
 };
 
 export default function PublicLayout({ children, currentPageName }) {
-  const { getPublicArticlesUrl, articleDisplayName } = useArticleUrl();
+  const { getPublicArticlesUrl, articleDisplayName, urlSlug, publicSlug, isCustomSlug } = useArticleUrl();
   const [banners, setBanners] = useState([]);
   const [loadingBanners, setLoadingBanners] = useState(true);
   const [showNewsletterDialog, setShowNewsletterDialog] = useState(false);
+
+  // Resolve page name to portal page ID, accounting for dynamic article URL remapping
+  const resolvePortalPageId = (pageName) => {
+    // First check static map
+    if (pageToPortalPageMap[pageName]) {
+      return pageToPortalPageMap[pageName];
+    }
+    
+    // Handle dynamic article slugs - if articles are renamed (e.g., to "Blog"),
+    // the URLs change but banners are still associated with portal_articles
+    if (isCustomSlug) {
+      const lowerPageName = pageName?.toLowerCase() || '';
+      const lowerUrlSlug = urlSlug?.toLowerCase() || '';
+      const lowerPublicSlug = publicSlug?.toLowerCase() || '';
+      
+      // Check if this page matches the custom article slugs
+      if (lowerPageName === lowerUrlSlug || 
+          lowerPageName === lowerPublicSlug ||
+          pageName === 'Articles' || 
+          pageName === 'PublicArticles') {
+        return 'portal_articles';
+      }
+    }
+    
+    return null;
+  };
 
   // Fetch banners for current page
   useEffect(() => {
@@ -61,10 +87,10 @@ export default function PublicLayout({ children, currentPageName }) {
           is_active: true
         });
         
-        // Get the portal page identifier for this page
-        const portalPageId = pageToPortalPageMap[currentPageName];
+        // Get the portal page identifier for this page (handles dynamic article slugs)
+        const portalPageId = resolvePortalPageId(currentPageName);
         
-        console.log('[PublicLayout] Fetching banners for page:', currentPageName, 'portalPageId:', portalPageId);
+        console.log('[PublicLayout] Fetching banners for page:', currentPageName, 'portalPageId:', portalPageId, 'isCustomSlug:', isCustomSlug);
         console.log('[PublicLayout] All banners found:', allBanners?.length);
         
         // Filter banners that include this page (check both portal ID and page name for compatibility)
@@ -90,7 +116,7 @@ export default function PublicLayout({ children, currentPageName }) {
     };
 
     fetchBanners();
-  }, [currentPageName]);
+  }, [currentPageName, isCustomSlug, urlSlug, publicSlug]);
 
   return (
     <>

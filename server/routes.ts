@@ -74,6 +74,9 @@ const entityToTable: Record<string, string> = {
   'AwardSublevel': 'award_sublevel',
   'MemberGroupGuest': 'member_group_guest',
   'MemberCredentials': 'member_credentials',
+  'CommunicationCategory': 'communication_category',
+  'CommunicationCategoryRole': 'communication_category_role',
+  'MemberCommunicationPreference': 'member_communication_preference',
 };
 
 // Extend session type

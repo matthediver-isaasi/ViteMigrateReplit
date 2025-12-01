@@ -214,6 +214,9 @@ export default async function handler(req, res) {
             
             if (panelistResponse.ok) {
               const panelistData = await panelistResponse.json();
+              // Zoom returns panelist ID inside the panelists array
+              const zoomPanelistId = panelistData.panelists?.[0]?.id || panelistData.id;
+              console.log('[Zoom] Panelist added, response:', JSON.stringify(panelistData));
               
               const { data: savedPanelist } = await supabase
                 .from('zoom_webinar_panelist')
@@ -222,7 +225,7 @@ export default async function handler(req, res) {
                   name: panelist.name,
                   email: panelist.email,
                   role: panelist.role || 'panelist',
-                  zoom_panelist_id: panelistData.id,
+                  zoom_panelist_id: zoomPanelistId,
                   status: 'invited'
                 })
                 .select()

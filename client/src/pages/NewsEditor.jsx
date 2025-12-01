@@ -182,7 +182,7 @@ export default function NewsEditorPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['news'] });
       toast.success('News deleted successfully');
-      window.location.href = createPageUrl('MyNews');
+      window.location.href = createPageUrl('News');
     },
     onError: () => {
       toast.error('Failed to delete news');
@@ -283,7 +283,7 @@ export default function NewsEditorPage() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-7xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <Link to={createPageUrl('MyNews')} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900">
+          <Link to={createPageUrl('News')} className="inline-flex items-center gap-2 text-slate-600 hover:text-slate-900">
             <ArrowLeft className="w-4 h-4" />
             Back to News
           </Link>

@@ -13,22 +13,28 @@ import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 
 // Map page names to portal page identifiers for banner matching
 // These identifiers must match the PORTAL_PAGES values in PageBannerManagement.jsx
+// Note: Public versions of pages (e.g., PublicArticles, PublicResources) should map to the same identifier
 const pageToPortalPageMap = {
   'Events': 'portal_events',
+  'PublicEvents': 'portal_events',
   'Bookings': 'portal_bookings',
   'MyTickets': 'portal_my_tickets',
   'BuyProgramTickets': 'portal_buy_tickets',
   'MemberDirectory': 'portal_member_directory',
   'OrganisationDirectory': 'portal_org_directory',
   'Resources': 'portal_resources',
+  'PublicResources': 'portal_resources',
   'Articles': 'portal_articles',
+  'PublicArticles': 'portal_articles',
   'MyArticles': 'portal_my_articles',
   'Team': 'portal_team',
   'Balances': 'portal_balances',
   'History': 'portal_history',
   'Profile': 'portal_profile',
   'JobBoard': 'portal_job_board',
+  'PublicJobBoard': 'portal_job_board',
   'News': 'portal_news',
+  'PublicNews': 'portal_news',
   'NewsView': 'portal_news_view',
   'MyJobPostings': 'portal_my_job_postings',
   'Preferences': 'portal_preferences',

@@ -66,6 +66,8 @@ const entityToTable = {
   'AwardClassification': 'award_classification',
   'AwardSublevel': 'award_sublevel',
   'MemberGroupGuest': 'member_group_guest',
+  'MemberCredentials': 'member_credentials',
+  'PageVisibility': 'page_visibility',
 };
 
 const getTableName = (entity) => entityToTable[entity] || entity.toLowerCase().replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');

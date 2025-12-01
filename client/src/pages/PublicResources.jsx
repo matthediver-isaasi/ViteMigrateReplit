@@ -215,7 +215,7 @@ export default function PublicResourcesPage() {
           </div>
 
           <div className="flex-1">
-            {isLoading ? (
+            {resourcesLoading ? (
               <div className="grid md:grid-cols-2 gap-6">
                 {Array(6).fill(0).map((_, i) => (
                   <Card key={i} className="animate-pulse border-slate-200">

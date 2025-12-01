@@ -507,7 +507,7 @@ const { data: dynamicNavItems = [] } = useQuery({
 });
 
 // Fetch page visibility settings from system_settings
-const { data: pageVisibilitySettings = {} } = useQuery({
+const { data: pageVisibilitySettings = {}, isFetched: visibilitySettingsFetched } = useQuery({
   queryKey: ['page-visibility-settings'],
   refetchOnMount: false,
   staleTime: 60000,
@@ -914,6 +914,11 @@ useEffect(() => {
     };
 
     const handleAuth = async () => {
+      // Wait for visibility settings to be fetched before making auth decisions
+      if (!visibilitySettingsFetched) {
+        return; // Don't do anything until settings are loaded
+      }
+      
       // Get dynamic visibility for the current page
       const visibility = getPageVisibility(currentPageName);
       
@@ -965,7 +970,7 @@ useEffect(() => {
     };
 
     handleAuth();
-  }, []); // Only run once on mount
+  }, [visibilitySettingsFetched, pageVisibilitySettings]); // Run when visibility settings are loaded
 
   // Update last_activity on navigation (throttled to once every 10 minutes)
   useEffect(() => {

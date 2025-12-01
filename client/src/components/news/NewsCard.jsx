@@ -14,7 +14,8 @@ export default function NewsCard({
   hasAdminEditPermission = false,
   hasAdminDeletePermission = false,
   currentMemberId = null,
-  showImage = true
+  showImage = true,
+  showAuthor = true
 }) {
   const articleUrl = `${createPageUrl('NewsView')}?slug=${article.slug}`;
 
@@ -93,7 +94,7 @@ export default function NewsCard({
           </div>
         )}
         
-        {article.author_name && (
+        {showAuthor && article.author_name && (
           <div className="flex items-center gap-1.5 text-xs text-slate-600 pb-3">
             <User className="w-3 h-3" />
             <span>by {article.author_name}</span>

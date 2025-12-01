@@ -51,16 +51,19 @@ export default function NewsPage() {
       const allSettings = await base44.entities.SystemSettings.list();
       const cardsPerRowSetting = allSettings.find(s => s.setting_key === 'news_cards_per_row');
       const showImageSetting = allSettings.find(s => s.setting_key === 'news_show_image');
+      const showAuthorSetting = allSettings.find(s => s.setting_key === 'news_show_author');
       
       return {
         cardsPerRow: parseInt(cardsPerRowSetting?.setting_value) || 3,
-        showImage: showImageSetting?.setting_value !== 'false'
+        showImage: showImageSetting?.setting_value !== 'false',
+        showAuthor: showAuthorSetting?.setting_value !== 'false'
       };
     }
   });
 
   const cardsPerRow = displaySettings?.cardsPerRow || 3;
   const showImage = displaySettings?.showImage ?? true;
+  const showAuthor = displaySettings?.showAuthor ?? true;
 
   // Fetch published news
   const { data: news = [], isLoading: newsLoading } = useQuery({
@@ -472,6 +475,7 @@ export default function NewsPage() {
                   onEdit={handleEditNews}
                   onDelete={handleDeleteNews}
                   showImage={showImage}
+                  showAuthor={showAuthor}
                 />
               ))}
             </div>

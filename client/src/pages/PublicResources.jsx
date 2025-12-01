@@ -31,14 +31,53 @@ export default function PublicResourcesPage() {
     return true;
   }, []);
 
-  // Match ResourceManagement pattern exactly
+  // Fetch resources - for public view, only show resources marked as public (is_public=true)
   const { data: resources = [], isLoading: resourcesLoading } = useQuery({
-    queryKey: ['public-resources'],
+    queryKey: ['public-resources', isLoggedIn],
     queryFn: async () => {
+      console.log('[PublicResources] ========== FETCH START ==========');
       console.log('[PublicResources] Fetching at:', new Date().toISOString());
+      console.log('[PublicResources] User logged in:', isLoggedIn);
+      
       const allResources = await base44.entities.Resource.list('-release_date');
-      // Return all active resources (both public and non-public), but filter out drafts
-      return allResources.filter(r => r.status !== 'draft');
+      console.log('[PublicResources] Total resources from API:', allResources.length);
+      
+      // Debug: Show first few resources with their is_public status
+      if (allResources.length > 0) {
+        console.log('[PublicResources] Sample resources:');
+        allResources.slice(0, 5).forEach((r, i) => {
+          console.log(`  [${i}] "${r.title}" - is_public: ${r.is_public}, status: ${r.status}`);
+        });
+      }
+      
+      // Count resources by is_public value
+      const publicCount = allResources.filter(r => r.is_public === true).length;
+      const nonPublicCount = allResources.filter(r => r.is_public === false).length;
+      const undefinedCount = allResources.filter(r => r.is_public === undefined || r.is_public === null).length;
+      console.log('[PublicResources] is_public breakdown - true:', publicCount, 'false:', nonPublicCount, 'undefined/null:', undefinedCount);
+      
+      // Filter logic:
+      // 1. Always exclude drafts
+      // 2. For non-logged-in users: only show resources where is_public === true
+      // 3. For logged-in users: show all non-draft resources (they'll see role-filtered view on portal)
+      const filtered = allResources.filter(r => {
+        // Always exclude drafts
+        if (r.status === 'draft') {
+          return false;
+        }
+        
+        // For public view (not logged in), only show public resources
+        if (!isLoggedIn) {
+          return r.is_public === true;
+        }
+        
+        // For logged-in users, show all non-draft resources
+        return true;
+      });
+      
+      console.log('[PublicResources] After filtering:', filtered.length, 'resources');
+      console.log('[PublicResources] ========== FETCH END ==========');
+      return filtered;
     },
     staleTime: 0, // Always fetch fresh content for resources feed
     refetchOnMount: true,

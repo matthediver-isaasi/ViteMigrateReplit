@@ -1,4 +1,4 @@
-import { getSessionMember } from '../../_lib/session.js';
+import { getSessionMember } from '../../../_lib/session.js';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -71,7 +71,7 @@ export default async function handler(req, res) {
     return res.status(503).json({ error: 'Database not configured' });
   }
 
-  const { id: memberId } = req.query;
+  const { memberId } = req.query;
 
   if (req.method === 'GET') {
     try {

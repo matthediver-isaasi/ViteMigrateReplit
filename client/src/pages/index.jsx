@@ -198,6 +198,8 @@ import CreateEvent from "./CreateEvent";
 
 import EditEvent from "./EditEvent";
 
+import PageVisibilitySettings from "./PageVisibilitySettings";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
 import { ArticleUrlProvider } from '@/contexts/ArticleUrlContext';
@@ -401,6 +403,8 @@ const PAGES = {
     CreateEvent: CreateEvent,
     
     EditEvent: EditEvent,
+    
+    PageVisibilitySettings: PageVisibilitySettings,
     
 }
 
@@ -640,6 +644,8 @@ function PagesContent() {
                 <Route path="/CreateEvent" element={<CreateEvent />} />
                 
                 <Route path="/EditEvent" element={<EditEvent />} />
+                
+                <Route path="/PageVisibilitySettings" element={<PageVisibilitySettings />} />
                 
                 {/* /auth/verify route removed - using password auth */}
                 

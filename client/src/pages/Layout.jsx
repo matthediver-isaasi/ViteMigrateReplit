@@ -335,6 +335,11 @@ const adminNavigationItems = [
         title: "Installed Fonts",
         url: createPageUrl("InstalledFonts"),
         featureId: "page_InstalledFonts"
+      },
+      {
+        title: "Page Visibility",
+        url: createPageUrl("PageVisibilitySettings"),
+        featureId: "page_PageVisibilitySettings"
       }
     ]
   },
@@ -501,6 +506,39 @@ const { data: dynamicNavItems = [] } = useQuery({
   },
 });
 
+// Fetch page visibility settings from system_settings
+const { data: pageVisibilitySettings = {} } = useQuery({
+  queryKey: ['page-visibility-settings'],
+  refetchOnMount: false,
+  staleTime: 60000,
+  queryFn: async () => {
+    try {
+      const data = await base44.entities.SystemSettings.list({
+        filter: { setting_key: 'page_visibility_settings' }
+      });
+      if (data?.[0]?.setting_value) {
+        return JSON.parse(data[0].setting_value);
+      }
+      return {};
+    } catch (error) {
+      console.error('Error loading page visibility settings:', error);
+      return {};
+    }
+  },
+});
+
+// Helper to get page visibility from dynamic settings or fallback to default
+const getPageVisibility = (pageName) => {
+  // First check dynamic settings
+  if (pageVisibilitySettings[pageName]) {
+    return pageVisibilitySettings[pageName];
+  }
+  // Fallback to default behavior based on hardcoded arrays
+  if (publicPages.includes(pageName)) return 'public';
+  if (hybridPages.includes(pageName)) return 'hybrid';
+  return 'portal';
+};
+
 // Map page names to portal page identifiers for banner matching
 // These identifiers must match the PORTAL_PAGES values in PageBannerManagement.jsx
 const pageToPortalPageMap = {
@@ -616,7 +654,7 @@ useEffect(() => {
   // "_DynamicPage" is a special marker for CMS pages (e.g. /homely) that handle their own auth
   const hybridPages = ["PostJob", "ArticleView", "NewsView", "icontent", "ViewPage", "OrganisationDirectory", "JobBoard", "JobDetails", "JobPostSuccess", "_DynamicPage"];
   
-  const adminPages = ["RoleManagement", "MemberRoleAssignment", "TeamMemberManagement", "DiscountCodeManagement", "EventSettings", "TicketSalesAnalytics", "ResourceSettings", "ResourceManagement", "TagManagement", "ResourceAuthorSettings", "TourManagement", "FileManagement", "JobPostingManagement", "JobBoardSettings", "IEditPageManagement", "IEditTemplateManagement", "PageBannerManagement", "NavigationManagement", "MemberHandleManagement", "ButtonElements", "ButtonStyleManagement", "AwardManagement", "WallOfFameManagement", "TeamInviteSettings", "FormManagement", "FormSubmissions", "FloaterManagement", "MemberDirectorySettings", "SupportManagement"];
+  const adminPages = ["RoleManagement", "MemberRoleAssignment", "TeamMemberManagement", "DiscountCodeManagement", "EventSettings", "TicketSalesAnalytics", "ResourceSettings", "ResourceManagement", "TagManagement", "ResourceAuthorSettings", "TourManagement", "FileManagement", "JobPostingManagement", "JobBoardSettings", "IEditPageManagement", "IEditTemplateManagement", "PageBannerManagement", "NavigationManagement", "MemberHandleManagement", "ButtonElements", "ButtonStyleManagement", "AwardManagement", "WallOfFameManagement", "TeamInviteSettings", "FormManagement", "FormSubmissions", "FloaterManagement", "MemberDirectorySettings", "SupportManagement", "PageVisibilitySettings"];
 
   // Pages that should use the bare layout (no new header/footer)
   const bareLayoutPages = ["Home", "TestLogin", "Login"];
@@ -698,6 +736,7 @@ useEffect(() => {
     'PortalMenuManagement': 'page_admin_PortalMenuManagement',
     'TourManagement': 'page_admin_TourManagement',
     'MemberGroupManagement': 'page_admin_MemberGroupManagement',
+    'PageVisibilitySettings': 'page_admin_PageVisibilitySettings',
   };
 
   // Helper function to check if current page is excluded
@@ -820,12 +859,15 @@ useEffect(() => {
       return true;
     }
     
-    if (publicPages.includes(currentPageName)) {
+    // Get dynamic visibility for the current page
+    const visibility = getPageVisibility(currentPageName);
+    
+    if (visibility === 'public') {
       return true;
     }
     
     // For hybrid pages, check if member is logged in
-    if (hybridPages.includes(currentPageName)) {
+    if (visibility === 'hybrid') {
       const storedMember = sessionStorage.getItem('agcas_member');
       return !storedMember; // Public if no member logged in
     }
@@ -864,8 +906,11 @@ useEffect(() => {
     };
 
     const handleAuth = async () => {
+      // Get dynamic visibility for the current page
+      const visibility = getPageVisibility(currentPageName);
+      
       // Handle truly public pages - no auth required
-      if (publicPages.includes(currentPageName)) {
+      if (visibility === 'public') {
         return;
       }
 
@@ -876,7 +921,7 @@ useEffect(() => {
       }
 
       // Handle hybrid pages - check sessionStorage
-      if (hybridPages.includes(currentPageName)) {
+      if (visibility === 'hybrid') {
         const storedMember = sessionStorage.getItem('agcas_member');
         if (!storedMember) {
           // No member logged in, treat as public

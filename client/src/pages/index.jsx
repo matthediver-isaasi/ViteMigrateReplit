@@ -529,6 +529,7 @@ function PagesContent() {
                 <Route path="/MyJobPostings" element={<MyJobPostings />} />
                 
                 <Route path="/PageBannerManagement" element={<PageBannerManagement />} />
+                <Route path="/pagebannermanagement" element={<PageBannerManagement />} />
                 
                 <Route path="/IEditPageManagement" element={<IEditPageManagement />} />
                 

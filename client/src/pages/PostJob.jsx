@@ -9,7 +9,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Briefcase, CheckCircle, ArrowRight, Mail, ExternalLink, Upload, X, FileText, Image as ImageIcon, FileCheck, CreditCard, AlertCircle } from "lucide-react";
+import { Loader2, Briefcase, CheckCircle, ArrowRight, Mail, ExternalLink, Upload, X, FileText, Image as ImageIcon, FileCheck, CreditCard, AlertCircle, ArrowLeft } from "lucide-react";
+import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
 import { loadStripe } from "@stripe/stripe-js";
@@ -537,6 +538,16 @@ export default function PostJobPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
+        {/* Back to Job Board link */}
+        <Link 
+          to={createPageUrl('JobBoard')} 
+          className="inline-flex items-center text-sm text-slate-600 hover:text-blue-600 mb-4"
+          data-testid="link-back-to-jobboard"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Back to Job Board
+        </Link>
+
         <Card className="border-slate-200 shadow-xl">
           <CardHeader>
             <CardTitle>

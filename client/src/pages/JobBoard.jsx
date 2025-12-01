@@ -9,8 +9,10 @@ import { Search, MapPin, Building2, Clock, Briefcase, Plus, Star, AlertCircle, A
 import { format, differenceInDays, isPast } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
+import { useLayoutContext } from "@/contexts/LayoutContext";
 
 export default function JobBoardPage() {
+  const { hasBanner } = useLayoutContext();
   const [searchQuery, setSearchQuery] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [jobTypeFilter, setJobTypeFilter] = useState("all");
@@ -126,27 +128,24 @@ export default function JobBoardPage() {
   };
 
   return (
-    <div className="bg-white min-h-screen">
-      {/* Hero Section */}
-      <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">Career Opportunities</h1>
-          <p className="text-xl text-blue-100 max-w-3xl mb-8">
-            Find your next career opportunity in careers education, information, advice and guidance
-          </p>
-          <Button 
-            onClick={() => window.location.href = createPageUrl('PostJob')}
-            size="lg"
-            className="bg-white text-blue-600 hover:bg-blue-50"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            Post a Job
-          </Button>
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 py-12">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="max-w-7xl mx-auto">
+        {/* Header - hidden when custom banner is present */}
+        {!hasBanner && (
+          <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">Job Board</h1>
+              <p className="text-slate-600">Find your next career opportunity</p>
+            </div>
+            <Button 
+              onClick={() => window.location.href = createPageUrl('PostJob')}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Post a Job
+            </Button>
+          </div>
+        )}
         {/* Filters */}
         <Card className="border-slate-200 shadow-sm mb-8">
           <CardContent className="p-6">

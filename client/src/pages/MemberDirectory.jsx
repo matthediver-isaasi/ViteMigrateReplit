@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, User, Mail, FileText, Trophy, Search, Users, Shield, Calendar, ChevronLeft, ChevronRight, Building2, Briefcase, ChevronDown, ChevronUp, Linkedin, ArrowUpDown } from "lucide-react";
+import { Loader2, User, Mail, FileText, Trophy, Search, Users, Shield, Calendar, ChevronLeft, ChevronRight, Building2, Briefcase, ChevronDown, ChevronUp, Linkedin, ArrowUpDown, Copy, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { useLayoutContext } from "@/contexts/LayoutContext";
@@ -28,6 +28,7 @@ export default function MemberDirectoryPage() {
   const [itemsPerPage, setItemsPerPage] = useState(9);
   const [viewingMember, setViewingMember] = useState(null);
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [emailCopied, setEmailCopied] = useState(false);
   const [sortBy, setSortBy] = useState("name-asc");
   const [selectedOrganization, setSelectedOrganization] = useState(() => {
     const searchParams = new URLSearchParams(window.location.search);
@@ -268,10 +269,22 @@ export default function MemberDirectoryPage() {
   const handleViewMember = (member) => {
     setViewingMember(member);
     setBioExpanded(false);
+    setEmailCopied(false);
   };
 
   const handleEmailMember = (email) => {
     window.location.href = `mailto:${email}`;
+  };
+
+  const handleCopyEmail = async (email) => {
+    try {
+      await navigator.clipboard.writeText(email);
+      setEmailCopied(true);
+      toast.success("Email address copied to clipboard");
+      setTimeout(() => setEmailCopied(false), 2000);
+    } catch (err) {
+      toast.error("Failed to copy email address");
+    }
   };
 
   const isLoading = membersLoading;
@@ -776,6 +789,37 @@ export default function MemberDirectoryPage() {
               )}
 
               <div className="pt-4 border-t border-slate-200 space-y-3">
+                {viewingMember.email && (
+                  <div className="flex items-center justify-between bg-slate-50 rounded-lg p-3 border border-slate-200">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Mail className="w-4 h-4 text-slate-500 flex-shrink-0" />
+                      <span className="text-sm text-slate-700 truncate" data-testid="text-member-email">
+                        {viewingMember.email}
+                      </span>
+                    </div>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 flex-shrink-0"
+                          onClick={() => handleCopyEmail(viewingMember.email)}
+                          data-testid="button-copy-email"
+                        >
+                          {emailCopied ? (
+                            <Check className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <Copy className="w-4 h-4 text-slate-500" />
+                          )}
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{emailCopied ? "Copied!" : "Copy email address"}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                )}
+
                 <Button
                   onClick={() => handleEmailMember(viewingMember.email)}
                   className="w-full bg-blue-600 hover:bg-blue-700"

@@ -121,6 +121,47 @@ export default async function handler(req, res) {
         }
       }
 
+      if (entity === 'BlogPost') {
+        // First get all comment IDs for this blog post
+        const { data: comments } = await supabase
+          .from('article_comment')
+          .select('id')
+          .eq('article_id', id);
+        
+        // Delete comment reactions for all comments on this blog post
+        if (comments && comments.length > 0) {
+          const commentIds = comments.map(c => c.id);
+          const { error: commentReactionsError } = await supabase
+            .from('comment_reaction')
+            .delete()
+            .in('comment_id', commentIds);
+          if (commentReactionsError) console.error('Error deleting comment reactions:', commentReactionsError);
+        }
+
+        // Delete related comments
+        const { error: commentsError } = await supabase
+          .from('article_comment')
+          .delete()
+          .eq('article_id', id);
+        if (commentsError) console.error('Error deleting blog comments:', commentsError);
+
+        // Delete related reactions
+        const { error: reactionsError } = await supabase
+          .from('article_reaction')
+          .delete()
+          .eq('article_id', id);
+        if (reactionsError) console.error('Error deleting blog reactions:', reactionsError);
+
+        // Delete related views
+        const { error: viewsError } = await supabase
+          .from('article_view')
+          .delete()
+          .eq('article_id', id);
+        if (viewsError) console.error('Error deleting blog views:', viewsError);
+
+        console.log(`[BlogPost Delete] Deleted related records for blog post ${id}`);
+      }
+
       const { error } = await supabase
         .from(tableName)
         .delete()

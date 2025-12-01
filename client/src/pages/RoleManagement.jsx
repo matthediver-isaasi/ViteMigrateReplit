@@ -115,7 +115,11 @@ const AVAILABLE_FEATURES = [
   // Content Actions
   { id: "action_news_edit", label: "Edit News Articles", category: "Content Actions" },
   { id: "action_news_delete", label: "Delete News Articles", category: "Content Actions" },
-  { id: "action_org_logo_edit", label: "Edit Organisation Logos", category: "Content Actions" }
+  { id: "action_org_logo_edit", label: "Edit Organisation Logos", category: "Content Actions" },
+  
+  // Admin Capabilities (special permissions for managing other members)
+  { id: "admin_can_edit_members", label: "Edit Other Members' Details", category: "Admin Capabilities" },
+  { id: "admin_can_manage_communications", label: "Manage Communications", category: "Admin Capabilities" }
   ];
 
 export default function RoleManagementPage() {

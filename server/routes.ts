@@ -365,19 +365,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(200).json(null);
       }
 
-      // Fetch role to determine admin status
+      // Fetch role to determine permissions
       let isAdmin = false;
+      let canEditMembers = false;
+      let canManageCommunications = false;
+      let excludedFeatures: string[] = [];
+      
       if (data.role_id) {
         const { data: role } = await supabase
           .from('role')
-          .select('is_admin')
+          .select('is_admin, excluded_features')
           .eq('id', data.role_id)
           .single();
+        
         isAdmin = role?.is_admin === true;
+        excludedFeatures = role?.excluded_features || [];
+        
+        // Admin role has all permissions
+        if (isAdmin) {
+          canEditMembers = true;
+          canManageCommunications = true;
+        } else {
+          // Check if permissions are NOT in excluded_features (meaning they have access)
+          canEditMembers = !excludedFeatures.includes('admin_can_edit_members');
+          canManageCommunications = !excludedFeatures.includes('admin_can_manage_communications');
+        }
       }
 
-      // Return member with isAdmin flag - extends Vercel API format
-      res.json({ ...data, isAdmin });
+      // Return member with permission flags - extends Vercel API format
+      res.json({ ...data, isAdmin, canEditMembers, canManageCommunications });
     } catch (error) {
       console.error('Auth me error:', error);
       res.status(500).json({ error: 'Failed to get user' });
@@ -906,16 +922,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // ============ Admin Member Routes ============
-  // These routes verify admin status server-side to prevent privilege escalation
+  // These routes verify permissions server-side to prevent privilege escalation
+  // Permissions are controlled via Role Management (excluded_features array)
 
-  // Helper function to verify admin status from session
-  const verifyAdminSession = async (req: Request): Promise<{ isAdmin: boolean; memberId: string | null; error?: string }> => {
+  // Helper function to verify a specific permission from session
+  // Returns true if the permission is NOT in the role's excluded_features array
+  const verifyPermission = async (
+    req: Request, 
+    permissionId: string
+  ): Promise<{ hasPermission: boolean; memberId: string | null; error?: string }> => {
     if (!req.session.memberId) {
-      return { isAdmin: false, memberId: null, error: 'Not authenticated' };
+      return { hasPermission: false, memberId: null, error: 'Not authenticated' };
     }
 
     if (!supabase) {
-      return { isAdmin: false, memberId: null, error: 'Database not configured' };
+      return { hasPermission: false, memberId: null, error: 'Database not configured' };
     }
 
     try {
@@ -927,29 +948,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (memberError || !member) {
-        return { isAdmin: false, memberId: null, error: 'Member not found' };
+        return { hasPermission: false, memberId: null, error: 'Member not found' };
       }
 
       if (!member.role_id) {
-        return { isAdmin: false, memberId: member.id };
+        // No role assigned - no permissions
+        return { hasPermission: false, memberId: member.id };
       }
 
-      // Get the role's admin status
+      // Get the role's excluded_features and is_admin flag
       const { data: role, error: roleError } = await supabase
         .from('role')
-        .select('is_admin')
+        .select('is_admin, excluded_features')
         .eq('id', member.role_id)
         .single();
 
-      if (roleError) {
-        return { isAdmin: false, memberId: member.id };
+      if (roleError || !role) {
+        return { hasPermission: false, memberId: member.id };
       }
 
-      return { isAdmin: role?.is_admin === true, memberId: member.id };
+      // If role is admin, they have all permissions (for backwards compatibility)
+      if (role.is_admin === true) {
+        return { hasPermission: true, memberId: member.id };
+      }
+
+      // Check if the permission is in the excluded_features array
+      // If NOT excluded, the role has this permission
+      const excludedFeatures = role.excluded_features || [];
+      const hasPermission = !excludedFeatures.includes(permissionId);
+
+      return { hasPermission, memberId: member.id };
     } catch (error) {
-      console.error('[Admin Verify] Error:', error);
-      return { isAdmin: false, memberId: null, error: 'Verification failed' };
+      console.error('[Permission Verify] Error:', error);
+      return { hasPermission: false, memberId: null, error: 'Verification failed' };
     }
+  };
+
+  // Legacy helper - checks if user is admin (for backwards compatibility)
+  const verifyAdminSession = async (req: Request): Promise<{ isAdmin: boolean; memberId: string | null; error?: string }> => {
+    const result = await verifyPermission(req, 'admin_can_edit_members');
+    return { isAdmin: result.hasPermission, memberId: result.memberId, error: result.error };
   };
 
   // Get member by ID (admin only)

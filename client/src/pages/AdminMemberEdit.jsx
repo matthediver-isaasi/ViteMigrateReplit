@@ -61,9 +61,10 @@ async function uploadImageToSupabase(file, bucket, folderPrefix = "") {
 
 export default function AdminMemberEdit() {
   const { hasBanner } = useLayoutContext();
-  const { isAdmin, isReady: isAccessReady } = useServerAdminAuth({ 
+  const { canEditMembers, isReady: isAccessReady } = useServerAdminAuth({ 
     redirectOnDeny: true, 
-    redirectPath: 'Events' 
+    redirectPath: 'Events',
+    requiredPermission: 'canEditMembers'
   });
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -89,7 +90,7 @@ export default function AdminMemberEdit() {
 
   const { data: memberRecord, isLoading: memberLoading, error: memberError } = useQuery({
     queryKey: ["adminMember", memberId],
-    enabled: !!memberId && isAdmin,
+    enabled: !!memberId && canEditMembers,
     queryFn: async () => {
       if (!memberId) return null;
       const response = await fetch(`/api/admin/members/${memberId}`, {
@@ -538,7 +539,7 @@ export default function AdminMemberEdit() {
   const getBiographyWordCount = () =>
     biography.trim().split(/\s+/).filter((w) => w.length > 0).length;
 
-  const isLoading = !isAccessReady || !isAdmin || memberLoading || orgLoading || 
+  const isLoading = !isAccessReady || !canEditMembers || memberLoading || orgLoading || 
     offlineAssignmentsLoading || offlineAwardsLoading2 || groupAssignmentsLoading || 
     awardsLoading || groupsLoading;
 
@@ -550,7 +551,7 @@ export default function AdminMemberEdit() {
     );
   }
 
-  if (!isAdmin) {
+  if (!canEditMembers) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />

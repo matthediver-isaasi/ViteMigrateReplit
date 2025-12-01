@@ -428,6 +428,9 @@ export default function OrganisationDirectoryPage() {
             <DialogDescription>
               Upload a new logo for {editingOrg?.name}
             </DialogDescription>
+            <p className="text-xs text-slate-500 mt-1">
+              Recommended size: 200 x 200 pixels (square)
+            </p>
           </DialogHeader>
           <div className="space-y-4">
             <div className="flex justify-center">

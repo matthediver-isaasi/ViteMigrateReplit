@@ -517,7 +517,15 @@ const { data: pageVisibilitySettings = {} } = useQuery({
         filter: { setting_key: 'page_visibility_settings' }
       });
       if (data?.[0]?.setting_value) {
-        return JSON.parse(data[0].setting_value);
+        try {
+          const parsed = JSON.parse(data[0].setting_value);
+          // Validate it's an object with valid visibility values
+          if (typeof parsed === 'object' && parsed !== null) {
+            return parsed;
+          }
+        } catch (parseError) {
+          console.error('Error parsing page visibility settings JSON:', parseError);
+        }
       }
       return {};
     } catch (error) {

@@ -15,6 +15,26 @@ import { useLayoutContext } from "@/contexts/LayoutContext";
 export default function ResourcesPage() {
   const { memberInfo, memberRole, isAdmin } = useMemberAccess();
   const { hasBanner } = useLayoutContext();
+  
+  // Check authentication status - derive from memberInfo (from useMemberAccess hook) 
+  // with sessionStorage fallback for initial render before hook resolves
+  const isAuthenticated = useMemo(() => {
+    // If memberInfo is available from the hook, use it as the source of truth
+    if (memberInfo) return true;
+    
+    // Fallback to sessionStorage check for initial render
+    const storedMember = sessionStorage.getItem('agcas_member');
+    if (!storedMember) return false;
+    try {
+      const member = JSON.parse(storedMember);
+      if (member.sessionExpiry && new Date(member.sessionExpiry) < new Date()) {
+        return false;
+      }
+      return true;
+    } catch {
+      return false;
+    }
+  }, [memberInfo]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategories, setSelectedSubcategories] = useState([]);
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,24 +56,48 @@ export default function ResourcesPage() {
     enabled: !!memberInfo
   });
 
-  // Fetch resources with role-based filtering - match ResourceManagement pattern
+  // Unified resource fetching - handles both authenticated and unauthenticated users
   const { data: resources = [], isLoading: resourcesLoading } = useQuery({
-    queryKey: ['resources'],
+    queryKey: ['resources', isAuthenticated, memberRole?.id, isAdmin],
     queryFn: async () => {
+      console.log('[Resources] ========== FETCH START ==========');
       console.log('[Resources] Fetching at:', new Date().toISOString());
+      console.log('[Resources] isAuthenticated:', isAuthenticated);
+      console.log('[Resources] memberRole:', memberRole?.id || 'none');
+      console.log('[Resources] isAdmin:', isAdmin);
+      
       const allResources = await base44.entities.Resource.list('-release_date');
+      console.log('[Resources] Total resources from API:', allResources.length);
       
-      console.log('[Resources Debug] Raw resources from DB:', allResources.length, allResources[0]);
+      // Debug: Show first few resources with their visibility status
+      if (allResources.length > 0) {
+        console.log('[Resources] Sample resources:');
+        allResources.slice(0, 5).forEach((r, i) => {
+          console.log(`  [${i}] "${r.title}" - is_public: ${r.is_public}, status: ${r.status}, allowed_roles: ${r.allowed_role_ids?.length || 0}`);
+        });
+      }
       
-      // Filter by status and role permissions
+      // Count resources by is_public value
+      const publicCount = allResources.filter(r => r.is_public === true).length;
+      const nonPublicCount = allResources.filter(r => r.is_public === false).length;
+      const draftCount = allResources.filter(r => r.status === 'draft').length;
+      console.log('[Resources] is_public breakdown - true:', publicCount, 'false:', nonPublicCount, 'drafts:', draftCount);
+      
+      // Filter by status and permissions based on authentication state
       const filtered = allResources.filter(resource => {
-        // Filter out draft resources only - treat undefined/null as active for backwards compatibility
+        // Always filter out draft resources
         if (resource.status === 'draft') return false;
         
+        // For unauthenticated users: only show public resources
+        if (!isAuthenticated) {
+          return resource.is_public === true;
+        }
+        
+        // For authenticated users:
         // Admins can see everything (except drafts)
         if (isAdmin) return true;
         
-        // Public resources are visible to everyone
+        // Public resources are visible to all authenticated users
         if (resource.is_public === true) return true;
         
         // For non-public resources, check role permissions
@@ -67,15 +111,15 @@ export default function ResourcesPage() {
           return resource.allowed_role_ids.includes(memberRole.id);
         }
         
-        // Not logged in and not public - hide it
-        return false;
+        // Authenticated but no role loaded yet - show public only for now
+        return resource.is_public === true;
       });
       
-      console.log('[Resources Debug] Filtered resources:', filtered.length);
+      console.log('[Resources] After filtering:', filtered.length, 'resources');
+      console.log('[Resources] ========== FETCH END ==========');
       return filtered;
     },
     staleTime: 0, // Always fetch fresh content for resources feed
-    enabled: !!memberRole || isAdmin === true, // Wait for role data to load before fetching
     refetchOnMount: true,
   });
 

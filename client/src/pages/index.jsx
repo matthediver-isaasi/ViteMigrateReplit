@@ -60,8 +60,6 @@ import Resources from "./Resources";
 
 import PublicResources from "./PublicResources";
 
-import ResourcesWrapper from "./ResourcesWrapper";
-
 import ResourceSettings from "./ResourceSettings";
 
 import ResourceManagement from "./ResourceManagement";
@@ -264,7 +262,7 @@ const PAGES = {
     
     TicketSalesAnalytics: TicketSalesAnalytics,
     
-    Resources: ResourcesWrapper,
+    Resources: Resources,
     
     PublicResources: PublicResources,
     
@@ -504,7 +502,7 @@ function PagesContent() {
                 
                 <Route path="/TicketSalesAnalytics" element={<TicketSalesAnalytics />} />
                 
-                <Route path="/Resources" element={<ResourcesWrapper />} />
+                <Route path="/Resources" element={<Resources />} />
                 
                 <Route path="/PublicResources" element={<PublicResources />} />
                 

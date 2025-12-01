@@ -565,6 +565,7 @@ const pageToPortalPageMap = {
   'Profile': 'portal_profile',
   'JobBoard': 'portal_job_board',
   'News': 'portal_news',
+  'NewsView': 'portal_news_view',
   'MyJobPostings': 'portal_my_job_postings',
   'Preferences': 'portal_preferences',
   'Support': 'portal_support',

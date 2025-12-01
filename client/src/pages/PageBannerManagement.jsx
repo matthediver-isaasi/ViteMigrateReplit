@@ -41,6 +41,7 @@ const PORTAL_PAGES = [
   { value: "portal_articles", label: "Articles" },
   { value: "portal_my_articles", label: "My Articles" },
   { value: "portal_news", label: "News" },
+  { value: "portal_news_view", label: "News View (Article Detail)" },
   { value: "portal_my_job_postings", label: "My Job Postings" },
   { value: "portal_preferences", label: "Preferences" },
   { value: "portal_support", label: "Support" },

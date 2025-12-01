@@ -83,6 +83,7 @@ const availablePages = [
     { value: "OrganisationDirectory", label: "Organisation Directory" },
     { value: "OrganisationDirectorySettings", label: "Organisation Directory Settings" },
     { value: "PageBannerManagement", label: "Page Banners" },
+    { value: "PageVisibilitySettings", label: "Page Visibility Settings" },
     { value: "PortalMenuManagement", label: "Portal Menu Management" },
     { value: "PortalNavigationManagement", label: "Portal Navigation Management" },
     { value: "PostJob", label: "Post Job" },

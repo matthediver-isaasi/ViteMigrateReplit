@@ -126,7 +126,7 @@ export default function NewsCard({
         <ActionButtons />
         <Link 
           to={articleUrl}
-          className="inline-flex items-center justify-center w-12 h-12 bg-black hover:bg-gray-800 transition-colors duration-200"
+          className="inline-flex items-center justify-center w-12 h-12 bg-black hover:bg-gray-800 transition-colors duration-200 ml-auto"
           data-testid={`button-read-news-${article.id}`}
         >
           <ArrowUpRight className="w-6 h-6 text-white" strokeWidth={2} />

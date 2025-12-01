@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/api/supabaseClient"; // or your actual client path
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,6 +14,8 @@ import {
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   Loader2,
   X,
@@ -33,6 +36,7 @@ import {
   Check,
   AlertCircle,
   Mail,
+  ClipboardList,
 } from "lucide-react";
 import { format } from "date-fns";
 import ResourceFilter from "../components/resources/ResourceFilter";
@@ -101,6 +105,11 @@ export default function PreferencesPage() {
 
   // Communication preferences state
   const [updatingCommPrefs, setUpdatingCommPrefs] = useState(new Set());
+
+  // Additional info (custom preference fields) state
+  const [additionalInfoValues, setAdditionalInfoValues] = useState({});
+  const [hasUnsavedAdditionalInfo, setHasUnsavedAdditionalInfo] = useState(false);
+  const [isSavingAdditionalInfo, setIsSavingAdditionalInfo] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -354,6 +363,39 @@ export default function PreferencesPage() {
     },
   });
 
+  // --- Preference fields (custom additional info fields) ---
+  const { data: preferenceFields = [], isLoading: preferenceFieldsLoading } = useQuery({
+    queryKey: ["/api/entities/PreferenceField"],
+    queryFn: async () => {
+      try {
+        const fields = await base44.entities.PreferenceField.list({
+          filter: { is_active: true },
+          sort: { display_order: 'asc' }
+        });
+        return fields || [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // --- Member's preference values ---
+  const { data: memberPreferenceValues = [] } = useQuery({
+    queryKey: ["/api/entities/MemberPreferenceValue", memberRecord?.id],
+    enabled: !!memberRecord?.id,
+    queryFn: async () => {
+      if (!memberRecord?.id) return [];
+      try {
+        const values = await base44.entities.MemberPreferenceValue.list({
+          filter: { member_id: memberRecord.id }
+        });
+        return values || [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
   // --- Get member's role IDs ---
   const memberRoleIds = useMemo(() => {
     if (!memberRecord?.role_id) return [];
@@ -384,6 +426,7 @@ export default function PreferencesPage() {
     { id: 'profile_information', visible: true },
     { id: 'password_security', visible: true },
     { id: 'communications', visible: true },
+    { id: 'additional_info', visible: true },
     { id: 'engagement', visible: true },
     { id: 'resource_interests', visible: true }
   ];
@@ -507,6 +550,29 @@ export default function PreferencesPage() {
     }
   }, []);
 
+  // --- Load additional info values from memberPreferenceValues ---
+  useEffect(() => {
+    if (memberPreferenceValues.length > 0 && preferenceFields.length > 0) {
+      const valuesMap = {};
+      memberPreferenceValues.forEach(pv => {
+        const field = preferenceFields.find(f => f.id === pv.field_id);
+        if (field) {
+          // For picklist, parse as array
+          if (field.field_type === 'picklist' && pv.value) {
+            try {
+              valuesMap[pv.field_id] = JSON.parse(pv.value);
+            } catch {
+              valuesMap[pv.field_id] = [];
+            }
+          } else {
+            valuesMap[pv.field_id] = pv.value || '';
+          }
+        }
+      });
+      setAdditionalInfoValues(valuesMap);
+    }
+  }, [memberPreferenceValues, preferenceFields]);
+
   // --- Mutations ---
   const savePreferencesMutation = useMutation({
     mutationFn: async (preferences) => {
@@ -568,6 +634,54 @@ export default function PreferencesPage() {
     },
     onError: () => {
       toast.error("Failed to update organisation logo");
+    },
+  });
+
+  // Save additional info (custom preference fields)
+  const saveAdditionalInfoMutation = useMutation({
+    mutationFn: async (values) => {
+      if (!memberRecord?.id) throw new Error("No member record");
+      
+      // For each field, upsert the value
+      const updates = Object.entries(values).map(async ([fieldId, value]) => {
+        const existingValue = memberPreferenceValues.find(pv => pv.field_id === fieldId);
+        const field = preferenceFields.find(f => f.id === fieldId);
+        
+        // Convert picklist arrays to JSON string
+        let storedValue = value;
+        if (field?.field_type === 'picklist' && Array.isArray(value)) {
+          storedValue = JSON.stringify(value);
+        }
+        
+        if (existingValue) {
+          // Update existing
+          return await base44.entities.MemberPreferenceValue.update(existingValue.id, {
+            value: storedValue,
+            updated_at: new Date().toISOString()
+          });
+        } else {
+          // Create new
+          return await base44.entities.MemberPreferenceValue.create({
+            member_id: memberRecord.id,
+            field_id: fieldId,
+            value: storedValue
+          });
+        }
+      });
+      
+      await Promise.all(updates);
+      return values;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/entities/MemberPreferenceValue", memberRecord?.id] });
+      toast.success("Additional information saved successfully");
+      setHasUnsavedAdditionalInfo(false);
+      setIsSavingAdditionalInfo(false);
+    },
+    onError: (error) => {
+      console.error("Failed to save additional info:", error);
+      toast.error("Failed to save additional information");
+      setIsSavingAdditionalInfo(false);
     },
   });
 
@@ -647,6 +761,33 @@ export default function PreferencesPage() {
       expandedCategories,
     };
     savePreferencesMutation.mutate(preferences);
+  };
+
+  // Handle additional info field changes
+  const handleAdditionalInfoChange = (fieldId, value) => {
+    setAdditionalInfoValues(prev => ({
+      ...prev,
+      [fieldId]: value
+    }));
+    setHasUnsavedAdditionalInfo(true);
+  };
+
+  // Handle picklist checkbox toggle
+  const handlePicklistToggle = (fieldId, optionValue, checked) => {
+    setAdditionalInfoValues(prev => {
+      const currentValues = Array.isArray(prev[fieldId]) ? prev[fieldId] : [];
+      const newValues = checked 
+        ? [...currentValues, optionValue]
+        : currentValues.filter(v => v !== optionValue);
+      return { ...prev, [fieldId]: newValues };
+    });
+    setHasUnsavedAdditionalInfo(true);
+  };
+
+  // Save additional info
+  const handleSaveAdditionalInfo = () => {
+    setIsSavingAdditionalInfo(true);
+    saveAdditionalInfoMutation.mutate(additionalInfoValues);
   };
 
   const handleSaveProfile = () => {
@@ -1755,6 +1896,146 @@ export default function PreferencesPage() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case 'additional_info':
+        if (preferenceFields.length === 0 && !preferenceFieldsLoading) return null;
+        return (
+          <Card key="additional_info" className="border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-blue-600" />
+                Additional Info
+              </CardTitle>
+              <CardDescription>
+                Provide additional information about your preferences
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {preferenceFieldsLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {preferenceFields.map((field) => {
+                    const fieldValue = additionalInfoValues[field.id] || '';
+                    
+                    return (
+                      <div key={field.id} className="space-y-2" data-testid={`additional-field-${field.id}`}>
+                        <Label htmlFor={`field-${field.id}`}>
+                          {field.label}
+                          {field.is_required && <span className="text-red-500 ml-1">*</span>}
+                        </Label>
+                        
+                        {field.field_type === 'text' && (
+                          <Input
+                            id={`field-${field.id}`}
+                            value={fieldValue}
+                            onChange={(e) => handleAdditionalInfoChange(field.id, e.target.value)}
+                            placeholder={`Enter ${field.label.toLowerCase()}`}
+                            data-testid={`input-field-${field.id}`}
+                          />
+                        )}
+                        
+                        {field.field_type === 'number' && (
+                          <Input
+                            id={`field-${field.id}`}
+                            type="number"
+                            value={fieldValue}
+                            onChange={(e) => handleAdditionalInfoChange(field.id, e.target.value)}
+                            placeholder={`Enter ${field.label.toLowerCase()}`}
+                            data-testid={`input-field-${field.id}`}
+                          />
+                        )}
+                        
+                        {field.field_type === 'decimal' && (
+                          <Input
+                            id={`field-${field.id}`}
+                            type="number"
+                            step="0.01"
+                            value={fieldValue}
+                            onChange={(e) => handleAdditionalInfoChange(field.id, e.target.value)}
+                            placeholder={`Enter ${field.label.toLowerCase()}`}
+                            data-testid={`input-field-${field.id}`}
+                          />
+                        )}
+                        
+                        {field.field_type === 'dropdown' && field.options && (
+                          <Select 
+                            value={fieldValue} 
+                            onValueChange={(value) => handleAdditionalInfoChange(field.id, value)}
+                          >
+                            <SelectTrigger data-testid={`select-field-${field.id}`}>
+                              <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {field.options.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        
+                        {field.field_type === 'picklist' && field.options && (
+                          <div className="space-y-2 p-3 bg-slate-50 rounded-lg border">
+                            {field.options.map((option) => {
+                              const selectedValues = Array.isArray(fieldValue) ? fieldValue : [];
+                              const isChecked = selectedValues.includes(option.value);
+                              
+                              return (
+                                <div key={option.value} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`field-${field.id}-${option.value}`}
+                                    checked={isChecked}
+                                    onCheckedChange={(checked) => 
+                                      handlePicklistToggle(field.id, option.value, checked)
+                                    }
+                                    data-testid={`checkbox-field-${field.id}-${option.value}`}
+                                  />
+                                  <label 
+                                    htmlFor={`field-${field.id}-${option.value}`}
+                                    className="text-sm text-slate-700 cursor-pointer"
+                                  >
+                                    {option.label}
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  
+                  {hasUnsavedAdditionalInfo && (
+                    <div className="flex justify-end pt-4 border-t border-slate-200">
+                      <Button
+                        onClick={handleSaveAdditionalInfo}
+                        disabled={isSavingAdditionalInfo}
+                        className="bg-blue-600 hover:bg-blue-700"
+                        data-testid="button-save-additional-info"
+                      >
+                        {isSavingAdditionalInfo ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Saving...
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4 mr-2" />
+                            Save Information
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
             </CardContent>

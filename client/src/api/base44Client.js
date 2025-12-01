@@ -10,11 +10,21 @@ class EntityProxy {
 
   async list(options = {}) {
     const params = new URLSearchParams();
-    if (options.filter) params.set('filter', JSON.stringify(options.filter));
-    if (options.sort) params.set('sort', JSON.stringify(options.sort));
-    if (options.limit) params.set('limit', options.limit);
-    if (options.offset) params.set('offset', options.offset);
-    if (options.expand) params.set('expand', options.expand);
+    
+    // Handle legacy format where a sort string is passed directly (e.g., '-published_date')
+    if (typeof options === 'string') {
+      const sortString = options;
+      const ascending = !sortString.startsWith('-');
+      const field = sortString.replace(/^-/, '');
+      params.set('sort', JSON.stringify({ [field]: ascending ? 'asc' : 'desc' }));
+    } else {
+      // Handle object options format
+      if (options.filter) params.set('filter', JSON.stringify(options.filter));
+      if (options.sort) params.set('sort', JSON.stringify(options.sort));
+      if (options.limit) params.set('limit', options.limit);
+      if (options.offset) params.set('offset', options.offset);
+      if (options.expand) params.set('expand', options.expand);
+    }
     
     const queryString = params.toString();
     const url = `/api/entities/${this.entityName}${queryString ? `?${queryString}` : ''}`;

@@ -229,6 +229,9 @@ class EntitiesProxy {
   get AwardClassification() { return this._getEntity('AwardClassification'); }
   get AwardSublevel() { return this._getEntity('AwardSublevel'); }
   get MemberGroupGuest() { return this._getEntity('MemberGroupGuest'); }
+  get CommunicationCategory() { return this._getEntity('CommunicationCategory'); }
+  get CommunicationCategoryRole() { return this._getEntity('CommunicationCategoryRole'); }
+  get MemberCommunicationPreference() { return this._getEntity('MemberCommunicationPreference'); }
 }
 
 class CoreIntegration {

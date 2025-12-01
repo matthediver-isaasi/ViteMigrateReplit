@@ -81,7 +81,7 @@ export default function ResourceCard({ resource, isLocked = false, buttonStyles 
     if (!buttonStyle) {
       // Default fallback
       return (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <Button 
             onClick={handleResourceClick}
             className={`bg-blue-600 hover:bg-blue-700 ${resource.is_public ? 'flex-1' : 'w-full'}`}
@@ -133,7 +133,7 @@ export default function ResourceCard({ resource, isLocked = false, buttonStyles 
 
     if (buttonType === "square_agcas") {
       return (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <AGCASSquareButton onClick={handleResourceClick} className="shrink-0" />
           {resource.is_public && (
             <DropdownMenu>
@@ -172,7 +172,7 @@ export default function ResourceCard({ resource, isLocked = false, buttonStyles 
       );
     } else if (buttonType === "rectangular_agcas") {
       return (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <AGCASButton 
             onClick={handleResourceClick}
             icon={IconComponent && buttonStyle.icon_name !== 'none' ? IconComponent : undefined}
@@ -219,7 +219,7 @@ export default function ResourceCard({ resource, isLocked = false, buttonStyles 
     } else {
       // Standard button
       return (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-end">
           <Button 
             onClick={handleResourceClick}
             className={`bg-blue-600 hover:bg-blue-700 ${resource.is_public ? 'flex-1' : 'w-full'}`}

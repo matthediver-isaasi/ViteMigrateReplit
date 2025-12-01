@@ -18,6 +18,7 @@ export default function ArticlesSettingsPage() {
   const [showThumbsUp, setShowThumbsUp] = useState(true);
   const [showThumbsDown, setShowThumbsDown] = useState(true);
   const [showAuthorBio, setShowAuthorBio] = useState(true);
+  const [showAuthorLabel, setShowAuthorLabel] = useState(true);
   const queryClient = useQueryClient();
 
   useEffect(() => {
@@ -48,10 +49,12 @@ export default function ArticlesSettingsPage() {
       const thumbsUpSetting = allSettings.find(s => s.setting_key === 'article_show_thumbs_up');
       const thumbsDownSetting = allSettings.find(s => s.setting_key === 'article_show_thumbs_down');
       const authorBioSetting = allSettings.find(s => s.setting_key === 'article_show_author_bio');
+      const authorLabelSetting = allSettings.find(s => s.setting_key === 'article_show_about_author_label');
       return {
         thumbsUp: thumbsUpSetting,
         thumbsDown: thumbsDownSetting,
-        authorBio: authorBioSetting
+        authorBio: authorBioSetting,
+        authorLabel: authorLabelSetting
       };
     },
     staleTime: 0
@@ -71,6 +74,7 @@ export default function ArticlesSettingsPage() {
       setShowThumbsUp(reactionSettings.thumbsUp?.setting_value !== 'false');
       setShowThumbsDown(reactionSettings.thumbsDown?.setting_value !== 'false');
       setShowAuthorBio(reactionSettings.authorBio?.setting_value !== 'false');
+      setShowAuthorLabel(reactionSettings.authorLabel?.setting_value !== 'false');
     }
   }, [reactionSettings]);
 
@@ -158,6 +162,15 @@ export default function ArticlesSettingsPage() {
       key: 'article_show_author_bio',
       value: checked,
       existingSetting: reactionSettings?.authorBio
+    });
+  };
+
+  const handleAuthorLabelToggle = (checked) => {
+    setShowAuthorLabel(checked);
+    updateReactionSettingMutation.mutate({
+      key: 'article_show_about_author_label',
+      value: checked,
+      existingSetting: reactionSettings?.authorLabel
     });
   };
 
@@ -309,6 +322,25 @@ export default function ArticlesSettingsPage() {
                 </div>
 
                 <div className="space-y-4">
+                  <div 
+                    className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => handleAuthorLabelToggle(!showAuthorLabel)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <User className="w-5 h-5 text-blue-600" />
+                      <div>
+                        <Label className="font-medium text-slate-900 cursor-pointer">Show "About the author" Label</Label>
+                        <p className="text-sm text-slate-500">Display the heading text above the author section</p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={showAuthorLabel}
+                      onCheckedChange={handleAuthorLabelToggle}
+                      disabled={updateReactionSettingMutation.isPending}
+                      data-testid="switch-author-label"
+                    />
+                  </div>
+
                   <div 
                     className="flex items-center justify-between p-4 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
                     onClick={() => handleAuthorBioToggle(!showAuthorBio)}

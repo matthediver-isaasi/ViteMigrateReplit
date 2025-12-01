@@ -299,9 +299,14 @@ export function IEditHeroElementEditor({ element, onChange }) {
     onChange({ ...element, content: { ...content, [key]: value } });
   };
 
-  const updateButton = (key, value) => {
+  const updateButton = (keyOrUpdates, value) => {
     const currentButton = content.button || defaultButton;
-    updateContent('button', { ...currentButton, [key]: value });
+    // Support both single key-value and object of updates
+    if (typeof keyOrUpdates === 'object') {
+      updateContent('button', { ...currentButton, ...keyOrUpdates });
+    } else {
+      updateContent('button', { ...currentButton, [keyOrUpdates]: value });
+    }
   };
 
   useEffect(() => {
@@ -925,9 +930,10 @@ export function IEditHeroElementEditor({ element, onChange }) {
               checked={button.transparent_bg || false}
               onChange={(e) => {
                 const isTransparent = e.target.checked;
-                updateButton('transparent_bg', isTransparent);
                 if (isTransparent) {
-                  updateButton('custom_bg_color', '');
+                  updateButton({ transparent_bg: true, custom_bg_color: '' });
+                } else {
+                  updateButton('transparent_bg', false);
                 }
               }}
               className="w-4 h-4"
@@ -945,8 +951,7 @@ export function IEditHeroElementEditor({ element, onChange }) {
                   type="color"
                   value={button.custom_bg_color || '#000000'}
                   onChange={(e) => {
-                    updateButton('custom_bg_color', e.target.value);
-                    updateButton('transparent_bg', false);
+                    updateButton({ custom_bg_color: e.target.value, transparent_bg: false });
                   }}
                   className={`w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer ${button.transparent_bg ? 'opacity-50' : ''}`}
                   disabled={button.transparent_bg}

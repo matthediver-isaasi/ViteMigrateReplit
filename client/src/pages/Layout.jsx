@@ -1087,6 +1087,17 @@ useEffect(() => {
     window.location.href = createPageUrl('Home');
   };
 
+  // Wait for visibility settings to load before rendering layout
+  // This prevents layout flicker and React errors when settings change layout type
+  if (!visibilitySettingsFetched) {
+    // Show minimal loading state while settings are being fetched
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-pulse text-slate-400">Loading...</div>
+      </div>
+    );
+  }
+
   // Render public layout for truly public pages
   if (isPublicPage()) {
     // Use BarePublicLayout for specific pages (like Home)

@@ -33,12 +33,15 @@ Preferred communication style: Simple, everyday language.
 
 **Authentication:** Password-based authentication with server-side session management using `express-session`. Endpoints include `/api/auth/me` (returns member data with `isAdmin` flag), `/api/auth/login`, `/api/auth/logout`, `/api/auth/change-password`, and `/api/auth/request-password-reset`.
 
-**Admin Security Model:** Admin-only operations use server-validated routes that verify admin status via session:
+**Admin Security Model:** Admin-only operations use server-validated routes that verify permissions via session:
 - `/api/admin/members/:id` (GET/PATCH) - Fetch/update member profile with field allowlist
 - `/api/admin/organizations/:id` (PATCH) - Update organization with field allowlist  
 - `/api/admin/members/:memberId/communication-preferences/:categoryId` (PATCH) - Update member communication preferences
-- Admin status is verified via `verifyAdminSession()` helper which checks `req.session.memberId` against the database role's `is_admin` flag
-- Frontend uses `useServerAdminAuth` hook to verify admin access via `/api/auth/me` response
+- Permission verification via `verifyPermission()` helper which checks the role's `excluded_features` array
+- Available permissions: `admin_can_edit_members`, `admin_can_manage_communications` - configurable in Role Management
+- Roles with `is_admin=true` automatically have all permissions (backwards compatible)
+- `/api/auth/me` returns permission flags: `isAdmin`, `canEditMembers`, `canManageCommunications`
+- Frontend uses `useServerAdminAuth` hook with `requiredPermission` option to check specific permissions
 
 **Function Handlers:** Server-side functions via `/api/functions/:functionName` for operations like magic link generation, Stripe payments, bookings, and event synchronization.
 

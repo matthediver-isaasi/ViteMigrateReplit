@@ -1,9 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { parse, serialize } from 'cookie';
 import crypto from 'crypto';
+import cookieSignature from 'cookie-signature';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
+const SESSION_SECRET = process.env.SESSION_SECRET || 'iconnect-session-secret-change-in-production';
 
 const supabase = supabaseUrl && supabaseServiceKey 
   ? createClient(supabaseUrl, supabaseServiceKey)
@@ -16,17 +18,37 @@ function generateSessionId() {
   return crypto.randomBytes(32).toString('hex');
 }
 
+function signSessionId(sessionId) {
+  return 's:' + cookieSignature.sign(sessionId, SESSION_SECRET);
+}
+
+function unsignSessionId(signedValue) {
+  if (!signedValue) return null;
+  
+  // Handle signed format: s:sessionId.signature
+  if (signedValue.startsWith('s:')) {
+    const val = signedValue.slice(2); // Remove 's:' prefix
+    const unsigned = cookieSignature.unsign(val, SESSION_SECRET);
+    return unsigned || null;
+  }
+  
+  // Fallback for unsigned (shouldn't happen in production)
+  return signedValue;
+}
+
 export async function getSession(req) {
   if (!supabase) return null;
   
   const cookies = parse(req.headers.cookie || '');
-  let sessionId = cookies[SESSION_COOKIE_NAME];
+  const signedSessionId = cookies[SESSION_COOKIE_NAME];
   
-  if (!sessionId) return null;
+  if (!signedSessionId) return null;
   
-  // Handle signed session ID format (s:sessionId)
-  if (sessionId.startsWith('s:')) {
-    sessionId = sessionId.substring(2);
+  // Unsign the session ID
+  const sessionId = unsignSessionId(signedSessionId);
+  if (!sessionId) {
+    console.log('[Session] Invalid session signature');
+    return null;
   }
   
   try {
@@ -72,7 +94,8 @@ export async function createSession(res, sessionData) {
       path: '/',
       sameSite: 'lax'
     },
-    ...sessionData
+    memberId: sessionData.memberId,
+    memberEmail: sessionData.memberEmail
   };
   
   try {
@@ -82,8 +105,8 @@ export async function createSession(res, sessionData) {
       expire: expire.toISOString()
     });
     
-    // Set cookie using signed format like Express does (s:sessionId)
-    const signedId = `s:${sessionId}`;
+    // Sign the cookie value like Express does
+    const signedId = signSessionId(sessionId);
     const cookie = serialize(SESSION_COOKIE_NAME, signedId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
@@ -152,12 +175,10 @@ export async function destroySession(req, res) {
   if (!supabase) return;
   
   const cookies = parse(req.headers.cookie || '');
-  let sessionId = cookies[SESSION_COOKIE_NAME];
+  const signedSessionId = cookies[SESSION_COOKIE_NAME];
   
-  // Handle signed session ID format (s:sessionId)
-  if (sessionId && sessionId.startsWith('s:')) {
-    sessionId = sessionId.substring(2);
-  }
+  // Unsign the session ID
+  const sessionId = unsignSessionId(signedSessionId);
   
   if (sessionId) {
     try {
@@ -202,14 +223,4 @@ export async function getSessionMember(req) {
     console.error('Error getting session member:', err);
     return null;
   }
-}
-
-// Helper to extract session ID from cookie (handles both signed and unsigned)
-function extractSessionId(cookieValue) {
-  if (!cookieValue) return null;
-  // Handle signed format: s:sessionId
-  if (cookieValue.startsWith('s:')) {
-    return cookieValue.substring(2);
-  }
-  return cookieValue;
 }

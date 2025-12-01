@@ -342,7 +342,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get('/api/auth/me', async (req: Request, res: Response) => {
     if (!req.session.memberId) {
-      return res.status(401).json({ authenticated: false, error: 'Not authenticated' });
+      // Return null for unauthenticated - matches Vercel API format
+      return res.status(200).json(null);
     }
 
     if (!supabase) {
@@ -357,11 +358,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .single();
 
       if (error || !data) {
-        return res.status(401).json({ authenticated: false, error: 'User not found' });
+        // Return null for user not found - matches Vercel API format
+        return res.status(200).json(null);
       }
 
-      // Return in the format expected by Layout.jsx
-      res.json({ authenticated: true, member: data });
+      // Return member directly - matches Vercel API format
+      res.json(data);
     } catch (error) {
       console.error('Auth me error:', error);
       res.status(500).json({ error: 'Failed to get user' });

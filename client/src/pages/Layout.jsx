@@ -816,18 +816,19 @@ useEffect(() => {
       try {
         const response = await fetch('/api/auth/me', { credentials: 'include' });
         if (response.ok) {
-          const data = await response.json();
-          if (data.member) {
-            console.log('[Layout] Server session found:', data.member.email);
+          const member = await response.json();
+          // API returns member directly (not wrapped in data.member)
+          if (member && member.id) {
+            console.log('[Layout] Server session found:', member.email);
             // Sync server session to sessionStorage for backwards compatibility
             const sessionExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-            const memberData = { ...data.member, sessionExpiry };
+            const memberData = { ...member, sessionExpiry };
             sessionStorage.setItem('agcas_member', JSON.stringify(memberData));
             setMemberInfo(memberData);
             
             // Fetch organization info for regular members
-            if (data.member.organization_id && !data.member.is_team_member) {
-              fetchOrganizationInfo(data.member.organization_id);
+            if (member.organization_id && !member.is_team_member) {
+              fetchOrganizationInfo(member.organization_id);
             }
             return true; // Session is valid
           }

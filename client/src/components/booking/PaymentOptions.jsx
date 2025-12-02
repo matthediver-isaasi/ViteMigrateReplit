@@ -15,10 +15,8 @@ import { loadStripe } from "@stripe/stripe-js";
 import { Elements, PaymentElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import VoucherSelector from "./VoucherSelector";
 
-// Initialize Stripe
-const stripePromise = import.meta.env.VITE_STRIPE_PUBLIC_KEY 
-  ? loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY)
-  : null;
+// Stripe promise will be initialized dynamically
+let stripePromise = null;
 
 // Stripe Payment Form Component
 function StripePaymentForm({ clientSecret, onSuccess, onCancel, amount }) {
@@ -131,6 +129,27 @@ export default function PaymentOptions({
   const [showStripeModal, setShowStripeModal] = useState(false);
   const [stripeClientSecret, setStripeClientSecret] = useState(null);
   const [stripePaymentIntentId, setStripePaymentIntentId] = useState(null);
+  const [stripeAvailable, setStripeAvailable] = useState(false);
+
+  // Initialize Stripe by fetching the publishable key from the backend
+  useEffect(() => {
+    const initStripe = async () => {
+      if (stripePromise) {
+        setStripeAvailable(true);
+        return;
+      }
+      try {
+        const response = await base44.functions.invoke('getStripePublishableKey');
+        if (response.data.publishableKey) {
+          stripePromise = loadStripe(response.data.publishableKey);
+          setStripeAvailable(true);
+        }
+      } catch (error) {
+        console.error('Failed to load Stripe publishable key:', error);
+      }
+    };
+    initStripe();
+  }, []);
 
   // Fetch vouchers for one-off events
   const { data: vouchers = [] } = useQuery({
@@ -551,14 +570,14 @@ export default function PaymentOptions({
                     </div>
 
                     <div
-                      className={`flex items-start space-x-3 p-3 rounded-lg border-2 transition-colors ${stripePromise ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
+                      className={`flex items-start space-x-3 p-3 rounded-lg border-2 transition-colors ${stripeAvailable ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
                       style={{ borderColor: remainingBalancePaymentMethod === 'card' ? '#6366f1' : '#e2e8f0' }}
-                      onClick={() => stripePromise && setRemainingBalancePaymentMethod('card')}
+                      onClick={() => stripeAvailable && setRemainingBalancePaymentMethod('card')}
                     >
-                      <RadioGroupItem value="card" id="card" className="mt-1" disabled={!stripePromise} />
+                      <RadioGroupItem value="card" id="card" className="mt-1" disabled={!stripeAvailable} />
                       <div className="flex-1">
-                        <Label htmlFor="card" className={`text-sm font-medium ${stripePromise ? 'cursor-pointer' : 'cursor-not-allowed'}`}>Pay by Credit/Debit Card</Label>
-                        {stripePromise ? (
+                        <Label htmlFor="card" className={`text-sm font-medium ${stripeAvailable ? 'cursor-pointer' : 'cursor-not-allowed'}`}>Pay by Credit/Debit Card</Label>
+                        {stripeAvailable ? (
                           <p className="text-xs text-slate-500 mt-1">Secure payment via Stripe</p>
                         ) : (
                           <p className="text-xs text-amber-600 mt-1">Card payments not currently available</p>

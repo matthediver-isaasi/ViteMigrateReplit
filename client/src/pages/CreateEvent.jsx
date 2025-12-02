@@ -250,30 +250,23 @@ export default function CreateEvent() {
       zoom_webinar_id: isOnline && selectedWebinarId ? selectedWebinarId : null
     };
 
-    // Add pricing and offer fields for one-off events
+    // Add pricing and offer fields for one-off events as JSON in pricing_config field
     if (!isProgramEvent) {
-      eventData.ticket_price = parseFloat(ticketPrice);
-      eventData.offer_type = offerType;
+      const pricingConfig = {
+        ticket_price: parseFloat(ticketPrice),
+        offer_type: offerType
+      };
       
       if (offerType === "bogo") {
-        eventData.bogo_buy_quantity = parseInt(bogoBuyQty);
-        eventData.bogo_get_free_quantity = parseInt(bogoGetFreeQty);
-        eventData.bogo_logic_type = bogoLogicType;
-        eventData.bulk_discount_threshold = null;
-        eventData.bulk_discount_percentage = null;
+        pricingConfig.bogo_buy_quantity = parseInt(bogoBuyQty);
+        pricingConfig.bogo_get_free_quantity = parseInt(bogoGetFreeQty);
+        pricingConfig.bogo_logic_type = bogoLogicType;
       } else if (offerType === "bulk_discount") {
-        eventData.bulk_discount_threshold = parseInt(bulkThreshold);
-        eventData.bulk_discount_percentage = parseFloat(bulkPercentage);
-        eventData.bogo_buy_quantity = null;
-        eventData.bogo_get_free_quantity = null;
-        eventData.bogo_logic_type = null;
-      } else {
-        eventData.bogo_buy_quantity = null;
-        eventData.bogo_get_free_quantity = null;
-        eventData.bogo_logic_type = null;
-        eventData.bulk_discount_threshold = null;
-        eventData.bulk_discount_percentage = null;
+        pricingConfig.bulk_discount_threshold = parseInt(bulkThreshold);
+        pricingConfig.bulk_discount_percentage = parseFloat(bulkPercentage);
       }
+      
+      eventData.pricing_config = pricingConfig;
     }
 
     createEventMutation.mutate(eventData);

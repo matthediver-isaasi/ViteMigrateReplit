@@ -75,7 +75,7 @@ export default function ResourceManagementPage() {
 
   const { data: resources = [], isLoading } = useQuery({
     queryKey: ['admin-resources'],
-    queryFn: () => base44.entities.Resource.list('-created_at'),
+    queryFn: () => base44.entities.Resource.list(),
     staleTime: 0,
     refetchOnMount: true,
   });
@@ -92,7 +92,7 @@ export default function ResourceManagementPage() {
 
   const { data: repositoryFiles = [] } = useQuery({
     queryKey: ['file-repository'],
-    queryFn: () => base44.entities.FileRepository.list('-created_at'),
+    queryFn: () => base44.entities.FileRepository.list(),
     staleTime: 0,
     refetchOnMount: true,
   });

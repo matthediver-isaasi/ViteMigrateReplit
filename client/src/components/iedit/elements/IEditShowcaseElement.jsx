@@ -32,7 +32,7 @@ function CardSlotEditor({ index, card, onUpdate }) {
           const news = await base44.entities.NewsPost.list('-published_date');
           return news.filter(n => n.status === 'published');
         case 'resources':
-          return await base44.entities.Resource.list('-created_at');
+          return await base44.entities.Resource.list();
         case 'articles':
           const articles = await base44.entities.BlogPost.list('-published_date');
           return articles.filter(a => a.status === 'published');

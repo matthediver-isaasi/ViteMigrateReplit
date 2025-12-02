@@ -1397,7 +1397,6 @@ const functionHandlers = {
       contact_email,
       contact_name,
       memberEmail,
-      is_featured = false,
       attachment_urls = [],
       attachment_names = []
     } = params;
@@ -1439,7 +1438,6 @@ const functionHandlers = {
         posted_by_organization_id: member.organization_id || null,
         posted_by_organization_name: organizationName,
         is_member_post: true,
-        is_featured,
         status: 'pending_approval',
         payment_status: 'N/A',
         attachment_urls,
@@ -1472,7 +1470,6 @@ const functionHandlers = {
       application_value,
       contact_email,
       contact_name,
-      is_featured = false,
       attachment_urls = [],
       attachment_names = []
     } = params;
@@ -1509,7 +1506,6 @@ const functionHandlers = {
         contact_email,
         contact_name,
         is_member_post: false,
-        is_featured,
         status: 'pending_payment',
         payment_status: 'pending',
         expiry_date: expiryDate.toISOString(),

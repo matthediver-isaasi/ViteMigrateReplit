@@ -42,6 +42,7 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     gradient_angle = 135,
     right_side_color = '#1a1a2e',
     card_background = '#FFFFFF',
+    card_padding = 40,
     
     // Right side static header
     right_header_text = '',
@@ -177,16 +178,19 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
 
       {/* Centered content container */}
       <div 
-        className="relative max-w-6xl mx-auto px-8 h-full flex items-center"
+        className="relative max-w-6xl mx-auto h-full flex items-stretch"
         style={{ padding: `${vertical_padding}px 32px` }}
       >
         {/* Two-column grid for content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full items-center">
-          {/* Left column - Static content in white card */}
-          <div className="flex items-center justify-center lg:justify-start">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
+          {/* Left column - Static content in white card (full height) */}
+          <div className="flex items-stretch justify-center lg:justify-start">
             <div 
-              className="aspect-square w-80 p-8 shadow-xl flex flex-col justify-center"
-              style={{ background: card_background }}
+              className="shadow-xl flex flex-col justify-center"
+              style={{ 
+                background: card_background,
+                padding: `${card_padding}px`
+              }}
             >
               <StaticContent content={content} />
             </div>
@@ -623,6 +627,16 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
                   className="flex-1 px-3 py-2 border rounded-md"
                 />
               </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Card Padding (px)</label>
+              <input 
+                type="number"
+                value={content.card_padding || 40}
+                onChange={(e) => updateContent('card_padding', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+                min="0"
+              />
             </div>
           </>
         )}

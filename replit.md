@@ -59,6 +59,8 @@ Preferred communication style: Simple, everyday language.
 
 **Custom Fields:** PreferenceField (field definitions with entity_scope = 'member' or 'organization'), MemberPreferenceValue (member custom field values), OrganizationPreferenceValue (organization custom field values). Entity scope determines where fields are displayed and edited.
 
+**Organization Fields:** The organization table includes default contact fields (phone, invoicing_email, invoicing_address, website_url) plus standard metadata (name, logo_url, domain, description). These are displayed on the /myorganisation page and editable via admin endpoints.
+
 ## Deployment Architecture
 
 **Development (Replit):** Express.js with Vite middleware, full API functionality, hot module replacement.
@@ -76,6 +78,18 @@ Preferred communication style: Simple, everyday language.
 **Page Status Flow:** Pages can be `draft` or `published`.
 
 **Access Control:** `public` pages are universally accessible; `member` pages require login.
+
+## My Organisation Page
+
+**Route:** `/myorganisation` (feature ID: `page_user_MyOrganisation`)
+
+**Purpose:** Displays organization details for the logged-in member including contact information and custom fields.
+
+**Default Fields:** Phone number, website URL, invoicing email, invoicing address.
+
+**Custom Fields:** Displays organization-scoped PreferenceField values (entity_scope = 'organization') with support for text, textarea, dropdown, picklist (multi-select), boolean, date, number, and decimal field types.
+
+**Access Control:** Controlled via Role Management using `page_user_MyOrganisation` feature ID in excluded_features array.
 
 # External Dependencies
 

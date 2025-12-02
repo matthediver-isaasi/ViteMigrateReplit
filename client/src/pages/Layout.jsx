@@ -698,6 +698,7 @@ useEffect(() => {
     'Team': 'page_user_Team',
     'MemberDirectory': 'page_user_MemberDirectory',
     'OrganisationDirectory': 'page_user_OrganisationDirectory',
+    'MyOrganisation': 'page_user_MyOrganisation',
     'Resources': 'page_user_Resources',
     'MyArticles': 'page_user_MyArticles',
     'Articles': 'page_user_Articles',

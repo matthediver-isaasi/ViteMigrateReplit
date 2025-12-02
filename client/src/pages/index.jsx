@@ -206,6 +206,8 @@ import CommunicationsManagement from "./CommunicationsManagement";
 
 import AdminMemberEdit from "./AdminMemberEdit";
 
+import MyOrganisation from "./MyOrganisation";
+
 import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
 import { LayoutProvider } from '@/contexts/LayoutContext';
 import { ArticleUrlProvider } from '@/contexts/ArticleUrlContext';
@@ -417,6 +419,8 @@ const PAGES = {
     CommunicationsManagement: CommunicationsManagement,
     
     AdminMemberEdit: AdminMemberEdit,
+    
+    MyOrganisation: MyOrganisation,
     
 }
 
@@ -665,6 +669,8 @@ function PagesContent() {
                 <Route path="/CommunicationsManagement" element={<CommunicationsManagement />} />
                 
                 <Route path="/AdminMemberEdit" element={<AdminMemberEdit />} />
+                
+                <Route path="/MyOrganisation" element={<MyOrganisation />} />
                 
                 {/* /auth/verify route removed - using password auth */}
                 

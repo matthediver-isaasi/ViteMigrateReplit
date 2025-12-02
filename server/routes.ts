@@ -1111,7 +1111,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Explicit allowlist of fields that can be updated by admin
       const allowedFields = [
-        'logo_url', 'name', 'description', 'website_url'
+        'logo_url', 'name', 'description', 'website_url',
+        'phone', 'invoicing_email', 'invoicing_address'
       ];
 
       const updates: Record<string, any> = {};

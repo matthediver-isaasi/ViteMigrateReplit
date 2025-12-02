@@ -30,6 +30,7 @@ const AVAILABLE_FEATURES = [
   { id: "page_user_Team", label: "Team", category: "User Navigation" },
   { id: "page_user_MemberDirectory", label: "Member Directory", category: "User Navigation" },
   { id: "page_user_OrganisationDirectory", label: "Organisation Directory", category: "User Navigation" },
+  { id: "page_user_MyOrganisation", label: "My Organisation", category: "User Navigation" },
   { id: "page_user_Resources", label: "Resources", category: "User Navigation" },
   { id: "page_user_ArticlesSection", label: "Articles Section (Parent)", category: "User Navigation" },
   { id: "page_user_MyArticles", label: "My Articles", category: "User Navigation" },
@@ -164,6 +165,7 @@ export default function RoleManagementPage() {
     MyTickets: "My Tickets",
     MemberDirectory: "Member Directory",
     OrganisationDirectory: "Organisation Directory",
+    MyOrganisation: "My Organisation",
     MyArticles: "My Articles",
     MyJobPostings: "My Job Postings",
     JobBoard: "Job Board",
@@ -251,7 +253,7 @@ export default function RoleManagementPage() {
     // Member-facing pages (user-facing)
     const memberPages = ['Events', 'Dashboard', 'Bookings', 'MyTickets', 'Balances', 'History', 
       'BuyProgramTickets', 'Resources', 'Articles', 'MyArticles', 'News', 'MyJobPostings', 
-      'JobBoard', 'Team', 'MemberDirectory', 'OrganisationDirectory', 'Preferences', 'Support', 
+      'JobBoard', 'Team', 'MemberDirectory', 'OrganisationDirectory', 'MyOrganisation', 'Preferences', 'Support', 
       'Home', 'EventDetails', 'ArticleEditor', 'ArticleView', 'NewsEditor', 'NewsView', 
       'PostJob', 'JobDetails', 'JobPostSuccess', 'FormView', 'DynamicPage', 'ViewPage', 
       'UnpackedInternationalEmployability'];

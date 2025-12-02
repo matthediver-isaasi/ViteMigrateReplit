@@ -273,9 +273,13 @@ export default function BookingsPage() {
               const firstBooking = groupBookings[0];
               const event = events.find(e => e.id === firstBooking.event_id);
               
-              if (!event) return null;
-
-              const startDate = event.start_date ? new Date(event.start_date) : null;
+              // Use event data if available, otherwise use booking data as fallback
+              const isOneOffEvent = firstBooking.is_one_off_event || event?.is_one_off;
+              const eventTitle = event?.title || firstBooking.event_name || 'Event';
+              const startDate = event?.start_date ? new Date(event.start_date) : null;
+              const eventLocation = event?.location;
+              const eventImageUrl = event?.image_url;
+              const programTag = event?.program_tag;
 
               return (
                 <Card 
@@ -286,11 +290,16 @@ export default function BookingsPage() {
                   <CardHeader className="border-b border-slate-200">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <CardTitle className="text-xl">{event.title}</CardTitle>
-                          {event.program_tag && (
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          <CardTitle className="text-xl">{eventTitle}</CardTitle>
+                          {isOneOffEvent && (
+                            <Badge className="bg-purple-100 text-purple-700 border-purple-200">
+                              One-off Event
+                            </Badge>
+                          )}
+                          {programTag && !isOneOffEvent && (
                             <Badge className="bg-blue-100 text-blue-700 border-blue-200">
-                              {event.program_tag}
+                              {programTag}
                             </Badge>
                           )}
                         </div>
@@ -310,19 +319,19 @@ export default function BookingsPage() {
                             </div>
                           )}
                           
-                          {event.location && (
+                          {eventLocation && (
                             <div className="flex items-center gap-2 text-sm text-slate-600">
                               <MapPin className="w-4 h-4 text-slate-400" />
-                              <span>{event.location}</span>
+                              <span>{eventLocation}</span>
                             </div>
                           )}
                         </div>
                       </div>
                       
-                      {event.image_url && (
+                      {eventImageUrl && (
                         <img 
-                          src={event.image_url} 
-                          alt={event.title}
+                          src={eventImageUrl} 
+                          alt={eventTitle}
                           className="w-24 h-24 object-cover rounded-lg"
                         />
                       )}
@@ -417,6 +426,68 @@ export default function BookingsPage() {
                           })}
                         </div>
                       </div>
+                      
+                      {/* Payment summary for one-off events */}
+                      {isOneOffEvent && firstBooking.total_cost > 0 && (
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg">
+                          <h4 className="text-sm font-semibold text-slate-700 mb-3">Payment Summary</h4>
+                          <div className="space-y-2 text-sm">
+                            {/* Calculate totals across all bookings in this group */}
+                            {(() => {
+                              const totalCost = groupBookings.reduce((sum, b) => sum + (b.total_cost || 0), 0);
+                              const voucherAmount = groupBookings.reduce((sum, b) => sum + (b.voucher_amount || 0), 0);
+                              const trainingFundAmount = groupBookings.reduce((sum, b) => sum + (b.training_fund_amount || 0), 0);
+                              const accountAmount = groupBookings.reduce((sum, b) => sum + (b.account_amount || 0), 0);
+                              const cardAmount = firstBooking.stripe_payment_intent_id ? (totalCost - voucherAmount - trainingFundAmount - accountAmount) : 0;
+                              
+                              return (
+                                <>
+                                  <div className="flex justify-between">
+                                    <span className="text-slate-600">Total Cost:</span>
+                                    <span className="font-medium">£{totalCost.toFixed(2)}</span>
+                                  </div>
+                                  {voucherAmount > 0 && (
+                                    <div className="flex justify-between text-green-700">
+                                      <span>Training Vouchers:</span>
+                                      <span>-£{voucherAmount.toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                  {trainingFundAmount > 0 && (
+                                    <div className="flex justify-between text-green-700">
+                                      <span>Training Fund:</span>
+                                      <span>-£{trainingFundAmount.toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                  {accountAmount > 0 && (
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-600">Charged to Account:</span>
+                                      <span className="font-medium">£{accountAmount.toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                  {cardAmount > 0 && (
+                                    <div className="flex justify-between">
+                                      <span className="text-slate-600">Paid by Card:</span>
+                                      <span className="font-medium">£{cardAmount.toFixed(2)}</span>
+                                    </div>
+                                  )}
+                                  {firstBooking.purchase_order_number && (
+                                    <div className="flex justify-between pt-2 border-t border-slate-200">
+                                      <span className="text-slate-600">PO Number:</span>
+                                      <span className="font-mono text-slate-900">{firstBooking.purchase_order_number}</span>
+                                    </div>
+                                  )}
+                                  {firstBooking.po_to_follow && !firstBooking.purchase_order_number && (
+                                    <div className="flex justify-between pt-2 border-t border-slate-200">
+                                      <span className="text-slate-600">PO Number:</span>
+                                      <span className="text-amber-600 italic">To be supplied</span>
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
                       
                       {groupBookings.some(b => b.status === 'pending') && (
                         <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">

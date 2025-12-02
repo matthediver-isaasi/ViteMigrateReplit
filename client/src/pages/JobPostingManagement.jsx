@@ -143,6 +143,32 @@ export default function JobPostingManagementPage() {
     }
   });
 
+  const toggleFeaturedMutation = useMutation({
+    mutationFn: async (jobId) => {
+      // First, unfeatured any currently featured job
+      const currentFeatured = jobs.find(j => j.featured && j.id !== jobId);
+      if (currentFeatured) {
+        await base44.entities.JobPosting.update(currentFeatured.id, { featured: false });
+      }
+      // Then toggle the selected job
+      const job = jobs.find(j => j.id === jobId);
+      const newFeaturedState = !job?.featured;
+      return base44.entities.JobPosting.update(jobId, { featured: newFeaturedState });
+    },
+    onSuccess: (_, jobId) => {
+      queryClient.invalidateQueries({ queryKey: ['admin-job-postings'] });
+      const job = jobs.find(j => j.id === jobId);
+      if (job?.featured) {
+        toast.success('Job removed from featured');
+      } else {
+        toast.success('Job set as featured');
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to update featured status: ' + error.message);
+    }
+  });
+
   const getStatusBadge = (status) => {
     const styles = {
       pending_approval: 'bg-yellow-100 text-yellow-700',
@@ -528,6 +554,19 @@ export default function JobPostingManagementPage() {
                             >
                               View Details
                             </Button>
+                            {job.status === 'active' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => toggleFeaturedMutation.mutate(job.id)}
+                                disabled={toggleFeaturedMutation.isPending}
+                                className={job.featured ? 'text-amber-600 hover:text-amber-700 border-amber-300' : 'text-slate-400 hover:text-amber-500'}
+                                title={job.featured ? 'Remove from featured' : 'Set as featured'}
+                                data-testid={`button-featured-job-${job.id}`}
+                              >
+                                <Star className={`w-4 h-4 ${job.featured ? 'fill-amber-500' : ''}`} />
+                              </Button>
+                            )}
                             {['active', 'paused', 'archived'].includes(job.status) && (
                               <Button
                                 variant="outline"
@@ -744,6 +783,18 @@ export default function JobPostingManagementPage() {
                     Approve & Publish
                   </Button>
                 </>
+              )}
+              {selectedJob?.status === 'active' && (
+                <Button
+                  variant={selectedJob?.featured ? "default" : "outline"}
+                  onClick={() => toggleFeaturedMutation.mutate(selectedJob.id)}
+                  disabled={toggleFeaturedMutation.isPending}
+                  className={selectedJob?.featured ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'text-amber-600 hover:text-amber-700'}
+                  data-testid="button-toggle-featured-dialog"
+                >
+                  <Star className={`w-4 h-4 mr-2 ${selectedJob?.featured ? 'fill-white' : ''}`} />
+                  {selectedJob?.featured ? 'Featured' : 'Set Featured'}
+                </Button>
               )}
               {['active', 'paused', 'archived'].includes(selectedJob?.status) && (
                 <Button

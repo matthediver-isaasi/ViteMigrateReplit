@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Image, Plus, Pencil, Trash2, Upload, Loader2, AlertCircle, Eye, Sparkles } from "lucide-react";
+import { Image, Plus, Pencil, Trash2, Upload, Loader2, AlertCircle, Eye, Sparkles, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
@@ -146,6 +146,18 @@ export default function PageBannerManagementPage() {
 
   const handleEdit = (banner) => {
     setEditingBanner({ ...banner });
+    setShowDialog(true);
+  };
+
+  const handleDuplicate = (banner) => {
+    const duplicatedBanner = {
+      ...banner,
+      id: undefined,
+      name: `${banner.name} (Copy)`,
+      is_active: false,
+      display_order: (banner.display_order || 0) + 1,
+    };
+    setEditingBanner(duplicatedBanner);
     setShowDialog(true);
   };
 
@@ -381,6 +393,15 @@ export default function PageBannerManagementPage() {
                       >
                         <Eye className="w-3 h-3 mr-1" />
                         Preview
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDuplicate(banner)}
+                        data-testid={`button-duplicate-banner-${banner.id}`}
+                        title="Duplicate banner"
+                      >
+                        <Copy className="w-3 h-3" />
                       </Button>
                       <Button
                         variant="outline"

@@ -81,6 +81,10 @@ export const OfflineAward = base44.entities.OfflineAward;
 
 export const OfflineAwardAssignment = base44.entities.OfflineAwardAssignment;
 
+export const EngagementAward = base44.entities.EngagementAward;
+
+export const EngagementAwardAssignment = base44.entities.EngagementAwardAssignment;
+
 export const WallOfFameSection = base44.entities.WallOfFameSection;
 
 export const WallOfFameCategory = base44.entities.WallOfFameCategory;

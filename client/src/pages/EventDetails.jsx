@@ -457,12 +457,85 @@ export default function EventDetailsPage() {
   const startDate = event.start_date ? new Date(event.start_date) : null;
   const endDate = event.end_date ? new Date(event.end_date) : null;
   const hasUnlimitedCapacity = event.available_seats === 0 || event.available_seats === null;
-  const totalCost = attendees.filter((a) => a.isValid).length * (event.ticket_price || 0);
+  
+  // Determine if this is a one-off event (no program_tag)
+  const isOneOffEvent = !event.program_tag || event.program_tag === "";
+  
+  // Calculate ticket count and costs
   const ticketsRequired = registrationMode === 'links' ? 0 : attendees.filter((a) => a.isValid).length;
+  
+  // One-off event pricing calculations
+  const pricingConfig = isOneOffEvent ? event.pricing_config : null;
+  const ticketPrice = pricingConfig?.ticket_price || 0;
+  
+  // Calculate one-off event cost with offers
+  const calculateOneOffCost = () => {
+    if (!isOneOffEvent || !pricingConfig || ticketsRequired === 0) {
+      return { totalCost: 0, ticketsToPay: ticketsRequired, freeTickets: 0, discount: 0, discountDescription: '' };
+    }
+    
+    const basePrice = ticketPrice;
+    let ticketsToPay = ticketsRequired;
+    let freeTickets = 0;
+    let discount = 0;
+    let discountDescription = '';
+    
+    if (pricingConfig.offer_type === 'bogo' && pricingConfig.bogo_buy_quantity && pricingConfig.bogo_get_free_quantity) {
+      const buyQty = pricingConfig.bogo_buy_quantity;
+      const freeQty = pricingConfig.bogo_get_free_quantity;
+      
+      if (pricingConfig.bogo_logic_type === 'enter_total_pay_less') {
+        // "Enter Total, Pay Less" - customer enters total tickets they want
+        // For every (buyQty + freeQty) tickets, they only pay for buyQty
+        const bundleSize = buyQty + freeQty;
+        const fullBundles = Math.floor(ticketsRequired / bundleSize);
+        const remainder = ticketsRequired % bundleSize;
+        
+        ticketsToPay = (fullBundles * buyQty) + remainder;
+        freeTickets = ticketsRequired - ticketsToPay;
+        discountDescription = `Buy ${buyQty}, get ${freeQty} free`;
+      } else {
+        // "Buy X, Get Y Free" (legacy) - customer pays for X and gets Y free on top
+        // This means if they want 3 total and it's buy 2 get 1 free, they buy 2 and get 1 free = 3 total
+        const bundleSize = buyQty + freeQty;
+        const fullBundles = Math.floor(ticketsRequired / bundleSize);
+        const remainder = ticketsRequired % bundleSize;
+        
+        ticketsToPay = (fullBundles * buyQty) + Math.min(remainder, buyQty);
+        freeTickets = ticketsRequired - ticketsToPay;
+        discountDescription = `Buy ${buyQty}, get ${freeQty} free`;
+      }
+    } else if (pricingConfig.offer_type === 'bulk_discount' && pricingConfig.bulk_discount_threshold && pricingConfig.bulk_discount_percentage) {
+      const threshold = pricingConfig.bulk_discount_threshold;
+      const percentage = pricingConfig.bulk_discount_percentage;
+      
+      if (ticketsRequired >= threshold) {
+        discount = (basePrice * ticketsRequired * percentage) / 100;
+        discountDescription = `${percentage}% off for ${threshold}+ tickets`;
+      }
+    }
+    
+    const totalCost = Math.max(0, (ticketsToPay * basePrice) - discount);
+    
+    return { totalCost, ticketsToPay, freeTickets, discount, discountDescription };
+  };
+  
+  const oneOffCostDetails = calculateOneOffCost();
+  
+  // For program events, use the old logic
+  const totalCost = isOneOffEvent 
+    ? oneOffCostDetails.totalCost 
+    : attendees.filter((a) => a.isValid).length * (event.ticket_price || 0);
+  
   const availableProgramTickets = event.program_tag && organizationInfo?.program_ticket_balances ?
     organizationInfo.program_ticket_balances[event.program_tag] || 0 : 0;
-  const hasEnoughTickets = availableProgramTickets >= ticketsRequired;
-  const canConfirmBooking = hasEnoughTickets && event.program_tag && !submitting && ticketsRequired > 0;
+  const hasEnoughTickets = isOneOffEvent ? true : availableProgramTickets >= ticketsRequired;
+  
+  // For one-off events, booking is enabled when we have attendees (payment handled separately)
+  // For program events, need enough tickets
+  const canConfirmBooking = isOneOffEvent 
+    ? (!submitting && ticketsRequired > 0)
+    : (hasEnoughTickets && event.program_tag && !submitting && ticketsRequired > 0);
 
   // Check if available seats display is excluded
   const showAvailableSeats = !isFeatureExcluded || !isFeatureExcluded('element_AvailableSeatsDisplay');
@@ -839,6 +912,10 @@ export default function EventDetailsPage() {
               setSubmitting={setSubmitting}
               registrationMode={registrationMode}
               refreshOrganizationInfo={refreshOrganizationInfo}
+              isOneOffEvent={isOneOffEvent}
+              oneOffCostDetails={oneOffCostDetails}
+              ticketPrice={ticketPrice}
+              isFeatureExcluded={isFeatureExcluded}
             />
 
             {availableRegistrationModes.length > 1 && (

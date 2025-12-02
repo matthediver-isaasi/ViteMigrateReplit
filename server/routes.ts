@@ -3740,6 +3740,293 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Create One-Off Event Booking (with payment processing)
+  app.post('/api/functions/createOneOffEventBooking', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const {
+        eventId,
+        memberEmail,
+        attendees,
+        registrationMode,
+        ticketsRequired,
+        totalCost,
+        pricingDetails,
+        selectedVoucherIds = [],
+        trainingFundAmount = 0,
+        accountAmount = 0,
+        purchaseOrderNumber = null,
+        paymentMethod = 'account',
+        stripePaymentIntentId = null
+      } = req.body;
+
+      console.log('[createOneOffEventBooking] Starting booking:', {
+        eventId,
+        memberEmail,
+        ticketsRequired,
+        totalCost,
+        paymentMethod
+      });
+
+      // Validate required fields
+      if (!eventId || !memberEmail || !ticketsRequired) {
+        return res.status(400).json({
+          success: false,
+          error: 'Missing required parameters'
+        });
+      }
+
+      // Get member details
+      const { data: memberData, error: memberError } = await supabase
+        .from('member')
+        .select('*')
+        .eq('email', memberEmail)
+        .single();
+      
+      if (memberError) {
+        console.error('[createOneOffEventBooking] Member query error:', memberError);
+        return res.status(404).json({
+          success: false,
+          error: 'Member not found'
+        });
+      }
+      
+      const member = memberData;
+      console.log('[createOneOffEventBooking] Member found:', member?.id, member?.email);
+
+      // Get event details
+      const { data: eventData, error: eventError } = await supabase
+        .from('event')
+        .select('*')
+        .eq('id', eventId)
+        .single();
+
+      if (eventError || !eventData) {
+        console.error('[createOneOffEventBooking] Event query error:', eventError);
+        return res.status(404).json({
+          success: false,
+          error: 'Event not found'
+        });
+      }
+      const event = eventData;
+
+      // Get organization
+      const { data: org, error: orgError } = await supabase
+        .from('organization')
+        .select('*')
+        .eq('id', member.organization_id)
+        .single();
+
+      if (orgError || !org) {
+        console.error('[createOneOffEventBooking] Organization not found');
+        return res.status(404).json({
+          success: false,
+          error: 'Organization not found'
+        });
+      }
+
+      // Verify Stripe payment if card payment was used
+      if (paymentMethod === 'card' && stripePaymentIntentId) {
+        console.log('[createOneOffEventBooking] Verifying Stripe payment:', stripePaymentIntentId);
+        
+        if (!stripe) {
+          return res.status(400).json({
+            success: false,
+            error: 'Stripe is not configured'
+          });
+        }
+
+        try {
+          const paymentIntent = await stripe.paymentIntents.retrieve(stripePaymentIntentId);
+          
+          // Verify payment was successful
+          if (paymentIntent.status !== 'succeeded' && paymentIntent.status !== 'requires_capture') {
+            console.error('[createOneOffEventBooking] Payment not successful:', paymentIntent.status);
+            return res.status(400).json({
+              success: false,
+              error: 'Payment has not been completed. Please try again.'
+            });
+          }
+
+          // Verify payment amount matches expected amount
+          const expectedCardAmount = Math.round((totalCost - (trainingFundAmount || 0)) * 100); // Convert to pence
+          if (Math.abs(paymentIntent.amount - expectedCardAmount) > 100) { // Allow £1 variance for rounding
+            console.error('[createOneOffEventBooking] Payment amount mismatch:', {
+              expected: expectedCardAmount,
+              received: paymentIntent.amount
+            });
+            return res.status(400).json({
+              success: false,
+              error: 'Payment amount does not match the expected total'
+            });
+          }
+
+          console.log('[createOneOffEventBooking] Stripe payment verified:', paymentIntent.status);
+        } catch (stripeError: any) {
+          console.error('[createOneOffEventBooking] Stripe verification error:', stripeError);
+          return res.status(400).json({
+            success: false,
+            error: 'Failed to verify payment: ' + (stripeError.message || 'Unknown error')
+          });
+        }
+      }
+
+      // Generate booking reference
+      const bookingReference = `OOE-${Date.now()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
+      
+      // Server-side validation: Clamp training fund amount to available balance
+      const validatedTrainingFundAmount = Math.min(
+        Math.max(0, trainingFundAmount || 0),
+        org.training_fund_balance || 0,
+        totalCost
+      );
+      
+      // Process voucher deductions if any - with ownership validation
+      let voucherAmountApplied = 0;
+      const voucherDeductions: { voucherId: string; amount: number }[] = [];
+      
+      if (selectedVoucherIds && selectedVoucherIds.length > 0) {
+        for (const voucherId of selectedVoucherIds) {
+          // Fetch voucher and validate it belongs to the member's organization
+          const { data: voucher } = await supabase
+            .from('program_ticket_transaction')
+            .select('*')
+            .eq('id', voucherId)
+            .eq('organization_id', org.id) // Validate ownership
+            .eq('transaction_type', 'voucher')
+            .eq('status', 'active')
+            .single();
+          
+          if (voucher && voucher.value > 0) {
+            // Clamp amount to remaining cost
+            const amountToUse = Math.min(voucher.value, totalCost - voucherAmountApplied - validatedTrainingFundAmount);
+            if (amountToUse > 0) {
+              voucherAmountApplied += amountToUse;
+              voucherDeductions.push({ voucherId, amount: amountToUse });
+              
+              // Update voucher balance
+              const newValue = voucher.value - amountToUse;
+              await supabase
+                .from('program_ticket_transaction')
+                .update({
+                  value: newValue,
+                  status: newValue <= 0 ? 'used' : 'active',
+                  notes: `${voucher.notes || ''} | Used £${amountToUse.toFixed(2)} for ${event.title || 'event'} (${bookingReference})`
+                })
+                .eq('id', voucherId);
+            }
+          } else {
+            console.warn('[createOneOffEventBooking] Voucher not found or not owned by org:', voucherId);
+          }
+        }
+      }
+
+      // Process training fund deduction if any (use validated amount)
+      if (validatedTrainingFundAmount > 0) {
+        await supabase
+          .from('organization')
+          .update({
+            training_fund_balance: org.training_fund_balance - validatedTrainingFundAmount
+          })
+          .eq('id', org.id);
+        
+        // Create training fund transaction record
+        await supabase
+          .from('program_ticket_transaction')
+          .insert({
+            organization_id: org.id,
+            transaction_type: 'training_fund_usage',
+            value: -validatedTrainingFundAmount,
+            booking_reference: bookingReference,
+            event_name: event.title || 'One-off Event',
+            member_email: memberEmail,
+            notes: `Training fund used: £${validatedTrainingFundAmount.toFixed(2)} for ${event.title || 'event'}`
+          });
+      }
+
+      // Calculate validated remaining balance after vouchers and training fund
+      const validatedRemainingBalance = Math.max(0, totalCost - voucherAmountApplied - validatedTrainingFundAmount);
+      
+      // Create booking records for each attendee
+      const createdBookings: any[] = [];
+      
+      for (const attendee of attendees) {
+        const bookingData: any = {
+          event_id: event.id,
+          member_id: member.id,
+          organization_id: org.id,
+          booking_reference: bookingReference,
+          attendee_email: attendee.email,
+          attendee_first_name: attendee.first_name || attendee.firstName,
+          attendee_last_name: attendee.last_name || attendee.lastName,
+          status: 'confirmed',
+          payment_method: paymentMethod,
+          total_cost: totalCost / ticketsRequired,
+          voucher_amount: voucherAmountApplied / ticketsRequired,
+          training_fund_amount: validatedTrainingFundAmount / ticketsRequired,
+          account_amount: (paymentMethod === 'account' ? validatedRemainingBalance : 0) / ticketsRequired,
+          purchase_order_number: purchaseOrderNumber,
+          stripe_payment_intent_id: stripePaymentIntentId,
+          is_one_off_event: true
+        };
+
+        console.log('[createOneOffEventBooking] Inserting booking:', JSON.stringify(bookingData));
+        
+        const { data: booking, error: bookingError } = await supabase
+          .from('booking')
+          .insert(bookingData)
+          .select()
+          .single();
+
+        if (bookingError) {
+          console.error('[createOneOffEventBooking] Booking insert failed:', bookingError);
+        } else if (booking) {
+          console.log('[createOneOffEventBooking] Booking created:', booking.id);
+          createdBookings.push(booking);
+        }
+      }
+
+      // If paying to account, create an account charge record
+      if (validatedRemainingBalance > 0 && paymentMethod === 'account') {
+        await supabase
+          .from('program_ticket_transaction')
+          .insert({
+            organization_id: org.id,
+            transaction_type: 'account_charge',
+            value: validatedRemainingBalance,
+            booking_reference: bookingReference,
+            event_name: event.title || 'One-off Event',
+            member_email: memberEmail,
+            purchase_order_number: purchaseOrderNumber,
+            notes: `Account charge: £${validatedRemainingBalance.toFixed(2)} for ${event.title || 'event'} (PO: ${purchaseOrderNumber || 'N/A'})`
+          });
+      }
+
+      res.json({
+        success: true,
+        booking_reference: bookingReference,
+        bookings: createdBookings,
+        payment_details: {
+          total_cost: totalCost,
+          voucher_amount: voucherAmountApplied,
+          training_fund_amount: validatedTrainingFundAmount,
+          account_amount: paymentMethod === 'account' ? validatedRemainingBalance : 0,
+          card_amount: paymentMethod === 'card' ? validatedRemainingBalance : 0
+        }
+      });
+
+    } catch (error: any) {
+      console.error('[createOneOffEventBooking] Error:', error);
+      res.status(500).json({
+        success: false,
+        error: error.message
+      });
+    }
+  });
+
   // Validate Colleague (check if email belongs to same organization)
   app.post('/api/functions/validateColleague', async (req: Request, res: Response) => {
     if (!supabase) {

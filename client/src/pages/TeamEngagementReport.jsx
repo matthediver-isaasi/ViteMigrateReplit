@@ -62,6 +62,12 @@ export default function TeamEngagementReportPage() {
     queryFn: () => base44.entities.OfflineAwardAssignment.list()
   });
 
+  // Fetch engagement award assignments
+  const { data: engagementAssignments = [] } = useQuery({
+    queryKey: ['engagement-assignments-report'],
+    queryFn: () => base44.entities.EngagementAwardAssignment.list()
+  });
+
   // Calculate engagement data for all members
   const engagementData = useMemo(() => {
     // Filter based on includeInactive toggle
@@ -93,8 +99,11 @@ export default function TeamEngagementReportPage() {
       // Calculate offline awards
       const earnedOfflineAwards = offlineAssignments.filter(a => a.member_id === member.id).length;
 
+      // Calculate engagement awards
+      const earnedEngagementAwards = engagementAssignments.filter(a => a.member_id === member.id).length;
+
       const totalAwards = earnedOnlineAwards + earnedOfflineAwards;
-      const totalScore = eventsAttended + articlesPublished + jobsPosted + totalAwards;
+      const totalScore = eventsAttended + articlesPublished + jobsPosted + totalAwards + earnedEngagementAwards;
 
       return {
         id: member.id,
@@ -105,12 +114,13 @@ export default function TeamEngagementReportPage() {
         eventsAttended,
         articlesPublished,
         jobsPosted,
+        engagementAwards: earnedEngagementAwards,
         totalAwards,
         totalScore,
         lastActivity: member.last_activity ? new Date(member.last_activity).getTime() : 0
       };
     });
-  }, [teamMembers, allArticles, allBookings, allJobPostings, awards, offlineAssignments, includeInactive]);
+  }, [teamMembers, allArticles, allBookings, allJobPostings, awards, offlineAssignments, engagementAssignments, includeInactive]);
 
   // Filter and sort
   const filteredAndSortedData = useMemo(() => {
@@ -271,6 +281,16 @@ export default function TeamEngagementReportPage() {
                       </th>
                       <th 
                         className="text-center p-4 text-sm font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
+                        onClick={() => handleSort('engagementAwards')}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <Trophy className="w-4 h-4 text-rose-600" />
+                          Engagement
+                          <SortIcon field="engagementAwards" />
+                        </div>
+                      </th>
+                      <th 
+                        className="text-center p-4 text-sm font-semibold text-slate-700 cursor-pointer hover:bg-slate-100"
                         onClick={() => handleSort('totalAwards')}
                       >
                         <div className="flex items-center justify-center gap-2">
@@ -344,6 +364,11 @@ export default function TeamEngagementReportPage() {
                         <td className="p-4 text-center">
                           <Badge variant="secondary" className="bg-blue-100 text-blue-700">
                             {member.jobsPosted}
+                          </Badge>
+                        </td>
+                        <td className="p-4 text-center">
+                          <Badge variant="secondary" className="bg-rose-100 text-rose-700">
+                            {member.engagementAwards}
                           </Badge>
                         </td>
                         <td className="p-4 text-center">

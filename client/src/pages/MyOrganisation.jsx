@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Building2, Globe, Users, Phone, Mail, MapPin, ClipboardList, ExternalLink, Pencil, Save, X } from "lucide-react";
+import { Loader2, Building2, Globe, Users, Phone, Mail, MapPin, ClipboardList, ExternalLink, Pencil, Save, X, Camera, Upload } from "lucide-react";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
 import { useToast } from "@/components/ui/use-toast";
@@ -17,8 +18,11 @@ import { useToast } from "@/components/ui/use-toast";
 export default function MyOrganisationPage() {
   const { memberInfo, organizationInfo, isFeatureExcluded, isAccessReady } = useMemberAccess();
   const queryClient = useQueryClient();
+  const [, setLocation] = useLocation();
   const [accessChecked, setAccessChecked] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const logoInputRef = useRef(null);
   const [formData, setFormData] = useState({
     phone: '',
     website_url: '',
@@ -187,6 +191,63 @@ export default function MyOrganisationPage() {
       queryClient.invalidateQueries({ queryKey: ['organizationPreferenceValues', memberInfo?.organization_id] });
     }
   });
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      toast({
+        title: "Invalid file type",
+        description: "Please upload a valid image file (JPEG, PNG, GIF, or WebP)",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "File too large",
+        description: "Image must be smaller than 5MB",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const result = await base44.integrations.Core.UploadFile({ file });
+      
+      const response = await fetch('/api/my-organization', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ logo_url: result.file_url })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to update logo');
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['myOrganization', memberInfo?.organization_id] });
+      toast({
+        title: "Logo updated",
+        description: "Organisation logo has been updated successfully."
+      });
+    } catch (error) {
+      toast({
+        title: "Upload failed",
+        description: error.message || "Failed to upload logo",
+        variant: "destructive"
+      });
+    } finally {
+      setIsUploadingLogo(false);
+      if (logoInputRef.current) {
+        logoInputRef.current.value = '';
+      }
+    }
+  };
 
   const handleSave = async () => {
     await updateOrgMutation.mutateAsync(formData);
@@ -546,15 +607,40 @@ export default function MyOrganisationPage() {
             <Card className="border-slate-200">
               <CardContent className="p-6">
                 <div className="flex items-start gap-6">
-                  <div className="w-24 h-24 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0">
-                    {organization.logo_url ? (
-                      <img
-                        src={organization.logo_url}
-                        alt={organization.name}
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <Building2 className="w-12 h-12 text-slate-400" />
+                  <div className="relative flex-shrink-0">
+                    <div className="w-24 h-24 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center">
+                      {isUploadingLogo ? (
+                        <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+                      ) : organization.logo_url ? (
+                        <img
+                          src={organization.logo_url}
+                          alt={organization.name}
+                          className="w-full h-full object-contain"
+                        />
+                      ) : (
+                        <Building2 className="w-12 h-12 text-slate-400" />
+                      )}
+                    </div>
+                    {isEditing && (
+                      <>
+                        <input
+                          ref={logoInputRef}
+                          type="file"
+                          accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                          className="hidden"
+                          onChange={handleLogoUpload}
+                          data-testid="input-logo-upload"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => logoInputRef.current?.click()}
+                          disabled={isUploadingLogo}
+                          className="absolute -bottom-1 -right-1 w-8 h-8 bg-blue-600 hover:bg-blue-700 text-white rounded-full flex items-center justify-center shadow-md transition-colors"
+                          data-testid="button-change-logo"
+                        >
+                          <Camera className="w-4 h-4" />
+                        </button>
+                      </>
                     )}
                   </div>
                   <div className="flex-1">
@@ -568,11 +654,22 @@ export default function MyOrganisationPage() {
                       </p>
                     )}
                     <div className="flex items-center gap-2">
-                      <Badge variant="secondary" className="bg-blue-100 text-blue-700">
+                      <Badge 
+                        variant="secondary" 
+                        className="bg-blue-100 text-blue-700 cursor-pointer hover:bg-blue-200 transition-colors"
+                        onClick={() => setLocation('/Team')}
+                        data-testid="badge-member-count"
+                      >
                         <Users className="w-3 h-3 mr-1" />
                         {members.length} {members.length === 1 ? 'member' : 'members'}
                       </Badge>
                     </div>
+                    {isEditing && (
+                      <p className="text-xs text-slate-500 mt-3">
+                        <Camera className="w-3 h-3 inline mr-1" />
+                        Ideal logo size: 200 x 200 pixels
+                      </p>
+                    )}
                   </div>
                 </div>
 

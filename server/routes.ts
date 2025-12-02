@@ -1175,7 +1175,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Fields that members can update on their own organization (name excluded)
       const allowedFields = [
-        'description', 'website_url',
+        'description', 'website_url', 'logo_url',
         'phone', 'invoicing_email', 'invoicing_address'
       ];
 

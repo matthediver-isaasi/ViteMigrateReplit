@@ -1206,6 +1206,7 @@ const functionHandlers = {
       trainingFundAmount = 0,
       accountAmount = 0,
       purchaseOrderNumber = null,
+      poToFollow = false,
       paymentMethod = 'account',
       stripePaymentIntentId = null
     } = params;
@@ -1390,6 +1391,7 @@ const functionHandlers = {
         training_fund_amount: validatedTrainingFundAmount / ticketsRequired,
         account_amount: (paymentMethod === 'account' ? validatedRemainingBalance : 0) / ticketsRequired,
         purchase_order_number: purchaseOrderNumber,
+        po_to_follow: paymentMethod === 'account' ? poToFollow : false,
         stripe_payment_intent_id: stripePaymentIntentId,
         is_one_off_event: true
       };
@@ -1404,10 +1406,22 @@ const functionHandlers = {
 
       if (bookingError) {
         console.error('[createOneOffEventBooking] Booking insert failed:', bookingError);
+        // Return error immediately if booking fails
+        return { 
+          success: false, 
+          error: `Failed to create booking: ${bookingError.message || 'Unknown database error'}`,
+          details: bookingError
+        };
       } else if (booking) {
         console.log('[createOneOffEventBooking] Booking created:', booking.id);
         createdBookings.push(booking);
       }
+    }
+
+    // Check if any bookings were created
+    if (createdBookings.length === 0) {
+      console.error('[createOneOffEventBooking] No bookings were created');
+      return { success: false, error: 'No bookings were created' };
     }
 
     // If paying to account, create an account charge record
@@ -1422,7 +1436,8 @@ const functionHandlers = {
           event_name: event.title || 'One-off Event',
           member_email: memberEmail,
           purchase_order_number: purchaseOrderNumber,
-          notes: `Account charge: £${validatedRemainingBalance.toFixed(2)} for ${event.title || 'event'} (PO: ${purchaseOrderNumber || 'N/A'})`
+          po_to_follow: poToFollow,
+          notes: `Account charge: £${validatedRemainingBalance.toFixed(2)} for ${event.title || 'event'} (PO: ${poToFollow ? 'To follow' : (purchaseOrderNumber || 'N/A')})`
         });
     }
 

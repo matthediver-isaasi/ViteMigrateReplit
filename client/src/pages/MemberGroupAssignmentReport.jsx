@@ -36,13 +36,13 @@ export default function MemberGroupAssignmentReportPage() {
   });
 
   const { data: members = [], isLoading: loadingMembers } = useQuery({
-    queryKey: ['members-list'],
-    queryFn: () => base44.entities.Member.list('first_name'),
+    queryKey: ['members-list-all'],
+    queryFn: () => base44.entities.Member.listAll(),
   });
 
   const { data: assignments = [], isLoading: loadingAssignments } = useQuery({
-    queryKey: ['member-group-assignments'],
-    queryFn: () => base44.entities.MemberGroupAssignment.list(),
+    queryKey: ['member-group-assignments-all'],
+    queryFn: () => base44.entities.MemberGroupAssignment.listAll(),
   });
 
   const today = new Date();

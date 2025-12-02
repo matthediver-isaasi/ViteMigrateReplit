@@ -343,20 +343,49 @@ export default function PublicLayout({ children, currentPageName }) {
             </div>
 
             {/* Bottom Bar */}
-            <div className="border-t border-slate-800 mt-12 pt-8">
-              <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <p className="text-sm text-slate-400" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  © {new Date().getFullYear()} Graduate Futures Institute. All rights reserved.
-                </p>
-                <div className="flex gap-6 text-sm text-slate-400" style={{ fontFamily: 'Poppins, sans-serif' }}>
-                  <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
-                  <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-                  <a href="#" className="hover:text-white transition-colors">Accessibility</a>
+            <div className="mt-12">
+              {/* White horizontal line */}
+              <div 
+                className="w-full mb-6"
+                style={{ 
+                  height: '1px', 
+                  backgroundColor: 'rgba(255,255,255,0.3)' 
+                }}
+              />
+              
+              {/* Two column layout - 70/30 */}
+              <div className="grid md:grid-cols-10 gap-8">
+                {/* 70% column - Charity text */}
+                <div className="md:col-span-7">
+                  <p 
+                    className="text-white text-sm leading-relaxed"
+                    style={{ fontFamily: 'Poppins, sans-serif' }}
+                  >
+                    The Association of Graduate Careers Advisory Services (Graduate Futures Institute) is a registered charity in England and Wales (1078508) and Scotland (SC038805) Company No. 03884685.
+                  </p>
+                </div>
+                
+                {/* 30% column - Links */}
+                <div className="md:col-span-3 flex flex-col md:items-end gap-2">
+                  <a 
+                    href="#" 
+                    className="text-white text-sm hover:opacity-80 transition-opacity"
+                    style={{ fontFamily: 'Poppins, sans-serif' }}
+                  >
+                    Terms and Conditions
+                  </a>
+                  <a 
+                    href="#" 
+                    className="text-white text-sm hover:opacity-80 transition-opacity"
+                    style={{ fontFamily: 'Poppins, sans-serif' }}
+                  >
+                    Graduate Futures Supporters
+                  </a>
                 </div>
               </div>
               
               {/* Powered by isaasi */}
-              <div className="text-center mt-6">
+              <div className="text-center mt-8">
                 <a
                   href="https://isaasi.co.uk"
                   target="_blank"

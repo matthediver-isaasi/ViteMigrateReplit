@@ -6414,6 +6414,74 @@ AGCAS Events Team
     }
   });
 
+  // Set Public Home Page - upserts the public home page setting
+  app.post('/api/functions/setPublicHomePage', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { slug } = req.body;
+      const settingKey = 'public_home_page_slug';
+      
+      console.log(`[setPublicHomePage] Setting home page to: ${slug || '(none)'}`);
+
+      // First try to find existing setting
+      const { data: existingSettings, error: fetchError } = await supabase
+        .from('system_settings')
+        .select('*')
+        .eq('setting_key', settingKey);
+
+      if (fetchError) {
+        console.error('[setPublicHomePage] Error fetching settings:', fetchError);
+        return res.status(500).json({ error: fetchError.message });
+      }
+
+      const existingSetting = existingSettings?.[0];
+
+      if (existingSetting) {
+        // Update existing setting
+        const { data, error } = await supabase
+          .from('system_settings')
+          .update({ setting_value: slug || '' })
+          .eq('id', existingSetting.id)
+          .select()
+          .single();
+
+        if (error) {
+          console.error('[setPublicHomePage] Error updating setting:', error);
+          return res.status(500).json({ error: error.message });
+        }
+
+        console.log('[setPublicHomePage] Updated existing setting:', data);
+        return res.json({ success: true, data });
+      } else {
+        // Create new setting
+        const { data, error } = await supabase
+          .from('system_settings')
+          .insert({
+            setting_key: settingKey,
+            setting_value: slug || '',
+            setting_type: 'string',
+            description: 'The slug of the page to display as the public home page'
+          })
+          .select()
+          .single();
+
+        if (error) {
+          console.error('[setPublicHomePage] Error creating setting:', error);
+          return res.status(500).json({ error: error.message });
+        }
+
+        console.log('[setPublicHomePage] Created new setting:', data);
+        return res.json({ success: true, data });
+      }
+    } catch (error: any) {
+      console.error('[setPublicHomePage] Unexpected error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Create Job Posting Non-Member - creates paid job posting with Stripe checkout
   app.post('/api/functions/createJobPostingNonMember', async (req: Request, res: Response) => {
     if (!supabase) {

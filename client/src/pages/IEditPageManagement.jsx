@@ -167,24 +167,20 @@ export default function IEditPageManagementPage() {
   // Mutation to toggle home page
   const toggleHomePageMutation = useMutation({
     mutationFn: async (page) => {
-      const settings = await base44.entities.SystemSettings.list();
-      const existingSetting = settings.find(s => s.setting_key === 'public_home_page_slug');
-      
       // If this page is already the home page, remove it
       const isCurrentlyHome = homePageSlug === page.slug;
       const newSlug = isCurrentlyHome ? '' : page.slug;
       
-      if (existingSetting) {
-        await base44.entities.SystemSettings.update(existingSetting.id, {
-          setting_value: newSlug
-        });
-      } else {
-        await base44.entities.SystemSettings.create({
-          setting_key: 'public_home_page_slug',
-          setting_value: newSlug,
-          setting_type: 'string',
-          description: 'The slug of the page to display as the public home page'
-        });
+      // Use dedicated function endpoint for reliability
+      const response = await fetch('/api/functions/setPublicHomePage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug: newSlug })
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update home page');
       }
       
       return { slug: newSlug, wasHome: isCurrentlyHome };

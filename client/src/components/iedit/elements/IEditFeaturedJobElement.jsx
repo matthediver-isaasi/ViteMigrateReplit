@@ -13,7 +13,8 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     button_url = '/JobBoard',
     gradient_start_color = '#FFB000',
     gradient_end_color = '#D02711',
-    gradient_angle = 45,
+    gradient_angle = 135,
+    right_side_color = '#1a1a2e',
     card_background = '#FFFFFF',
     text_color = '#000000',
     header_font_family = 'Poppins',
@@ -24,8 +25,11 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     max_jobs_to_show = 1,
     show_job_details = true,
     show_company_logo = true,
-    layout_style = 'side-gradient'
+    layout_style = 'side-gradient',
+    min_height = 550
   } = content || {};
+
+  const fullWidth = settings?.fullWidth;
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['featured-jobs-element', specific_job_id, max_jobs_to_show],
@@ -57,7 +61,7 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
   };
 
   const gradientStyle = {
-    background: `linear-gradient(${gradient_angle}deg, ${gradient_start_color} 0%, ${gradient_end_color} 61.56%)`
+    background: `linear-gradient(${gradient_angle}deg, ${gradient_start_color} 0%, ${gradient_end_color} 100%)`
   };
 
   if (layout_style === 'full-width') {
@@ -114,60 +118,86 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     );
   }
 
+  // Default: Split background layout
+  // Full-bleed backgrounds with centered content
   return (
-    <div className="relative w-full" style={{ minHeight: '550px' }}>
-      <div 
-        className="absolute left-0 top-[10%] bottom-[10%] w-1/2 rounded-r-lg"
-        style={gradientStyle}
-      />
-
-      <div className="relative max-w-4xl mx-auto px-8 py-12">
+    <div 
+      className="relative w-full overflow-hidden"
+      style={{ minHeight: `${min_height}px` }}
+    >
+      {/* Full-bleed split background */}
+      <div className="absolute inset-0 flex">
+        {/* Left half - Gradient */}
         <div 
-          className="relative ml-auto w-full max-w-lg p-12 shadow-xl"
-          style={{ background: card_background }}
-        >
-          <div className="mb-6">
-            <span 
-              className="text-sm font-bold tracking-[0.31em] uppercase"
-              style={{ fontFamily: header_font_family, color: text_color }}
+          className="w-1/2 h-full"
+          style={gradientStyle}
+        />
+        {/* Right half - Solid color */}
+        <div 
+          className="w-1/2 h-full"
+          style={{ background: right_side_color }}
+        />
+      </div>
+
+      {/* Centered content container */}
+      <div className="relative max-w-6xl mx-auto px-8 py-12 h-full flex items-center">
+        {/* Two-column grid for content */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
+          {/* Left column - Overlay card within content area */}
+          <div className="flex items-center justify-center lg:justify-start">
+            <div 
+              className="w-full max-w-md p-10 shadow-xl"
+              style={{ background: card_background }}
             >
-              {header_text}
-            </span>
-            <div className="w-9 h-0.5 mt-2 bg-black" />
+              <div className="mb-6">
+                <span 
+                  className="text-sm font-bold tracking-[0.31em] uppercase"
+                  style={{ fontFamily: header_font_family, color: text_color }}
+                >
+                  {header_text}
+                </span>
+                <div className="w-9 h-0.5 mt-2 bg-black" />
+              </div>
+
+              <h2 
+                className="font-medium leading-tight whitespace-pre-line mb-8"
+                style={{ 
+                  fontFamily: heading_font_family,
+                  fontSize: `${heading_font_size}px`,
+                  lineHeight: '0.91em',
+                  color: text_color
+                }}
+              >
+                {main_heading}
+              </h2>
+
+              {isLoading ? (
+                <div className="animate-pulse space-y-3">
+                  <div className="h-6 bg-slate-200 rounded w-3/4" />
+                  <div className="h-4 bg-slate-200 rounded w-1/2" />
+                  <div className="h-4 bg-slate-200 rounded w-2/3" />
+                </div>
+              ) : featuredJob && show_job_details ? (
+                <JobCard job={featuredJob} textColor={text_color} isClosingSoon={isClosingSoon} />
+              ) : null}
+
+              <div className="mt-8">
+                <Link to={button_url}>
+                  <button 
+                    className="inline-flex items-center gap-3 px-6 py-3 border-2 font-semibold text-lg transition-all hover:bg-black/5"
+                    style={{ borderColor: text_color, color: text_color, fontFamily: header_font_family }}
+                  >
+                    {button_text}
+                    <ArrowRight className="w-5 h-5" />
+                  </button>
+                </Link>
+              </div>
+            </div>
           </div>
 
-          <h2 
-            className="font-medium leading-tight whitespace-pre-line mb-8"
-            style={{ 
-              fontFamily: heading_font_family,
-              fontSize: `${heading_font_size}px`,
-              lineHeight: '0.91em',
-              color: text_color
-            }}
-          >
-            {main_heading}
-          </h2>
-
-          {isLoading ? (
-            <div className="animate-pulse space-y-3">
-              <div className="h-6 bg-slate-200 rounded w-3/4" />
-              <div className="h-4 bg-slate-200 rounded w-1/2" />
-              <div className="h-4 bg-slate-200 rounded w-2/3" />
-            </div>
-          ) : featuredJob && show_job_details ? (
-            <JobCard job={featuredJob} textColor={text_color} isClosingSoon={isClosingSoon} />
-          ) : null}
-
-          <div className="mt-8">
-            <Link to={button_url}>
-              <button 
-                className="inline-flex items-center gap-3 px-6 py-3 border-2 font-semibold text-lg transition-all hover:bg-black/5"
-                style={{ borderColor: text_color, color: text_color, fontFamily: header_font_family }}
-              >
-                {button_text}
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            </Link>
+          {/* Right column - Empty or can be used for additional content */}
+          <div className="hidden lg:block">
+            {/* This space intentionally left for the solid color background to show through */}
           </div>
         </div>
       </div>
@@ -313,46 +343,69 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
           onChange={(e) => updateContent('layout_style', e.target.value)}
           className="w-full px-3 py-2 border rounded-md"
         >
-          <option value="side-gradient">Side Gradient (Original Design)</option>
-          <option value="full-width">Full Width Banner</option>
+          <option value="side-gradient">Split Background (Gradient Left / Solid Right)</option>
+          <option value="full-width">Full Width Gradient Banner</option>
         </select>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Gradient Start Color</label>
-          <div className="flex gap-2">
-            <input 
-              type="color"
-              value={content.gradient_start_color || '#FFB000'}
-              onChange={(e) => updateContent('gradient_start_color', e.target.value)}
-              className="w-10 h-10 rounded border cursor-pointer"
-            />
-            <input 
-              type="text"
-              value={content.gradient_start_color || '#FFB000'}
-              onChange={(e) => updateContent('gradient_start_color', e.target.value)}
-              className="flex-1 px-3 py-2 border rounded-md"
-            />
+      <div className="border-t pt-4">
+        <h4 className="font-medium mb-4">Background Colors</h4>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Gradient Start</label>
+            <div className="flex gap-2">
+              <input 
+                type="color"
+                value={content.gradient_start_color || '#FFB000'}
+                onChange={(e) => updateContent('gradient_start_color', e.target.value)}
+                className="w-10 h-10 rounded border cursor-pointer"
+              />
+              <input 
+                type="text"
+                value={content.gradient_start_color || '#FFB000'}
+                onChange={(e) => updateContent('gradient_start_color', e.target.value)}
+                className="flex-1 px-3 py-2 border rounded-md"
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Gradient End</label>
+            <div className="flex gap-2">
+              <input 
+                type="color"
+                value={content.gradient_end_color || '#D02711'}
+                onChange={(e) => updateContent('gradient_end_color', e.target.value)}
+                className="w-10 h-10 rounded border cursor-pointer"
+              />
+              <input 
+                type="text"
+                value={content.gradient_end_color || '#D02711'}
+                onChange={(e) => updateContent('gradient_end_color', e.target.value)}
+                className="flex-1 px-3 py-2 border rounded-md"
+              />
+            </div>
           </div>
         </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Gradient End Color</label>
-          <div className="flex gap-2">
-            <input 
-              type="color"
-              value={content.gradient_end_color || '#D02711'}
-              onChange={(e) => updateContent('gradient_end_color', e.target.value)}
-              className="w-10 h-10 rounded border cursor-pointer"
-            />
-            <input 
-              type="text"
-              value={content.gradient_end_color || '#D02711'}
-              onChange={(e) => updateContent('gradient_end_color', e.target.value)}
-              className="flex-1 px-3 py-2 border rounded-md"
-            />
+
+        {content.layout_style !== 'full-width' && (
+          <div className="mt-4 space-y-2">
+            <label className="text-sm font-medium">Right Side Color</label>
+            <div className="flex gap-2">
+              <input 
+                type="color"
+                value={content.right_side_color || '#1a1a2e'}
+                onChange={(e) => updateContent('right_side_color', e.target.value)}
+                className="w-10 h-10 rounded border cursor-pointer"
+              />
+              <input 
+                type="text"
+                value={content.right_side_color || '#1a1a2e'}
+                onChange={(e) => updateContent('right_side_color', e.target.value)}
+                className="flex-1 px-3 py-2 border rounded-md"
+              />
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -369,13 +422,25 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
           <label className="text-sm font-medium">Gradient Angle</label>
           <input 
             type="number"
-            value={content.gradient_angle || 45}
+            value={content.gradient_angle || 135}
             onChange={(e) => updateContent('gradient_angle', parseInt(e.target.value))}
             className="w-full px-3 py-2 border rounded-md"
             min="0"
             max="360"
           />
         </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-sm font-medium">Minimum Height (px)</label>
+        <input 
+          type="number"
+          value={content.min_height || 550}
+          onChange={(e) => updateContent('min_height', parseInt(e.target.value))}
+          className="w-full px-3 py-2 border rounded-md"
+          min="300"
+          max="800"
+        />
       </div>
 
       <div className="border-t pt-4 space-y-4">

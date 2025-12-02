@@ -21,8 +21,10 @@ import {
   Save,
   Loader2,
   Globe,
-  Link as LinkIcon
+  Link as LinkIcon,
+  PoundSterling
 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
@@ -49,6 +51,15 @@ export default function CreateEvent() {
   const [isOnline, setIsOnline] = useState(false);
   const [isProgramEvent, setIsProgramEvent] = useState(true);
   const [selectedWebinarId, setSelectedWebinarId] = useState("");
+  
+  // Pricing & Offers state for one-off events
+  const [ticketPrice, setTicketPrice] = useState("");
+  const [offerType, setOfferType] = useState("none");
+  const [bogoLogicType, setBogoLogicType] = useState("buy_x_get_y_free");
+  const [bogoBuyQty, setBogoBuyQty] = useState("");
+  const [bogoGetFreeQty, setBogoGetFreeQty] = useState("");
+  const [bulkThreshold, setBulkThreshold] = useState("");
+  const [bulkPercentage, setBulkPercentage] = useState("");
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -169,6 +180,52 @@ export default function CreateEvent() {
       return;
     }
 
+    // Validation for one-off event pricing and offers
+    if (!isProgramEvent) {
+      // Price is required for one-off events
+      if (!ticketPrice || ticketPrice === "") {
+        toast.error('Please enter a ticket price for this one-off event');
+        return;
+      }
+      const price = parseFloat(ticketPrice);
+      if (isNaN(price) || price < 0) {
+        toast.error('Ticket price must be a valid positive number');
+        return;
+      }
+
+      // Validate BOGO offer
+      if (offerType === "bogo") {
+        if (!bogoBuyQty || !bogoGetFreeQty) {
+          toast.error('Please enter both BOGO buy and free quantities');
+          return;
+        }
+        const buyQty = parseInt(bogoBuyQty);
+        const freeQty = parseInt(bogoGetFreeQty);
+        if (isNaN(buyQty) || buyQty < 1 || isNaN(freeQty) || freeQty < 1) {
+          toast.error('BOGO quantities must be positive integers');
+          return;
+        }
+      }
+
+      // Validate bulk discount offer
+      if (offerType === "bulk_discount") {
+        if (!bulkThreshold || !bulkPercentage) {
+          toast.error('Please enter both bulk discount threshold and percentage');
+          return;
+        }
+        const threshold = parseInt(bulkThreshold);
+        const percentage = parseFloat(bulkPercentage);
+        if (isNaN(threshold) || threshold < 2) {
+          toast.error('Bulk discount threshold must be an integer of at least 2');
+          return;
+        }
+        if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+          toast.error('Bulk discount percentage must be a number between 0 and 100');
+          return;
+        }
+      }
+    }
+
     // Build event data - only include fields that exist in the event table
     // For online events: store URL in location only if show join link setting is enabled
     let locationValue = formData.location;
@@ -192,6 +249,32 @@ export default function CreateEvent() {
       available_seats: isOnline ? null : (formData.available_seats ? parseInt(formData.available_seats) : null),
       zoom_webinar_id: isOnline && selectedWebinarId ? selectedWebinarId : null
     };
+
+    // Add pricing and offer fields for one-off events
+    if (!isProgramEvent) {
+      eventData.ticket_price = parseFloat(ticketPrice);
+      eventData.offer_type = offerType;
+      
+      if (offerType === "bogo") {
+        eventData.bogo_buy_quantity = parseInt(bogoBuyQty);
+        eventData.bogo_get_free_quantity = parseInt(bogoGetFreeQty);
+        eventData.bogo_logic_type = bogoLogicType;
+        eventData.bulk_discount_threshold = null;
+        eventData.bulk_discount_percentage = null;
+      } else if (offerType === "bulk_discount") {
+        eventData.bulk_discount_threshold = parseInt(bulkThreshold);
+        eventData.bulk_discount_percentage = parseFloat(bulkPercentage);
+        eventData.bogo_buy_quantity = null;
+        eventData.bogo_get_free_quantity = null;
+        eventData.bogo_logic_type = null;
+      } else {
+        eventData.bogo_buy_quantity = null;
+        eventData.bogo_get_free_quantity = null;
+        eventData.bogo_logic_type = null;
+        eventData.bulk_discount_threshold = null;
+        eventData.bulk_discount_percentage = null;
+      }
+    }
 
     createEventMutation.mutate(eventData);
   };
@@ -484,6 +567,205 @@ export default function CreateEvent() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Pricing & Offers - Only shown for one-off events */}
+          {!isProgramEvent && (
+            <Card className="border-slate-200 shadow-sm mb-6">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <PoundSterling className="h-5 w-5 text-blue-600" />
+                  Pricing & Offers
+                </CardTitle>
+                <CardDescription>Set the ticket price and any special offers for this one-off event</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {/* Ticket Price */}
+                <div className="space-y-2">
+                  <Label htmlFor="ticket_price">Ticket Price (£) *</Label>
+                  <div className="relative">
+                    <PoundSterling className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <Input
+                      id="ticket_price"
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={ticketPrice}
+                      onChange={(e) => setTicketPrice(e.target.value)}
+                      placeholder="0.00"
+                      className="pl-9"
+                      data-testid="input-ticket-price"
+                    />
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Enter 0 for free events
+                  </p>
+                </div>
+
+                {/* Offer Configuration */}
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-4">
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700 mb-3 block">
+                      Offer Type
+                    </Label>
+                    <RadioGroup value={offerType} onValueChange={setOfferType}>
+                      <div className="space-y-3">
+                        <div 
+                          className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                            offerType === 'none' 
+                              ? 'border-blue-500 bg-blue-50' 
+                              : 'border-slate-200 hover:bg-slate-100'
+                          }`}
+                          onClick={() => setOfferType('none')}
+                        >
+                          <RadioGroupItem value="none" id="event-offer-none" className="mt-1" />
+                          <div className="flex-1">
+                            <Label htmlFor="event-offer-none" className="font-medium cursor-pointer">No Offer</Label>
+                            <p className="text-xs text-slate-600 mt-1">
+                              Standard pricing with no discounts
+                            </p>
+                          </div>
+                        </div>
+
+                        <div 
+                          className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                            offerType === 'bogo' 
+                              ? 'border-blue-500 bg-blue-50' 
+                              : 'border-slate-200 hover:bg-slate-100'
+                          }`}
+                          onClick={() => setOfferType('bogo')}
+                        >
+                          <RadioGroupItem value="bogo" id="event-offer-bogo" className="mt-1" />
+                          <div className="flex-1">
+                            <Label htmlFor="event-offer-bogo" className="font-medium cursor-pointer">BOGO (Buy X Get Y Free)</Label>
+                            <p className="text-xs text-slate-600 mt-1">
+                              Customers receive free tickets with their purchase
+                            </p>
+                          </div>
+                        </div>
+
+                        <div 
+                          className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                            offerType === 'bulk_discount' 
+                              ? 'border-blue-500 bg-blue-50' 
+                              : 'border-slate-200 hover:bg-slate-100'
+                          }`}
+                          onClick={() => setOfferType('bulk_discount')}
+                        >
+                          <RadioGroupItem value="bulk_discount" id="event-offer-bulk" className="mt-1" />
+                          <div className="flex-1">
+                            <Label htmlFor="event-offer-bulk" className="font-medium cursor-pointer">Bulk Discount</Label>
+                            <p className="text-xs text-slate-600 mt-1">
+                              Percentage discount when purchasing multiple tickets
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
+
+                  {/* BOGO Configuration */}
+                  {offerType === 'bogo' && (
+                    <div className="space-y-4 pt-4 border-t border-slate-200">
+                      <div>
+                        <Label className="text-sm font-medium text-slate-700 mb-3 block">
+                          BOGO Logic Type
+                        </Label>
+                        <RadioGroup value={bogoLogicType} onValueChange={setBogoLogicType}>
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                              <RadioGroupItem value="buy_x_get_y_free" id="bogo-logic-1" />
+                              <Label htmlFor="bogo-logic-1" className="text-sm cursor-pointer">
+                                Buy X, Get Y Free (Legacy)
+                              </Label>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <RadioGroupItem value="enter_total_pay_less" id="bogo-logic-2" />
+                              <Label htmlFor="bogo-logic-2" className="text-sm cursor-pointer">
+                                Enter Total, Pay Less
+                              </Label>
+                            </div>
+                          </div>
+                        </RadioGroup>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="bogo_buy">Buy Quantity *</Label>
+                          <Input
+                            id="bogo_buy"
+                            type="number"
+                            min="1"
+                            value={bogoBuyQty}
+                            onChange={(e) => setBogoBuyQty(e.target.value)}
+                            placeholder="e.g. 2"
+                            data-testid="input-bogo-buy"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="bogo_free">Get Free Quantity *</Label>
+                          <Input
+                            id="bogo_free"
+                            type="number"
+                            min="1"
+                            value={bogoGetFreeQty}
+                            onChange={(e) => setBogoGetFreeQty(e.target.value)}
+                            placeholder="e.g. 1"
+                            data-testid="input-bogo-free"
+                          />
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Example: Buy 2, Get 1 Free means customers pay for 2 tickets and receive 3
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Bulk Discount Configuration */}
+                  {offerType === 'bulk_discount' && (
+                    <div className="space-y-4 pt-4 border-t border-slate-200">
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="bulk_threshold">Minimum Tickets *</Label>
+                          <Input
+                            id="bulk_threshold"
+                            type="number"
+                            min="2"
+                            value={bulkThreshold}
+                            onChange={(e) => setBulkThreshold(e.target.value)}
+                            placeholder="e.g. 5"
+                            data-testid="input-bulk-threshold"
+                          />
+                          <p className="text-xs text-slate-500">
+                            Minimum tickets to qualify for discount
+                          </p>
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="bulk_percentage">Discount % *</Label>
+                          <Input
+                            id="bulk_percentage"
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            max="100"
+                            value={bulkPercentage}
+                            onChange={(e) => setBulkPercentage(e.target.value)}
+                            placeholder="e.g. 10"
+                            data-testid="input-bulk-percentage"
+                          />
+                          <p className="text-xs text-slate-500">
+                            Percentage off total price
+                          </p>
+                        </div>
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        Example: 10% off when purchasing 5 or more tickets
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           <Card className="border-slate-200 shadow-sm mb-6">
             <CardHeader className="pb-4">

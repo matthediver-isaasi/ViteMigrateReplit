@@ -42,7 +42,8 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     gradient_angle = 135,
     right_side_color = '#1a1a2e',
     card_background = '#FFFFFF',
-    card_padding = 40,
+    card_margin = 40,
+    card_inner_padding = 32,
     
     // Right side static header
     right_header_text = '',
@@ -183,13 +184,16 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
       >
         {/* Two-column grid for content */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
-          {/* Left column - Static content in white card (full height) */}
-          <div className="flex items-stretch justify-center lg:justify-start">
+          {/* Left column - Static content in white card (full height with margin from edges) */}
+          <div 
+            className="flex items-stretch justify-center lg:justify-start"
+            style={{ padding: `${card_margin}px` }}
+          >
             <div 
-              className="shadow-xl flex flex-col justify-center"
+              className="shadow-xl flex flex-col justify-center h-full"
               style={{ 
                 background: card_background,
-                padding: `${card_padding}px`
+                padding: `${card_inner_padding}px`
               }}
             >
               <StaticContent content={content} />
@@ -629,11 +633,23 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
               </div>
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Card Padding (px)</label>
+              <label className="text-sm font-medium">Card Margin (px)</label>
+              <p className="text-xs text-slate-500">Space between card and container edges</p>
               <input 
                 type="number"
-                value={content.card_padding || 40}
-                onChange={(e) => updateContent('card_padding', parseInt(e.target.value))}
+                value={content.card_margin || 40}
+                onChange={(e) => updateContent('card_margin', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+                min="0"
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Card Inner Padding (px)</label>
+              <p className="text-xs text-slate-500">Space inside the card around content</p>
+              <input 
+                type="number"
+                value={content.card_inner_padding || 32}
+                onChange={(e) => updateContent('card_inner_padding', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border rounded-md"
                 min="0"
               />

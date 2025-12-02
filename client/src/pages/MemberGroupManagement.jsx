@@ -69,7 +69,7 @@ export default function MemberGroupManagementPage() {
 
   const { data: groups = [], isLoading: loadingGroups } = useQuery({
     queryKey: ['member-groups'],
-    queryFn: () => base44.entities.MemberGroup.list('-updated_date'),
+    queryFn: () => base44.entities.MemberGroup.list(),
     staleTime: 0,
     refetchOnMount: true,
   });

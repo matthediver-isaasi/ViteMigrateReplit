@@ -11,7 +11,7 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     header_label = 'JOBS',
     header_label_font_family = 'Poppins',
     header_label_font_size = 14,
-    header_label_letter_spacing = 0.31,
+    header_label_letter_spacing = 3,
     header_label_color = '#000000',
     show_header_underline = true,
     header_underline_color = '#000000',
@@ -47,7 +47,7 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     right_header_text = '',
     right_header_font_family = 'Poppins',
     right_header_font_size = 14,
-    right_header_letter_spacing = 0.31,
+    right_header_letter_spacing = 3,
     right_header_color = '#FFFFFF',
     right_header_underline_enabled = true,
     right_header_underline_color = 'rgba(255,255,255,0.5)',
@@ -228,7 +228,7 @@ function StaticContent({ content, textColorOverride, underlineColorOverride }) {
     header_label = 'JOBS',
     header_label_font_family = 'Poppins',
     header_label_font_size = 14,
-    header_label_letter_spacing = 0.31,
+    header_label_letter_spacing = 3,
     header_label_color = '#000000',
     show_header_underline = true,
     header_underline_color = '#000000',
@@ -269,7 +269,7 @@ function StaticContent({ content, textColorOverride, underlineColorOverride }) {
           style={{ 
             fontFamily: header_label_font_family,
             fontSize: `${header_label_font_size}px`,
-            letterSpacing: `${header_label_letter_spacing}em`,
+            letterSpacing: `${header_label_letter_spacing}px`,
             color: labelColor
           }}
         >
@@ -347,7 +347,7 @@ function RightSideHeader({ content, colorOverride }) {
     right_header_text = '',
     right_header_font_family = 'Poppins',
     right_header_font_size = 14,
-    right_header_letter_spacing = 0.31,
+    right_header_letter_spacing = 3,
     right_header_color = '#FFFFFF',
     right_header_underline_enabled = true,
     right_header_underline_color = 'rgba(255,255,255,0.5)',
@@ -368,7 +368,7 @@ function RightSideHeader({ content, colorOverride }) {
         style={{ 
           fontFamily: right_header_font_family,
           fontSize: `${right_header_font_size}px`,
-          letterSpacing: `${right_header_letter_spacing}em`,
+          letterSpacing: `${right_header_letter_spacing}px`,
           color: headerColor
         }}
       >
@@ -666,13 +666,12 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium">Letter Spacing (em)</label>
+              <label className="text-sm font-medium">Letter Spacing (px)</label>
               <input 
                 type="number"
-                value={content.header_label_letter_spacing || 0.31}
-                onChange={(e) => updateContent('header_label_letter_spacing', parseFloat(e.target.value))}
+                value={content.header_label_letter_spacing || 3}
+                onChange={(e) => updateContent('header_label_letter_spacing', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border rounded-md"
-                step="0.01"
               />
             </div>
             <div className="space-y-1">
@@ -944,13 +943,12 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
               />
             </div>
             <div className="space-y-1">
-              <label className="text-sm font-medium">Letter Spacing (em)</label>
+              <label className="text-sm font-medium">Letter Spacing (px)</label>
               <input 
                 type="number"
-                value={content.right_header_letter_spacing || 0.31}
-                onChange={(e) => updateContent('right_header_letter_spacing', parseFloat(e.target.value))}
+                value={content.right_header_letter_spacing || 3}
+                onChange={(e) => updateContent('right_header_letter_spacing', parseInt(e.target.value))}
                 className="w-full px-3 py-2 border rounded-md"
-                step="0.01"
               />
             </div>
             <div className="space-y-1">

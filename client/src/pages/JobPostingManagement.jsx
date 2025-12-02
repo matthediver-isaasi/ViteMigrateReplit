@@ -159,13 +159,13 @@ export default function JobPostingManagementPage() {
       queryClient.invalidateQueries({ queryKey: ['admin-job-postings'] });
       const job = jobs.find(j => j.id === jobId);
       if (job?.featured) {
-        toast.success('Job removed from featured');
+        toast.success('Job removed from web feature');
       } else {
-        toast.success('Job set as featured');
+        toast.success('Job is now featured on web');
       }
     },
     onError: (error) => {
-      toast.error('Failed to update featured status: ' + error.message);
+      toast.error('Failed to update web feature status: ' + error.message);
     }
   });
 
@@ -477,11 +477,24 @@ export default function JobPostingManagementPage() {
                               </h3>
                               <p className="text-sm font-medium text-slate-700">{job.company_name}</p>
                             </div>
-                            <div className="flex flex-col gap-2">
-                              {job.featured && (
-                                <Star className="w-5 h-5 text-amber-500 fill-amber-500" />
-                              )}
-                            </div>
+                            {job.status === 'active' && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  toggleFeaturedMutation.mutate(job.id);
+                                }}
+                                disabled={toggleFeaturedMutation.isPending}
+                                className={`p-2 rounded-full transition-all ${
+                                  job.featured 
+                                    ? 'bg-blue-100 text-blue-600 hover:bg-blue-200' 
+                                    : 'bg-slate-100 text-slate-400 hover:bg-slate-200 hover:text-slate-600'
+                                }`}
+                                title={job.featured ? 'Featured on web - click to remove' : 'Click to feature on web'}
+                                data-testid={`button-web-featured-job-${job.id}`}
+                              >
+                                <Globe className={`w-5 h-5 ${job.featured ? 'fill-blue-100' : ''}`} />
+                              </button>
+                            )}
                           </div>
 
                           <div className="flex flex-wrap gap-2 mb-4">
@@ -554,19 +567,6 @@ export default function JobPostingManagementPage() {
                             >
                               View Details
                             </Button>
-                            {job.status === 'active' && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => toggleFeaturedMutation.mutate(job.id)}
-                                disabled={toggleFeaturedMutation.isPending}
-                                className={job.featured ? 'text-amber-600 hover:text-amber-700 border-amber-300' : 'text-slate-400 hover:text-amber-500'}
-                                title={job.featured ? 'Remove from featured' : 'Set as featured'}
-                                data-testid={`button-featured-job-${job.id}`}
-                              >
-                                <Star className={`w-4 h-4 ${job.featured ? 'fill-amber-500' : ''}`} />
-                              </Button>
-                            )}
                             {['active', 'paused', 'archived'].includes(job.status) && (
                               <Button
                                 variant="outline"
@@ -789,11 +789,11 @@ export default function JobPostingManagementPage() {
                   variant={selectedJob?.featured ? "default" : "outline"}
                   onClick={() => toggleFeaturedMutation.mutate(selectedJob.id)}
                   disabled={toggleFeaturedMutation.isPending}
-                  className={selectedJob?.featured ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'text-amber-600 hover:text-amber-700'}
+                  className={selectedJob?.featured ? 'bg-blue-600 hover:bg-blue-700 text-white' : 'text-blue-600 hover:text-blue-700'}
                   data-testid="button-toggle-featured-dialog"
                 >
-                  <Star className={`w-4 h-4 mr-2 ${selectedJob?.featured ? 'fill-white' : ''}`} />
-                  {selectedJob?.featured ? 'Featured' : 'Set Featured'}
+                  <Globe className={`w-4 h-4 mr-2 ${selectedJob?.featured ? 'fill-blue-200' : ''}`} />
+                  {selectedJob?.featured ? 'Featured on Web' : 'Feature on Web'}
                 </Button>
               )}
               {['active', 'paused', 'archived'].includes(selectedJob?.status) && (
@@ -997,7 +997,10 @@ export default function JobPostingManagementPage() {
                     onChange={(e) => setEditingJob({ ...editingJob, featured: e.target.checked })}
                     className="rounded border-slate-300"
                   />
-                  <Label htmlFor="featured">Featured Position</Label>
+                  <Label htmlFor="featured" className="flex items-center gap-2">
+                    <Globe className="w-4 h-4" />
+                    Feature on Web (only one job can be featured at a time)
+                  </Label>
                 </div>
               </div>
             )}

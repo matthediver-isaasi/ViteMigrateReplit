@@ -482,6 +482,38 @@ function JobDetails({ job, content, formatClosingDate, isClosingSoon }) {
   );
 }
 
+const FONT_OPTIONS = [
+  { value: 'inherit', label: 'Inherit (Default)' },
+  { value: 'Poppins', label: 'Poppins' },
+  { value: 'Inter', label: 'Inter' },
+  { value: 'Roboto', label: 'Roboto' },
+  { value: 'Open Sans', label: 'Open Sans' },
+  { value: 'Lato', label: 'Lato' },
+  { value: 'Montserrat', label: 'Montserrat' },
+  { value: 'Playfair Display', label: 'Playfair Display' },
+  { value: 'Merriweather', label: 'Merriweather' },
+  { value: 'Source Sans Pro', label: 'Source Sans Pro' },
+  { value: 'Raleway', label: 'Raleway' },
+  { value: 'Nunito', label: 'Nunito' },
+  { value: 'Work Sans', label: 'Work Sans' },
+  { value: 'Oswald', label: 'Oswald' },
+  { value: 'PT Sans', label: 'PT Sans' },
+  { value: 'Georgia', label: 'Georgia' },
+  { value: 'Times New Roman', label: 'Times New Roman' },
+  { value: 'Arial', label: 'Arial' },
+  { value: 'Helvetica', label: 'Helvetica' },
+];
+
+function FontSelect({ value, onChange, className = "w-full px-3 py-2 border rounded-md" }) {
+  return (
+    <select value={value} onChange={onChange} className={className}>
+      {FONT_OPTIONS.map(font => (
+        <option key={font.value} value={font.value}>{font.label}</option>
+      ))}
+    </select>
+  );
+}
+
 export function IEditFeaturedJobElementEditor({ element, onChange }) {
   const { data: jobs = [] } = useQuery({
     queryKey: ['all-jobs-for-selector'],
@@ -677,11 +709,9 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Font Family</label>
-              <input 
-                type="text"
+              <FontSelect
                 value={content.header_label_font_family || 'Poppins'}
                 onChange={(e) => updateContent('header_label_font_family', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
               />
             </div>
           </div>
@@ -781,11 +811,9 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium">Font Family</label>
-              <input 
-                type="text"
+              <FontSelect
                 value={content.heading_font_family || 'inherit'}
                 onChange={(e) => updateContent('heading_font_family', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
               />
             </div>
             <div className="space-y-1">
@@ -851,11 +879,9 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">
               <label className="text-sm">Font Family</label>
-              <input 
-                type="text"
+              <FontSelect
                 value={content.subheading_font_family || 'Poppins'}
                 onChange={(e) => updateContent('subheading_font_family', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
               />
             </div>
             <div className="space-y-1">
@@ -916,11 +942,9 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
             </div>
             <div className="space-y-1">
               <label className="text-sm">Font Family</label>
-              <input 
-                type="text"
+              <FontSelect
                 value={content.button_font_family || 'Poppins'}
                 onChange={(e) => updateContent('button_font_family', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
               />
             </div>
             <div className="space-y-1">
@@ -954,11 +978,9 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
             </div>
             <div className="space-y-1">
               <label className="text-sm font-medium">Font Family</label>
-              <input 
-                type="text"
+              <FontSelect
                 value={content.right_header_font_family || 'Poppins'}
                 onChange={(e) => updateContent('right_header_font_family', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
               />
             </div>
           </div>
@@ -1085,11 +1107,9 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium">Font Family</label>
-              <input 
-                type="text"
+              <FontSelect
                 value={content.job_title_font_family || 'Poppins'}
                 onChange={(e) => updateContent('job_title_font_family', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
               />
             </div>
             <div className="space-y-1">
@@ -1138,11 +1158,9 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
               <label className="text-sm font-medium">Font Family</label>
-              <input 
-                type="text"
+              <FontSelect
                 value={content.job_detail_font_family || 'Poppins'}
                 onChange={(e) => updateContent('job_detail_font_family', e.target.value)}
-                className="w-full px-3 py-2 border rounded-md"
               />
             </div>
             <div className="space-y-1">

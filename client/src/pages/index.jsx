@@ -192,6 +192,8 @@ import TeamSettings from "./TeamSettings";
 
 import PreferenceSettings from "./PreferenceSettings";
 
+import CustomFieldsAdmin from "./CustomFieldsAdmin";
+
 import ZoomWebinarProvisioning from "./ZoomWebinarProvisioning";
 
 import CreateEvent from "./CreateEvent";
@@ -401,6 +403,8 @@ const PAGES = {
     TeamSettings: TeamSettings,
     
     PreferenceSettings: PreferenceSettings,
+    
+    CustomFieldsAdmin: CustomFieldsAdmin,
     
     ZoomWebinarProvisioning: ZoomWebinarProvisioning,
     
@@ -647,6 +651,8 @@ function PagesContent() {
                 <Route path="/TeamSettings" element={<TeamSettings />} />
                 
                 <Route path="/PreferenceSettings" element={<PreferenceSettings />} />
+                
+                <Route path="/CustomFieldsAdmin" element={<CustomFieldsAdmin />} />
                 
                 <Route path="/ZoomWebinarProvisioning" element={<ZoomWebinarProvisioning />} />
                 

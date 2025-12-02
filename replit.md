@@ -57,6 +57,8 @@ Preferred communication style: Simple, everyday language.
 
 **Communications:** CommunicationCategory (marketing segment categories), CommunicationCategoryRole (role-based category assignments), MemberCommunicationPreference (member opt-in/opt-out preferences).
 
+**Custom Fields:** PreferenceField (field definitions with entity_scope = 'member' or 'organization'), MemberPreferenceValue (member custom field values), OrganizationPreferenceValue (organization custom field values). Entity scope determines where fields are displayed and edited.
+
 ## Deployment Architecture
 
 **Development (Replit):** Express.js with Vite middleware, full API functionality, hot module replacement.

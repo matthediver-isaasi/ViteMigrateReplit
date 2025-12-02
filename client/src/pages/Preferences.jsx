@@ -111,6 +111,11 @@ export default function PreferencesPage() {
   const [hasUnsavedAdditionalInfo, setHasUnsavedAdditionalInfo] = useState(false);
   const [isSavingAdditionalInfo, setIsSavingAdditionalInfo] = useState(false);
 
+  // Organization custom fields state
+  const [orgCustomFieldValues, setOrgCustomFieldValues] = useState({});
+  const [hasUnsavedOrgCustomFields, setHasUnsavedOrgCustomFields] = useState(false);
+  const [isSavingOrgCustomFields, setIsSavingOrgCustomFields] = useState(false);
+
   const queryClient = useQueryClient();
 
   // --- Get current user from sessionStorage (set by Login/TestLogin) ---
@@ -363,16 +368,17 @@ export default function PreferencesPage() {
     },
   });
 
-  // --- Preference fields (custom additional info fields) ---
+  // --- Preference fields (custom additional info fields) - member scope only ---
   const { data: preferenceFields = [], isLoading: preferenceFieldsLoading } = useQuery({
-    queryKey: ["/api/entities/PreferenceField"],
+    queryKey: ["/api/entities/PreferenceField", "member"],
     queryFn: async () => {
       try {
         const fields = await base44.entities.PreferenceField.list({
-          filter: { is_active: true },
+          filter: { is_active: true, entity_scope: 'member' },
           sort: { display_order: 'asc' }
         });
-        return fields || [];
+        // Filter for member scope (also include fields without entity_scope for backwards compatibility)
+        return (fields || []).filter(f => !f.entity_scope || f.entity_scope === 'member');
       } catch {
         return [];
       }
@@ -388,6 +394,39 @@ export default function PreferencesPage() {
       try {
         const values = await base44.entities.MemberPreferenceValue.list({
           filter: { member_id: memberRecord.id }
+        });
+        return values || [];
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // --- Organization custom fields (organization scope) ---
+  const { data: orgPreferenceFields = [], isLoading: orgPreferenceFieldsLoading } = useQuery({
+    queryKey: ["/api/entities/PreferenceField", "organization"],
+    queryFn: async () => {
+      try {
+        const fields = await base44.entities.PreferenceField.list({
+          filter: { is_active: true, entity_scope: 'organization' },
+          sort: { display_order: 'asc' }
+        });
+        return (fields || []).filter(f => f.entity_scope === 'organization');
+      } catch {
+        return [];
+      }
+    },
+  });
+
+  // --- Organization's preference values ---
+  const { data: orgPreferenceValues = [] } = useQuery({
+    queryKey: ["/api/entities/OrganizationPreferenceValue", memberRecord?.organization_id],
+    enabled: !!memberRecord?.organization_id,
+    queryFn: async () => {
+      if (!memberRecord?.organization_id) return [];
+      try {
+        const values = await base44.entities.OrganizationPreferenceValue.list({
+          filter: { organization_id: memberRecord.organization_id }
         });
         return values || [];
       } catch {
@@ -423,6 +462,7 @@ export default function PreferencesPage() {
   // --- Section order and visibility for Preferences page layout ---
   const DEFAULT_SECTION_CONFIG = [
     { id: 'organization_logo', visible: true },
+    { id: 'organization_custom_fields', visible: true },
     { id: 'profile_information', visible: true },
     { id: 'password_security', visible: true },
     { id: 'communications', visible: true },
@@ -573,6 +613,29 @@ export default function PreferencesPage() {
     }
   }, [memberPreferenceValues, preferenceFields]);
 
+  // --- Load organization custom field values from orgPreferenceValues ---
+  useEffect(() => {
+    if (orgPreferenceValues.length > 0 && orgPreferenceFields.length > 0) {
+      const valuesMap = {};
+      orgPreferenceValues.forEach(pv => {
+        const field = orgPreferenceFields.find(f => f.id === pv.field_id);
+        if (field) {
+          // For picklist, parse as array
+          if (field.field_type === 'picklist' && pv.value) {
+            try {
+              valuesMap[pv.field_id] = JSON.parse(pv.value);
+            } catch {
+              valuesMap[pv.field_id] = [];
+            }
+          } else {
+            valuesMap[pv.field_id] = pv.value || '';
+          }
+        }
+      });
+      setOrgCustomFieldValues(valuesMap);
+    }
+  }, [orgPreferenceValues, orgPreferenceFields]);
+
   // --- Mutations ---
   const savePreferencesMutation = useMutation({
     mutationFn: async (preferences) => {
@@ -685,6 +748,54 @@ export default function PreferencesPage() {
     },
   });
 
+  // Save organization custom fields
+  const saveOrgCustomFieldsMutation = useMutation({
+    mutationFn: async (values) => {
+      if (!memberRecord?.organization_id) throw new Error("No organization");
+      
+      // For each field, upsert the value
+      const updates = Object.entries(values).map(async ([fieldId, value]) => {
+        const existingValue = orgPreferenceValues.find(pv => pv.field_id === fieldId);
+        const field = orgPreferenceFields.find(f => f.id === fieldId);
+        
+        // Convert picklist arrays to JSON string
+        let storedValue = value;
+        if (field?.field_type === 'picklist' && Array.isArray(value)) {
+          storedValue = JSON.stringify(value);
+        }
+        
+        if (existingValue) {
+          // Update existing
+          return await base44.entities.OrganizationPreferenceValue.update(existingValue.id, {
+            value: storedValue,
+            updated_at: new Date().toISOString()
+          });
+        } else {
+          // Create new
+          return await base44.entities.OrganizationPreferenceValue.create({
+            organization_id: memberRecord.organization_id,
+            field_id: fieldId,
+            value: storedValue
+          });
+        }
+      });
+      
+      await Promise.all(updates);
+      return values;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/entities/OrganizationPreferenceValue", memberRecord?.organization_id] });
+      toast.success("Organisation information saved successfully");
+      setHasUnsavedOrgCustomFields(false);
+      setIsSavingOrgCustomFields(false);
+    },
+    onError: (error) => {
+      console.error("Failed to save organization info:", error);
+      toast.error("Failed to save organisation information");
+      setIsSavingOrgCustomFields(false);
+    },
+  });
+
   // --- Handlers ---
   const handlePhotoUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -788,6 +899,33 @@ export default function PreferencesPage() {
   const handleSaveAdditionalInfo = () => {
     setIsSavingAdditionalInfo(true);
     saveAdditionalInfoMutation.mutate(additionalInfoValues);
+  };
+
+  // Handle organization custom field changes
+  const handleOrgCustomFieldChange = (fieldId, value) => {
+    setOrgCustomFieldValues(prev => ({
+      ...prev,
+      [fieldId]: value
+    }));
+    setHasUnsavedOrgCustomFields(true);
+  };
+
+  // Handle organization picklist checkbox toggle
+  const handleOrgPicklistToggle = (fieldId, optionValue, checked) => {
+    setOrgCustomFieldValues(prev => {
+      const currentValues = Array.isArray(prev[fieldId]) ? prev[fieldId] : [];
+      const newValues = checked 
+        ? [...currentValues, optionValue]
+        : currentValues.filter(v => v !== optionValue);
+      return { ...prev, [fieldId]: newValues };
+    });
+    setHasUnsavedOrgCustomFields(true);
+  };
+
+  // Save organization custom fields
+  const handleSaveOrgCustomFields = () => {
+    setIsSavingOrgCustomFields(true);
+    saveOrgCustomFieldsMutation.mutate(orgCustomFieldValues);
   };
 
   const handleSaveProfile = () => {
@@ -1114,6 +1252,133 @@ export default function PreferencesPage() {
                       <>
                         <Save className="w-4 h-4 mr-2" />
                         Save Logo
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+
+      case 'organization_custom_fields':
+        // Only show if user belongs to an organization, not a team member, and there are org fields
+        if (!organizationInfo || isTeamMember || orgPreferenceFields.length === 0) return null;
+        return (
+          <Card key="organization_custom_fields" className="border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="w-5 h-5 text-blue-600" />
+                Organisation Information
+              </CardTitle>
+              <CardDescription>
+                Additional information about {organizationInfo.name}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {orgPreferenceFieldsLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orgPreferenceFields.map((field) => {
+                    const fieldValue = orgCustomFieldValues[field.id] || '';
+                    
+                    return (
+                      <div key={field.id} className="space-y-2">
+                        <Label htmlFor={`org-field-${field.id}`}>
+                          {field.label}
+                          {field.is_required && <span className="text-red-500 ml-1">*</span>}
+                        </Label>
+                        
+                        {field.field_type === 'text' && (
+                          <Input
+                            id={`org-field-${field.id}`}
+                            value={fieldValue}
+                            onChange={(e) => handleOrgCustomFieldChange(field.id, e.target.value)}
+                            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                            data-testid={`input-org-field-${field.id}`}
+                          />
+                        )}
+                        
+                        {field.field_type === 'textarea' && (
+                          <Textarea
+                            id={`org-field-${field.id}`}
+                            value={fieldValue}
+                            onChange={(e) => handleOrgCustomFieldChange(field.id, e.target.value)}
+                            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+                            rows={3}
+                            data-testid={`textarea-org-field-${field.id}`}
+                          />
+                        )}
+                        
+                        {field.field_type === 'dropdown' && field.options && (
+                          <Select
+                            value={fieldValue}
+                            onValueChange={(value) => handleOrgCustomFieldChange(field.id, value)}
+                          >
+                            <SelectTrigger data-testid={`select-org-field-${field.id}`}>
+                              <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {field.options.map((option) => (
+                                <SelectItem key={option.value} value={option.value}>
+                                  {option.label}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        )}
+                        
+                        {field.field_type === 'picklist' && field.options && (
+                          <div className="space-y-2">
+                            {field.options.map((option) => {
+                              const isChecked = Array.isArray(fieldValue) && fieldValue.includes(option.value);
+                              return (
+                                <div key={option.value} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`org-field-${field.id}-${option.value}`}
+                                    checked={isChecked}
+                                    onCheckedChange={(checked) => 
+                                      handleOrgPicklistToggle(field.id, option.value, checked)
+                                    }
+                                    data-testid={`checkbox-org-field-${field.id}-${option.value}`}
+                                  />
+                                  <label
+                                    htmlFor={`org-field-${field.id}-${option.value}`}
+                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                                  >
+                                    {option.label}
+                                  </label>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {hasUnsavedOrgCustomFields && (
+                <div className="flex justify-end pt-4">
+                  <Button
+                    onClick={handleSaveOrgCustomFields}
+                    disabled={isSavingOrgCustomFields}
+                    className="bg-blue-600 hover:bg-blue-700"
+                    data-testid="button-save-org-custom-fields"
+                  >
+                    {isSavingOrgCustomFields ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Changes
                       </>
                     )}
                   </Button>

@@ -1,12 +1,13 @@
-import React, { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Building2, Search, Globe, Users, Loader2, ChevronLeft, ChevronRight, ArrowDownAZ, ArrowUpZA, Pencil, Trash2, Upload, X } from "lucide-react";
+import { Building2, Search, Globe, Users, Loader2, ChevronLeft, ChevronRight, ArrowDownAZ, ArrowUpZA, Pencil, Trash2, Upload, ExternalLink, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { toast } from "sonner";
 
@@ -24,6 +25,9 @@ export default function OrganisationDirectoryPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
+  
+  // State for organization profile modal
+  const [selectedOrg, setSelectedOrg] = useState(null);
 
   const { data: organizations = [], isLoading } = useQuery({
     queryKey: ['organizations'],
@@ -109,6 +113,39 @@ export default function OrganisationDirectoryPage() {
     });
     return counts;
   }, [members]);
+
+  // Fetch organization-scoped custom fields
+  const { data: orgCustomFields = [] } = useQuery({
+    queryKey: ['/api/entities/PreferenceField', 'organization'],
+    queryFn: async () => {
+      try {
+        const fields = await base44.entities.PreferenceField.list({
+          filter: { is_active: true, entity_scope: 'organization' },
+          sort: { display_order: 'asc' }
+        });
+        return (fields || []).filter(f => f.entity_scope === 'organization');
+      } catch {
+        return [];
+      }
+    }
+  });
+
+  // Fetch custom field values for the selected organization
+  const { data: selectedOrgValues = [], isLoading: isLoadingOrgValues } = useQuery({
+    queryKey: ['/api/entities/OrganizationPreferenceValue', selectedOrg?.id],
+    enabled: !!selectedOrg?.id,
+    queryFn: async () => {
+      if (!selectedOrg?.id) return [];
+      try {
+        const values = await base44.entities.OrganizationPreferenceValue.list({
+          filter: { organization_id: selectedOrg.id }
+        });
+        return values || [];
+      } catch {
+        return [];
+      }
+    }
+  });
 
   const filteredOrganizations = useMemo(() => {
     const excludedIds = displaySettings?.excludedOrgIds || [];
@@ -292,10 +329,7 @@ export default function OrganisationDirectoryPage() {
                 <Card 
                   key={org.id} 
                   className="border-slate-200 hover:shadow-lg transition-shadow cursor-pointer"
-                  onClick={() => {
-                    // Use standard navigation to ensure MemberDirectory remounts with URL params
-                    window.location.href = `/memberdirectory?org=${org.id}`;
-                  }}
+                  onClick={() => setSelectedOrg(org)}
                   data-testid={`card-organisation-${org.id}`}
                 >
                     <CardHeader className="flex flex-col items-center text-center pb-2">
@@ -505,6 +539,127 @@ export default function OrganisationDirectoryPage() {
               ) : (
                 'Remove Logo'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Organization Profile Modal */}
+      <Dialog open={!!selectedOrg} onOpenChange={(open) => !open && setSelectedOrg(null)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-lg overflow-hidden bg-slate-100 flex items-center justify-center flex-shrink-0">
+                {selectedOrg?.logo_url ? (
+                  <img
+                    src={selectedOrg.logo_url}
+                    alt={selectedOrg?.name}
+                    className="w-full h-full object-contain"
+                  />
+                ) : (
+                  <Building2 className="w-8 h-8 text-slate-400" />
+                )}
+              </div>
+              <div>
+                <DialogTitle className="text-xl">{selectedOrg?.name}</DialogTitle>
+                {selectedOrg?.domain && (
+                  <p className="text-sm text-slate-500 flex items-center gap-1 mt-1">
+                    <Globe className="w-3 h-3" />
+                    @{selectedOrg.domain}
+                  </p>
+                )}
+              </div>
+            </div>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Member count */}
+            <div className="flex items-center gap-2 text-slate-600">
+              <Users className="w-4 h-4" />
+              <span>{organizationMemberCounts[selectedOrg?.id] || 0} members</span>
+            </div>
+
+            {/* Additional domains */}
+            {selectedOrg?.additional_verified_domains?.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-slate-700">Additional Domains</p>
+                <div className="flex flex-wrap gap-1">
+                  {selectedOrg.additional_verified_domains.map((domain, idx) => (
+                    <Badge key={idx} variant="secondary" className="text-xs">
+                      @{domain}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Custom Fields Section */}
+            {orgCustomFields.length > 0 && (
+              <div className="space-y-3 pt-2 border-t">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-4 h-4 text-blue-600" />
+                  <h4 className="font-medium text-slate-900">Additional Information</h4>
+                </div>
+                
+                {isLoadingOrgValues ? (
+                  <div className="flex items-center justify-center py-4">
+                    <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {orgCustomFields.map((field) => {
+                      const valueRecord = selectedOrgValues.find(v => v.field_id === field.id);
+                      let displayValue = valueRecord?.value || '';
+                      
+                      // Handle picklist (array) values
+                      if (field.field_type === 'picklist' && displayValue) {
+                        try {
+                          const parsed = JSON.parse(displayValue);
+                          if (Array.isArray(parsed) && field.options) {
+                            displayValue = parsed
+                              .map(v => field.options.find(o => o.value === v)?.label || v)
+                              .join(', ');
+                          }
+                        } catch {
+                          // Keep as is
+                        }
+                      }
+                      
+                      // Handle dropdown - show label instead of value
+                      if (field.field_type === 'dropdown' && displayValue && field.options) {
+                        const option = field.options.find(o => o.value === displayValue);
+                        if (option) displayValue = option.label;
+                      }
+                      
+                      return (
+                        <div key={field.id} className="flex justify-between items-start gap-4">
+                          <span className="text-sm text-slate-600">{field.label}</span>
+                          <span className="text-sm font-medium text-slate-900 text-right">
+                            {displayValue || <span className="text-slate-400 italic">Not set</span>}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-2">
+            <Button variant="outline" onClick={() => setSelectedOrg(null)}>
+              Close
+            </Button>
+            <Button
+              onClick={() => {
+                window.location.href = `/memberdirectory?org=${selectedOrg?.id}`;
+              }}
+              className="bg-blue-600 hover:bg-blue-700 gap-2"
+              data-testid="button-view-members"
+            >
+              <Users className="w-4 h-4" />
+              View Members
+              <ExternalLink className="w-3 h-3" />
             </Button>
           </DialogFooter>
         </DialogContent>

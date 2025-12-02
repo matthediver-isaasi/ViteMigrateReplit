@@ -1376,6 +1376,9 @@ const functionHandlers = {
     const createdBookings = [];
     
     for (const attendee of attendees) {
+      // Calculate ticket price from pricing config or total cost
+      const ticketPrice = event.pricing_config?.ticketPrice || (totalCost / ticketsRequired);
+      
       const bookingData = {
         event_id: event.id,
         member_id: member.id,
@@ -1386,6 +1389,7 @@ const functionHandlers = {
         attendee_last_name: attendee.last_name || attendee.lastName,
         status: 'confirmed',
         payment_method: paymentMethod,
+        ticket_price: ticketPrice,
         total_cost: totalCost / ticketsRequired,
         voucher_amount: voucherAmountApplied / ticketsRequired,
         training_fund_amount: validatedTrainingFundAmount / ticketsRequired,

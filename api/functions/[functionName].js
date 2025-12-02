@@ -1385,6 +1385,66 @@ const functionHandlers = {
     };
   },
 
+  async setPublicHomePage(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { slug } = params;
+    const settingKey = 'public_home_page_slug';
+    
+    console.log(`[setPublicHomePage] Setting home page to: ${slug || '(none)'}`);
+
+    // First try to find existing setting
+    const { data: existingSettings, error: fetchError } = await supabase
+      .from('system_settings')
+      .select('*')
+      .eq('setting_key', settingKey);
+
+    if (fetchError) {
+      console.error('[setPublicHomePage] Error fetching settings:', fetchError);
+      throw new Error(fetchError.message);
+    }
+
+    const existingSetting = existingSettings?.[0];
+
+    if (existingSetting) {
+      // Update existing setting
+      const { data, error } = await supabase
+        .from('system_settings')
+        .update({ setting_value: slug || '' })
+        .eq('id', existingSetting.id)
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[setPublicHomePage] Error updating setting:', error);
+        throw new Error(error.message);
+      }
+
+      console.log('[setPublicHomePage] Updated existing setting:', data);
+      return { success: true, data };
+    } else {
+      // Create new setting
+      const { data, error } = await supabase
+        .from('system_settings')
+        .insert({
+          setting_key: settingKey,
+          setting_value: slug || '',
+          setting_type: 'string',
+          description: 'The slug of the page to display as the public home page'
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[setPublicHomePage] Error creating setting:', error);
+        throw new Error(error.message);
+      }
+
+      console.log('[setPublicHomePage] Created new setting:', data);
+      return { success: true, data };
+    }
+  },
+
   async createJobPostingMember(params) {
     if (!supabase) throw new Error('Supabase not configured');
     

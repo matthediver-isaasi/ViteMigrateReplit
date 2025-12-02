@@ -449,25 +449,38 @@ export default function PaymentOptions({
         {totalCost > 0 && ticketsRequired > 0 && (
           <div className="space-y-4">
             {/* Vouchers */}
-            {!isFeatureExcluded('payment_training_vouchers') && vouchers.length > 0 && (
+            {!isFeatureExcluded('payment_training_vouchers') && (
               <div className="p-4 rounded-lg border border-slate-200 bg-blue-50">
-                <div className="flex items-center gap-2 mb-3">
-                  <Ticket className="w-4 h-4 text-blue-600" />
-                  <Label className="text-sm font-medium">Training Vouchers</Label>
-                </div>
-                <VoucherSelector
-                  organizationId={organizationInfo?.id}
-                  selectedVouchers={selectedVouchers}
-                  onVoucherToggle={setSelectedVouchers}
-                  maxAmount={totalCost}
-                />
-                {voucherAmount > 0 && (
-                  <div className="mt-3 pt-3 border-t border-blue-200">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-blue-700">Voucher Value Applied:</span>
-                      <span className="font-bold text-blue-900">£{voucherAmount.toFixed(2)}</span>
-                    </div>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Ticket className="w-4 h-4 text-blue-600" />
+                    <Label className="text-sm font-medium">Training Vouchers</Label>
                   </div>
+                  {vouchers.length > 0 && (
+                    <span className="text-xs text-slate-500">
+                      {vouchers.length} voucher{vouchers.length !== 1 ? 's' : ''} available
+                    </span>
+                  )}
+                </div>
+                {vouchers.length > 0 ? (
+                  <>
+                    <VoucherSelector
+                      organizationId={organizationInfo?.id}
+                      selectedVouchers={selectedVouchers}
+                      onVoucherToggle={setSelectedVouchers}
+                      maxAmount={totalCost}
+                    />
+                    {voucherAmount > 0 && (
+                      <div className="mt-3 pt-3 border-t border-blue-200">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-blue-700">Voucher Value Applied:</span>
+                          <span className="font-bold text-blue-900">£{voucherAmount.toFixed(2)}</span>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-xs text-slate-500">No training vouchers available for your organisation</p>
                 )}
               </div>
             )}
@@ -537,19 +550,21 @@ export default function PaymentOptions({
                       )}
                     </div>
 
-                    {stripePromise && (
-                      <div
-                        className="flex items-start space-x-3 p-3 rounded-lg border-2 transition-colors cursor-pointer hover:bg-slate-100"
-                        style={{ borderColor: remainingBalancePaymentMethod === 'card' ? '#6366f1' : '#e2e8f0' }}
-                        onClick={() => setRemainingBalancePaymentMethod('card')}
-                      >
-                        <RadioGroupItem value="card" id="card" className="mt-1" />
-                        <div className="flex-1">
-                          <Label htmlFor="card" className="text-sm font-medium cursor-pointer">Pay by Credit/Debit Card</Label>
+                    <div
+                      className={`flex items-start space-x-3 p-3 rounded-lg border-2 transition-colors ${stripePromise ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
+                      style={{ borderColor: remainingBalancePaymentMethod === 'card' ? '#6366f1' : '#e2e8f0' }}
+                      onClick={() => stripePromise && setRemainingBalancePaymentMethod('card')}
+                    >
+                      <RadioGroupItem value="card" id="card" className="mt-1" disabled={!stripePromise} />
+                      <div className="flex-1">
+                        <Label htmlFor="card" className={`text-sm font-medium ${stripePromise ? 'cursor-pointer' : 'cursor-not-allowed'}`}>Pay by Credit/Debit Card</Label>
+                        {stripePromise ? (
                           <p className="text-xs text-slate-500 mt-1">Secure payment via Stripe</p>
-                        </div>
+                        ) : (
+                          <p className="text-xs text-amber-600 mt-1">Card payments not currently available</p>
+                        )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </RadioGroup>
               </div>

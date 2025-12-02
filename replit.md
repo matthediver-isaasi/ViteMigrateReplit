@@ -49,7 +49,22 @@ Preferred communication style: Simple, everyday language.
 
 **Core Entities:** Member, Organization, Role, TeamMember.
 
-**Events & Bookings:** Event (synced from Zoho Backstage), Booking, Program, ProgramTicketTransaction.
+**Events & Bookings:** Event (synced from Zoho Backstage or created as one-off), Booking, Program, ProgramTicketTransaction.
+
+**One-Off Events:** Events can be created as "one-off" events (is_one_off=true, program_tag="" empty string) with direct pricing instead of program ticket deduction. Pricing configuration stored in `pricing_config` JSONB column with:
+- `ticketPrice`: Base price per attendee in GBP
+- `bogoType`: BOGO offer type - 'buy_x_get_y_free' or 'enter_total_pay_less'
+- `buyQuantity` / `freeQuantity`: For 'buy_x_get_y_free' BOGO offers
+- `enterQuantity` / `payQuantity`: For 'enter_total_pay_less' BOGO offers
+- `bulkDiscountEnabled`, `bulkMinQuantity`, `bulkDiscountPercent`: Bulk discount configuration
+
+**One-Off Event Payment Methods:**
+- Training vouchers (from ProgramTicketTransaction with type='voucher')
+- Training fund (from organization.training_fund_balance)
+- Organization account (creates account_charge transaction with PO number)
+- Stripe card payment (verified via PaymentIntent before booking creation)
+
+**Backend Function:** `createOneOffEventBooking` handles payment processing with server-side validation of voucher ownership, training fund amounts, and Stripe payment verification.
 
 **Content Management:** BlogPost, Resource, NewsPost, IEditPage/IEditPageElement (dynamic page builder).
 

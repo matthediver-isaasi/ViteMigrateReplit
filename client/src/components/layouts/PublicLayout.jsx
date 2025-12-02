@@ -173,11 +173,19 @@ export default function PublicLayout({ children, currentPageName }) {
 
         {/* Public Footer */}
         <footer className="bg-slate-900 text-white">
+          {/* Gradient Bar */}
+          <div 
+            className="w-full"
+            style={{ 
+              height: '5px',
+              background: 'linear-gradient(to right, #5C0085, #BA0087, #EE00C3, #FF4229, #FFB000)'
+            }}
+          />
           <div className="max-w-7xl mx-auto px-4 py-16">
             <div className="grid md:grid-cols-3 gap-12">
               
               {/* Left Column - Become a Member */}
-              <div className="flex flex-col justify-center">
+              <div className="flex flex-col justify-start">
                 <h2 
                   className="text-3xl text-white mb-8"
                   style={{ fontFamily: "'Degular Medium', sans-serif" }}

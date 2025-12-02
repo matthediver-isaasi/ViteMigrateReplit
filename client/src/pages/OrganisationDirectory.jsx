@@ -228,13 +228,12 @@ export default function OrganisationDirectoryPage() {
 
     setIsUploading(true);
     try {
-      const result = await base44.integrations.Storage.uploadFile({
-        file,
-        folder: 'organisation-logos'
-      });
+      const result = await base44.integrations.Core.UploadFile({ file });
       
-      if (result?.url) {
-        updateLogoMutation.mutate({ orgId: editingOrg.id, logoUrl: result.url });
+      if (result?.file_url) {
+        updateLogoMutation.mutate({ orgId: editingOrg.id, logoUrl: result.file_url });
+      } else {
+        toast.error('Upload failed: No file URL returned');
       }
     } catch (error) {
       toast.error('Failed to upload image: ' + error.message);

@@ -1,4 +1,4 @@
-import { getSessionMember } from '../../_lib/session.js';
+import { getSessionMember } from './_lib/session.js';
 import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
@@ -6,46 +6,6 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 const supabase = supabaseUrl && supabaseServiceKey 
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
-
-async function verifyPermission(req, permissionId) {
-  const sessionMember = await getSessionMember(req);
-  
-  if (!sessionMember) {
-    return { hasPermission: false, error: 'Not authenticated' };
-  }
-
-  if (!sessionMember.role_id) {
-    return { hasPermission: false, memberId: sessionMember.id };
-  }
-
-  if (!supabase) {
-    return { hasPermission: false, error: 'Database not configured' };
-  }
-
-  try {
-    const { data: role, error: roleError } = await supabase
-      .from('role')
-      .select('is_admin, excluded_features')
-      .eq('id', sessionMember.role_id)
-      .single();
-
-    if (roleError || !role) {
-      return { hasPermission: false, memberId: sessionMember.id };
-    }
-
-    if (role.is_admin === true) {
-      return { hasPermission: true, memberId: sessionMember.id };
-    }
-
-    const excludedFeatures = role.excluded_features || [];
-    const hasPermission = !excludedFeatures.includes(permissionId);
-
-    return { hasPermission, memberId: sessionMember.id };
-  } catch (error) {
-    console.error('[Permission Verify] Error:', error);
-    return { hasPermission: false, error: 'Verification failed' };
-  }
-}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -61,27 +21,35 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const { hasPermission, error } = await verifyPermission(req, 'admin_can_edit_members');
-
-  if (error) {
-    return res.status(401).json({ error });
-  }
-
-  if (!hasPermission) {
-    return res.status(403).json({ error: 'Permission denied' });
-  }
-
   if (!supabase) {
     return res.status(503).json({ error: 'Database not configured' });
   }
 
-  const { id: orgId } = req.query;
+  const sessionMember = await getSessionMember(req);
+  
+  if (!sessionMember) {
+    return res.status(401).json({ error: 'Not authenticated' });
+  }
 
   try {
+    // Get the member's organization_id
+    const { data: member, error: memberError } = await supabase
+      .from('member')
+      .select('organization_id')
+      .eq('id', sessionMember.id)
+      .single();
+
+    if (memberError || !member?.organization_id) {
+      console.error('[Update My Org] Member lookup error:', memberError);
+      return res.status(404).json({ error: 'Member or organization not found' });
+    }
+
+    const orgId = member.organization_id;
     const rawUpdates = req.body;
 
+    // Fields that members can update on their own organization (name excluded)
     const allowedFields = [
-      'logo_url', 'name', 'description', 'website_url',
+      'description', 'website_url',
       'phone', 'invoicing_email', 'invoicing_address'
     ];
 
@@ -104,13 +72,13 @@ export default async function handler(req, res) {
       .single();
 
     if (updateError) {
-      console.error('[Admin Update Org] Error:', updateError);
+      console.error('[Update My Org] Error:', updateError);
       return res.status(500).json({ error: updateError.message });
     }
 
     return res.json(updatedOrg);
   } catch (error) {
-    console.error('[Admin Update Org] Error:', error);
+    console.error('[Update My Org] Error:', error);
     return res.status(500).json({ error: 'Failed to update organization' });
   }
 }

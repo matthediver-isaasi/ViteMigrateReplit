@@ -861,31 +861,7 @@ export default function BuyProgramTicketsPage({
               </div>
             )}
 
-            <Card id="total-tickets-summary-card" className="border-slate-200 shadow-sm bg-gradient-to-br from-purple-50 to-blue-50 mb-8">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-slate-600 mb-1">Total Available</p>
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-3xl font-bold text-purple-600">
-                        {organizationTotalTickets}
-                      </span>
-                      <span className="text-slate-600">unpacked tickets</span>
-                    </div>
-                  </div>
-                  <div className="p-4 bg-white/50 rounded-lg">
-                    <Ticket className="w-8 h-8 text-purple-600" />
-                  </div>
-                </div>
-                
-                {organizationInfo.name &&
-                  <p className="text-sm text-slate-500 mt-3">
-                    for {organizationInfo.name}
-                  </p>
-                }
-              </CardContent>
-            </Card>
-            {/*}
+                        {/*}
             UNPACKED ONLY
             <div className="mb-6">
             <h2 className="text-xl font-semibold text-slate-900 mb-4">Available Programs</h2>
@@ -941,22 +917,9 @@ export default function BuyProgramTicketsPage({
                         }
                         
                         <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between gap-2 mb-2">
-                            
-                            <CardTitle className="text-lg group-hover:text-purple-600 transition-colors">
-                              {/*
+                          <CardTitle className="text-lg group-hover:text-purple-600 transition-colors">
                             {program.name}
-                            */}
-                              International Employability unpacked
-                            </CardTitle>
-                            
-                            
-                            
-                            <div className="flex items-center gap-1 text-purple-600 bg-purple-50 px-2 py-1 rounded-full shrink-0">
-                              <Ticket className="w-3 h-3" />
-                              <span className="text-xs font-semibold">{currentBalance}</span>
-                            </div>
-                          </div>
+                          </CardTitle>
                         </CardHeader>
                         
                         <CardContent className="space-y-3">
@@ -986,12 +949,16 @@ export default function BuyProgramTicketsPage({
                                 {program.bulk_discount_percentage}% off when buying {program.bulk_discount_threshold}+ tickets
                               </p>
                             }
-                            {/*
-                          <div className="flex items-center gap-2 text-purple-600 font-medium pt-2">
-                          <ShoppingCart className="w-4 h-4" />
-                          <span className="text-sm">Purchase Tickets</span>
                           </div>
-                          */}
+                          
+                          {/* Available Tickets Display */}
+                          <div className="pt-3 mt-3 border-t border-slate-200">
+                            <div className="flex items-center gap-2 text-purple-700 bg-purple-50 px-3 py-2 rounded-lg">
+                              <Ticket className="w-5 h-5" />
+                              <span className="text-sm font-medium">
+                                Available Tickets: <span className="font-bold text-lg">{currentBalance}</span>
+                              </span>
+                            </div>
                           </div>
         
                         </CardContent>

@@ -127,7 +127,16 @@ export default async function handler(req, res) {
       if (offset) query = query.range(parseInt(offset), parseInt(offset) + parseInt(limit || '100') - 1);
 
       const { data, error } = await query;
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) {
+        console.error(`Entity list error for ${entity} (table: ${tableName}):`, error);
+        return res.status(500).json({ 
+          error: error.message, 
+          details: error.details,
+          hint: error.hint,
+          code: error.code,
+          table: tableName
+        });
+      }
       return res.json(data || []);
 
     } else if (req.method === 'POST') {

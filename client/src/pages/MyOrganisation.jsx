@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,10 +12,11 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Building2, Globe, Users, Phone, Mail, MapPin, ClipboardList, ExternalLink, Pencil, Save, X } from "lucide-react";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/components/ui/use-toast";
 
 export default function MyOrganisationPage() {
   const { memberInfo, organizationInfo, isFeatureExcluded, isAccessReady } = useMemberAccess();
+  const queryClient = useQueryClient();
   const [accessChecked, setAccessChecked] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
@@ -134,8 +134,17 @@ export default function MyOrganisationPage() {
 
   const updateOrgMutation = useMutation({
     mutationFn: async (updates) => {
-      const response = await apiRequest('PATCH', `/api/admin/organizations/${memberInfo.organization_id}`, updates);
-      return response;
+      const response = await fetch(`/api/admin/organizations/${memberInfo.organization_id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(updates)
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to update organisation');
+      }
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['myOrganization', memberInfo?.organization_id] });

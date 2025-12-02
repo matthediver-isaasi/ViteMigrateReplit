@@ -134,7 +134,7 @@ export default function MyOrganisationPage() {
 
   const updateOrgMutation = useMutation({
     mutationFn: async (updates) => {
-      const response = await fetch(`/api/admin/organizations/${memberInfo.organization_id}`, {
+      const response = await fetch('/api/my-organization', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -142,7 +142,7 @@ export default function MyOrganisationPage() {
       });
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Failed to update organisation');
+        throw new Error(errorData.error || errorData.message || 'Failed to update organisation');
       }
       return response.json();
     },

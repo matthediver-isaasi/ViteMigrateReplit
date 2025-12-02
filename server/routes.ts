@@ -1145,6 +1145,70 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Update own organization (for members to edit their organization details)
+  app.patch('/api/my-organization', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Database not configured' });
+    }
+
+    // Verify the user is logged in
+    const sessionMemberId = (req.session as any)?.memberId;
+    if (!sessionMemberId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
+    try {
+      // Get the member's organization_id
+      const { data: member, error: memberError } = await supabase
+        .from('member')
+        .select('organization_id')
+        .eq('id', sessionMemberId)
+        .single();
+
+      if (memberError || !member?.organization_id) {
+        console.error('[Update My Org] Member lookup error:', memberError);
+        return res.status(404).json({ error: 'Member or organization not found' });
+      }
+
+      const orgId = member.organization_id;
+      const rawUpdates = req.body;
+
+      // Fields that members can update on their own organization (name excluded)
+      const allowedFields = [
+        'description', 'website_url',
+        'phone', 'invoicing_email', 'invoicing_address'
+      ];
+
+      const updates: Record<string, any> = {};
+      for (const field of allowedFields) {
+        if (rawUpdates[field] !== undefined) {
+          updates[field] = rawUpdates[field];
+        }
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({ error: 'No valid fields to update' });
+      }
+
+      const { data: updatedOrg, error: updateError } = await supabase
+        .from('organization')
+        .update(updates)
+        .eq('id', orgId)
+        .select()
+        .single();
+
+      if (updateError) {
+        console.error('[Update My Org] Error:', updateError);
+        return res.status(500).json({ error: updateError.message });
+      }
+
+      res.json(updatedOrg);
+    } catch (error) {
+      console.error('[Update My Org] Error:', error);
+      res.status(500).json({ error: 'Failed to update organization' });
+    }
+  });
+
   // Update communication preference for a member (admin only)
   app.patch('/api/admin/members/:memberId/communication-preferences/:categoryId', async (req: Request, res: Response) => {
     const { isAdmin, error } = await verifyAdminSession(req);

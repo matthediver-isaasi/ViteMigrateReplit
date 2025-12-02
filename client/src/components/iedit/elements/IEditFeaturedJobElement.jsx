@@ -437,7 +437,7 @@ function JobDetails({ job, content, formatClosingDate, isClosingSoon }) {
   const details = [
     { label: 'Organisation', value: job.company_name, icon: Building2 },
     { label: 'Contract Type', value: job.job_type, icon: Briefcase },
-    { label: 'Salary', value: job.salary, icon: Banknote },
+    { label: 'Salary', value: job.salary_range, icon: Banknote },
     { label: 'Closing Date', value: formatClosingDate(job.closing_date), icon: Calendar, isClosingSoon: isClosingSoon(job.closing_date) }
   ].filter(d => d.value);
 

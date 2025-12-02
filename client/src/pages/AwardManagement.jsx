@@ -2589,13 +2589,13 @@ export default function AwardManagementPage() {
                 </Button>
               </div>
               <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg">
-                {getAwardSublevels(managingSublevelsForAward?.id, managingSublevelsForAward?.type === 'offline').length === 0 ? (
+                {getAwardSublevels(managingSublevelsForAward?.id, managingSublevelsForAward?.type).length === 0 ? (
                   <div className="p-8 text-center text-slate-500">
                     No sublevels yet. Add Bronze, Silver, Gold levels.
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-200">
-                    {getAwardSublevels(managingSublevelsForAward?.id, managingSublevelsForAward?.type === 'offline').map(sublevel => (
+                    {getAwardSublevels(managingSublevelsForAward?.id, managingSublevelsForAward?.type).map(sublevel => (
                       <div key={sublevel.id} className="p-4 hover:bg-slate-50">
                         <div className="flex items-start justify-between">
                           <div className="flex-1">

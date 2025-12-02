@@ -30,6 +30,9 @@ export default function EditEvent() {
   const urlParams = new URLSearchParams(window.location.search);
   const eventId = urlParams.get('id');
 
+  // Program vs One-off toggle
+  const [isProgramEvent, setIsProgramEvent] = useState(true);
+
   // Pricing & Offers state for one-off events
   const [ticketPrice, setTicketPrice] = useState("");
   const [offerType, setOfferType] = useState("none");
@@ -125,6 +128,10 @@ export default function EditEvent() {
         zoom_webinar_id: event.zoom_webinar_id || null
       });
 
+      // Set isProgramEvent based on whether event has a program_tag
+      const hasProgram = event.program_tag && event.program_tag !== "";
+      setIsProgramEvent(hasProgram);
+
       // Load pricing config for one-off events
       if (event.pricing_config) {
         const config = event.pricing_config;
@@ -153,8 +160,8 @@ export default function EditEvent() {
                         formData.location?.includes('zoom.us') ||
                         formData.location?.includes('https://');
 
-  // Check if this is a one-off event (no program_tag)
-  const isOneOffEvent = !formData.program_tag || formData.program_tag === "";
+  // One-off event is when isProgramEvent is false
+  const isOneOffEvent = !isProgramEvent;
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -350,19 +357,41 @@ export default function EditEvent() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {/* One-off Event Indicator or Program Selection */}
-              {isOneOffEvent ? (
-                <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Badge variant="secondary" className="bg-amber-100 text-amber-800 border-amber-300">
-                      One-off Event
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-amber-800">
-                    This is a standalone event not linked to any program. Tickets are sold directly for this event.
+              {/* Program vs One-off Toggle */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                <div className="space-y-0.5">
+                  <Label htmlFor="program-toggle" className="text-base font-medium">
+                    {isProgramEvent ? "Program Event" : "One-off Event"}
+                  </Label>
+                  <p className="text-sm text-slate-500">
+                    {isProgramEvent 
+                      ? "Event is part of a program - requires program tickets to attend" 
+                      : "Standalone event - not linked to any program"}
                   </p>
                 </div>
-              ) : (
+                <div className="flex items-center gap-3">
+                  <span className={`text-sm ${!isProgramEvent ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
+                    One-off
+                  </span>
+                  <Switch
+                    id="program-toggle"
+                    checked={isProgramEvent}
+                    onCheckedChange={(checked) => {
+                      setIsProgramEvent(checked);
+                      if (!checked) {
+                        handleInputChange('program_tag', '');
+                      }
+                    }}
+                    data-testid="switch-program-toggle"
+                  />
+                  <span className={`text-sm ${isProgramEvent ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
+                    Program
+                  </span>
+                </div>
+              </div>
+
+              {/* Program Selection - Only shown when isProgramEvent is true */}
+              {isProgramEvent && (
                 <div className="space-y-2">
                   <Label htmlFor="program">Program *</Label>
                   <Select

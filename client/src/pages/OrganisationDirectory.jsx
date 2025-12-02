@@ -119,13 +119,23 @@ export default function OrganisationDirectoryPage() {
     queryKey: ['/api/entities/PreferenceField', 'organization'],
     queryFn: async () => {
       try {
+        // Try to filter by entity_scope (requires migration to be run)
         const fields = await base44.entities.PreferenceField.list({
           filter: { is_active: true, entity_scope: 'organization' },
           sort: { display_order: 'asc' }
         });
         return (fields || []).filter(f => f.entity_scope === 'organization');
       } catch {
-        return [];
+        // Fallback: if entity_scope column doesn't exist, fetch all and filter client-side
+        try {
+          const allFields = await base44.entities.PreferenceField.list({
+            filter: { is_active: true },
+            sort: { display_order: 'asc' }
+          });
+          return (allFields || []).filter(f => f.entity_scope === 'organization');
+        } catch {
+          return [];
+        }
       }
     }
   });

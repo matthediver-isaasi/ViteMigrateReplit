@@ -128,11 +128,31 @@ function CustomFieldsManager({ queryClient, entityScope, title, description }) {
   const { data: preferenceFields = [], isLoading } = useQuery({
     queryKey: ['/api/entities/PreferenceField', entityScope],
     queryFn: async () => {
-      const fields = await base44.entities.PreferenceField.list({
-        filter: { entity_scope: entityScope },
-        sort: { display_order: 'asc' }
-      });
-      return fields || [];
+      try {
+        // Try to filter by entity_scope (requires migration to be run)
+        const fields = await base44.entities.PreferenceField.list({
+          filter: { entity_scope: entityScope },
+          sort: { display_order: 'asc' }
+        });
+        return fields || [];
+      } catch (error) {
+        // Fallback: if entity_scope column doesn't exist, fetch all and filter client-side
+        console.warn('entity_scope filter failed, falling back to client-side filter:', error);
+        try {
+          const allFields = await base44.entities.PreferenceField.list({
+            sort: { display_order: 'asc' }
+          });
+          // For backwards compatibility: fields without entity_scope are considered 'member' scope
+          return (allFields || []).filter(f => 
+            entityScope === 'member' 
+              ? (!f.entity_scope || f.entity_scope === 'member')
+              : f.entity_scope === entityScope
+          );
+        } catch (fallbackError) {
+          console.error('Failed to fetch preference fields:', fallbackError);
+          return [];
+        }
+      }
     }
   });
 

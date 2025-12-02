@@ -373,14 +373,23 @@ export default function PreferencesPage() {
     queryKey: ["/api/entities/PreferenceField", "member"],
     queryFn: async () => {
       try {
+        // Try to filter by entity_scope (requires migration to be run)
         const fields = await base44.entities.PreferenceField.list({
           filter: { is_active: true, entity_scope: 'member' },
           sort: { display_order: 'asc' }
         });
-        // Filter for member scope (also include fields without entity_scope for backwards compatibility)
         return (fields || []).filter(f => !f.entity_scope || f.entity_scope === 'member');
       } catch {
-        return [];
+        // Fallback: if entity_scope column doesn't exist, fetch all active and filter client-side
+        try {
+          const allFields = await base44.entities.PreferenceField.list({
+            filter: { is_active: true },
+            sort: { display_order: 'asc' }
+          });
+          return (allFields || []).filter(f => !f.entity_scope || f.entity_scope === 'member');
+        } catch {
+          return [];
+        }
       }
     },
   });
@@ -407,13 +416,24 @@ export default function PreferencesPage() {
     queryKey: ["/api/entities/PreferenceField", "organization"],
     queryFn: async () => {
       try {
+        // Try to filter by entity_scope (requires migration to be run)
         const fields = await base44.entities.PreferenceField.list({
           filter: { is_active: true, entity_scope: 'organization' },
           sort: { display_order: 'asc' }
         });
         return (fields || []).filter(f => f.entity_scope === 'organization');
       } catch {
-        return [];
+        // Fallback: if entity_scope column doesn't exist, fetch all and filter client-side
+        // Since entity_scope column doesn't exist, there are no org fields yet
+        try {
+          const allFields = await base44.entities.PreferenceField.list({
+            filter: { is_active: true },
+            sort: { display_order: 'asc' }
+          });
+          return (allFields || []).filter(f => f.entity_scope === 'organization');
+        } catch {
+          return [];
+        }
       }
     },
   });

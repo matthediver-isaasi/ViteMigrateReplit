@@ -15,6 +15,7 @@ import { IEditResourcesShowcaseElementRenderer } from "./elements/IEditResources
 import IEditButtonBlockElement from "./elements/IEditButtonBlockElement";
 import IEditPageHeaderHeroElement from "./elements/IEditPageHeaderHeroElement";
 import { IEditOrganisationDirectoryElementRenderer } from "./elements/IEditOrganisationDirectoryElement";
+import IEditFeaturedJobElement from "./elements/IEditFeaturedJobElement";
 
 export default function IEditElementRenderer({ element, memberInfo, organizationInfo, isFirst }) {
   // Map element types to their corresponding components
@@ -35,6 +36,7 @@ export default function IEditElementRenderer({ element, memberInfo, organization
     'button_block': IEditButtonBlockElement,
     'page_header_hero': IEditPageHeaderHeroElement,
     'organisation_directory': IEditOrganisationDirectoryElementRenderer,
+    'featured_job': IEditFeaturedJobElement,
   };
 
   const Component = elementComponents[element.element_type];

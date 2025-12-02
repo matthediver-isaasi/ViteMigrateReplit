@@ -1756,7 +1756,7 @@ export default function AwardManagementPage() {
               <div className="flex justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               </div>
-            ) : onlineAwards.length === 0 ? (
+            ) : onlineAwards.length === 0 && classifications.filter(c => c.award_category === 'online' && c.is_active).length === 0 ? (
               <Card className="border-slate-200">
                 <CardContent className="p-12 text-center">
                   <Trophy className="w-16 h-16 text-slate-300 mx-auto mb-4" />
@@ -1778,7 +1778,7 @@ export default function AwardManagementPage() {
               <div className="flex justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               </div>
-            ) : offlineAwards.length === 0 ? (
+            ) : offlineAwards.length === 0 && classifications.filter(c => c.award_category === 'offline' && c.is_active).length === 0 ? (
               <Card className="border-slate-200">
                 <CardContent className="p-12 text-center">
                   <Trophy className="w-16 h-16 text-slate-300 mx-auto mb-4" />
@@ -1800,7 +1800,7 @@ export default function AwardManagementPage() {
               <div className="flex justify-center py-12">
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               </div>
-            ) : engagementAwards.length === 0 ? (
+            ) : engagementAwards.length === 0 && classifications.filter(c => c.award_category === 'engagement' && c.is_active).length === 0 ? (
               <Card className="border-slate-200">
                 <CardContent className="p-12 text-center">
                   <Trophy className="w-16 h-16 text-slate-300 mx-auto mb-4" />

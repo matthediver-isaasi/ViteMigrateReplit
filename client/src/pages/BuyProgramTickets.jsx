@@ -956,7 +956,7 @@ export default function BuyProgramTicketsPage({
                             <div className="flex items-center gap-2 text-purple-700 bg-purple-50 px-3 py-2 rounded-lg">
                               <Ticket className="w-5 h-5" />
                               <span className="text-sm font-medium">
-                                Available Tickets: <span className="font-bold text-lg">{currentBalance}</span>
+                                Tickets Purchased: <span className="font-bold text-lg">{currentBalance}</span>
                               </span>
                             </div>
                           </div>

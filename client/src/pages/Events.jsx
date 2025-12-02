@@ -388,7 +388,7 @@ export default function EventsPage({
           </div>
         ) : (
           <>
-            {organizationInfo && selectedProgram !== "all" && (
+            {organizationInfo && selectedProgram !== "all" && selectedProgram !== "one-off" && (
               <div className="flex items-center gap-3 mb-6 p-4 bg-white rounded-lg border border-slate-200">
                 <Ticket className="w-5 h-5 text-purple-600" />
                 <span className="font-medium text-slate-700">

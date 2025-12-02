@@ -310,6 +310,38 @@ export default function PreferencesPage() {
       },
     });
 
+  // --- Engagement awards ---
+  const { data: engagementAwards = [], isLoading: engagementAwardsLoading } =
+    useQuery({
+      queryKey: ["engagementAwards"],
+      queryFn: async () => {
+        const { data, error } = await supabase
+          .from("engagement_award")
+          .select("*")
+          .eq("is_active", true);
+        if (error) throw error;
+        return data || [];
+      },
+    });
+
+  // --- Engagement award assignments ---
+  const {
+    data: engagementAssignments = [],
+    isLoading: engagementAssignmentsLoading,
+  } = useQuery({
+    queryKey: ["engagementAssignments", memberRecord?.id],
+    enabled: !!memberRecord?.id,
+    queryFn: async () => {
+      if (!memberRecord?.id) return [];
+      const { data, error } = await supabase
+        .from("engagement_award_assignment")
+        .select("*")
+        .eq("member_id", memberRecord.id);
+      if (error) throw error;
+      return data || [];
+    },
+  });
+
   // --- Award classifications ---
   const { data: awardClassifications = [] } = useQuery({
     queryKey: ["awardClassifications"],
@@ -571,6 +603,24 @@ export default function PreferencesPage() {
       .filter(Boolean)
       .sort((a, b) => (a.level || 0) - (b.level || 0));
   }, [offlineAssignments, offlineAwards, awardSublevels]);
+
+  const earnedEngagementAwards = useMemo(() => {
+    if (!engagementAssignments || engagementAssignments.length === 0 || !engagementAwards)
+      return [];
+    return engagementAssignments
+      .map((assignment) => {
+        const award = engagementAwards.find(
+          (a) => a.id === assignment.engagement_award_id
+        );
+        if (!award) return null;
+        const sublevel = assignment.sublevel_id
+          ? awardSublevels.find((s) => s.id === assignment.sublevel_id)
+          : null;
+        return { ...award, sublevel, assignment };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (a.level || 0) - (b.level || 0));
+  }, [engagementAssignments, engagementAwards, awardSublevels]);
 
   // --- Load profile state from memberRecord ---
   useEffect(() => {
@@ -1177,6 +1227,8 @@ export default function PreferencesPage() {
     orgLoading ||
     offlineAssignmentsLoading ||
     offlineAwardsLoading2 ||
+    engagementAwardsLoading ||
+    engagementAssignmentsLoading ||
     groupAssignmentsLoading ||
     awardsLoading ||
     groupsLoading;
@@ -1815,6 +1867,72 @@ export default function PreferencesPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Engagement Awards */}
+              {earnedEngagementAwards.length > 0 && (
+                <div className="pt-4 border-t border-slate-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Trophy className="w-5 h-5 text-rose-600" />
+                    <h3 className="text-sm font-semibold text-slate-900">
+                      Engagement Awards
+                    </h3>
+                    <Badge variant="secondary">
+                      {earnedEngagementAwards.length}
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                    {earnedEngagementAwards.map((award, idx) => {
+                      const classification = award.classification_id
+                        ? awardClassifications.find(
+                            (c) => c.id === award.classification_id
+                          )
+                        : null;
+                      return (
+                        <div
+                          key={`engagement-${award.id}-${idx}`}
+                          className="flex flex-col items-center p-3 bg-gradient-to-br from-rose-50 to-rose-100 rounded-lg border border-rose-200 hover:shadow-md transition-shadow relative"
+                        >
+                          {classification && (
+                            <Badge
+                              variant="secondary"
+                              className="absolute top-1 right-1 text-[10px] px-1.5 py-0.5"
+                            >
+                              {classification.name}
+                            </Badge>
+                          )}
+                          {award.image_url ? (
+                            <img
+                              src={award.image_url}
+                              alt={award.name}
+                              className="w-12 h-12 object-contain mb-2"
+                            />
+                          ) : (
+                            <div className="w-12 h-12 bg-gradient-to-br from-rose-400 to-rose-600 rounded-full flex items-center justify-center mb-2">
+                              <Trophy className="w-6 h-6 text-white" />
+                            </div>
+                          )}
+                          <p className="text-xs font-semibold text-center text-slate-900 line-clamp-2">
+                            {award.name}
+                          </p>
+                          {award.sublevel && (
+                            <Badge
+                              variant="outline"
+                              className="mt-1 text-[10px] px-1.5 py-0.5 border-rose-300 text-rose-700"
+                            >
+                              {award.sublevel.name}
+                            </Badge>
+                          )}
+                          {award.description && (
+                            <p className="text-[10px] text-slate-500 text-center mt-1 line-clamp-2">
+                              {award.description}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Groups */}
               {groupAssignments.length > 0 && (

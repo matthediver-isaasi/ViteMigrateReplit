@@ -1045,7 +1045,6 @@ export default function AwardManagementPage() {
       <div className="space-y-8">
         {onlineClassifications.map(classification => {
           const classificationAwards = onlineAwards.filter(a => a.classification_id === classification.id);
-          if (classificationAwards.length === 0) return null;
 
           return (
             <div key={classification.id} className="border-2 border-slate-200 rounded-lg p-6">
@@ -1077,78 +1076,85 @@ export default function AwardManagementPage() {
                   </Button>
                 </div>
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {classificationAwards.map(award => {
-                  const awardSublevels = getAwardSublevels(award.id, false);
-                  return (
-                    <Card key={award.id} className="border-slate-200 hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-3">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <CardTitle className="text-base">{award.name}</CardTitle>
-                            {award.description && (
-                              <p className="text-xs text-slate-600 mt-1">{award.description}</p>
+              {classificationAwards.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <p>No awards in this classification yet.</p>
+                  <p className="text-sm mt-1">Create an award and assign it to this classification.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {classificationAwards.map(award => {
+                    const awardSublevels = getAwardSublevels(award.id, false);
+                    return (
+                      <Card key={award.id} className="border-slate-200 hover:shadow-md transition-shadow">
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <CardTitle className="text-base">{award.name}</CardTitle>
+                              {award.description && (
+                                <p className="text-xs text-slate-600 mt-1">{award.description}</p>
+                              )}
+                            </div>
+                            {award.image_url && (
+                              <img src={award.image_url} alt={award.name} className="w-12 h-12 object-contain ml-2" />
                             )}
                           </div>
-                          {award.image_url && (
-                            <img src={award.image_url} alt={award.name} className="w-12 h-12 object-contain ml-2" />
-                          )}
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-2">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-600">Type:</span>
-                          <Badge variant="secondary">{getAwardTypeLabel(award.award_type)}</Badge>
-                        </div>
-                        {award.threshold && (
+                        </CardHeader>
+                        <CardContent className="space-y-2">
                           <div className="flex items-center justify-between text-sm">
-                            <span className="text-slate-600">Base Threshold:</span>
-                            <Badge variant="secondary">{award.threshold}</Badge>
+                            <span className="text-slate-600">Type:</span>
+                            <Badge variant="secondary">{getAwardTypeLabel(award.award_type)}</Badge>
                           </div>
-                        )}
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-600">Sublevels:</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleOpenSublevelDialog({ ...award, type: 'online' })}
-                            className="h-6 px-2"
-                          >
-                            <Badge variant="secondary">{awardSublevels.length}</Badge>
-                          </Button>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-600">Status:</span>
-                          <Badge variant={award.is_active ? "default" : "secondary"}>
-                            {award.is_active ? 'Active' : 'Inactive'}
-                          </Badge>
-                        </div>
-                        <div className="flex gap-2 pt-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex-1"
-                            onClick={() => handleOpenDialog(award, 'online')}
-                          >
-                            <Pencil className="w-3 h-3 mr-1" />
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setDeletingAward({ ...award, type: 'online' });
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })}
-              </div>
+                          {award.threshold && (
+                            <div className="flex items-center justify-between text-sm">
+                              <span className="text-slate-600">Base Threshold:</span>
+                              <Badge variant="secondary">{award.threshold}</Badge>
+                            </div>
+                          )}
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-slate-600">Sublevels:</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleOpenSublevelDialog({ ...award, type: 'online' })}
+                              className="h-6 px-2"
+                            >
+                              <Badge variant="secondary">{awardSublevels.length}</Badge>
+                            </Button>
+                          </div>
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-slate-600">Status:</span>
+                            <Badge variant={award.is_active ? "default" : "secondary"}>
+                              {award.is_active ? 'Active' : 'Inactive'}
+                            </Badge>
+                          </div>
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1"
+                              onClick={() => handleOpenDialog(award, 'online')}
+                            >
+                              <Pencil className="w-3 h-3 mr-1" />
+                              Edit
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setDeletingAward({ ...award, type: 'online' });
+                                setDeleteDialogOpen(true);
+                              }}
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           );
         })}
@@ -1243,7 +1249,6 @@ export default function AwardManagementPage() {
       <div className="space-y-8">
         {offlineClassifications.map(classification => {
           const classificationAwards = offlineAwards.filter(a => a.classification_id === classification.id);
-          if (classificationAwards.length === 0) return null;
 
           return (
             <div key={classification.id} className="border-2 border-slate-200 rounded-lg p-6">
@@ -1275,6 +1280,12 @@ export default function AwardManagementPage() {
                   </Button>
                 </div>
               </div>
+              {classificationAwards.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <p>No awards in this classification yet.</p>
+                  <p className="text-sm mt-1">Create an award and assign it to this classification.</p>
+                </div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {classificationAwards.map(award => {
                   const awardSublevels = getAwardSublevels(award.id, true);
@@ -1362,6 +1373,7 @@ export default function AwardManagementPage() {
                   );
                 })}
               </div>
+              )}
             </div>
           );
         })}
@@ -1474,7 +1486,6 @@ export default function AwardManagementPage() {
       <div className="space-y-8">
         {engagementClassifications.map(classification => {
           const classificationAwards = engagementAwards.filter(a => a.classification_id === classification.id);
-          if (classificationAwards.length === 0) return null;
 
           return (
             <div key={classification.id} className="border-2 border-slate-200 rounded-lg p-6">
@@ -1506,6 +1517,12 @@ export default function AwardManagementPage() {
                   </Button>
                 </div>
               </div>
+              {classificationAwards.length === 0 ? (
+                <div className="text-center py-8 text-slate-500">
+                  <p>No awards in this classification yet.</p>
+                  <p className="text-sm mt-1">Create an award and assign it to this classification.</p>
+                </div>
+              ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {classificationAwards.map(award => {
                   const awardSublevels = getAwardSublevels(award.id, 'engagement');
@@ -1593,6 +1610,7 @@ export default function AwardManagementPage() {
                   );
                 })}
               </div>
+              )}
             </div>
           );
         })}

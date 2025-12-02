@@ -1386,13 +1386,20 @@ const functionHandlers = {
       title,
       description,
       company_name,
+      company_logo_url,
       location,
       salary_range,
       job_type,
-      application_url,
+      hours,
+      closing_date,
+      application_method,
+      application_value,
       contact_email,
+      contact_name,
       memberEmail,
-      is_featured = false
+      is_featured = false,
+      attachment_urls = [],
+      attachment_names = []
     } = params;
 
     const { data: allMembers } = await supabase.from('member').select('*');
@@ -1402,22 +1409,41 @@ const functionHandlers = {
       return { success: false, error: 'Member not found' };
     }
 
+    // Get organization name if member has an organization
+    let organizationName = null;
+    if (member.organization_id) {
+      const { data: allOrgs } = await supabase.from('organization').select('*');
+      const org = allOrgs?.find(o => o.id === member.organization_id);
+      if (org) {
+        organizationName = org.name;
+      }
+    }
+
     const { data: jobPosting, error } = await supabase
       .from('job_posting')
       .insert({
         title,
         description,
         company_name,
+        company_logo_url: company_logo_url || null,
         location,
-        salary_range,
-        job_type,
-        application_url,
-        contact_email,
+        salary_range: salary_range || null,
+        job_type: job_type || null,
+        hours: hours || null,
+        closing_date,
+        application_method,
+        application_value,
+        contact_email: memberEmail,
+        contact_name,
         posted_by_member_id: member.id,
         posted_by_organization_id: member.organization_id || null,
+        posted_by_organization_name: organizationName,
+        is_member_post: true,
         is_featured,
-        status: 'active',
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        status: 'pending_approval',
+        payment_status: 'N/A',
+        attachment_urls,
+        attachment_names
       })
       .select()
       .single();
@@ -1426,7 +1452,7 @@ const functionHandlers = {
       return { success: false, error: error.message };
     }
 
-    return { success: true, job_posting: jobPosting };
+    return { success: true, job_id: jobPosting.id, job_posting: jobPosting };
   },
 
   async createJobPostingNonMember(params) {
@@ -1436,15 +1462,35 @@ const functionHandlers = {
       title,
       description,
       company_name,
+      company_logo_url,
       location,
       salary_range,
       job_type,
-      application_url,
+      hours,
+      closing_date,
+      application_method,
+      application_value,
       contact_email,
       contact_name,
       is_featured = false,
-      stripe_payment_intent_id
+      attachment_urls = [],
+      attachment_names = []
     } = params;
+
+    // Get pricing from system settings
+    let price = 50; // Default price in GBP
+    const { data: settings } = await supabase
+      .from('system_settings')
+      .select('*')
+      .eq('setting_key', 'job_posting_price');
+    
+    if (settings && settings.length > 0) {
+      price = parseFloat(settings[0].setting_value);
+    }
+
+    // Calculate expiry date (90 days from now)
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 90);
 
     const { data: jobPosting, error } = await supabase
       .from('job_posting')
@@ -1452,16 +1498,24 @@ const functionHandlers = {
         title,
         description,
         company_name,
+        company_logo_url: company_logo_url || '',
         location,
-        salary_range,
+        salary_range: salary_range || '',
         job_type,
-        application_url,
+        hours: hours || null,
+        closing_date,
+        application_method,
+        application_value,
         contact_email,
         contact_name,
+        is_member_post: false,
         is_featured,
-        status: 'active',
-        stripe_payment_intent_id,
-        expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+        status: 'pending_payment',
+        payment_status: 'pending',
+        expiry_date: expiryDate.toISOString(),
+        amount_paid: price,
+        attachment_urls,
+        attachment_names
       })
       .select()
       .single();
@@ -1470,7 +1524,7 @@ const functionHandlers = {
       return { success: false, error: error.message };
     }
 
-    return { success: true, job_posting: jobPosting };
+    return { success: true, job_id: jobPosting.id, job_posting: jobPosting };
   },
 
   async cancelProgramTicketTransaction(params) {

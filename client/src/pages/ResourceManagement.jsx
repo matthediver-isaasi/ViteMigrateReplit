@@ -75,7 +75,7 @@ export default function ResourceManagementPage() {
 
   const { data: resources = [], isLoading } = useQuery({
     queryKey: ['admin-resources'],
-    queryFn: () => base44.entities.Resource.list(),
+    queryFn: () => base44.entities.Resource.list('-release_date'),
     staleTime: 0,
     refetchOnMount: true,
   });

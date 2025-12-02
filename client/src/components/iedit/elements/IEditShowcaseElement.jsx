@@ -32,7 +32,7 @@ function CardSlotEditor({ index, card, onUpdate }) {
           const news = await base44.entities.NewsPost.list('-published_date');
           return news.filter(n => n.status === 'published');
         case 'resources':
-          return await base44.entities.Resource.list();
+          return await base44.entities.Resource.list('-release_date');
         case 'articles':
           const articles = await base44.entities.BlogPost.list('-published_date');
           return articles.filter(a => a.status === 'published');
@@ -953,7 +953,7 @@ export function IEditShowcaseElementRenderer({ element, settings }) {
 
   const { data: allResources = [] } = useQuery({
     queryKey: ['showcase-resources'],
-    queryFn: () => base44.entities.Resource.list(),
+    queryFn: () => base44.entities.Resource.list('-release_date'),
     enabled: content.cards?.some(c => c.contentType === 'resources' && c.itemId)
   });
 

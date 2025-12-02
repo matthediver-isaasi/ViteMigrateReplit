@@ -62,7 +62,7 @@ export function IEditResourcesShowcaseElementEditor({ element, onChange }) {
   // Fetch available resources
   const { data: resources = [] } = useQuery({
     queryKey: ['resources-list'],
-    queryFn: () => base44.entities.Resource.list()
+    queryFn: () => base44.entities.Resource.list('-release_date')
   });
 
   // Fetch button styles
@@ -840,7 +840,7 @@ export function IEditResourcesShowcaseElementRenderer({ element, settings }) {
   // Fetch selected resources
   const { data: allResources = [] } = useQuery({
     queryKey: ['resources-showcase'],
-    queryFn: () => base44.entities.Resource.list(),
+    queryFn: () => base44.entities.Resource.list('-release_date'),
     enabled: Array.isArray(content.resourceIds) && content.resourceIds.some(id => id)
   });
 

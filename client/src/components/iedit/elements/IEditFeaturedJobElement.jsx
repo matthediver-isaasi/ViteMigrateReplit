@@ -185,7 +185,7 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
           {/* Left column - Static content in white card */}
           <div className="flex items-center justify-center lg:justify-start">
             <div 
-              className="w-full max-w-md p-10 shadow-xl"
+              className="aspect-square w-80 p-8 shadow-xl flex flex-col justify-center"
               style={{ background: card_background }}
             >
               <StaticContent content={content} />

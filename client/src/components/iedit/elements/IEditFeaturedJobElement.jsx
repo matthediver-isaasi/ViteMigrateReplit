@@ -1,38 +1,72 @@
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ArrowRight, MapPin, Building2, Clock, Briefcase } from "lucide-react";
+import { ArrowRight, MapPin, Building2, Clock, Briefcase, Calendar, Banknote } from "lucide-react";
 import { Link } from "react-router-dom";
 import { format, differenceInDays } from "date-fns";
 import { createPageUrl } from "@/utils";
 
 export default function IEditFeaturedJobElement({ content, variant, settings }) {
   const {
-    header_text = 'JOBS',
+    // Left side static content
+    header_label = 'JOBS',
+    header_label_font_family = 'Poppins',
+    header_label_font_size = 14,
+    header_label_letter_spacing = 0.31,
+    header_label_color = '#000000',
+    show_header_underline = true,
+    header_underline_color = '#000000',
+    header_underline_width = 36,
+    header_underline_weight = 2,
+    
     main_heading = 'Featured\nOpportunity',
+    heading_font_family = 'inherit',
+    heading_font_size = 55,
+    heading_line_height = 0.91,
+    heading_color = '#000000',
+    
+    subheading = '',
+    subheading_font_family = 'Poppins',
+    subheading_font_size = 18,
+    subheading_color = '#666666',
+    
     button_text = 'View All Jobs',
     button_url = '/JobBoard',
+    button_style = 'outline', // outline or filled
+    button_color = '#000000',
+    button_font_family = 'Poppins',
+    
+    // Background settings
     gradient_start_color = '#FFB000',
     gradient_end_color = '#D02711',
     gradient_angle = 135,
     right_side_color = '#1a1a2e',
     card_background = '#FFFFFF',
-    text_color = '#000000',
-    header_font_family = 'Poppins',
-    heading_font_family = 'inherit',
-    heading_font_size = 55,
+    
+    // Right side job display
+    job_title_font_family = 'Poppins',
+    job_title_font_size = 32,
+    job_title_color = '#FFFFFF',
+    job_detail_font_family = 'Poppins',
+    job_detail_font_size = 16,
+    job_detail_color = '#FFFFFF',
+    job_detail_opacity = 0.9,
+    divider_color = 'rgba(255,255,255,0.3)',
+    divider_weight = 1,
+    
+    // Data source
     show_latest_job = true,
     specific_job_id = null,
-    max_jobs_to_show = 1,
-    show_job_details = true,
-    show_company_logo = true,
+    
+    // Layout
     layout_style = 'side-gradient',
-    min_height = 550
+    min_height = 550,
+    vertical_padding = 48
   } = content || {};
 
   const fullWidth = settings?.fullWidth;
 
   const { data: jobs = [], isLoading } = useQuery({
-    queryKey: ['featured-jobs-element', specific_job_id, max_jobs_to_show],
+    queryKey: ['featured-jobs-element', specific_job_id],
     queryFn: async () => {
       if (specific_job_id) {
         const job = await base44.entities.JobPosting.get(specific_job_id);
@@ -47,12 +81,25 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
           if (!a.featured && b.featured) return 1;
           return new Date(b.created_date) - new Date(a.created_date);
         });
-      return activeJobs.slice(0, max_jobs_to_show);
+      return activeJobs.slice(0, 1);
     },
     staleTime: 60000
   });
 
   const featuredJob = jobs[0];
+
+  const gradientStyle = {
+    background: `linear-gradient(${gradient_angle}deg, ${gradient_start_color} 0%, ${gradient_end_color} 100%)`
+  };
+
+  const formatClosingDate = (date) => {
+    if (!date) return null;
+    try {
+      return format(new Date(date), 'do MMMM yyyy');
+    } catch {
+      return date;
+    }
+  };
 
   const isClosingSoon = (closingDate) => {
     if (!closingDate) return false;
@@ -60,58 +107,32 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     return days >= 0 && days <= 7;
   };
 
-  const gradientStyle = {
-    background: `linear-gradient(${gradient_angle}deg, ${gradient_start_color} 0%, ${gradient_end_color} 100%)`
-  };
-
+  // Full-width gradient banner layout
   if (layout_style === 'full-width') {
     return (
-      <div className="w-full py-16" style={gradientStyle}>
+      <div className="w-full" style={{ ...gradientStyle, padding: `${vertical_padding}px 0` }}>
         <div className="max-w-6xl mx-auto px-8">
           <div className="flex flex-col lg:flex-row items-center gap-8">
+            {/* Left - Static content */}
             <div className="flex-1">
-              <div className="mb-4">
-                <span 
-                  className="text-sm font-bold tracking-[0.31em] uppercase"
-                  style={{ fontFamily: header_font_family, color: card_background }}
-                >
-                  {header_text}
-                </span>
-                <div className="w-9 h-0.5 mt-2" style={{ background: card_background }} />
-              </div>
-              <h2 
-                className="font-medium leading-tight whitespace-pre-line mb-8"
-                style={{ 
-                  fontFamily: heading_font_family,
-                  fontSize: `${heading_font_size}px`,
-                  lineHeight: '0.91em',
-                  color: card_background
-                }}
-              >
-                {main_heading}
-              </h2>
+              <StaticContent 
+                content={content} 
+                textColorOverride="#FFFFFF"
+                underlineColorOverride="rgba(255,255,255,0.5)"
+              />
             </div>
 
-            {featuredJob && show_job_details && (
-              <div 
-                className="flex-1 p-8 rounded-lg shadow-lg"
-                style={{ background: card_background }}
-              >
-                <JobCard job={featuredJob} textColor={text_color} isClosingSoon={isClosingSoon} />
+            {/* Right - Job details */}
+            {featuredJob && (
+              <div className="flex-1">
+                <JobDetails 
+                  job={featuredJob}
+                  content={content}
+                  formatClosingDate={formatClosingDate}
+                  isClosingSoon={isClosingSoon}
+                />
               </div>
             )}
-          </div>
-
-          <div className="mt-8">
-            <Link to={button_url}>
-              <button 
-                className="inline-flex items-center gap-3 px-6 py-3 border-2 font-semibold text-lg transition-all hover:bg-white/10"
-                style={{ borderColor: card_background, color: card_background }}
-              >
-                {button_text}
-                <ArrowRight className="w-5 h-5" />
-              </button>
-            </Link>
           </div>
         </div>
       </div>
@@ -119,7 +140,6 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
   }
 
   // Default: Split background layout
-  // Full-bleed backgrounds with centered content
   return (
     <div 
       className="relative w-full overflow-hidden"
@@ -140,64 +160,44 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
       </div>
 
       {/* Centered content container */}
-      <div className="relative max-w-6xl mx-auto px-8 py-12 h-full flex items-center">
+      <div 
+        className="relative max-w-6xl mx-auto px-8 h-full flex items-center"
+        style={{ padding: `${vertical_padding}px 32px` }}
+      >
         {/* Two-column grid for content */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full">
-          {/* Left column - Overlay card within content area */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full items-center">
+          {/* Left column - Static content in white card */}
           <div className="flex items-center justify-center lg:justify-start">
             <div 
               className="w-full max-w-md p-10 shadow-xl"
               style={{ background: card_background }}
             >
-              <div className="mb-6">
-                <span 
-                  className="text-sm font-bold tracking-[0.31em] uppercase"
-                  style={{ fontFamily: header_font_family, color: text_color }}
-                >
-                  {header_text}
-                </span>
-                <div className="w-9 h-0.5 mt-2 bg-black" />
-              </div>
-
-              <h2 
-                className="font-medium leading-tight whitespace-pre-line mb-8"
-                style={{ 
-                  fontFamily: heading_font_family,
-                  fontSize: `${heading_font_size}px`,
-                  lineHeight: '0.91em',
-                  color: text_color
-                }}
-              >
-                {main_heading}
-              </h2>
-
-              {isLoading ? (
-                <div className="animate-pulse space-y-3">
-                  <div className="h-6 bg-slate-200 rounded w-3/4" />
-                  <div className="h-4 bg-slate-200 rounded w-1/2" />
-                  <div className="h-4 bg-slate-200 rounded w-2/3" />
-                </div>
-              ) : featuredJob && show_job_details ? (
-                <JobCard job={featuredJob} textColor={text_color} isClosingSoon={isClosingSoon} />
-              ) : null}
-
-              <div className="mt-8">
-                <Link to={button_url}>
-                  <button 
-                    className="inline-flex items-center gap-3 px-6 py-3 border-2 font-semibold text-lg transition-all hover:bg-black/5"
-                    style={{ borderColor: text_color, color: text_color, fontFamily: header_font_family }}
-                  >
-                    {button_text}
-                    <ArrowRight className="w-5 h-5" />
-                  </button>
-                </Link>
-              </div>
+              <StaticContent content={content} />
             </div>
           </div>
 
-          {/* Right column - Empty or can be used for additional content */}
-          <div className="hidden lg:block">
-            {/* This space intentionally left for the solid color background to show through */}
+          {/* Right column - Dynamic job content */}
+          <div className="flex items-center justify-center lg:justify-start lg:pl-8">
+            {isLoading ? (
+              <div className="animate-pulse space-y-4 w-full">
+                <div className="h-8 bg-white/20 rounded w-3/4" />
+                <div className="h-px bg-white/20 w-full" />
+                <div className="h-5 bg-white/20 rounded w-1/2" />
+                <div className="h-px bg-white/20 w-full" />
+                <div className="h-5 bg-white/20 rounded w-2/3" />
+              </div>
+            ) : featuredJob ? (
+              <JobDetails 
+                job={featuredJob}
+                content={content}
+                formatClosingDate={formatClosingDate}
+                isClosingSoon={isClosingSoon}
+              />
+            ) : (
+              <div style={{ color: job_detail_color, opacity: job_detail_opacity }}>
+                No featured job available
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -205,77 +205,202 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
   );
 }
 
-function JobCard({ job, textColor, isClosingSoon }) {
+function StaticContent({ content, textColorOverride, underlineColorOverride }) {
+  const {
+    header_label = 'JOBS',
+    header_label_font_family = 'Poppins',
+    header_label_font_size = 14,
+    header_label_letter_spacing = 0.31,
+    header_label_color = '#000000',
+    show_header_underline = true,
+    header_underline_color = '#000000',
+    header_underline_width = 36,
+    header_underline_weight = 2,
+    
+    main_heading = 'Featured\nOpportunity',
+    heading_font_family = 'inherit',
+    heading_font_size = 55,
+    heading_line_height = 0.91,
+    heading_color = '#000000',
+    
+    subheading = '',
+    subheading_font_family = 'Poppins',
+    subheading_font_size = 18,
+    subheading_color = '#666666',
+    
+    button_text = 'View All Jobs',
+    button_url = '/JobBoard',
+    button_style = 'outline',
+    button_color = '#000000',
+    button_font_family = 'Poppins'
+  } = content || {};
+
+  const labelColor = textColorOverride || header_label_color;
+  const headingColorFinal = textColorOverride || heading_color;
+  const subheadingColorFinal = textColorOverride || subheading_color;
+  const buttonColorFinal = textColorOverride || button_color;
+  const underlineColor = underlineColorOverride || header_underline_color;
+
+  return (
+    <div>
+      {/* Header label */}
+      <div className="mb-6">
+        <span 
+          className="font-bold uppercase"
+          style={{ 
+            fontFamily: header_label_font_family,
+            fontSize: `${header_label_font_size}px`,
+            letterSpacing: `${header_label_letter_spacing}em`,
+            color: labelColor
+          }}
+        >
+          {header_label}
+        </span>
+        {show_header_underline && (
+          <div 
+            className="mt-2"
+            style={{ 
+              width: `${header_underline_width}px`,
+              height: `${header_underline_weight}px`,
+              background: underlineColor
+            }} 
+          />
+        )}
+      </div>
+
+      {/* Main heading */}
+      <h2 
+        className="font-medium whitespace-pre-line mb-6"
+        style={{ 
+          fontFamily: heading_font_family,
+          fontSize: `${heading_font_size}px`,
+          lineHeight: `${heading_line_height}em`,
+          color: headingColorFinal
+        }}
+      >
+        {main_heading}
+      </h2>
+
+      {/* Subheading */}
+      {subheading && (
+        <p
+          className="mb-8"
+          style={{
+            fontFamily: subheading_font_family,
+            fontSize: `${subheading_font_size}px`,
+            color: subheadingColorFinal
+          }}
+        >
+          {subheading}
+        </p>
+      )}
+
+      {/* Button */}
+      {button_text && (
+        <div className="mt-8">
+          <Link to={button_url}>
+            <button 
+              className={`inline-flex items-center gap-3 px-6 py-3 font-semibold text-lg transition-all ${
+                button_style === 'filled' 
+                  ? 'hover:opacity-90' 
+                  : 'border-2 hover:bg-black/5'
+              }`}
+              style={{ 
+                borderColor: button_style === 'outline' ? buttonColorFinal : 'transparent',
+                color: button_style === 'filled' ? '#FFFFFF' : buttonColorFinal,
+                background: button_style === 'filled' ? buttonColorFinal : 'transparent',
+                fontFamily: button_font_family
+              }}
+            >
+              {button_text}
+              <ArrowRight className="w-5 h-5" />
+            </button>
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function JobDetails({ job, content, formatClosingDate, isClosingSoon }) {
+  const {
+    job_title_font_family = 'Poppins',
+    job_title_font_size = 32,
+    job_title_color = '#FFFFFF',
+    job_detail_font_family = 'Poppins',
+    job_detail_font_size = 16,
+    job_detail_color = '#FFFFFF',
+    job_detail_opacity = 0.9,
+    divider_color = 'rgba(255,255,255,0.3)',
+    divider_weight = 1
+  } = content || {};
+
+  const details = [
+    { label: 'Organisation', value: job.company_name, icon: Building2 },
+    { label: 'Contract Type', value: job.job_type, icon: Briefcase },
+    { label: 'Salary', value: job.salary, icon: Banknote },
+    { label: 'Closing Date', value: formatClosingDate(job.closing_date), icon: Calendar, isClosingSoon: isClosingSoon(job.closing_date) }
+  ].filter(d => d.value);
+
   return (
     <Link 
       to={createPageUrl('JobDetails') + `?id=${job.id}`}
-      className="block group"
+      className="block group w-full"
     >
-      <div className="space-y-3">
-        {job.company_logo && (
-          <img 
-            src={job.company_logo} 
-            alt={job.company_name}
-            className="h-10 w-auto object-contain mb-4"
-          />
-        )}
-        
-        <h3 
-          className="text-xl font-semibold group-hover:underline"
-          style={{ color: textColor }}
-        >
-          {job.title}
-        </h3>
+      {/* Job title as header */}
+      <h3 
+        className="font-semibold mb-6 group-hover:underline"
+        style={{
+          fontFamily: job_title_font_family,
+          fontSize: `${job_title_font_size}px`,
+          color: job_title_color
+        }}
+      >
+        {job.title}
+      </h3>
 
-        <div className="flex flex-wrap gap-4 text-sm" style={{ color: textColor, opacity: 0.7 }}>
-          {job.company_name && (
-            <span className="flex items-center gap-1.5">
-              <Building2 className="w-4 h-4" />
-              {job.company_name}
-            </span>
-          )}
-          {job.location && (
-            <span className="flex items-center gap-1.5">
-              <MapPin className="w-4 h-4" />
-              {job.location}
-            </span>
-          )}
-        </div>
-
-        <div className="flex flex-wrap gap-2 mt-3">
-          {job.job_type && (
-            <span 
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded"
-              style={{ background: `${textColor}10`, color: textColor }}
+      {/* Details with dividers */}
+      <div className="space-y-0">
+        {details.map((detail, index) => (
+          <div key={detail.label}>
+            {/* Divider line */}
+            <div 
+              style={{ 
+                height: `${divider_weight}px`, 
+                background: divider_color 
+              }} 
+            />
+            
+            {/* Detail row */}
+            <div 
+              className="flex items-center gap-3 py-4"
+              style={{
+                fontFamily: job_detail_font_family,
+                fontSize: `${job_detail_font_size}px`,
+                color: job_detail_color,
+                opacity: job_detail_opacity
+              }}
             >
-              <Briefcase className="w-3 h-3" />
-              {job.job_type}
-            </span>
-          )}
-          {job.hours && (
-            <span 
-              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded"
-              style={{ background: `${textColor}10`, color: textColor }}
-            >
-              <Clock className="w-3 h-3" />
-              {job.hours}
-            </span>
-          )}
-          {job.closing_date && isClosingSoon(job.closing_date) && (
-            <span className="px-2 py-1 text-xs font-medium rounded bg-amber-100 text-amber-800">
-              Closing Soon
-            </span>
-          )}
-        </div>
-
-        {job.description && (
-          <p 
-            className="text-sm line-clamp-2 mt-2"
-            style={{ color: textColor, opacity: 0.6 }}
-          >
-            {job.description.replace(/<[^>]*>/g, '').substring(0, 150)}...
-          </p>
-        )}
+              <detail.icon className="w-5 h-5 flex-shrink-0" />
+              <span className="font-medium min-w-[120px]">{detail.label}:</span>
+              <span className="flex items-center gap-2">
+                {detail.value}
+                {detail.isClosingSoon && (
+                  <span className="px-2 py-0.5 text-xs font-medium rounded bg-amber-500 text-white">
+                    Closing Soon
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+        ))}
+        {/* Final divider */}
+        <div 
+          style={{ 
+            height: `${divider_weight}px`, 
+            background: divider_color 
+          }} 
+        />
       </div>
     </Link>
   );
@@ -304,52 +429,48 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
+      {/* Layout Settings */}
+      <div className="space-y-4">
+        <h4 className="font-semibold text-sm uppercase tracking-wide text-slate-500">Layout</h4>
+        
         <div className="space-y-2">
-          <label className="text-sm font-medium">Header Text</label>
-          <input 
-            type="text"
-            value={content.header_text || 'JOBS'}
-            onChange={(e) => updateContent('header_text', e.target.value)}
+          <label className="text-sm font-medium">Layout Style</label>
+          <select 
+            value={content.layout_style || 'side-gradient'}
+            onChange={(e) => updateContent('layout_style', e.target.value)}
             className="w-full px-3 py-2 border rounded-md"
-          />
+          >
+            <option value="side-gradient">Split Background (Gradient Left / Solid Right)</option>
+            <option value="full-width">Full Width Gradient Banner</option>
+          </select>
         </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Button Text</label>
-          <input 
-            type="text"
-            value={content.button_text || 'View All Jobs'}
-            onChange={(e) => updateContent('button_text', e.target.value)}
-            className="w-full px-3 py-2 border rounded-md"
-          />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Minimum Height (px)</label>
+            <input 
+              type="number"
+              value={content.min_height || 550}
+              onChange={(e) => updateContent('min_height', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Vertical Padding (px)</label>
+            <input 
+              type="number"
+              value={content.vertical_padding || 48}
+              onChange={(e) => updateContent('vertical_padding', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Main Heading</label>
-        <textarea 
-          value={content.main_heading || 'Featured\nOpportunity'}
-          onChange={(e) => updateContent('main_heading', e.target.value)}
-          className="w-full px-3 py-2 border rounded-md"
-          rows={2}
-          placeholder="Use line breaks for multi-line headings"
-        />
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Layout Style</label>
-        <select 
-          value={content.layout_style || 'side-gradient'}
-          onChange={(e) => updateContent('layout_style', e.target.value)}
-          className="w-full px-3 py-2 border rounded-md"
-        >
-          <option value="side-gradient">Split Background (Gradient Left / Solid Right)</option>
-          <option value="full-width">Full Width Gradient Banner</option>
-        </select>
-      </div>
-
-      <div className="border-t pt-4">
-        <h4 className="font-medium mb-4">Background Colors</h4>
+      {/* Background Colors */}
+      <div className="border-t pt-4 space-y-4">
+        <h4 className="font-semibold text-sm uppercase tracking-wide text-slate-500">Background Colors</h4>
+        
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-sm font-medium">Gradient Start</label>
@@ -387,39 +508,8 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
           </div>
         </div>
 
-        {content.layout_style !== 'full-width' && (
-          <div className="mt-4 space-y-2">
-            <label className="text-sm font-medium">Right Side Color</label>
-            <div className="flex gap-2">
-              <input 
-                type="color"
-                value={content.right_side_color || '#1a1a2e'}
-                onChange={(e) => updateContent('right_side_color', e.target.value)}
-                className="w-10 h-10 rounded border cursor-pointer"
-              />
-              <input 
-                type="text"
-                value={content.right_side_color || '#1a1a2e'}
-                onChange={(e) => updateContent('right_side_color', e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-md"
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
-          <label className="text-sm font-medium">Heading Font Size</label>
-          <input 
-            type="number"
-            value={content.heading_font_size || 55}
-            onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value))}
-            className="w-full px-3 py-2 border rounded-md"
-          />
-        </div>
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Gradient Angle</label>
+          <label className="text-sm font-medium">Gradient Angle (degrees)</label>
           <input 
             type="number"
             value={content.gradient_angle || 135}
@@ -429,22 +519,294 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
             max="360"
           />
         </div>
+
+        {content.layout_style !== 'full-width' && (
+          <>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Right Side Color</label>
+              <div className="flex gap-2">
+                <input 
+                  type="color"
+                  value={content.right_side_color || '#1a1a2e'}
+                  onChange={(e) => updateContent('right_side_color', e.target.value)}
+                  className="w-10 h-10 rounded border cursor-pointer"
+                />
+                <input 
+                  type="text"
+                  value={content.right_side_color || '#1a1a2e'}
+                  onChange={(e) => updateContent('right_side_color', e.target.value)}
+                  className="flex-1 px-3 py-2 border rounded-md"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Card Background</label>
+              <div className="flex gap-2">
+                <input 
+                  type="color"
+                  value={content.card_background || '#FFFFFF'}
+                  onChange={(e) => updateContent('card_background', e.target.value)}
+                  className="w-10 h-10 rounded border cursor-pointer"
+                />
+                <input 
+                  type="text"
+                  value={content.card_background || '#FFFFFF'}
+                  onChange={(e) => updateContent('card_background', e.target.value)}
+                  className="flex-1 px-3 py-2 border rounded-md"
+                />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
-      <div className="space-y-2">
-        <label className="text-sm font-medium">Minimum Height (px)</label>
-        <input 
-          type="number"
-          value={content.min_height || 550}
-          onChange={(e) => updateContent('min_height', parseInt(e.target.value))}
-          className="w-full px-3 py-2 border rounded-md"
-          min="300"
-          max="800"
-        />
-      </div>
-
+      {/* Left Side - Static Content */}
       <div className="border-t pt-4 space-y-4">
-        <h4 className="font-medium">Job Data Source</h4>
+        <h4 className="font-semibold text-sm uppercase tracking-wide text-slate-500">Left Side - Static Content</h4>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Header Label</label>
+            <input 
+              type="text"
+              value={content.header_label || 'JOBS'}
+              onChange={(e) => updateContent('header_label', e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Label Font Size</label>
+            <input 
+              type="number"
+              value={content.header_label_font_size || 14}
+              onChange={(e) => updateContent('header_label_font_size', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2">
+            <input 
+              type="checkbox"
+              checked={content.show_header_underline !== false}
+              onChange={(e) => updateContent('show_header_underline', e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-sm">Show underline</span>
+          </label>
+          {content.show_header_underline !== false && (
+            <div className="flex items-center gap-2">
+              <input 
+                type="color"
+                value={content.header_underline_color || '#000000'}
+                onChange={(e) => updateContent('header_underline_color', e.target.value)}
+                className="w-8 h-8 rounded border cursor-pointer"
+              />
+              <input 
+                type="number"
+                value={content.header_underline_width || 36}
+                onChange={(e) => updateContent('header_underline_width', parseInt(e.target.value))}
+                className="w-16 px-2 py-1 border rounded-md text-sm"
+                placeholder="Width"
+              />
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Main Heading</label>
+          <textarea 
+            value={content.main_heading || 'Featured\nOpportunity'}
+            onChange={(e) => updateContent('main_heading', e.target.value)}
+            className="w-full px-3 py-2 border rounded-md"
+            rows={2}
+            placeholder="Use line breaks for multi-line headings"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Heading Font Size</label>
+            <input 
+              type="number"
+              value={content.heading_font_size || 55}
+              onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Heading Color</label>
+            <div className="flex gap-2">
+              <input 
+                type="color"
+                value={content.heading_color || '#000000'}
+                onChange={(e) => updateContent('heading_color', e.target.value)}
+                className="w-10 h-10 rounded border cursor-pointer"
+              />
+              <input 
+                type="text"
+                value={content.heading_color || '#000000'}
+                onChange={(e) => updateContent('heading_color', e.target.value)}
+                className="flex-1 px-3 py-2 border rounded-md"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Subheading (optional)</label>
+          <textarea 
+            value={content.subheading || ''}
+            onChange={(e) => updateContent('subheading', e.target.value)}
+            className="w-full px-3 py-2 border rounded-md"
+            rows={2}
+            placeholder="Additional descriptive text"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Button Text</label>
+            <input 
+              type="text"
+              value={content.button_text || 'View All Jobs'}
+              onChange={(e) => updateContent('button_text', e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Button URL</label>
+            <input 
+              type="text"
+              value={content.button_url || '/JobBoard'}
+              onChange={(e) => updateContent('button_url', e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Button Style</label>
+            <select 
+              value={content.button_style || 'outline'}
+              onChange={(e) => updateContent('button_style', e.target.value)}
+              className="w-full px-3 py-2 border rounded-md"
+            >
+              <option value="outline">Outline</option>
+              <option value="filled">Filled</option>
+            </select>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Button Color</label>
+            <div className="flex gap-2">
+              <input 
+                type="color"
+                value={content.button_color || '#000000'}
+                onChange={(e) => updateContent('button_color', e.target.value)}
+                className="w-10 h-10 rounded border cursor-pointer"
+              />
+              <input 
+                type="text"
+                value={content.button_color || '#000000'}
+                onChange={(e) => updateContent('button_color', e.target.value)}
+                className="flex-1 px-3 py-2 border rounded-md"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Right Side - Job Details */}
+      <div className="border-t pt-4 space-y-4">
+        <h4 className="font-semibold text-sm uppercase tracking-wide text-slate-500">Right Side - Job Details</h4>
+        
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Job Title Font Size</label>
+            <input 
+              type="number"
+              value={content.job_title_font_size || 32}
+              onChange={(e) => updateContent('job_title_font_size', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Job Title Color</label>
+            <div className="flex gap-2">
+              <input 
+                type="color"
+                value={content.job_title_color || '#FFFFFF'}
+                onChange={(e) => updateContent('job_title_color', e.target.value)}
+                className="w-10 h-10 rounded border cursor-pointer"
+              />
+              <input 
+                type="text"
+                value={content.job_title_color || '#FFFFFF'}
+                onChange={(e) => updateContent('job_title_color', e.target.value)}
+                className="flex-1 px-3 py-2 border rounded-md"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Detail Font Size</label>
+            <input 
+              type="number"
+              value={content.job_detail_font_size || 16}
+              onChange={(e) => updateContent('job_detail_font_size', parseInt(e.target.value))}
+              className="w-full px-3 py-2 border rounded-md"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Detail Color</label>
+            <div className="flex gap-2">
+              <input 
+                type="color"
+                value={content.job_detail_color || '#FFFFFF'}
+                onChange={(e) => updateContent('job_detail_color', e.target.value)}
+                className="w-10 h-10 rounded border cursor-pointer"
+              />
+              <input 
+                type="text"
+                value={content.job_detail_color || '#FFFFFF'}
+                onChange={(e) => updateContent('job_detail_color', e.target.value)}
+                className="flex-1 px-3 py-2 border rounded-md"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Divider Line Color</label>
+          <input 
+            type="text"
+            value={content.divider_color || 'rgba(255,255,255,0.3)'}
+            onChange={(e) => updateContent('divider_color', e.target.value)}
+            className="w-full px-3 py-2 border rounded-md"
+            placeholder="e.g., rgba(255,255,255,0.3) or #FFFFFF"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">Divider Weight (px)</label>
+          <input 
+            type="number"
+            value={content.divider_weight || 1}
+            onChange={(e) => updateContent('divider_weight', parseInt(e.target.value))}
+            className="w-full px-3 py-2 border rounded-md"
+            min="1"
+            max="5"
+          />
+        </div>
+      </div>
+
+      {/* Job Data Source */}
+      <div className="border-t pt-4 space-y-4">
+        <h4 className="font-semibold text-sm uppercase tracking-wide text-slate-500">Job Data Source</h4>
         
         <div className="flex items-center gap-2">
           <input 
@@ -476,19 +838,6 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
             </select>
           </div>
         )}
-
-        <div className="flex items-center gap-2">
-          <input 
-            type="checkbox"
-            id="show_job_details"
-            checked={content.show_job_details !== false}
-            onChange={(e) => updateContent('show_job_details', e.target.checked)}
-            className="rounded"
-          />
-          <label htmlFor="show_job_details" className="text-sm">
-            Show job details in the element
-          </label>
-        </div>
       </div>
     </div>
   );

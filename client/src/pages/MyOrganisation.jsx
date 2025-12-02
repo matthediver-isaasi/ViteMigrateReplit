@@ -1,15 +1,33 @@
 import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Building2, Globe, Users, Phone, Mail, MapPin, ClipboardList, ExternalLink } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, Building2, Globe, Users, Phone, Mail, MapPin, ClipboardList, ExternalLink, Pencil, Save, X } from "lucide-react";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
+import { useToast } from "@/hooks/use-toast";
 
 export default function MyOrganisationPage() {
   const { memberInfo, organizationInfo, isFeatureExcluded, isAccessReady } = useMemberAccess();
   const [accessChecked, setAccessChecked] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [formData, setFormData] = useState({
+    phone: '',
+    website_url: '',
+    invoicing_email: '',
+    invoicing_address: '',
+    description: ''
+  });
+  const [customFieldValues, setCustomFieldValues] = useState({});
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isAccessReady) {
@@ -83,7 +101,144 @@ export default function MyOrganisationPage() {
     }
   });
 
+  useEffect(() => {
+    if (organization) {
+      setFormData({
+        phone: organization.phone || '',
+        website_url: organization.website_url || '',
+        invoicing_email: organization.invoicing_email || '',
+        invoicing_address: organization.invoicing_address || '',
+        description: organization.description || ''
+      });
+    }
+  }, [organization]);
+
+  useEffect(() => {
+    if (orgValues.length > 0 && orgCustomFields.length > 0) {
+      const valuesMap = {};
+      orgValues.forEach(pv => {
+        const field = orgCustomFields.find(f => f.id === pv.field_id);
+        if (field?.field_type === 'picklist' && pv.value) {
+          try {
+            valuesMap[pv.field_id] = JSON.parse(pv.value);
+          } catch {
+            valuesMap[pv.field_id] = pv.value;
+          }
+        } else {
+          valuesMap[pv.field_id] = pv.value;
+        }
+      });
+      setCustomFieldValues(valuesMap);
+    }
+  }, [orgValues, orgCustomFields]);
+
+  const updateOrgMutation = useMutation({
+    mutationFn: async (updates) => {
+      const response = await apiRequest('PATCH', `/api/admin/organizations/${memberInfo.organization_id}`, updates);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['myOrganization', memberInfo?.organization_id] });
+      toast({
+        title: "Changes saved",
+        description: "Organisation details have been updated successfully."
+      });
+      setIsEditing(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update organisation details.",
+        variant: "destructive"
+      });
+    }
+  });
+
+  const updateCustomFieldMutation = useMutation({
+    mutationFn: async ({ fieldId, value }) => {
+      const existingValue = orgValues.find(v => v.field_id === fieldId);
+      const field = orgCustomFields.find(f => f.id === fieldId);
+      
+      let storedValue = value;
+      if (field?.field_type === 'picklist' && Array.isArray(value)) {
+        storedValue = JSON.stringify(value);
+      }
+      
+      if (existingValue) {
+        await base44.entities.OrganizationPreferenceValue.update(existingValue.id, { value: storedValue });
+      } else {
+        await base44.entities.OrganizationPreferenceValue.create({
+          organization_id: memberInfo.organization_id,
+          field_id: fieldId,
+          value: storedValue
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizationPreferenceValues', memberInfo?.organization_id] });
+    }
+  });
+
+  const handleSave = async () => {
+    await updateOrgMutation.mutateAsync(formData);
+    
+    for (const [fieldId, value] of Object.entries(customFieldValues)) {
+      const originalValue = orgValues.find(v => v.field_id === fieldId);
+      const field = orgCustomFields.find(f => f.id === fieldId);
+      
+      let storedOriginal = originalValue?.value;
+      let storedNew = value;
+      
+      if (field?.field_type === 'picklist') {
+        storedNew = Array.isArray(value) ? JSON.stringify(value) : value;
+      }
+      
+      if (storedOriginal !== storedNew) {
+        await updateCustomFieldMutation.mutateAsync({ fieldId, value });
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    if (organization) {
+      setFormData({
+        phone: organization.phone || '',
+        website_url: organization.website_url || '',
+        invoicing_email: organization.invoicing_email || '',
+        invoicing_address: organization.invoicing_address || '',
+        description: organization.description || ''
+      });
+    }
+    
+    if (orgValues.length > 0) {
+      const valuesMap = {};
+      orgValues.forEach(pv => {
+        const field = orgCustomFields.find(f => f.id === pv.field_id);
+        if (field?.field_type === 'picklist' && pv.value) {
+          try {
+            valuesMap[pv.field_id] = JSON.parse(pv.value);
+          } catch {
+            valuesMap[pv.field_id] = pv.value;
+          }
+        } else {
+          valuesMap[pv.field_id] = pv.value;
+        }
+      });
+      setCustomFieldValues(valuesMap);
+    }
+    
+    setIsEditing(false);
+  };
+
+  const handleCustomFieldChange = (fieldId, value) => {
+    setCustomFieldValues(prev => ({
+      ...prev,
+      [fieldId]: value
+    }));
+  };
+
   const isLoading = !accessChecked || orgLoading || membersLoading;
+  const isSaving = updateOrgMutation.isPending || updateCustomFieldMutation.isPending;
 
   if (!accessChecked) {
     return (
@@ -179,19 +334,197 @@ export default function MyOrganisationPage() {
     return displayValue;
   };
 
+  const renderCustomFieldInput = (field) => {
+    const fieldValue = customFieldValues[field.id] ?? '';
+    
+    switch (field.field_type) {
+      case 'text':
+        return (
+          <Input
+            id={`field-${field.id}`}
+            value={fieldValue}
+            onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
+            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+            data-testid={`input-custom-field-${field.id}`}
+          />
+        );
+        
+      case 'textarea':
+        return (
+          <Textarea
+            id={`field-${field.id}`}
+            value={fieldValue}
+            onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
+            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+            rows={3}
+            data-testid={`textarea-custom-field-${field.id}`}
+          />
+        );
+        
+      case 'number':
+        return (
+          <Input
+            id={`field-${field.id}`}
+            type="number"
+            value={fieldValue}
+            onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
+            placeholder={field.placeholder || '0'}
+            data-testid={`input-custom-field-${field.id}`}
+          />
+        );
+        
+      case 'decimal':
+        return (
+          <Input
+            id={`field-${field.id}`}
+            type="number"
+            step="0.01"
+            value={fieldValue}
+            onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
+            placeholder={field.placeholder || '0.00'}
+            data-testid={`input-custom-field-${field.id}`}
+          />
+        );
+        
+      case 'dropdown':
+        return (
+          <Select
+            value={fieldValue || ''}
+            onValueChange={(value) => handleCustomFieldChange(field.id, value)}
+          >
+            <SelectTrigger data-testid={`select-custom-field-${field.id}`}>
+              <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
+            </SelectTrigger>
+            <SelectContent>
+              {field.options?.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+        
+      case 'picklist':
+        const selectedValues = Array.isArray(fieldValue) ? fieldValue : [];
+        return (
+          <div className="space-y-2 p-3 bg-white rounded-lg border">
+            {field.options?.map((option) => {
+              const isChecked = selectedValues.includes(option.value);
+              return (
+                <div key={option.value} className="flex items-center space-x-2">
+                  <Checkbox
+                    id={`field-${field.id}-${option.value}`}
+                    checked={isChecked}
+                    onCheckedChange={(checked) => {
+                      const newValues = checked
+                        ? [...selectedValues, option.value]
+                        : selectedValues.filter(v => v !== option.value);
+                      handleCustomFieldChange(field.id, newValues);
+                    }}
+                    data-testid={`checkbox-custom-field-${field.id}-${option.value}`}
+                  />
+                  <Label htmlFor={`field-${field.id}-${option.value}`} className="text-sm font-normal cursor-pointer">
+                    {option.label}
+                  </Label>
+                </div>
+              );
+            })}
+          </div>
+        );
+        
+      case 'boolean':
+        return (
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id={`field-${field.id}`}
+              checked={fieldValue === 'true' || fieldValue === true}
+              onCheckedChange={(checked) => handleCustomFieldChange(field.id, checked ? 'true' : 'false')}
+              data-testid={`checkbox-custom-field-${field.id}`}
+            />
+            <Label htmlFor={`field-${field.id}`} className="text-sm font-normal cursor-pointer">
+              {field.label}
+            </Label>
+          </div>
+        );
+        
+      case 'date':
+        return (
+          <Input
+            id={`field-${field.id}`}
+            type="date"
+            value={fieldValue}
+            onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
+            data-testid={`input-custom-field-${field.id}`}
+          />
+        );
+        
+      default:
+        return (
+          <Input
+            id={`field-${field.id}`}
+            value={fieldValue}
+            onChange={(e) => handleCustomFieldChange(field.id, e.target.value)}
+            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
+            data-testid={`input-custom-field-${field.id}`}
+          />
+        );
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-4xl mx-auto">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-2">
-            <Building2 className="w-8 h-8 text-blue-600" />
-            <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
-              My Organisation
-            </h1>
+        <div className="mb-8 flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <Building2 className="w-8 h-8 text-blue-600" />
+              <h1 className="text-3xl md:text-4xl font-bold text-slate-900">
+                My Organisation
+              </h1>
+            </div>
+            <p className="text-slate-600">
+              {isEditing ? 'Edit your organisation details' : 'View and manage your organisation details'}
+            </p>
           </div>
-          <p className="text-slate-600">
-            View your organisation details and information
-          </p>
+          
+          {!isLoading && organization && (
+            <div className="flex items-center gap-2">
+              {isEditing ? (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={handleCancel}
+                    disabled={isSaving}
+                    data-testid="button-cancel-edit"
+                  >
+                    <X className="w-4 h-4 mr-2" />
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    data-testid="button-save-organisation"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4 mr-2" />
+                    )}
+                    Save Changes
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={() => setIsEditing(true)}
+                  data-testid="button-edit-organisation"
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit Details
+                </Button>
+              )}
+            </div>
+          )}
         </div>
 
         {isLoading ? (
@@ -200,7 +533,7 @@ export default function MyOrganisationPage() {
           </div>
         ) : organization ? (
           <div className="space-y-6">
-            {/* Header Card */}
+            {/* Header Card - Name is read-only */}
             <Card className="border-slate-200">
               <CardContent className="p-6">
                 <div className="flex items-start gap-6">
@@ -216,7 +549,7 @@ export default function MyOrganisationPage() {
                     )}
                   </div>
                   <div className="flex-1">
-                    <h2 className="text-2xl font-bold text-slate-900 mb-2">
+                    <h2 className="text-2xl font-bold text-slate-900 mb-2" data-testid="text-organisation-name">
                       {organization.name}
                     </h2>
                     {organization.domain && (
@@ -234,7 +567,20 @@ export default function MyOrganisationPage() {
                   </div>
                 </div>
 
-                {organization.description && (
+                {isEditing ? (
+                  <div className="mt-4 pt-4 border-t border-slate-200">
+                    <Label htmlFor="description" className="text-sm font-medium text-slate-700">Description</Label>
+                    <Textarea
+                      id="description"
+                      value={formData.description}
+                      onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                      placeholder="Enter organisation description"
+                      rows={3}
+                      className="mt-1"
+                      data-testid="textarea-description"
+                    />
+                  </div>
+                ) : organization.description && (
                   <div className="mt-4 pt-4 border-t border-slate-200">
                     <p className="text-slate-600">{organization.description}</p>
                   </div>
@@ -264,68 +610,132 @@ export default function MyOrganisationPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Phone Number */}
-                  <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                    <Phone className="w-5 h-5 text-slate-500 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Phone Number</p>
-                      <p className="text-sm font-medium text-slate-900">
-                        {organization.phone || <span className="text-slate-400 italic font-normal">Not set</span>}
-                      </p>
+                {isEditing ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="phone" className="flex items-center gap-2">
+                        <Phone className="w-4 h-4 text-slate-500" />
+                        Phone Number
+                      </Label>
+                      <Input
+                        id="phone"
+                        value={formData.phone}
+                        onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="Enter phone number"
+                        data-testid="input-phone"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="website_url" className="flex items-center gap-2">
+                        <Globe className="w-4 h-4 text-slate-500" />
+                        Website
+                      </Label>
+                      <Input
+                        id="website_url"
+                        value={formData.website_url}
+                        onChange={(e) => setFormData(prev => ({ ...prev, website_url: e.target.value }))}
+                        placeholder="https://example.com"
+                        data-testid="input-website"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="invoicing_email" className="flex items-center gap-2">
+                        <Mail className="w-4 h-4 text-slate-500" />
+                        Invoicing Email
+                      </Label>
+                      <Input
+                        id="invoicing_email"
+                        type="email"
+                        value={formData.invoicing_email}
+                        onChange={(e) => setFormData(prev => ({ ...prev, invoicing_email: e.target.value }))}
+                        placeholder="invoicing@example.com"
+                        data-testid="input-invoicing-email"
+                      />
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="invoicing_address" className="flex items-center gap-2">
+                        <MapPin className="w-4 h-4 text-slate-500" />
+                        Invoicing Address
+                      </Label>
+                      <Textarea
+                        id="invoicing_address"
+                        value={formData.invoicing_address}
+                        onChange={(e) => setFormData(prev => ({ ...prev, invoicing_address: e.target.value }))}
+                        placeholder="Enter invoicing address"
+                        rows={3}
+                        data-testid="textarea-invoicing-address"
+                      />
                     </div>
                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Phone Number */}
+                    <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                      <Phone className="w-5 h-5 text-slate-500 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Phone Number</p>
+                        <p className="text-sm font-medium text-slate-900" data-testid="text-phone">
+                          {organization.phone || <span className="text-slate-400 italic font-normal">Not set</span>}
+                        </p>
+                      </div>
+                    </div>
 
-                  {/* Website */}
-                  <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                    <Globe className="w-5 h-5 text-slate-500 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Website</p>
-                      {organization.website_url ? (
-                        <a 
-                          href={organization.website_url.startsWith('http') ? organization.website_url : `https://${organization.website_url}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
-                        >
-                          {organization.website_url}
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      ) : (
-                        <p className="text-sm text-slate-400 italic">Not set</p>
-                      )}
+                    {/* Website */}
+                    <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                      <Globe className="w-5 h-5 text-slate-500 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Website</p>
+                        {organization.website_url ? (
+                          <a 
+                            href={organization.website_url.startsWith('http') ? organization.website_url : `https://${organization.website_url}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm font-medium text-blue-600 hover:text-blue-700 flex items-center gap-1"
+                            data-testid="link-website"
+                          >
+                            {organization.website_url}
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        ) : (
+                          <p className="text-sm text-slate-400 italic" data-testid="text-website-empty">Not set</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Invoicing Email */}
-                  <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                    <Mail className="w-5 h-5 text-slate-500 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Invoicing Email</p>
-                      {organization.invoicing_email ? (
-                        <a 
-                          href={`mailto:${organization.invoicing_email}`}
-                          className="text-sm font-medium text-blue-600 hover:text-blue-700"
-                        >
-                          {organization.invoicing_email}
-                        </a>
-                      ) : (
-                        <p className="text-sm text-slate-400 italic">Not set</p>
-                      )}
+                    {/* Invoicing Email */}
+                    <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                      <Mail className="w-5 h-5 text-slate-500 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Invoicing Email</p>
+                        {organization.invoicing_email ? (
+                          <a 
+                            href={`mailto:${organization.invoicing_email}`}
+                            className="text-sm font-medium text-blue-600 hover:text-blue-700"
+                            data-testid="link-invoicing-email"
+                          >
+                            {organization.invoicing_email}
+                          </a>
+                        ) : (
+                          <p className="text-sm text-slate-400 italic" data-testid="text-invoicing-email-empty">Not set</p>
+                        )}
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Invoicing Address */}
-                  <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
-                    <MapPin className="w-5 h-5 text-slate-500 mt-0.5" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Invoicing Address</p>
-                      <p className="text-sm font-medium text-slate-900 whitespace-pre-line">
-                        {organization.invoicing_address || <span className="text-slate-400 italic font-normal">Not set</span>}
-                      </p>
+                    {/* Invoicing Address */}
+                    <div className="flex items-start gap-3 p-3 bg-slate-50 rounded-lg">
+                      <MapPin className="w-5 h-5 text-slate-500 mt-0.5" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-slate-500 uppercase tracking-wide mb-1">Invoicing Address</p>
+                        <p className="text-sm font-medium text-slate-900 whitespace-pre-line" data-testid="text-invoicing-address">
+                          {organization.invoicing_address || <span className="text-slate-400 italic font-normal">Not set</span>}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </CardContent>
             </Card>
 
@@ -343,6 +753,21 @@ export default function MyOrganisationPage() {
                     <div className="flex items-center justify-center py-4">
                       <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
                     </div>
+                  ) : isEditing ? (
+                    <div className="space-y-4">
+                      {orgCustomFields.map((field) => (
+                        <div key={field.id} className="space-y-2">
+                          <Label htmlFor={`field-${field.id}`} className="text-sm font-medium text-slate-700">
+                            {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          </Label>
+                          {field.description && (
+                            <p className="text-xs text-slate-500">{field.description}</p>
+                          )}
+                          {renderCustomFieldInput(field)}
+                        </div>
+                      ))}
+                    </div>
                   ) : (
                     <div className="space-y-3">
                       {orgCustomFields.map((field) => {
@@ -352,7 +777,7 @@ export default function MyOrganisationPage() {
                         return (
                           <div key={field.id} className="flex justify-between items-start gap-4 p-3 bg-slate-50 rounded-lg">
                             <span className="text-sm text-slate-600">{field.label}</span>
-                            <span className="text-sm font-medium text-slate-900 text-right">
+                            <span className="text-sm font-medium text-slate-900 text-right" data-testid={`text-custom-field-${field.id}`}>
                               {displayValue || <span className="text-slate-400 italic font-normal">Not set</span>}
                             </span>
                           </div>

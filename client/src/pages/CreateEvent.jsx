@@ -184,7 +184,7 @@ export default function CreateEvent() {
     const eventData = {
       title: formData.title,
       description: formData.description || null,
-      program_tag: isProgramEvent ? formData.program_tag : null,
+      program_tag: isProgramEvent ? formData.program_tag : "",
       start_date: formData.start_date,
       end_date: formData.end_date || formData.start_date,
       location: locationValue,

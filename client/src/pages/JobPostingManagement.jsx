@@ -46,7 +46,7 @@ export default function JobPostingManagementPage() {
 
   const { data: jobs = [], isLoading } = useQuery({
     queryKey: ['admin-job-postings'],
-    queryFn: () => base44.entities.JobPosting.list('-created_at'),
+    queryFn: () => base44.entities.JobPosting.list(),
     staleTime: 0,
     refetchOnMount: true,
   });

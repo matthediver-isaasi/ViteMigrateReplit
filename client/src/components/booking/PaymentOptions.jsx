@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Loader2, Ticket, AlertCircle, PoundSterling, Wallet, CreditCard, Tag, Gift, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
@@ -130,6 +131,7 @@ export default function PaymentOptions({
   const [stripeClientSecret, setStripeClientSecret] = useState(null);
   const [stripePaymentIntentId, setStripePaymentIntentId] = useState(null);
   const [stripeAvailable, setStripeAvailable] = useState(false);
+  const [poSupplyLater, setPoSupplyLater] = useState(false);
 
   // Initialize Stripe by fetching the publishable key from the backend
   useEffect(() => {
@@ -203,7 +205,7 @@ export default function PaymentOptions({
   // Check if fully paid for one-off events
   const isFullyPaid = Math.abs(remainingBalance) < 0.01 || 
     (remainingBalance > 0 && (remainingBalancePaymentMethod === 'card' || 
-      (remainingBalancePaymentMethod === 'account' && purchaseOrderNumber.trim())));
+      (remainingBalancePaymentMethod === 'account' && (purchaseOrderNumber.trim() || poSupplyLater))));
 
   // Handle program event booking (existing logic)
   const handleProgramBooking = async () => {
@@ -340,9 +342,9 @@ export default function PaymentOptions({
       return;
     }
 
-    // If paying by account, require PO number
-    if (remainingBalance > 0 && remainingBalancePaymentMethod === 'account' && !purchaseOrderNumber.trim()) {
-      toast.error("Please enter a purchase order number");
+    // If paying by account, require PO number or "supply later" toggle
+    if (remainingBalance > 0 && remainingBalancePaymentMethod === 'account' && !purchaseOrderNumber.trim() && !poSupplyLater) {
+      toast.error("Please enter a purchase order number or select 'Supply later'");
       return;
     }
 
@@ -367,6 +369,7 @@ export default function PaymentOptions({
         trainingFundAmount: isFeatureExcluded('payment_training_fund') ? 0 : trainingFundAmount,
         accountAmount: remainingBalancePaymentMethod === 'account' ? remainingBalance : 0,
         purchaseOrderNumber: remainingBalancePaymentMethod === 'account' ? purchaseOrderNumber.trim() : null,
+        poToFollow: remainingBalancePaymentMethod === 'account' ? poSupplyLater : false,
         paymentMethod: remainingBalance > 0 ? remainingBalancePaymentMethod : 'fully_covered',
         stripePaymentIntentId: stripePaymentId
       });
@@ -558,13 +561,32 @@ export default function PaymentOptions({
                       </div>
 
                       {remainingBalancePaymentMethod === 'account' && (
-                        <div className="ml-6">
-                          <Input
-                            placeholder="Purchase Order Number *"
-                            value={purchaseOrderNumber}
-                            onChange={(e) => setPurchaseOrderNumber(e.target.value)}
-                            className="mt-2"
-                          />
+                        <div className="ml-6 space-y-3">
+                          {!poSupplyLater && (
+                            <Input
+                              placeholder="Purchase Order Number *"
+                              value={purchaseOrderNumber}
+                              onChange={(e) => setPurchaseOrderNumber(e.target.value)}
+                              className="mt-2"
+                              data-testid="input-purchase-order"
+                            />
+                          )}
+                          <div className="flex items-center space-x-2 mt-2">
+                            <Switch
+                              id="po-supply-later"
+                              checked={poSupplyLater}
+                              onCheckedChange={(checked) => {
+                                setPoSupplyLater(checked);
+                                if (checked) {
+                                  setPurchaseOrderNumber('');
+                                }
+                              }}
+                              data-testid="switch-po-supply-later"
+                            />
+                            <Label htmlFor="po-supply-later" className="text-sm cursor-pointer">
+                              Supply later
+                            </Label>
+                          </div>
                         </div>
                       )}
                     </div>

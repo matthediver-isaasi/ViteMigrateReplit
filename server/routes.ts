@@ -3759,6 +3759,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         trainingFundAmount = 0,
         accountAmount = 0,
         purchaseOrderNumber = null,
+        poToFollow = false,
         paymentMethod = 'account',
         stripePaymentIntentId = null
       } = req.body;
@@ -3969,6 +3970,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           training_fund_amount: validatedTrainingFundAmount / ticketsRequired,
           account_amount: (paymentMethod === 'account' ? validatedRemainingBalance : 0) / ticketsRequired,
           purchase_order_number: purchaseOrderNumber,
+          po_to_follow: paymentMethod === 'account' ? poToFollow : false,
           stripe_payment_intent_id: stripePaymentIntentId,
           is_one_off_event: true
         };
@@ -4001,7 +4003,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             event_name: event.title || 'One-off Event',
             member_email: memberEmail,
             purchase_order_number: purchaseOrderNumber,
-            notes: `Account charge: £${validatedRemainingBalance.toFixed(2)} for ${event.title || 'event'} (PO: ${purchaseOrderNumber || 'N/A'})`
+            po_to_follow: poToFollow,
+            notes: `Account charge: £${validatedRemainingBalance.toFixed(2)} for ${event.title || 'event'} (PO: ${poToFollow ? 'To follow' : (purchaseOrderNumber || 'N/A')})`
           });
       }
 

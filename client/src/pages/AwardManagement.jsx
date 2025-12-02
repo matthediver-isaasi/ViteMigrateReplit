@@ -2303,7 +2303,7 @@ export default function AwardManagementPage() {
                   </SelectTrigger>
                   <SelectContent>
                    <SelectItem value={null}>No specific level</SelectItem>
-                   {getAwardSublevels(assigningAward?.id, true).map(sublevel => (
+                   {getAwardSublevels(assigningAward?.id, assigningAward?.type).map(sublevel => (
                      <SelectItem key={sublevel.id} value={sublevel.id}>
                        {sublevel.name}
                      </SelectItem>

@@ -1428,9 +1428,7 @@ const functionHandlers = {
         .from('system_settings')
         .insert({
           setting_key: settingKey,
-          setting_value: slug || '',
-          setting_type: 'string',
-          description: 'The slug of the page to display as the public home page'
+          setting_value: slug || ''
         })
         .select()
         .single();

@@ -47,6 +47,7 @@ export default function CreateEvent() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const [isOnline, setIsOnline] = useState(false);
+  const [isProgramEvent, setIsProgramEvent] = useState(true);
   const [selectedWebinarId, setSelectedWebinarId] = useState("");
   const [formData, setFormData] = useState({
     title: "",
@@ -143,7 +144,7 @@ export default function CreateEvent() {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    if (!formData.program_tag) {
+    if (isProgramEvent && !formData.program_tag) {
       toast.error('Please select a program');
       return;
     }
@@ -183,7 +184,7 @@ export default function CreateEvent() {
     const eventData = {
       title: formData.title,
       description: formData.description || null,
-      program_tag: formData.program_tag,
+      program_tag: isProgramEvent ? formData.program_tag : null,
       start_date: formData.start_date,
       end_date: formData.end_date || formData.start_date,
       location: locationValue,
@@ -359,33 +360,69 @@ export default function CreateEvent() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="program">Program *</Label>
-                <Select
-                  value={formData.program_tag}
-                  onValueChange={(value) => handleInputChange('program_tag', value)}
-                  disabled={loadingPrograms}
-                  data-testid="select-program"
-                >
-                  <SelectTrigger data-testid="select-program-trigger">
-                    <SelectValue placeholder={loadingPrograms ? "Loading programs..." : "Select a program"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {programs.map((program) => (
-                      <SelectItem 
-                        key={program.id} 
-                        value={program.tag || program.name}
-                        data-testid={`select-program-${program.id}`}
-                      >
-                        {program.name || program.tag}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="text-xs text-slate-500">
-                  The program determines ticket types that can be used for this event
-                </p>
+              {/* Program vs One-off Toggle */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                <div className="space-y-0.5">
+                  <Label htmlFor="program-toggle" className="text-base font-medium">
+                    {isProgramEvent ? "Program Event" : "One-off Event"}
+                  </Label>
+                  <p className="text-sm text-slate-500">
+                    {isProgramEvent 
+                      ? "Event is part of a program - requires program tickets to attend" 
+                      : "Standalone event - not linked to any program"}
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className={`text-sm ${!isProgramEvent ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
+                    One-off
+                  </span>
+                  <Switch
+                    id="program-toggle"
+                    checked={isProgramEvent}
+                    onCheckedChange={(checked) => {
+                      setIsProgramEvent(checked);
+                      if (!checked) {
+                        handleInputChange('program_tag', '');
+                      }
+                    }}
+                    data-testid="switch-program-toggle"
+                  />
+                  <span className={`text-sm ${isProgramEvent ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
+                    Program
+                  </span>
+                </div>
               </div>
+
+              {/* Program Selection - Only shown when isProgramEvent is true */}
+              {isProgramEvent && (
+                <div className="space-y-2">
+                  <Label htmlFor="program">Program *</Label>
+                  <Select
+                    value={formData.program_tag}
+                    onValueChange={(value) => handleInputChange('program_tag', value)}
+                    disabled={loadingPrograms}
+                    data-testid="select-program"
+                  >
+                    <SelectTrigger data-testid="select-program-trigger">
+                      <SelectValue placeholder={loadingPrograms ? "Loading programs..." : "Select a program"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {programs.map((program) => (
+                        <SelectItem 
+                          key={program.id} 
+                          value={program.program_tag || program.name}
+                          data-testid={`select-program-${program.id}`}
+                        >
+                          {program.name || program.program_tag}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-slate-500">
+                    The program determines ticket types that can be used for this event
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="title">Event Title *</Label>

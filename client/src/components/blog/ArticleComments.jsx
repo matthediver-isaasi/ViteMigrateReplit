@@ -42,7 +42,7 @@ export default function ArticleComments({ articleId, memberInfo, showThumbsUp = 
   const { data: comments = [], isLoading } = useQuery({
     queryKey: ['article-comments', articleId],
     queryFn: async () => {
-      const allComments = await base44.entities.ArticleComment.list('-created_date');
+      const allComments = await base44.entities.ArticleComment.list('-created_at');
       return allComments.filter(comment => comment.article_id === articleId);
     },
     enabled: !!articleId,

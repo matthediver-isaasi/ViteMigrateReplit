@@ -26,7 +26,7 @@ export default function ArticleManagementPage() {
   const { data: articles = [], isLoading: articlesLoading } = useQuery({
     queryKey: ['all-articles-admin'],
     queryFn: async () => {
-      return await base44.entities.BlogPost.list('-created_date');
+      return await base44.entities.BlogPost.list('-created_at');
     },
     staleTime: 0, // Admin views need instant freshness after edits
   });

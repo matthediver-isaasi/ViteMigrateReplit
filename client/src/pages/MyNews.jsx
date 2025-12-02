@@ -22,7 +22,7 @@ export default function MyNewsPage() {
   const { data: news = [], isLoading: newsLoading } = useQuery({
     queryKey: ['my-news'],
     queryFn: async () => {
-      const allNews = await base44.entities.NewsPost.list('-created_date');
+      const allNews = await base44.entities.NewsPost.list('-created_at');
       return allNews;
     },
     enabled: isAdmin,

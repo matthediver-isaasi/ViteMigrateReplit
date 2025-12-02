@@ -39,7 +39,7 @@ export default function ButtonStyleManagementPage() {
 
   const { data: buttonStyles = [], isLoading } = useQuery({
     queryKey: ['buttonStyles'],
-    queryFn: () => base44.entities.ButtonStyle.list('-created_date'),
+    queryFn: () => base44.entities.ButtonStyle.list('-created_at'),
   });
 
   const deleteMutation = useMutation({

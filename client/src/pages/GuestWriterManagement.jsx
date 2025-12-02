@@ -62,7 +62,7 @@ export default function GuestWriterManagementPage() {
   const { data: guestWriters = [], isLoading } = useQuery({
     queryKey: ['guest-writers'],
     queryFn: async () => {
-      const writers = await base44.entities.GuestWriter.list('-created_date');
+      const writers = await base44.entities.GuestWriter.list('-created_at');
       return writers;
     },
   });

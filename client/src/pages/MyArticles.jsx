@@ -39,7 +39,7 @@ export default function MyArticlesPage() {
   const { data: articles = [], isLoading: articlesLoading } = useQuery({
     queryKey: ['my-articles', memberInfo?.email],
     queryFn: async () => {
-      const allArticles = await base44.entities.BlogPost.list('-created_date');
+      const allArticles = await base44.entities.BlogPost.list('-created_at');
       const allMembers = await base44.entities.Member.listAll();
       const currentMember = allMembers.find(m => m.email === memberInfo?.email);
       

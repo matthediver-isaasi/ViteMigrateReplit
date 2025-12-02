@@ -48,7 +48,7 @@ export default function FileManagementPage() {
 
   const { data: files = [], isLoading } = useQuery({
     queryKey: ['file-repository'],
-    queryFn: () => base44.entities.FileRepository.list('-created_date'),
+    queryFn: () => base44.entities.FileRepository.list('-created_at'),
     staleTime: 0,
     refetchOnMount: true,
   });

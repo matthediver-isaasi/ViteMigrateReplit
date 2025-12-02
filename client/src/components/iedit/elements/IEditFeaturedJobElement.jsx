@@ -19,7 +19,7 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     header_underline_weight = 2,
     
     main_heading = 'Featured\nOpportunity',
-    heading_font_family = 'inherit',
+    heading_font_family = 'Degular Medium',
     heading_font_size = 55,
     heading_line_height = 0.91,
     heading_color = '#000000',
@@ -244,7 +244,7 @@ function StaticContent({ content, textColorOverride, underlineColorOverride }) {
     header_underline_weight = 2,
     
     main_heading = 'Featured\nOpportunity',
-    heading_font_family = 'inherit',
+    heading_font_family = 'Degular Medium',
     heading_font_size = 55,
     heading_line_height = 0.91,
     heading_color = '#000000',
@@ -482,34 +482,11 @@ function JobDetails({ job, content, formatClosingDate, isClosingSoon }) {
   );
 }
 
-const FONT_OPTIONS = [
-  { value: 'inherit', label: 'Inherit (Default)' },
-  { value: 'Poppins', label: 'Poppins' },
-  { value: 'Inter', label: 'Inter' },
-  { value: 'Roboto', label: 'Roboto' },
-  { value: 'Open Sans', label: 'Open Sans' },
-  { value: 'Lato', label: 'Lato' },
-  { value: 'Montserrat', label: 'Montserrat' },
-  { value: 'Playfair Display', label: 'Playfair Display' },
-  { value: 'Merriweather', label: 'Merriweather' },
-  { value: 'Source Sans Pro', label: 'Source Sans Pro' },
-  { value: 'Raleway', label: 'Raleway' },
-  { value: 'Nunito', label: 'Nunito' },
-  { value: 'Work Sans', label: 'Work Sans' },
-  { value: 'Oswald', label: 'Oswald' },
-  { value: 'PT Sans', label: 'PT Sans' },
-  { value: 'Georgia', label: 'Georgia' },
-  { value: 'Times New Roman', label: 'Times New Roman' },
-  { value: 'Arial', label: 'Arial' },
-  { value: 'Helvetica', label: 'Helvetica' },
-];
-
-function FontSelect({ value, onChange, className = "w-full px-3 py-2 border rounded-md" }) {
+function FontSelect({ value, onChange, className = "w-full px-3 py-2 border border-slate-300 rounded-md" }) {
   return (
     <select value={value} onChange={onChange} className={className}>
-      {FONT_OPTIONS.map(font => (
-        <option key={font.value} value={font.value}>{font.label}</option>
-      ))}
+      <option value="Poppins">Poppins</option>
+      <option value="Degular Medium">Degular Medium</option>
     </select>
   );
 }
@@ -812,7 +789,7 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
             <div className="space-y-1">
               <label className="text-sm font-medium">Font Family</label>
               <FontSelect
-                value={content.heading_font_family || 'inherit'}
+                value={content.heading_font_family || 'Degular Medium'}
                 onChange={(e) => updateContent('heading_font_family', e.target.value)}
               />
             </div>

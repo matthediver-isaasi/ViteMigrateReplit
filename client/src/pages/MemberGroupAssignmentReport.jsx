@@ -40,6 +40,11 @@ export default function MemberGroupAssignmentReportPage() {
     queryFn: () => base44.entities.Member.listAll(),
   });
 
+  const { data: guests = [], isLoading: loadingGuests } = useQuery({
+    queryKey: ['member-group-guests-all'],
+    queryFn: () => base44.entities.MemberGroupGuest.listAll(),
+  });
+
   const { data: assignments = [], isLoading: loadingAssignments } = useQuery({
     queryKey: ['member-group-assignments-all'],
     queryFn: () => base44.entities.MemberGroupAssignment.listAll(),
@@ -58,21 +63,36 @@ export default function MemberGroupAssignmentReportPage() {
 
   const enrichedAssignments = useMemo(() => {
     return assignments.map(assignment => {
-      const member = members.find(m => m.id === assignment.member_id);
+      const isGuest = !!assignment.guest_id;
+      const member = !isGuest ? members.find(m => m.id === assignment.member_id) : null;
+      const guest = isGuest ? guests.find(g => g.id === assignment.guest_id) : null;
       const group = groups.find(g => g.id === assignment.group_id);
       const expiryStatus = getExpiryStatus(assignment.expires_at);
+      
+      let memberName = 'Unknown';
+      let memberEmail = '';
+      
+      if (isGuest && guest) {
+        memberName = `${guest.full_name || guest.name || 'Guest'} (Guest)`;
+        memberEmail = guest.email || '';
+      } else if (member) {
+        memberName = `${member.first_name} ${member.last_name}`;
+        memberEmail = member.email || '';
+      }
       
       return {
         ...assignment,
         member,
+        guest,
         group,
+        isGuest,
         expiryStatus,
-        memberName: member ? `${member.first_name} ${member.last_name}` : 'Unknown',
-        memberEmail: member?.email || '',
+        memberName,
+        memberEmail,
         groupName: group?.name || 'Unknown Group'
       };
     });
-  }, [assignments, members, groups]);
+  }, [assignments, members, guests, groups]);
 
   const filteredAssignments = useMemo(() => {
     let filtered = enrichedAssignments;

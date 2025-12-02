@@ -45,6 +45,7 @@ export const PAGE_NAMES = [
   "testpage",
   "NavigationManagement",
   "Preferences",
+  "MyOrganisation",
   "MyArticles",
   "PublicArticles",
   "MemberHandleManagement",

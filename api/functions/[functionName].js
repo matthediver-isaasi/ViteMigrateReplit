@@ -1363,20 +1363,26 @@ const functionHandlers = {
   async createJobPostingPaymentIntent(params) {
     if (!stripe) throw new Error('Stripe not configured');
     
-    const { amount, jobTitle, companyName, contactEmail } = params;
+    // Frontend sends: amount, currency, metadata: { job_posting_id, contact_email, company_name, job_title }
+    const { amount, currency = 'gbp', metadata = {} } = params;
 
     const paymentIntent = await stripe.paymentIntents.create({
       amount: Math.round(amount * 100),
-      currency: 'gbp',
+      currency: currency,
       metadata: {
         type: 'job_posting',
-        job_title: jobTitle,
-        company_name: companyName,
-        contact_email: contactEmail
+        job_posting_id: metadata.job_posting_id || '',
+        job_title: metadata.job_title || '',
+        company_name: metadata.company_name || '',
+        contact_email: metadata.contact_email || ''
       }
     });
 
-    return { clientSecret: paymentIntent.client_secret };
+    return { 
+      success: true,
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id
+    };
   },
 
   async createJobPostingMember(params) {

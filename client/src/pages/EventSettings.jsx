@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Calendar, Clock, MapPin, Ticket, RefreshCw, Save, Image as ImageIcon, Upload, X, FileText } from "lucide-react";
+import { Settings, Calendar, Clock, MapPin, Ticket, RefreshCw, Save, Image as ImageIcon, Upload, X, FileText, Plus } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -41,6 +41,21 @@ export default function EventSettingsPage() {
   const [editingBulkThreshold, setEditingBulkThreshold] = useState("");
   const [editingBulkPercentage, setEditingBulkPercentage] = useState("");
   const [uploadingProgram, setUploadingProgram] = useState(false);
+  
+  const [creatingProgram, setCreatingProgram] = useState(false);
+  const [newProgramName, setNewProgramName] = useState("");
+  const [newProgramTag, setNewProgramTag] = useState("");
+  const [newProgramPrice, setNewProgramPrice] = useState("");
+  const [newProgramDescription, setNewProgramDescription] = useState("");
+  const [newProgramImage, setNewProgramImage] = useState(null);
+  const [newProgramImagePreview, setNewProgramImagePreview] = useState(null);
+  const [newOfferType, setNewOfferType] = useState("none");
+  const [newBogoLogicType, setNewBogoLogicType] = useState("buy_x_get_y_free");
+  const [newBogoBuyQty, setNewBogoBuyQty] = useState("");
+  const [newBogoGetFreeQty, setNewBogoGetFreeQty] = useState("");
+  const [newBulkThreshold, setNewBulkThreshold] = useState("");
+  const [newBulkPercentage, setNewBulkPercentage] = useState("");
+  const [savingNewProgram, setSavingNewProgram] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -469,6 +484,131 @@ export default function EventSettingsPage() {
     }
   };
 
+  const handleNewProgramImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setNewProgramImage(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setNewProgramImagePreview(e.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const resetCreateProgramForm = () => {
+    setCreatingProgram(false);
+    setNewProgramName("");
+    setNewProgramTag("");
+    setNewProgramPrice("");
+    setNewProgramDescription("");
+    setNewProgramImage(null);
+    setNewProgramImagePreview(null);
+    setNewOfferType("none");
+    setNewBogoLogicType("buy_x_get_y_free");
+    setNewBogoBuyQty("");
+    setNewBogoGetFreeQty("");
+    setNewBulkThreshold("");
+    setNewBulkPercentage("");
+  };
+
+  const handleCreateProgram = async () => {
+    if (!newProgramName.trim()) {
+      toast.error('Program name is required');
+      return;
+    }
+    if (!newProgramTag.trim()) {
+      toast.error('Program tag is required');
+      return;
+    }
+    if (!newProgramPrice || parseFloat(newProgramPrice) < 0) {
+      toast.error('Please enter a valid ticket price');
+      return;
+    }
+
+    if (newOfferType === "bogo") {
+      const buyQty = parseInt(newBogoBuyQty);
+      const freeQty = parseInt(newBogoGetFreeQty);
+      if (isNaN(buyQty) || buyQty < 1) {
+        toast.error('BOGO buy quantity must be at least 1');
+        return;
+      }
+      if (isNaN(freeQty) || freeQty < 1) {
+        toast.error('BOGO free quantity must be at least 1');
+        return;
+      }
+    }
+
+    if (newOfferType === "bulk_discount") {
+      const threshold = parseInt(newBulkThreshold);
+      const percentage = parseFloat(newBulkPercentage);
+      if (isNaN(threshold) || threshold < 2) {
+        toast.error('Bulk discount threshold must be at least 2');
+        return;
+      }
+      if (isNaN(percentage) || percentage < 0 || percentage > 100) {
+        toast.error('Bulk discount percentage must be between 0 and 100');
+        return;
+      }
+    }
+
+    setSavingNewProgram(true);
+    try {
+      const programData = {
+        name: newProgramName.trim(),
+        program_tag: newProgramTag.trim(),
+        program_ticket_price: parseFloat(newProgramPrice),
+        description: newProgramDescription.trim() || null,
+        is_active: true,
+        offer_type: newOfferType,
+      };
+
+      if (newOfferType === "bogo") {
+        programData.bogo_buy_quantity = parseInt(newBogoBuyQty);
+        programData.bogo_get_free_quantity = parseInt(newBogoGetFreeQty);
+        programData.bogo_logic_type = newBogoLogicType;
+      } else if (newOfferType === "bulk_discount") {
+        programData.bulk_discount_threshold = parseInt(newBulkThreshold);
+        programData.bulk_discount_percentage = parseFloat(newBulkPercentage);
+      }
+
+      if (newProgramImage) {
+        const reader = new FileReader();
+        const imageBase64 = await new Promise((resolve, reject) => {
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(newProgramImage);
+        });
+
+        const storedMember = sessionStorage.getItem('agcas_member');
+        const memberInfo = storedMember ? JSON.parse(storedMember) : null;
+        
+        if (memberInfo?.email) {
+          const uploadResponse = await base44.functions.invoke('uploadProgramImage', {
+            imageBase64,
+            fileName: newProgramImage.name,
+            userEmail: memberInfo.email,
+          });
+          
+          if (uploadResponse.data?.imageUrl) {
+            programData.image_url = uploadResponse.data.imageUrl;
+          }
+        }
+      }
+
+      await base44.entities.Program.create(programData);
+      
+      queryClient.invalidateQueries({ queryKey: ['programs'] });
+      toast.success('Program created successfully');
+      resetCreateProgramForm();
+    } catch (error) {
+      console.error('Create program error:', error);
+      toast.error('Failed to create program: ' + error.message);
+    } finally {
+      setSavingNewProgram(false);
+    }
+  };
+
   const isLoading = loadingEvents || loadingSettings || loadingPrograms;
 
   if (!accessChecked) {
@@ -598,9 +738,19 @@ export default function EventSettingsPage() {
         {/* Programs Section */}
         <Card className="border-slate-200 shadow-sm mb-8">
           <CardHeader className="border-b border-slate-200">
-            <div className="flex items-center gap-2">
-              <Ticket className="w-5 h-5 text-purple-600" />
-              <CardTitle>Programs</CardTitle>
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Ticket className="w-5 h-5 text-purple-600" />
+                <CardTitle>Programs</CardTitle>
+              </div>
+              <Button
+                onClick={() => setCreatingProgram(true)}
+                className="bg-purple-600 hover:bg-purple-700"
+                data-testid="button-create-program"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create Program
+              </Button>
             </div>
           </CardHeader>
           <CardContent className="pt-6">
@@ -1262,6 +1412,332 @@ export default function EventSettingsPage() {
                 <>
                   <Save className="w-4 h-4 mr-2" />
                   Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Program Dialog */}
+      <Dialog open={creatingProgram} onOpenChange={(open) => {
+        if (!open) {
+          resetCreateProgramForm();
+        }
+      }}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create New Program</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="new-program-name" className="text-sm font-medium text-slate-700 mb-2 block">
+                  Program Name *
+                </Label>
+                <Input
+                  id="new-program-name"
+                  value={newProgramName}
+                  onChange={(e) => setNewProgramName(e.target.value)}
+                  placeholder="e.g., Annual Conference"
+                  data-testid="input-new-program-name"
+                />
+              </div>
+              <div>
+                <Label htmlFor="new-program-tag" className="text-sm font-medium text-slate-700 mb-2 block">
+                  Program Tag *
+                </Label>
+                <Input
+                  id="new-program-tag"
+                  value={newProgramTag}
+                  onChange={(e) => setNewProgramTag(e.target.value)}
+                  placeholder="e.g., CONF2025"
+                  data-testid="input-new-program-tag"
+                />
+                <p className="text-xs text-slate-500 mt-1">
+                  Used to link events to this program
+                </p>
+              </div>
+            </div>
+
+            <div>
+              <Label htmlFor="new-program-price" className="text-sm font-medium text-slate-700 mb-2 block">
+                Ticket Price (£) *
+              </Label>
+              <Input
+                id="new-program-price"
+                type="number"
+                min="0"
+                step="0.01"
+                value={newProgramPrice}
+                onChange={(e) => setNewProgramPrice(e.target.value)}
+                placeholder="0.00"
+                className="w-40"
+                data-testid="input-new-program-price"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="new-program-description" className="text-sm font-medium text-slate-700 mb-2 block">
+                Description
+              </Label>
+              <Textarea
+                id="new-program-description"
+                value={newProgramDescription}
+                onChange={(e) => setNewProgramDescription(e.target.value)}
+                placeholder="Enter program description..."
+                rows={4}
+                className="w-full"
+                data-testid="textarea-new-program-description"
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="new-program-image" className="text-sm font-medium text-slate-700 mb-2 block">
+                Program Image (Optional)
+              </Label>
+              {newProgramImagePreview && (
+                <div className="mb-2 border border-blue-200 rounded-lg overflow-hidden">
+                  <img 
+                    src={newProgramImagePreview} 
+                    alt="Preview"
+                    className="w-full h-32 object-cover"
+                  />
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Input
+                  id="new-program-image"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleNewProgramImageSelect}
+                  className="flex-1"
+                  data-testid="input-new-program-image"
+                />
+                {newProgramImage && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => {
+                      setNewProgramImage(null);
+                      setNewProgramImagePreview(null);
+                    }}
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Offer Configuration */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-lg space-y-4">
+              <div>
+                <Label className="text-sm font-medium text-slate-700 mb-3 block">
+                  Offer Type
+                </Label>
+                <RadioGroup value={newOfferType} onValueChange={setNewOfferType}>
+                  <div className="space-y-3">
+                    <div 
+                      className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                        newOfferType === 'none' 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-slate-200 hover:bg-slate-100'
+                      }`}
+                      onClick={() => setNewOfferType('none')}
+                    >
+                      <RadioGroupItem value="none" id="new-offer-none" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="new-offer-none" className="font-medium cursor-pointer">No Offer</Label>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Standard pricing with no discounts
+                        </p>
+                      </div>
+                    </div>
+
+                    <div 
+                      className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                        newOfferType === 'bogo' 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-slate-200 hover:bg-slate-100'
+                      }`}
+                      onClick={() => setNewOfferType('bogo')}
+                    >
+                      <RadioGroupItem value="bogo" id="new-offer-bogo" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="new-offer-bogo" className="font-medium cursor-pointer">BOGO (Buy X Get Y Free)</Label>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Customers receive free tickets with their purchase
+                        </p>
+                      </div>
+                    </div>
+
+                    <div 
+                      className={`flex items-start gap-3 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                        newOfferType === 'bulk_discount' 
+                          ? 'border-blue-500 bg-blue-50' 
+                          : 'border-slate-200 hover:bg-slate-100'
+                      }`}
+                      onClick={() => setNewOfferType('bulk_discount')}
+                    >
+                      <RadioGroupItem value="bulk_discount" id="new-offer-bulk" className="mt-1" />
+                      <div className="flex-1">
+                        <Label htmlFor="new-offer-bulk" className="font-medium cursor-pointer">Bulk Discount</Label>
+                        <p className="text-xs text-slate-600 mt-1">
+                          Percentage discount when buying multiple tickets
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {/* BOGO Configuration */}
+              {newOfferType === 'bogo' && (
+                <div className="space-y-4 pt-4 border-t border-slate-300">
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                      BOGO Configuration
+                    </Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="new-bogo-buy-qty" className="text-xs text-slate-600 mb-1 block">
+                          Buy Quantity
+                        </Label>
+                        <Input
+                          id="new-bogo-buy-qty"
+                          type="number"
+                          min="1"
+                          value={newBogoBuyQty}
+                          onChange={(e) => setNewBogoBuyQty(e.target.value)}
+                          placeholder="e.g., 4"
+                          data-testid="input-new-bogo-buy-qty"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="new-bogo-free-qty" className="text-xs text-slate-600 mb-1 block">
+                          Get Free Quantity
+                        </Label>
+                        <Input
+                          id="new-bogo-free-qty"
+                          type="number"
+                          min="1"
+                          value={newBogoGetFreeQty}
+                          onChange={(e) => setNewBogoGetFreeQty(e.target.value)}
+                          placeholder="e.g., 1"
+                          data-testid="input-new-bogo-free-qty"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                      BOGO Logic Type
+                    </Label>
+                    <RadioGroup value={newBogoLogicType} onValueChange={setNewBogoLogicType}>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <RadioGroupItem value="buy_x_get_y_free" id="new-logic-legacy" className="mt-1" />
+                          <div className="flex-1">
+                            <Label htmlFor="new-logic-legacy" className="text-sm cursor-pointer">
+                              Buy X, Get Y Free (Legacy)
+                            </Label>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              User enters {newBogoBuyQty || 'X'} &rarr; Receives {newBogoBuyQty && newBogoGetFreeQty ? parseInt(newBogoBuyQty) + parseInt(newBogoGetFreeQty) : 'X+Y'} &rarr; Pays for {newBogoBuyQty || 'X'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <RadioGroupItem value="enter_total_pay_less" id="new-logic-new" className="mt-1" />
+                          <div className="flex-1">
+                            <Label htmlFor="new-logic-new" className="text-sm cursor-pointer">
+                              Enter Total, Pay for Fewer
+                            </Label>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                              User enters {newBogoBuyQty && newBogoGetFreeQty ? parseInt(newBogoBuyQty) + parseInt(newBogoGetFreeQty) : 'X+Y'} &rarr; Receives {newBogoBuyQty && newBogoGetFreeQty ? parseInt(newBogoBuyQty) + parseInt(newBogoGetFreeQty) : 'X+Y'} &rarr; Pays for {newBogoBuyQty || 'X'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </RadioGroup>
+                  </div>
+                </div>
+              )}
+
+              {/* Bulk Discount Configuration */}
+              {newOfferType === 'bulk_discount' && (
+                <div className="space-y-4 pt-4 border-t border-slate-300">
+                  <div>
+                    <Label className="text-sm font-medium text-slate-700 mb-2 block">
+                      Bulk Discount Configuration
+                    </Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label htmlFor="new-bulk-threshold" className="text-xs text-slate-600 mb-1 block">
+                          Minimum Tickets
+                        </Label>
+                        <Input
+                          id="new-bulk-threshold"
+                          type="number"
+                          min="2"
+                          value={newBulkThreshold}
+                          onChange={(e) => setNewBulkThreshold(e.target.value)}
+                          placeholder="e.g., 10"
+                          data-testid="input-new-bulk-threshold"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="new-bulk-percentage" className="text-xs text-slate-600 mb-1 block">
+                          Discount %
+                        </Label>
+                        <Input
+                          id="new-bulk-percentage"
+                          type="number"
+                          min="0"
+                          max="100"
+                          step="0.1"
+                          value={newBulkPercentage}
+                          onChange={(e) => setNewBulkPercentage(e.target.value)}
+                          placeholder="e.g., 15"
+                          data-testid="input-new-bulk-percentage"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-xs text-slate-500 mt-2">
+                      {newBulkThreshold && newBulkPercentage 
+                        ? `Customers buying ${newBulkThreshold}+ tickets will receive ${newBulkPercentage}% off`
+                        : 'Enter values to see preview'}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={resetCreateProgramForm}
+              disabled={savingNewProgram}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleCreateProgram}
+              disabled={savingNewProgram}
+              className="bg-purple-600 hover:bg-purple-700"
+              data-testid="button-save-new-program"
+            >
+              {savingNewProgram ? (
+                <>
+                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                  Creating...
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create Program
                 </>
               )}
             </Button>

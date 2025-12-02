@@ -435,9 +435,9 @@ function _getCurrentPage(url) {
         urlLastPart = urlLastPart.split('?')[0];
     }
     
-    // Handle root path - default to Events
+    // Handle root path - use HomePageRedirect (which is a hybrid page)
     if (!urlLastPart || urlLastPart === '') {
-        return 'Events';
+        return 'HomePageRedirect';
     }
 
     const pageName = Object.keys(PAGES).find(page => page.toLowerCase() === urlLastPart.toLowerCase());

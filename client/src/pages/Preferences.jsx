@@ -88,10 +88,6 @@ export default function PreferencesPage() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [showInDirectory, setShowInDirectory] = useState(true);
 
-  // Organisation logo state
-  const [organizationLogoUrl, setOrganizationLogoUrl] = useState("");
-  const [isUploadingOrgLogo, setIsUploadingOrgLogo] = useState(false);
-  const [hasUnsavedOrgLogo, setHasUnsavedOrgLogo] = useState(false);
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -111,10 +107,6 @@ export default function PreferencesPage() {
   const [hasUnsavedAdditionalInfo, setHasUnsavedAdditionalInfo] = useState(false);
   const [isSavingAdditionalInfo, setIsSavingAdditionalInfo] = useState(false);
 
-  // Organization custom fields state
-  const [orgCustomFieldValues, setOrgCustomFieldValues] = useState({});
-  const [hasUnsavedOrgCustomFields, setHasUnsavedOrgCustomFields] = useState(false);
-  const [isSavingOrgCustomFields, setIsSavingOrgCustomFields] = useState(false);
 
   const queryClient = useQueryClient();
 
@@ -443,49 +435,6 @@ export default function PreferencesPage() {
     },
   });
 
-  // --- Organization custom fields (organization scope) ---
-  const { data: orgPreferenceFields = [], isLoading: orgPreferenceFieldsLoading } = useQuery({
-    queryKey: ["/api/entities/PreferenceField", "organization"],
-    queryFn: async () => {
-      try {
-        // Try to filter by entity_scope (requires migration to be run)
-        const fields = await base44.entities.PreferenceField.list({
-          filter: { is_active: true, entity_scope: 'organization' },
-          sort: { display_order: 'asc' }
-        });
-        return (fields || []).filter(f => f.entity_scope === 'organization');
-      } catch {
-        // Fallback: if entity_scope column doesn't exist, fetch all and filter client-side
-        // Since entity_scope column doesn't exist, there are no org fields yet
-        try {
-          const allFields = await base44.entities.PreferenceField.list({
-            filter: { is_active: true },
-            sort: { display_order: 'asc' }
-          });
-          return (allFields || []).filter(f => f.entity_scope === 'organization');
-        } catch {
-          return [];
-        }
-      }
-    },
-  });
-
-  // --- Organization's preference values ---
-  const { data: orgPreferenceValues = [] } = useQuery({
-    queryKey: ["/api/entities/OrganizationPreferenceValue", memberRecord?.organization_id],
-    enabled: !!memberRecord?.organization_id,
-    queryFn: async () => {
-      if (!memberRecord?.organization_id) return [];
-      try {
-        const values = await base44.entities.OrganizationPreferenceValue.list({
-          filter: { organization_id: memberRecord.organization_id }
-        });
-        return values || [];
-      } catch {
-        return [];
-      }
-    },
-  });
 
   // --- Get member's role IDs ---
   const memberRoleIds = useMemo(() => {
@@ -513,8 +462,6 @@ export default function PreferencesPage() {
 
   // --- Section order and visibility for Preferences page layout ---
   const DEFAULT_SECTION_CONFIG = [
-    { id: 'organization_logo', visible: true },
-    { id: 'organization_custom_fields', visible: true },
     { id: 'profile_information', visible: true },
     { id: 'password_security', visible: true },
     { id: 'communications', visible: true },
@@ -635,12 +582,6 @@ export default function PreferencesPage() {
     setShowInDirectory(memberRecord.show_in_directory !== false);
   }, [memberRecord]);
 
-  // --- Load organisation logo from orgInfo ---
-  useEffect(() => {
-    if (organizationInfo) {
-      setOrganizationLogoUrl(organizationInfo.logo_url || "");
-    }
-  }, [organizationInfo]);
 
   // --- Load preferences from localStorage ---
   useEffect(() => {
@@ -683,28 +624,6 @@ export default function PreferencesPage() {
     }
   }, [memberPreferenceValues, preferenceFields]);
 
-  // --- Load organization custom field values from orgPreferenceValues ---
-  useEffect(() => {
-    if (orgPreferenceValues.length > 0 && orgPreferenceFields.length > 0) {
-      const valuesMap = {};
-      orgPreferenceValues.forEach(pv => {
-        const field = orgPreferenceFields.find(f => f.id === pv.field_id);
-        if (field) {
-          // For picklist, parse as array
-          if (field.field_type === 'picklist' && pv.value) {
-            try {
-              valuesMap[pv.field_id] = JSON.parse(pv.value);
-            } catch {
-              valuesMap[pv.field_id] = [];
-            }
-          } else {
-            valuesMap[pv.field_id] = pv.value || '';
-          }
-        }
-      });
-      setOrgCustomFieldValues(valuesMap);
-    }
-  }, [orgPreferenceValues, orgPreferenceFields]);
 
   // --- Mutations ---
   const savePreferencesMutation = useMutation({
@@ -748,27 +667,6 @@ export default function PreferencesPage() {
     },
   });
 
-  const updateOrganizationLogoMutation = useMutation({
-    mutationFn: async (logoUrl) => {
-      if (!organizationInfo?.id) throw new Error("No organization");
-      const { data, error } = await supabase
-        .from("organization")
-        .update({ logo_url: logoUrl })
-        .eq("id", organizationInfo.id)
-        .select()
-        .maybeSingle();
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["organization"] });
-      toast.success("Organisation logo updated successfully");
-      setHasUnsavedOrgLogo(false);
-    },
-    onError: () => {
-      toast.error("Failed to update organisation logo");
-    },
-  });
 
   // Save additional info (custom preference fields)
   const saveAdditionalInfoMutation = useMutation({
@@ -818,53 +716,6 @@ export default function PreferencesPage() {
     },
   });
 
-  // Save organization custom fields
-  const saveOrgCustomFieldsMutation = useMutation({
-    mutationFn: async (values) => {
-      if (!memberRecord?.organization_id) throw new Error("No organization");
-      
-      // For each field, upsert the value
-      const updates = Object.entries(values).map(async ([fieldId, value]) => {
-        const existingValue = orgPreferenceValues.find(pv => pv.field_id === fieldId);
-        const field = orgPreferenceFields.find(f => f.id === fieldId);
-        
-        // Convert picklist arrays to JSON string
-        let storedValue = value;
-        if (field?.field_type === 'picklist' && Array.isArray(value)) {
-          storedValue = JSON.stringify(value);
-        }
-        
-        if (existingValue) {
-          // Update existing
-          return await base44.entities.OrganizationPreferenceValue.update(existingValue.id, {
-            value: storedValue,
-            updated_at: new Date().toISOString()
-          });
-        } else {
-          // Create new
-          return await base44.entities.OrganizationPreferenceValue.create({
-            organization_id: memberRecord.organization_id,
-            field_id: fieldId,
-            value: storedValue
-          });
-        }
-      });
-      
-      await Promise.all(updates);
-      return values;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/entities/OrganizationPreferenceValue", memberRecord?.organization_id] });
-      toast.success("Organisation information saved successfully");
-      setHasUnsavedOrgCustomFields(false);
-      setIsSavingOrgCustomFields(false);
-    },
-    onError: (error) => {
-      console.error("Failed to save organization info:", error);
-      toast.error("Failed to save organisation information");
-      setIsSavingOrgCustomFields(false);
-    },
-  });
 
   // --- Handlers ---
   const handlePhotoUpload = async (e) => {
@@ -899,41 +750,6 @@ export default function PreferencesPage() {
     }
   };
 
-  const handleOrgLogoUpload = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      toast.error("Please select an image file");
-      return;
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Image must be less than 5MB");
-      return;
-    }
-
-    setIsUploadingOrgLogo(true);
-    try {
-      const folder = organizationInfo?.id || "organization";
-      const publicUrl = await uploadImageToSupabase(
-        file,
-        "organization-logos",
-        folder
-      );
-      setOrganizationLogoUrl(publicUrl);
-      setHasUnsavedOrgLogo(true);
-      toast.success("Logo uploaded successfully");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to upload logo");
-    } finally {
-      setIsUploadingOrgLogo(false);
-    }
-  };
-
-  const handleSaveOrgLogo = () => {
-    updateOrganizationLogoMutation.mutate(organizationLogoUrl);
-  };
 
   const handleSavePreferences = () => {
     setIsSaving(true);
@@ -971,32 +787,6 @@ export default function PreferencesPage() {
     saveAdditionalInfoMutation.mutate(additionalInfoValues);
   };
 
-  // Handle organization custom field changes
-  const handleOrgCustomFieldChange = (fieldId, value) => {
-    setOrgCustomFieldValues(prev => ({
-      ...prev,
-      [fieldId]: value
-    }));
-    setHasUnsavedOrgCustomFields(true);
-  };
-
-  // Handle organization picklist checkbox toggle
-  const handleOrgPicklistToggle = (fieldId, optionValue, checked) => {
-    setOrgCustomFieldValues(prev => {
-      const currentValues = Array.isArray(prev[fieldId]) ? prev[fieldId] : [];
-      const newValues = checked 
-        ? [...currentValues, optionValue]
-        : currentValues.filter(v => v !== optionValue);
-      return { ...prev, [fieldId]: newValues };
-    });
-    setHasUnsavedOrgCustomFields(true);
-  };
-
-  // Save organization custom fields
-  const handleSaveOrgCustomFields = () => {
-    setIsSavingOrgCustomFields(true);
-    saveOrgCustomFieldsMutation.mutate(orgCustomFieldValues);
-  };
 
   const handleSaveProfile = () => {
     const wordCount = biography
@@ -1194,12 +984,6 @@ export default function PreferencesPage() {
     memberRecord,
   ]);
 
-  useEffect(() => {
-    if (!organizationInfo) return;
-    const changed =
-      organizationLogoUrl !== (organizationInfo.logo_url || "");
-    setHasUnsavedOrgLogo(changed);
-  }, [organizationLogoUrl, organizationInfo]);
 
   // --- Filters / derived values ---
   const filteredCategories = categories.filter((cat) => {
@@ -1248,218 +1032,6 @@ export default function PreferencesPage() {
   // --- Render section by ID for dynamic ordering ---
   const renderSection = (sectionId) => {
     switch (sectionId) {
-      case 'organization_logo':
-        if (!organizationInfo || isTeamMember) return null;
-        return (
-          <Card key="organization_logo" className="border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle>Organisation Logo</CardTitle>
-              <CardDescription>
-                Upload your organisation's logo for the directory
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label>Logo</Label>
-                <div className="flex items-center gap-4">
-                  <div className="w-24 h-24 rounded-lg bg-slate-100 flex items-center justify-center overflow-hidden border-2 border-slate-200">
-                    {organizationLogoUrl ? (
-                      <img
-                        src={organizationLogoUrl}
-                        alt="Organisation Logo"
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <Building2 className="w-12 h-12 text-slate-400" />
-                    )}
-                  </div>
-                  <div>
-                    <input
-                      type="file"
-                      id="org-logo-upload"
-                      accept="image/*"
-                      onChange={handleOrgLogoUpload}
-                      className="hidden"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      disabled={isUploadingOrgLogo}
-                      onClick={() =>
-                        document.getElementById("org-logo-upload").click()
-                      }
-                    >
-                      {isUploadingOrgLogo ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Uploading...
-                        </>
-                      ) : (
-                        <>
-                          <Upload className="w-4 h-4 mr-2" />
-                          Upload Logo
-                        </>
-                      )}
-                    </Button>
-                    <p className="text-xs text-slate-500 mt-1">
-                      JPG, PNG or GIF. Max 5MB.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {hasUnsavedOrgLogo && (
-                <div className="flex justify-end pt-4">
-                  <Button
-                    onClick={handleSaveOrgLogo}
-                    disabled={updateOrganizationLogoMutation.isPending}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    {updateOrganizationLogoMutation.isPending ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Logo
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-
-      case 'organization_custom_fields':
-        // Only show if user belongs to an organization, not a team member, and there are org fields
-        if (!organizationInfo || isTeamMember || orgPreferenceFields.length === 0) return null;
-        return (
-          <Card key="organization_custom_fields" className="border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ClipboardList className="w-5 h-5 text-blue-600" />
-                Organisation Information
-              </CardTitle>
-              <CardDescription>
-                Additional information about {organizationInfo.name}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {orgPreferenceFieldsLoading ? (
-                <div className="flex items-center justify-center py-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {orgPreferenceFields.map((field) => {
-                    const fieldValue = orgCustomFieldValues[field.id] || '';
-                    
-                    return (
-                      <div key={field.id} className="space-y-2">
-                        <Label htmlFor={`org-field-${field.id}`}>
-                          {field.label}
-                          {field.is_required && <span className="text-red-500 ml-1">*</span>}
-                        </Label>
-                        
-                        {field.field_type === 'text' && (
-                          <Input
-                            id={`org-field-${field.id}`}
-                            value={fieldValue}
-                            onChange={(e) => handleOrgCustomFieldChange(field.id, e.target.value)}
-                            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-                            data-testid={`input-org-field-${field.id}`}
-                          />
-                        )}
-                        
-                        {field.field_type === 'textarea' && (
-                          <Textarea
-                            id={`org-field-${field.id}`}
-                            value={fieldValue}
-                            onChange={(e) => handleOrgCustomFieldChange(field.id, e.target.value)}
-                            placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}`}
-                            rows={3}
-                            data-testid={`textarea-org-field-${field.id}`}
-                          />
-                        )}
-                        
-                        {field.field_type === 'dropdown' && field.options && (
-                          <Select
-                            value={fieldValue}
-                            onValueChange={(value) => handleOrgCustomFieldChange(field.id, value)}
-                          >
-                            <SelectTrigger data-testid={`select-org-field-${field.id}`}>
-                              <SelectValue placeholder={`Select ${field.label.toLowerCase()}`} />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {field.options.map((option) => (
-                                <SelectItem key={option.value} value={option.value}>
-                                  {option.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        )}
-                        
-                        {field.field_type === 'picklist' && field.options && (
-                          <div className="space-y-2">
-                            {field.options.map((option) => {
-                              const isChecked = Array.isArray(fieldValue) && fieldValue.includes(option.value);
-                              return (
-                                <div key={option.value} className="flex items-center space-x-2">
-                                  <Checkbox
-                                    id={`org-field-${field.id}-${option.value}`}
-                                    checked={isChecked}
-                                    onCheckedChange={(checked) => 
-                                      handleOrgPicklistToggle(field.id, option.value, checked)
-                                    }
-                                    data-testid={`checkbox-org-field-${field.id}-${option.value}`}
-                                  />
-                                  <label
-                                    htmlFor={`org-field-${field.id}-${option.value}`}
-                                    className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                                  >
-                                    {option.label}
-                                  </label>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {hasUnsavedOrgCustomFields && (
-                <div className="flex justify-end pt-4">
-                  <Button
-                    onClick={handleSaveOrgCustomFields}
-                    disabled={isSavingOrgCustomFields}
-                    className="bg-blue-600 hover:bg-blue-700"
-                    data-testid="button-save-org-custom-fields"
-                  >
-                    {isSavingOrgCustomFields ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Saving...
-                      </>
-                    ) : (
-                      <>
-                        <Save className="w-4 h-4 mr-2" />
-                        Save Changes
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        );
-
       case 'profile_information':
         return (
           <Card key="profile_information" className="border-slate-200 shadow-sm">

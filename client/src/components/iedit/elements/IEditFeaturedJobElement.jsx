@@ -23,6 +23,7 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     heading_font_size = 55,
     heading_line_height = 0.91,
     heading_color = '#000000',
+    heading_letter_spacing = 0,
     
     subheading = '',
     subheading_font_family = 'Poppins',
@@ -31,7 +32,7 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     
     button_text = 'View All Jobs',
     button_url = '/JobBoard',
-    button_style = 'outline', // outline or filled
+    button_style = 'outline',
     button_color = '#000000',
     button_font_family = 'Poppins',
     
@@ -42,10 +43,24 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
     right_side_color = '#1a1a2e',
     card_background = '#FFFFFF',
     
+    // Right side static header
+    right_header_text = '',
+    right_header_font_family = 'Poppins',
+    right_header_font_size = 14,
+    right_header_letter_spacing = 0.31,
+    right_header_color = '#FFFFFF',
+    right_header_underline_enabled = true,
+    right_header_underline_color = 'rgba(255,255,255,0.5)',
+    right_header_underline_width = 36,
+    right_header_underline_weight = 2,
+    right_header_underline_spacing = 8,
+    right_header_underline_to_content_spacing = 24,
+    
     // Right side job display
     job_title_font_family = 'Poppins',
     job_title_font_size = 32,
     job_title_color = '#FFFFFF',
+    job_title_letter_spacing = 0,
     job_detail_font_family = 'Poppins',
     job_detail_font_size = 16,
     job_detail_color = '#FFFFFF',
@@ -125,6 +140,7 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
             {/* Right - Job details */}
             {featuredJob && (
               <div className="flex-1">
+                <RightSideHeader content={content} colorOverride="#FFFFFF" />
                 <JobDetails 
                   job={featuredJob}
                   content={content}
@@ -176,8 +192,10 @@ export default function IEditFeaturedJobElement({ content, variant, settings }) 
             </div>
           </div>
 
-          {/* Right column - Dynamic job content */}
-          <div className="flex items-center justify-center lg:justify-start lg:pl-8">
+          {/* Right column - Static header + Dynamic job content */}
+          <div className="flex flex-col justify-center lg:pl-8">
+            <RightSideHeader content={content} />
+            
             {isLoading ? (
               <div className="animate-pulse space-y-4 w-full">
                 <div className="h-8 bg-white/20 rounded w-3/4" />
@@ -222,6 +240,7 @@ function StaticContent({ content, textColorOverride, underlineColorOverride }) {
     heading_font_size = 55,
     heading_line_height = 0.91,
     heading_color = '#000000',
+    heading_letter_spacing = 0,
     
     subheading = '',
     subheading_font_family = 'Poppins',
@@ -275,6 +294,7 @@ function StaticContent({ content, textColorOverride, underlineColorOverride }) {
           fontFamily: heading_font_family,
           fontSize: `${heading_font_size}px`,
           lineHeight: `${heading_line_height}em`,
+          letterSpacing: `${heading_letter_spacing}px`,
           color: headingColorFinal
         }}
       >
@@ -322,11 +342,58 @@ function StaticContent({ content, textColorOverride, underlineColorOverride }) {
   );
 }
 
+function RightSideHeader({ content, colorOverride }) {
+  const {
+    right_header_text = '',
+    right_header_font_family = 'Poppins',
+    right_header_font_size = 14,
+    right_header_letter_spacing = 0.31,
+    right_header_color = '#FFFFFF',
+    right_header_underline_enabled = true,
+    right_header_underline_color = 'rgba(255,255,255,0.5)',
+    right_header_underline_width = 36,
+    right_header_underline_weight = 2,
+    right_header_underline_spacing = 8,
+    right_header_underline_to_content_spacing = 24
+  } = content || {};
+
+  if (!right_header_text) return null;
+
+  const headerColor = colorOverride || right_header_color;
+
+  return (
+    <div style={{ marginBottom: `${right_header_underline_to_content_spacing}px` }}>
+      <span 
+        className="font-bold uppercase"
+        style={{ 
+          fontFamily: right_header_font_family,
+          fontSize: `${right_header_font_size}px`,
+          letterSpacing: `${right_header_letter_spacing}em`,
+          color: headerColor
+        }}
+      >
+        {right_header_text}
+      </span>
+      {right_header_underline_enabled && (
+        <div 
+          style={{ 
+            marginTop: `${right_header_underline_spacing}px`,
+            width: `${right_header_underline_width}px`,
+            height: `${right_header_underline_weight}px`,
+            background: right_header_underline_color
+          }} 
+        />
+      )}
+    </div>
+  );
+}
+
 function JobDetails({ job, content, formatClosingDate, isClosingSoon }) {
   const {
     job_title_font_family = 'Poppins',
     job_title_font_size = 32,
     job_title_color = '#FFFFFF',
+    job_title_letter_spacing = 0,
     job_detail_font_family = 'Poppins',
     job_detail_font_size = 16,
     job_detail_color = '#FFFFFF',
@@ -353,6 +420,7 @@ function JobDetails({ job, content, formatClosingDate, isClosingSoon }) {
         style={{
           fontFamily: job_title_font_family,
           fontSize: `${job_title_font_size}px`,
+          letterSpacing: `${job_title_letter_spacing}px`,
           color: job_title_color
         }}
       >
@@ -564,98 +632,186 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
       <div className="border-t pt-4 space-y-4">
         <h4 className="font-semibold text-sm uppercase tracking-wide text-slate-500">Left Side - Static Content</h4>
         
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Header Label</label>
-            <input 
-              type="text"
-              value={content.header_label || 'JOBS'}
-              onChange={(e) => updateContent('header_label', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-            />
+        {/* Header Label */}
+        <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+          <div className="text-xs font-semibold text-slate-400 uppercase">Header Label</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Text</label>
+              <input 
+                type="text"
+                value={content.header_label || 'JOBS'}
+                onChange={(e) => updateContent('header_label', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Font Family</label>
+              <input 
+                type="text"
+                value={content.header_label_font_family || 'Poppins'}
+                onChange={(e) => updateContent('header_label_font_family', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Label Font Size</label>
-            <input 
-              type="number"
-              value={content.header_label_font_size || 14}
-              onChange={(e) => updateContent('header_label_font_size', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border rounded-md"
-            />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Size (px)</label>
+              <input 
+                type="number"
+                value={content.header_label_font_size || 14}
+                onChange={(e) => updateContent('header_label_font_size', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Letter Spacing (em)</label>
+              <input 
+                type="number"
+                value={content.header_label_letter_spacing || 0.31}
+                onChange={(e) => updateContent('header_label_letter_spacing', parseFloat(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+                step="0.01"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Color</label>
+              <div className="flex gap-1">
+                <input 
+                  type="color"
+                  value={content.header_label_color || '#000000'}
+                  onChange={(e) => updateContent('header_label_color', e.target.value)}
+                  className="w-10 h-10 rounded border cursor-pointer"
+                />
+                <input 
+                  type="text"
+                  value={content.header_label_color || '#000000'}
+                  onChange={(e) => updateContent('header_label_color', e.target.value)}
+                  className="flex-1 px-2 py-2 border rounded-md text-sm"
+                />
+              </div>
+            </div>
           </div>
-        </div>
 
-        <div className="flex items-center gap-4">
-          <label className="flex items-center gap-2">
+          {/* Underline */}
+          <div className="flex items-center gap-2 mt-2">
             <input 
               type="checkbox"
               checked={content.show_header_underline !== false}
               onChange={(e) => updateContent('show_header_underline', e.target.checked)}
               className="rounded"
             />
-            <span className="text-sm">Show underline</span>
-          </label>
+            <span className="text-sm font-medium">Show Line Below</span>
+          </div>
           {content.show_header_underline !== false && (
-            <div className="flex items-center gap-2">
-              <input 
-                type="color"
-                value={content.header_underline_color || '#000000'}
-                onChange={(e) => updateContent('header_underline_color', e.target.value)}
-                className="w-8 h-8 rounded border cursor-pointer"
-              />
-              <input 
-                type="number"
-                value={content.header_underline_width || 36}
-                onChange={(e) => updateContent('header_underline_width', parseInt(e.target.value))}
-                className="w-16 px-2 py-1 border rounded-md text-sm"
-                placeholder="Width"
-              />
+            <div className="grid grid-cols-3 gap-3 mt-2">
+              <div className="space-y-1">
+                <label className="text-sm">Line Color</label>
+                <input 
+                  type="color"
+                  value={content.header_underline_color || '#000000'}
+                  onChange={(e) => updateContent('header_underline_color', e.target.value)}
+                  className="w-full h-10 rounded border cursor-pointer"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm">Width (px)</label>
+                <input 
+                  type="number"
+                  value={content.header_underline_width || 36}
+                  onChange={(e) => updateContent('header_underline_width', parseInt(e.target.value))}
+                  className="w-full px-2 py-2 border rounded-md"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-sm">Weight (px)</label>
+                <input 
+                  type="number"
+                  value={content.header_underline_weight || 2}
+                  onChange={(e) => updateContent('header_underline_weight', parseInt(e.target.value))}
+                  className="w-full px-2 py-2 border rounded-md"
+                />
+              </div>
             </div>
           )}
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Main Heading</label>
-          <textarea 
-            value={content.main_heading || 'Featured\nOpportunity'}
-            onChange={(e) => updateContent('main_heading', e.target.value)}
-            className="w-full px-3 py-2 border rounded-md"
-            rows={2}
-            placeholder="Use line breaks for multi-line headings"
-          />
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
+        {/* Main Heading */}
+        <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+          <div className="text-xs font-semibold text-slate-400 uppercase">Main Heading</div>
           <div className="space-y-2">
-            <label className="text-sm font-medium">Heading Font Size</label>
-            <input 
-              type="number"
-              value={content.heading_font_size || 55}
-              onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value))}
+            <textarea 
+              value={content.main_heading || 'Featured\nOpportunity'}
+              onChange={(e) => updateContent('main_heading', e.target.value)}
               className="w-full px-3 py-2 border rounded-md"
+              rows={2}
+              placeholder="Use line breaks for multi-line headings"
             />
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Heading Color</label>
-            <div className="flex gap-2">
-              <input 
-                type="color"
-                value={content.heading_color || '#000000'}
-                onChange={(e) => updateContent('heading_color', e.target.value)}
-                className="w-10 h-10 rounded border cursor-pointer"
-              />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Font Family</label>
               <input 
                 type="text"
-                value={content.heading_color || '#000000'}
-                onChange={(e) => updateContent('heading_color', e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-md"
+                value={content.heading_font_family || 'inherit'}
+                onChange={(e) => updateContent('heading_font_family', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
               />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Size (px)</label>
+              <input 
+                type="number"
+                value={content.heading_font_size || 55}
+                onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Line Height (em)</label>
+              <input 
+                type="number"
+                value={content.heading_line_height || 0.91}
+                onChange={(e) => updateContent('heading_line_height', parseFloat(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+                step="0.01"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Letter Spacing (px)</label>
+              <input 
+                type="number"
+                value={content.heading_letter_spacing || 0}
+                onChange={(e) => updateContent('heading_letter_spacing', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Color</label>
+              <div className="flex gap-1">
+                <input 
+                  type="color"
+                  value={content.heading_color || '#000000'}
+                  onChange={(e) => updateContent('heading_color', e.target.value)}
+                  className="w-10 h-10 rounded border cursor-pointer"
+                />
+                <input 
+                  type="text"
+                  value={content.heading_color || '#000000'}
+                  onChange={(e) => updateContent('heading_color', e.target.value)}
+                  className="flex-1 px-2 py-2 border rounded-md text-sm"
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Subheading (optional)</label>
+        {/* Subheading */}
+        <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+          <div className="text-xs font-semibold text-slate-400 uppercase">Subheading (Optional)</div>
           <textarea 
             value={content.subheading || ''}
             onChange={(e) => updateContent('subheading', e.target.value)}
@@ -663,58 +819,231 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
             rows={2}
             placeholder="Additional descriptive text"
           />
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm">Font Family</label>
+              <input 
+                type="text"
+                value={content.subheading_font_family || 'Poppins'}
+                onChange={(e) => updateContent('subheading_font_family', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm">Size (px)</label>
+              <input 
+                type="number"
+                value={content.subheading_font_size || 18}
+                onChange={(e) => updateContent('subheading_font_size', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm">Color</label>
+              <input 
+                type="color"
+                value={content.subheading_color || '#666666'}
+                onChange={(e) => updateContent('subheading_color', e.target.value)}
+                className="w-full h-10 rounded border cursor-pointer"
+              />
+            </div>
+          </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Button Text</label>
-            <input 
-              type="text"
-              value={content.button_text || 'View All Jobs'}
-              onChange={(e) => updateContent('button_text', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-            />
+        {/* Button */}
+        <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+          <div className="text-xs font-semibold text-slate-400 uppercase">Button</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Text</label>
+              <input 
+                type="text"
+                value={content.button_text || 'View All Jobs'}
+                onChange={(e) => updateContent('button_text', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">URL</label>
+              <input 
+                type="text"
+                value={content.button_url || '/JobBoard'}
+                onChange={(e) => updateContent('button_url', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Button URL</label>
-            <input 
-              type="text"
-              value={content.button_url || '/JobBoard'}
-              onChange={(e) => updateContent('button_url', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-            />
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Button Style</label>
-            <select 
-              value={content.button_style || 'outline'}
-              onChange={(e) => updateContent('button_style', e.target.value)}
-              className="w-full px-3 py-2 border rounded-md"
-            >
-              <option value="outline">Outline</option>
-              <option value="filled">Filled</option>
-            </select>
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Button Color</label>
-            <div className="flex gap-2">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm">Style</label>
+              <select 
+                value={content.button_style || 'outline'}
+                onChange={(e) => updateContent('button_style', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              >
+                <option value="outline">Outline</option>
+                <option value="filled">Filled</option>
+              </select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm">Font Family</label>
+              <input 
+                type="text"
+                value={content.button_font_family || 'Poppins'}
+                onChange={(e) => updateContent('button_font_family', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm">Color</label>
               <input 
                 type="color"
                 value={content.button_color || '#000000'}
                 onChange={(e) => updateContent('button_color', e.target.value)}
-                className="w-10 h-10 rounded border cursor-pointer"
-              />
-              <input 
-                type="text"
-                value={content.button_color || '#000000'}
-                onChange={(e) => updateContent('button_color', e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-md"
+                className="w-full h-10 rounded border cursor-pointer"
               />
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* Right Side - Static Header */}
+      <div className="border-t pt-4 space-y-4">
+        <h4 className="font-semibold text-sm uppercase tracking-wide text-slate-500">Right Side - Static Header</h4>
+        
+        <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Header Text</label>
+              <input 
+                type="text"
+                value={content.right_header_text || ''}
+                onChange={(e) => updateContent('right_header_text', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="e.g., FEATURED OPPORTUNITY"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Font Family</label>
+              <input 
+                type="text"
+                value={content.right_header_font_family || 'Poppins'}
+                onChange={(e) => updateContent('right_header_font_family', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Size (px)</label>
+              <input 
+                type="number"
+                value={content.right_header_font_size || 14}
+                onChange={(e) => updateContent('right_header_font_size', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Letter Spacing (em)</label>
+              <input 
+                type="number"
+                value={content.right_header_letter_spacing || 0.31}
+                onChange={(e) => updateContent('right_header_letter_spacing', parseFloat(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+                step="0.01"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Color</label>
+              <div className="flex gap-1">
+                <input 
+                  type="color"
+                  value={content.right_header_color || '#FFFFFF'}
+                  onChange={(e) => updateContent('right_header_color', e.target.value)}
+                  className="w-10 h-10 rounded border cursor-pointer"
+                />
+                <input 
+                  type="text"
+                  value={content.right_header_color || '#FFFFFF'}
+                  onChange={(e) => updateContent('right_header_color', e.target.value)}
+                  className="flex-1 px-2 py-2 border rounded-md text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Line Below */}
+          <div className="flex items-center gap-2 mt-2">
+            <input 
+              type="checkbox"
+              checked={content.right_header_underline_enabled !== false}
+              onChange={(e) => updateContent('right_header_underline_enabled', e.target.checked)}
+              className="rounded"
+            />
+            <span className="text-sm font-medium">Show Line Below</span>
+          </div>
+          {content.right_header_underline_enabled !== false && (
+            <>
+              <div className="grid grid-cols-3 gap-3 mt-2">
+                <div className="space-y-1">
+                  <label className="text-sm">Line Color</label>
+                  <input 
+                    type="text"
+                    value={content.right_header_underline_color || 'rgba(255,255,255,0.5)'}
+                    onChange={(e) => updateContent('right_header_underline_color', e.target.value)}
+                    className="w-full px-2 py-2 border rounded-md text-sm"
+                    placeholder="rgba or hex"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm">Width (px)</label>
+                  <input 
+                    type="number"
+                    value={content.right_header_underline_width || 36}
+                    onChange={(e) => updateContent('right_header_underline_width', parseInt(e.target.value))}
+                    className="w-full px-2 py-2 border rounded-md"
+                    min="10"
+                    max="500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm">Weight (px)</label>
+                  <input 
+                    type="number"
+                    value={content.right_header_underline_weight || 2}
+                    onChange={(e) => updateContent('right_header_underline_weight', parseInt(e.target.value))}
+                    className="w-full px-2 py-2 border rounded-md"
+                    min="1"
+                    max="10"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm">Spacing from Header (px)</label>
+                  <input 
+                    type="number"
+                    value={content.right_header_underline_spacing || 8}
+                    onChange={(e) => updateContent('right_header_underline_spacing', parseInt(e.target.value))}
+                    className="w-full px-2 py-2 border rounded-md"
+                    min="0"
+                    max="50"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm">Spacing to Content (px)</label>
+                  <input 
+                    type="number"
+                    value={content.right_header_underline_to_content_spacing || 24}
+                    onChange={(e) => updateContent('right_header_underline_to_content_spacing', parseInt(e.target.value))}
+                    className="w-full px-2 py-2 border rounded-md"
+                    min="0"
+                    max="100"
+                  />
+                </div>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -722,85 +1051,141 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
       <div className="border-t pt-4 space-y-4">
         <h4 className="font-semibold text-sm uppercase tracking-wide text-slate-500">Right Side - Job Details</h4>
         
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Job Title Font Size</label>
-            <input 
-              type="number"
-              value={content.job_title_font_size || 32}
-              onChange={(e) => updateContent('job_title_font_size', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border rounded-md"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Job Title Color</label>
-            <div className="flex gap-2">
-              <input 
-                type="color"
-                value={content.job_title_color || '#FFFFFF'}
-                onChange={(e) => updateContent('job_title_color', e.target.value)}
-                className="w-10 h-10 rounded border cursor-pointer"
-              />
+        {/* Job Title */}
+        <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+          <div className="text-xs font-semibold text-slate-400 uppercase">Job Title (Dynamic)</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Font Family</label>
               <input 
                 type="text"
-                value={content.job_title_color || '#FFFFFF'}
-                onChange={(e) => updateContent('job_title_color', e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-md"
+                value={content.job_title_font_family || 'Poppins'}
+                onChange={(e) => updateContent('job_title_font_family', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Size (px)</label>
+              <input 
+                type="number"
+                value={content.job_title_font_size || 32}
+                onChange={(e) => updateContent('job_title_font_size', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Letter Spacing (px)</label>
+              <input 
+                type="number"
+                value={content.job_title_letter_spacing || 0}
+                onChange={(e) => updateContent('job_title_letter_spacing', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Color</label>
+              <div className="flex gap-1">
+                <input 
+                  type="color"
+                  value={content.job_title_color || '#FFFFFF'}
+                  onChange={(e) => updateContent('job_title_color', e.target.value)}
+                  className="w-10 h-10 rounded border cursor-pointer"
+                />
+                <input 
+                  type="text"
+                  value={content.job_title_color || '#FFFFFF'}
+                  onChange={(e) => updateContent('job_title_color', e.target.value)}
+                  className="flex-1 px-2 py-2 border rounded-md text-sm"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Detail Rows */}
+        <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+          <div className="text-xs font-semibold text-slate-400 uppercase">Detail Rows</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Font Family</label>
+              <input 
+                type="text"
+                value={content.job_detail_font_family || 'Poppins'}
+                onChange={(e) => updateContent('job_detail_font_family', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Size (px)</label>
+              <input 
+                type="number"
+                value={content.job_detail_font_size || 16}
+                onChange={(e) => updateContent('job_detail_font_size', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Color</label>
+              <div className="flex gap-1">
+                <input 
+                  type="color"
+                  value={content.job_detail_color || '#FFFFFF'}
+                  onChange={(e) => updateContent('job_detail_color', e.target.value)}
+                  className="w-10 h-10 rounded border cursor-pointer"
+                />
+                <input 
+                  type="text"
+                  value={content.job_detail_color || '#FFFFFF'}
+                  onChange={(e) => updateContent('job_detail_color', e.target.value)}
+                  className="flex-1 px-2 py-2 border rounded-md text-sm"
+                />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Opacity</label>
+              <input 
+                type="number"
+                value={content.job_detail_opacity || 0.9}
+                onChange={(e) => updateContent('job_detail_opacity', parseFloat(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+                step="0.1"
+                min="0"
+                max="1"
               />
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Detail Font Size</label>
-            <input 
-              type="number"
-              value={content.job_detail_font_size || 16}
-              onChange={(e) => updateContent('job_detail_font_size', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border rounded-md"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-sm font-medium">Detail Color</label>
-            <div className="flex gap-2">
-              <input 
-                type="color"
-                value={content.job_detail_color || '#FFFFFF'}
-                onChange={(e) => updateContent('job_detail_color', e.target.value)}
-                className="w-10 h-10 rounded border cursor-pointer"
-              />
+        {/* Divider Lines */}
+        <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+          <div className="text-xs font-semibold text-slate-400 uppercase">Divider Lines</div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Color</label>
               <input 
                 type="text"
-                value={content.job_detail_color || '#FFFFFF'}
-                onChange={(e) => updateContent('job_detail_color', e.target.value)}
-                className="flex-1 px-3 py-2 border rounded-md"
+                value={content.divider_color || 'rgba(255,255,255,0.3)'}
+                onChange={(e) => updateContent('divider_color', e.target.value)}
+                className="w-full px-3 py-2 border rounded-md"
+                placeholder="rgba or hex"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-sm font-medium">Weight (px)</label>
+              <input 
+                type="number"
+                value={content.divider_weight || 1}
+                onChange={(e) => updateContent('divider_weight', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border rounded-md"
+                min="1"
+                max="5"
               />
             </div>
           </div>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Divider Line Color</label>
-          <input 
-            type="text"
-            value={content.divider_color || 'rgba(255,255,255,0.3)'}
-            onChange={(e) => updateContent('divider_color', e.target.value)}
-            className="w-full px-3 py-2 border rounded-md"
-            placeholder="e.g., rgba(255,255,255,0.3) or #FFFFFF"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium">Divider Weight (px)</label>
-          <input 
-            type="number"
-            value={content.divider_weight || 1}
-            onChange={(e) => updateContent('divider_weight', parseInt(e.target.value))}
-            className="w-full px-3 py-2 border rounded-md"
-            min="1"
-            max="5"
-          />
         </div>
       </div>
 

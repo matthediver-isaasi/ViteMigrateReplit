@@ -937,7 +937,8 @@ export default function AwardManagementPage() {
       is_active: sublevelFormData.is_active
     };
 
-    // Set the appropriate award ID based on award type
+    // Set the appropriate award ID and category based on award type
+    data.award_category = managingSublevelsForAward.type;
     if (managingSublevelsForAward.type === 'online') {
       data.award_id = managingSublevelsForAward.id;
     } else if (managingSublevelsForAward.type === 'offline') {

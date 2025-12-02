@@ -140,7 +140,14 @@ export default function EventsPage({
     console.error("[Events] eventsError:", eventsError);
   }
 
-  const programs = ["all", ...new Set(events.map((e) => e.program_tag).filter(Boolean))];
+  // Build programs list including a "One-off Events" option if there are any
+  const programTags = [...new Set(events.map((e) => e.program_tag).filter(Boolean))];
+  const hasOneOffEvents = events.some(e => !e.program_tag || e.program_tag === "");
+  const programs = [
+    "all", 
+    ...(hasOneOffEvents ? ["one-off"] : []),
+    ...programTags
+  ];
 
   const getTicketBalance = (programTag) => {
     if (!organizationInfo?.program_ticket_balances) return 0;
@@ -166,7 +173,16 @@ export default function EventsPage({
     const matchesSearch =
       event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesProgram = selectedProgram === "all" || event.program_tag === selectedProgram;
+    
+    // Handle program filtering including one-off events
+    let matchesProgram = false;
+    if (selectedProgram === "all") {
+      matchesProgram = true;
+    } else if (selectedProgram === "one-off") {
+      matchesProgram = !event.program_tag || event.program_tag === "";
+    } else {
+      matchesProgram = event.program_tag === selectedProgram;
+    }
     
     // Filter out past events unless showPastEvents is enabled
     const matchesTimeFilter = showPastEvents || !isEventPast(event);
@@ -185,7 +201,17 @@ export default function EventsPage({
     const matchesSearch =
       event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesProgram = selectedProgram === "all" || event.program_tag === selectedProgram;
+    
+    // Use same program matching logic
+    let matchesProgram = false;
+    if (selectedProgram === "all") {
+      matchesProgram = true;
+    } else if (selectedProgram === "one-off") {
+      matchesProgram = !event.program_tag || event.program_tag === "";
+    } else {
+      matchesProgram = event.program_tag === selectedProgram;
+    }
+    
     return matchesSearch && matchesProgram && isEventPast(event);
   }).length;
 

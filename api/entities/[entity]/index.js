@@ -132,13 +132,17 @@ export default async function handler(req, res) {
 
     } else if (req.method === 'POST') {
       // Create entity
+      console.log(`POST to ${tableName}:`, JSON.stringify(req.body));
       const { data, error } = await supabase
         .from(tableName)
         .insert(req.body)
         .select()
         .single();
 
-      if (error) return res.status(500).json({ error: error.message });
+      if (error) {
+        console.error(`Error inserting into ${tableName}:`, error);
+        return res.status(500).json({ error: error.message, details: error.details, hint: error.hint, code: error.code });
+      }
       return res.status(201).json(data);
     }
 

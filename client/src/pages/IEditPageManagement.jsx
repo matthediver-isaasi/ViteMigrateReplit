@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileEdit, Plus, Eye, Pencil, Trash2, ExternalLink, Search, Zap, Copy } from "lucide-react";
+import { FileEdit, Plus, Eye, Pencil, Trash2, ExternalLink, Search, Zap, Copy, Home } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
@@ -48,6 +48,17 @@ export default function IEditPageManagementPage() {
   const { data: pages = [], isLoading } = useQuery({
     queryKey: ['iedit-pages'],
     queryFn: () => base44.entities.IEditPage.list(),
+    staleTime: 0
+  });
+
+  // Query for current home page setting
+  const { data: homePageSlug } = useQuery({
+    queryKey: ['home-page-setting'],
+    queryFn: async () => {
+      const settings = await base44.entities.SystemSettings.list();
+      const homeSetting = settings.find(s => s.setting_key === 'public_home_page_slug');
+      return homeSetting?.setting_value || null;
+    },
     staleTime: 0
   });
 
@@ -150,6 +161,44 @@ export default function IEditPageManagementPage() {
     },
     onError: (error) => {
       toast.error('Failed to duplicate page: ' + error.message);
+    }
+  });
+
+  // Mutation to toggle home page
+  const toggleHomePageMutation = useMutation({
+    mutationFn: async (page) => {
+      const settings = await base44.entities.SystemSettings.list();
+      const existingSetting = settings.find(s => s.setting_key === 'public_home_page_slug');
+      
+      // If this page is already the home page, remove it
+      const isCurrentlyHome = homePageSlug === page.slug;
+      const newSlug = isCurrentlyHome ? '' : page.slug;
+      
+      if (existingSetting) {
+        await base44.entities.SystemSettings.update(existingSetting.id, {
+          setting_value: newSlug
+        });
+      } else {
+        await base44.entities.SystemSettings.create({
+          setting_key: 'public_home_page_slug',
+          setting_value: newSlug,
+          setting_type: 'string',
+          description: 'The slug of the page to display as the public home page'
+        });
+      }
+      
+      return { slug: newSlug, wasHome: isCurrentlyHome };
+    },
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({ queryKey: ['home-page-setting'] });
+      if (result.wasHome) {
+        toast.success('Home page removed. Default Events page will be shown.');
+      } else {
+        toast.success(`Home page set! Visitors to the root URL will now see /${result.slug}`);
+      }
+    },
+    onError: (error) => {
+      toast.error('Failed to update home page: ' + error.message);
     }
   });
 
@@ -271,7 +320,15 @@ export default function IEditPageManagementPage() {
               <Card key={page.id} className="border-slate-200 hover:shadow-lg transition-shadow">
                 <CardHeader>
                   <div className="flex items-start justify-between mb-2">
-                    <CardTitle className="text-lg">{page.title}</CardTitle>
+                    <div className="flex items-center gap-2">
+                      <CardTitle className="text-lg">{page.title}</CardTitle>
+                      {homePageSlug === page.slug && (
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-300">
+                          <Home className="w-3 h-3 mr-1" />
+                          Home
+                        </Badge>
+                      )}
+                    </div>
                     <Badge className={getStatusBadge(page.status)}>
                       {page.status}
                     </Badge>
@@ -361,6 +418,25 @@ export default function IEditPageManagementPage() {
                     <Zap className="w-3 h-3 mr-1" />
                     {page.status === 'published' ? 'Unpublish Page' : `Publish to /${page.slug}`}
                   </Button>
+
+                  {/* Home Page Toggle - only show for published public pages */}
+                  {page.status === 'published' && page.layout_type === 'public' && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleHomePageMutation.mutate(page)}
+                      disabled={toggleHomePageMutation.isPending}
+                      className={`w-full ${
+                        homePageSlug === page.slug
+                          ? 'bg-blue-100 text-blue-700 border-blue-300 hover:bg-blue-200'
+                          : 'text-blue-600 hover:text-blue-700 hover:bg-blue-50'
+                      }`}
+                      data-testid={`button-toggle-home-${page.id}`}
+                    >
+                      <Home className="w-3 h-3 mr-1" />
+                      {homePageSlug === page.slug ? 'Remove as Home Page' : 'Set as Home Page'}
+                    </Button>
+                  )}
                   
                   {/* Show live URL when published */}
                   {page.status === 'published' && (

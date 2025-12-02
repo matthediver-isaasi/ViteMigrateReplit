@@ -2,6 +2,8 @@ import Layout from "./Layout.jsx";
 
 import Events from "./Events";
 
+import HomePageRedirect from "./HomePageRedirect";
+
 import Home from "./Home";
 
 import AdminSetup from "./AdminSetup";
@@ -453,7 +455,7 @@ function PagesContent() {
         <Layout currentPageName={currentPage}>
             <Routes>            
                 
-                    <Route path="/" element={<Events />} />
+                    <Route path="/" element={<HomePageRedirect />} />
                 
                 
                 <Route path="/Events" element={<Events />} />

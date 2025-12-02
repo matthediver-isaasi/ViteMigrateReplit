@@ -38,6 +38,7 @@ const builtInPages = [
   { value: "BuyProgramTickets", label: "Buy Program Tickets" },
   { value: "CategoryManagement", label: "Category Management" },
   { value: "CommunicationsManagement", label: "Communications Management" },
+  { value: "CustomFieldsAdmin", label: "Custom Fields Admin" },
   { value: "Dashboard", label: "Dashboard" },
   { value: "DataExport", label: "Data Export" },
   { value: "DiscountCodeManagement", label: "Discount Code Management" },

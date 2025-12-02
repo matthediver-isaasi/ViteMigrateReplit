@@ -74,6 +74,7 @@ const builtInPages = [
   { value: "MyArticles", label: "My Articles" },
   { value: "MyJobPostings", label: "My Job Postings" },
   { value: "MyNews", label: "My News" },
+  { value: "MyOrganisation", label: "My Organisation" },
   { value: "MyTickets", label: "My Tickets" },
   { value: "NavigationManagement", label: "Navigation Items" },
   { value: "News", label: "News" },

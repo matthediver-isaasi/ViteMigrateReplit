@@ -73,6 +73,7 @@ const entityToTable = {
   'MemberCommunicationPreference': 'member_communication_preference',
   'PreferenceField': 'preference_field',
   'MemberPreferenceValue': 'member_preference_value',
+  'OrganizationPreferenceValue': 'organization_preference_value',
 };
 
 const getTableName = (entity) => entityToTable[entity] || entity.toLowerCase().replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '');

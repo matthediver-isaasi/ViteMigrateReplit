@@ -234,6 +234,7 @@ class EntitiesProxy {
   get MemberCommunicationPreference() { return this._getEntity('MemberCommunicationPreference'); }
   get PreferenceField() { return this._getEntity('PreferenceField'); }
   get MemberPreferenceValue() { return this._getEntity('MemberPreferenceValue'); }
+  get OrganizationPreferenceValue() { return this._getEntity('OrganizationPreferenceValue'); }
 }
 
 class CoreIntegration {

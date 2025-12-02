@@ -97,4 +97,5 @@ export const PAGE_NAMES = [
   "CreateEvent",
   "PageVisibilitySettings",
   "CommunicationsManagement",
+  "CustomFieldsAdmin",
 ];

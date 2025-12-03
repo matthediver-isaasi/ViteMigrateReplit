@@ -63,6 +63,7 @@ const createEmptyTicketClass = (isDefault = false) => ({
   role_ids: [], // Empty array means "All Roles"
   is_default: isDefault,
   is_public: false, // Whether this ticket is visible to non-logged-in users
+  role_match_only: false, // When true, ticket is only visible if user's role matches role_ids
   offer_type: "none",
   bogo_logic_type: "buy_x_get_y_free",
   bogo_buy_quantity: "",
@@ -352,6 +353,7 @@ export default function CreateEvent() {
           role_ids: ticket.role_ids || [],
           is_default: ticket.is_default || false,
           is_public: ticket.is_public || false,
+          role_match_only: ticket.role_match_only || false,
           offer_type: ticket.offer_type
         };
 
@@ -846,6 +848,31 @@ export default function CreateEvent() {
                           {(ticket.role_ids || []).length === 0 && (
                             <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
                               This ticket is available to all roles
+                            </div>
+                          )}
+
+                          {/* Role Match Only Toggle - only show if roles are selected */}
+                          {(ticket.role_ids || []).length > 0 && (
+                            <div className="mt-3 flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                              <div className="flex items-center gap-2">
+                                <Users className="h-4 w-4 text-amber-600" />
+                                <div>
+                                  <Label htmlFor={`role-match-only-${ticket.id}`} className="text-sm font-medium text-amber-800">
+                                    Match only to user role
+                                  </Label>
+                                  <p className="text-xs text-amber-600">
+                                    {ticket.role_match_only 
+                                      ? "Ticket is hidden from users whose role doesn't match" 
+                                      : "Ticket is visible to all users (role only affects who can register)"}
+                                  </p>
+                                </div>
+                              </div>
+                              <Switch
+                                id={`role-match-only-${ticket.id}`}
+                                checked={ticket.role_match_only || false}
+                                onCheckedChange={(checked) => updateTicketClass(ticket.id, 'role_match_only', checked)}
+                                data-testid={`switch-role-match-only-${ticket.id}`}
+                              />
                             </div>
                           )}
                         </div>

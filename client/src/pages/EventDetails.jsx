@@ -294,6 +294,7 @@ export default function EventDetailsPage() {
         role_ids: Array.isArray(tc.role_ids) ? tc.role_ids : [],
         is_default: Boolean(tc.is_default),
         is_public: Boolean(tc.is_public),
+        role_match_only: Boolean(tc.role_match_only),
         offer_type: String(tc.offer_type || 'none'),
         bogo_logic_type: String(tc.bogo_logic_type || 'buy_x_get_y_free'),
         bogo_buy_quantity: Number(tc.bogo_buy_quantity) || 0,
@@ -307,9 +308,19 @@ export default function EventDetailsPage() {
       return normalizedTickets.filter(tc => tc.is_public === true);
     }
     
-    // For logged-in users, show all tickets
-    return normalizedTickets;
-  }, [isOneOffEvent, pricingConfig, currentMemberInfo]);
+    // For logged-in users, filter out tickets with role_match_only=true if user's role doesn't match
+    return normalizedTickets.filter(tc => {
+      // If role_match_only is false or not set, show the ticket
+      if (!tc.role_match_only) return true;
+      
+      // If role_match_only is true, only show if user's role is in the ticket's role_ids
+      // Empty role_ids means all roles (no restriction)
+      if (tc.role_ids.length === 0) return true;
+      
+      // Check if user's role matches any of the ticket's role_ids
+      return userRoleId && tc.role_ids.includes(userRoleId);
+    });
+  }, [isOneOffEvent, pricingConfig, currentMemberInfo, userRoleId]);
   
   // Auto-select first available ticket class
   useEffect(() => {

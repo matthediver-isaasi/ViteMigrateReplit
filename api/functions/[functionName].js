@@ -1641,7 +1641,7 @@ const functionHandlers = {
               `Attendees: ${ticketsRequired}`,
               attendeeList,
               '',
-              '----------------------------------------------',
+              '----------',
               'Financial Breakdown:',
               ...financialBreakdown
             ];

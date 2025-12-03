@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as LinkIcon, ExternalLink, Copy, Check, RefreshCw, AlertCircle, Edit, Save, Mail, User, Eye, EyeOff } from "lucide-react";
+import { AlertTriangle, Video, Plus, Trash2, Calendar, Clock, Users, Link as LinkIcon, ExternalLink, Copy, Check, RefreshCw, AlertCircle, Edit, Save, Mail, User, Eye, EyeOff, Download } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { format, parseISO } from "date-fns";
@@ -100,6 +100,58 @@ export default function ZoomWebinarProvisioning() {
   // States for adding panelists/registrants in details modal
   const [detailsPanelist, setDetailsPanelist] = useState({ name: "", email: "" });
   const [detailsRegistrant, setDetailsRegistrant] = useState({ first_name: "", last_name: "", email: "" });
+
+  // Function to download registrants as CSV
+  const downloadRegistrantsCSV = () => {
+    if (!registrants || registrants.length === 0) {
+      toast.error('No registrants to download');
+      return;
+    }
+
+    // Build CSV content
+    const headers = ['First Name', 'Last Name', 'Email', 'Status', 'Registration Time'];
+    const rows = registrants.map(r => [
+      r.first_name || '',
+      r.last_name || '',
+      r.email || '',
+      r.status || 'Registered',
+      r.create_time ? format(parseISO(r.create_time), 'yyyy-MM-dd HH:mm') : ''
+    ]);
+
+    // Escape CSV values (handle commas and quotes)
+    const escapeCSV = (value) => {
+      const str = String(value);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(escapeCSV).join(','))
+    ].join('\n');
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    
+    // Create filename from webinar topic
+    const sanitizedTopic = (selectedWebinar?.topic || 'webinar')
+      .replace(/[^a-zA-Z0-9]/g, '_')
+      .substring(0, 50);
+    const dateStr = format(new Date(), 'yyyy-MM-dd');
+    link.download = `${sanitizedTopic}_registrants_${dateStr}.csv`;
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    
+    toast.success(`Downloaded ${registrants.length} registrant${registrants.length !== 1 ? 's' : ''}`);
+  };
 
   useEffect(() => {
     if (isAccessReady) {
@@ -1372,6 +1424,25 @@ export default function ZoomWebinarProvisioning() {
                           </Button>
                         </div>
                       </div>
+                    </div>
+                  )}
+
+                  {/* Registrants Header with Download Button */}
+                  {selectedWebinar?.registration_required && registrants.length > 0 && (
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-slate-600">
+                        {registrants.length} registrant{registrants.length !== 1 ? 's' : ''}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={downloadRegistrantsCSV}
+                        className="gap-2"
+                        data-testid="button-download-registrants-csv"
+                      >
+                        <Download className="w-4 h-4" />
+                        Download CSV
+                      </Button>
                     </div>
                   )}
 

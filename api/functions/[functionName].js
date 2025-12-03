@@ -1182,9 +1182,16 @@ const functionHandlers = {
     }
 
     if (registrationMode === 'self' || registrationMode === 'colleagues') {
-      for (const attendee of (attendees || [])) {
+      const attendeeList = attendees || [];
+      for (let i = 0; i < attendeeList.length; i++) {
+        const attendee = attendeeList[i];
         // Find corresponding Zoom registration result
         const zoomResult = zoomRegistrationResults.find(r => r.email === attendee.email);
+        
+        // Generate unique booking reference for each attendee
+        const attendeeBookingRef = attendeeList.length > 1 
+          ? `${bookingReference}-${i + 1}` 
+          : bookingReference;
         
         const bookingData = {
           event_id: eventId,
@@ -1193,7 +1200,8 @@ const functionHandlers = {
           attendee_first_name: attendee.first_name,
           attendee_last_name: attendee.last_name,
           ticket_price: event.ticket_price || 0,
-          booking_reference: bookingReference,
+          booking_reference: attendeeBookingRef,
+          booking_group_reference: bookingReference, // Base reference to group all attendees
           status: bookingStatus,
           payment_method: 'program_ticket'
         };
@@ -1214,6 +1222,11 @@ const functionHandlers = {
     } else if (registrationMode === 'links') {
       for (let i = 0; i < numberOfLinks; i++) {
         const confirmationToken = crypto.randomUUID();
+        
+        // Generate unique booking reference for each link
+        const linkBookingRef = numberOfLinks > 1 
+          ? `${bookingReference}-${i + 1}` 
+          : bookingReference;
 
         const { data: booking } = await supabase
           .from('booking')
@@ -1224,7 +1237,8 @@ const functionHandlers = {
             attendee_first_name: '',
             attendee_last_name: '',
             ticket_price: event.ticket_price || 0,
-            booking_reference: bookingReference,
+            booking_reference: linkBookingRef,
+            booking_group_reference: bookingReference, // Base reference to group all links
             status: 'pending',
             payment_method: 'program_ticket',
             confirmation_token: confirmationToken
@@ -1539,6 +1553,7 @@ const functionHandlers = {
       const ticketPriceValue = ticketClassPrice || event.pricing_config?.ticketPrice || (totalCost / ticketsRequired);
       
       // Generate unique booking reference for each attendee (append index if multiple attendees)
+      // Keep the base reference in booking_group_reference for grouping all attendees together
       const attendeeBookingRef = attendees.length > 1 
         ? `${bookingReference}-${i + 1}` 
         : bookingReference;
@@ -1548,6 +1563,7 @@ const functionHandlers = {
         member_id: member.id,
         organization_id: org.id,
         booking_reference: attendeeBookingRef,
+        booking_group_reference: bookingReference, // Base reference to group all attendees from same booking session
         attendee_email: attendee.email,
         attendee_first_name: attendee.first_name || attendee.firstName,
         attendee_last_name: attendee.last_name || attendee.lastName,
@@ -1781,6 +1797,7 @@ const functionHandlers = {
     return {
       success: true,
       booking_reference: bookingReference,
+      booking_group_reference: bookingReference, // Base reference for grouping
       bookings: createdBookings,
       payment_details: {
         total_cost: totalCost,

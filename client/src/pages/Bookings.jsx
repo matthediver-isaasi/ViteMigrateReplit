@@ -192,20 +192,16 @@ export default function BookingsPage() {
       return;
     }
 
-    console.log('[PO Submit] Starting:', { bookingReference, bookingId, hasXeroInvoice, poNumber });
     setSubmittingPoFor(bookingReference);
     
     try {
       if (hasXeroInvoice) {
-        console.log('[PO Submit] Calling updateXeroInvoicePO...');
         // Update Xero invoice reference and refresh the PDF
         try {
           const response = await base44.functions.invoke('updateXeroInvoicePO', {
             bookingGroupReference: bookingReference,
             purchaseOrderNumber: poNumber
           });
-
-          console.log('[PO Submit] Response:', response);
           
           if (!response.data.success) {
             throw new Error(response.data.error || 'Failed to update invoice');
@@ -213,17 +209,15 @@ export default function BookingsPage() {
 
           toast.success('PO number added and invoice updated successfully');
         } catch (invokeError) {
-          console.error('[PO Submit] Invoke error:', invokeError);
+          console.error('Xero invoice update error:', invokeError?.message);
           // If Xero update fails, fall back to just updating the booking
-          console.log('[PO Submit] Falling back to direct booking update...');
           await base44.entities.Booking.update(bookingId, {
             purchase_order_number: poNumber,
             po_to_follow: false
           });
-          toast.success('PO number saved (invoice update pending)');
+          toast.info('PO number saved. Invoice will be updated shortly.');
         }
       } else {
-        console.log('[PO Submit] No Xero invoice, updating booking directly...');
         // No Xero invoice - just update the booking directly
         await base44.entities.Booking.update(bookingId, {
           purchase_order_number: poNumber,
@@ -233,12 +227,11 @@ export default function BookingsPage() {
         toast.success('Purchase order number submitted successfully');
       }
 
-      console.log('[PO Submit] Success, clearing input and invalidating queries');
       setPoInputValues(prev => ({ ...prev, [bookingReference]: '' }));
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['pending-po-bookings'] });
     } catch (error) {
-      console.error('[PO Submit] Error:', error);
+      console.error('Error submitting PO number:', error);
       toast.error(error.message || 'Failed to submit PO number. Please try again.');
     } finally {
       setSubmittingPoFor(null);

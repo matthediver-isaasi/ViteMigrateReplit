@@ -3532,15 +3532,9 @@ const functionHandlers = {
   async updateXeroInvoicePO(params, req) {
     if (!supabase) throw new Error('Supabase not configured');
 
-    console.log('[updateXeroInvoicePO] Starting with params:', JSON.stringify(params));
-    console.log('[updateXeroInvoicePO] Cookies present:', !!req?.headers?.cookie);
-
     // Verify authentication
     const session = await getSession(req);
-    console.log('[updateXeroInvoicePO] Session result:', session ? 'found' : 'not found', 'memberId:', session?.data?.memberId);
-    
     if (!session?.data?.memberId) {
-      console.error('[updateXeroInvoicePO] Authentication failed - no session or memberId');
       throw new Error('Authentication required - please refresh the page and try again');
     }
     const memberId = session.data.memberId;

@@ -1522,7 +1522,7 @@ useEffect(() => {
                                 {item.subItems.map(subItem => {
                                   const isSubItemActive = subItem.url === location.pathname;
                                   // Show pending PO bell only on the Bookings page link
-                                  const isBookingsPage = subItem.url === '/bookings' || subItem.url === 'Bookings';
+                                  const isBookingsPage = subItem.url?.toLowerCase() === '/bookings';
                                   const showSubPendingPOWarning = hasPendingPOs && isBookingsPage;
                                   return (
                                     <SidebarMenuSubItem key={subItem.title}>
@@ -1546,7 +1546,7 @@ useEffect(() => {
                         );
                       } else {
                         // Show pending PO bell only on the Bookings page link
-                        const isBookingsPage = item.url === '/bookings' || item.url === 'Bookings';
+                        const isBookingsPage = item.url?.toLowerCase() === '/bookings';
                         const showPendingPOWarning = hasPendingPOs && isBookingsPage;
                         return (
                           <SidebarMenuItem 

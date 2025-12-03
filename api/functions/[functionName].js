@@ -17,6 +17,110 @@ const ZOHO_CRM_API_DOMAIN = process.env.ZOHO_CRM_API_DOMAIN || 'https://www.zoho
 const ZOHO_CLIENT_ID = process.env.ZOHO_CLIENT_ID;
 const ZOHO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
 
+// Xero OAuth credentials
+const XERO_CLIENT_ID = process.env.XERO_CLIENT_ID;
+const XERO_CLIENT_SECRET = process.env.XERO_CLIENT_SECRET;
+const XERO_REDIRECT_URI = process.env.XERO_REDIRECT_URI;
+
+// Helper: Get valid Xero access token (refreshes if needed)
+async function getValidXeroAccessToken() {
+  if (!supabase) throw new Error('Supabase not configured');
+  
+  const { data: tokens } = await supabase
+    .from('xero_token')
+    .select('*');
+
+  if (!tokens || tokens.length === 0) {
+    throw new Error('No Xero token found. Please authenticate first.');
+  }
+
+  const token = tokens[0];
+  const expiresAt = new Date(token.expires_at);
+  const now = new Date();
+  const fiveMinutesFromNow = new Date(now.getTime() + 5 * 60 * 1000);
+
+  // Token is still valid
+  if (expiresAt > fiveMinutesFromNow) {
+    return { accessToken: token.access_token, tenantId: token.tenant_id };
+  }
+
+  // Refresh token
+  if (!XERO_CLIENT_ID || !XERO_CLIENT_SECRET) {
+    throw new Error('Xero credentials not configured');
+  }
+
+  const tokenResponse = await fetch('https://identity.xero.com/connect/token', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      'Authorization': 'Basic ' + Buffer.from(`${XERO_CLIENT_ID}:${XERO_CLIENT_SECRET}`).toString('base64')
+    },
+    body: new URLSearchParams({
+      grant_type: 'refresh_token',
+      refresh_token: token.refresh_token,
+    }).toString(),
+  });
+
+  const tokenData = await tokenResponse.json();
+
+  if (!tokenResponse.ok || tokenData.error) {
+    throw new Error(`Failed to refresh Xero token: ${JSON.stringify(tokenData)}`);
+  }
+
+  const newExpiresAt = new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString();
+
+  await supabase
+    .from('xero_token')
+    .update({
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
+      expires_at: newExpiresAt,
+    })
+    .eq('id', token.id);
+
+  return { accessToken: tokenData.access_token, tenantId: token.tenant_id };
+}
+
+// Helper: Find or create Xero contact
+async function findOrCreateXeroContact(accessToken, tenantId, organizationName) {
+  // Search for existing contact
+  const escapedOrgName = organizationName.replace(/"/g, '\\"');
+  const contactSearchResponse = await fetch(
+    `https://api.xero.com/api.xro/2.0/Contacts?where=${encodeURIComponent(`Name=="${escapedOrgName}"`)}`,
+    {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'xero-tenant-id': tenantId,
+        'Accept': 'application/json'
+      }
+    }
+  );
+
+  const contactData = await contactSearchResponse.json();
+
+  if (contactData.Contacts && contactData.Contacts.length > 0) {
+    return contactData.Contacts[0].ContactID;
+  }
+
+  // Create new contact
+  const createContactResponse = await fetch('https://api.xero.com/api.xro/2.0/Contacts', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${accessToken}`,
+      'xero-tenant-id': tenantId,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ Contacts: [{ Name: organizationName }] })
+  });
+
+  const newContactData = await createContactResponse.json();
+  if (newContactData.Contacts && newContactData.Contacts.length > 0) {
+    return newContactData.Contacts[0].ContactID;
+  }
+
+  throw new Error('Failed to create Xero contact');
+}
+
 // Zoom OAuth token cache
 let zoomTokenCache = null;
 
@@ -2865,6 +2969,295 @@ const functionHandlers = {
       registered: results.filter(r => r.success).length,
       failed: results.filter(r => !r.success).length,
       results
+    };
+  },
+
+  // ============ Xero Integration Functions ============
+
+  async getXeroAuthUrl(params, req) {
+    if (!XERO_CLIENT_ID || !XERO_REDIRECT_URI) {
+      throw new Error('Xero not configured - missing XERO_CLIENT_ID or XERO_REDIRECT_URI');
+    }
+
+    const authUrl = `https://login.xero.com/identity/connect/authorize?` + new URLSearchParams({
+      response_type: 'code',
+      client_id: XERO_CLIENT_ID,
+      redirect_uri: XERO_REDIRECT_URI,
+      scope: 'offline_access accounting.transactions accounting.contacts openid profile email',
+      state: 'xero_auth'
+    }).toString();
+
+    return { authUrl };
+  },
+
+  async xeroOAuthCallback(params, req) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { code, error: oauthError } = params;
+
+    if (oauthError) {
+      throw new Error(`Xero OAuth error: ${oauthError}`);
+    }
+
+    if (!code) {
+      throw new Error('No authorization code received');
+    }
+
+    if (!XERO_CLIENT_ID || !XERO_CLIENT_SECRET || !XERO_REDIRECT_URI) {
+      throw new Error('Xero credentials not configured');
+    }
+
+    // Exchange code for tokens
+    const tokenResponse = await fetch('https://identity.xero.com/connect/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${XERO_CLIENT_ID}:${XERO_CLIENT_SECRET}`).toString('base64')
+      },
+      body: new URLSearchParams({
+        grant_type: 'authorization_code',
+        code: code,
+        redirect_uri: XERO_REDIRECT_URI
+      }).toString()
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenResponse.ok || tokenData.error) {
+      throw new Error(`Failed to exchange code for token: ${JSON.stringify(tokenData)}`);
+    }
+
+    // Get tenant connections
+    const connectionsResponse = await fetch('https://api.xero.com/connections', {
+      headers: {
+        'Authorization': `Bearer ${tokenData.access_token}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const connections = await connectionsResponse.json();
+    const tenantId = connections[0]?.tenantId;
+
+    if (!tenantId) {
+      throw new Error('No Xero tenant found');
+    }
+
+    const expiresAt = new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString();
+
+    // Store or update token
+    const { data: existingTokens } = await supabase
+      .from('xero_token')
+      .select('id');
+
+    if (existingTokens && existingTokens.length > 0) {
+      await supabase
+        .from('xero_token')
+        .update({
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_at: expiresAt,
+          tenant_id: tenantId
+        })
+        .eq('id', existingTokens[0].id);
+    } else {
+      await supabase
+        .from('xero_token')
+        .insert({
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_at: expiresAt,
+          tenant_id: tenantId
+        });
+    }
+
+    return {
+      success: true,
+      message: 'Xero authentication successful',
+      tenant_id: tenantId
+    };
+  },
+
+  async refreshXeroToken(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    if (!XERO_CLIENT_ID || !XERO_CLIENT_SECRET) {
+      throw new Error('Xero credentials not configured');
+    }
+
+    const { data: tokens } = await supabase
+      .from('xero_token')
+      .select('*');
+
+    if (!tokens || tokens.length === 0) {
+      throw new Error('No Xero token found. Please authenticate first.');
+    }
+
+    const currentToken = tokens[0];
+
+    // Check if token needs refresh
+    const expiresAt = new Date(currentToken.expires_at);
+    const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000);
+
+    if (expiresAt > fiveMinutesFromNow) {
+      return {
+        message: 'Token is still valid',
+        expires_at: currentToken.expires_at
+      };
+    }
+
+    // Refresh the token
+    const tokenResponse = await fetch('https://identity.xero.com/connect/token', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Authorization': 'Basic ' + Buffer.from(`${XERO_CLIENT_ID}:${XERO_CLIENT_SECRET}`).toString('base64')
+      },
+      body: new URLSearchParams({
+        grant_type: 'refresh_token',
+        refresh_token: currentToken.refresh_token,
+      }).toString(),
+    });
+
+    const tokenData = await tokenResponse.json();
+
+    if (!tokenResponse.ok || tokenData.error) {
+      throw new Error(`Failed to refresh token: ${JSON.stringify(tokenData)}`);
+    }
+
+    const newExpiresAt = new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString();
+
+    await supabase
+      .from('xero_token')
+      .update({
+        access_token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        expires_at: newExpiresAt,
+      })
+      .eq('id', currentToken.id);
+
+    return {
+      success: true,
+      message: 'Token refreshed successfully',
+      expires_at: newExpiresAt
+    };
+  },
+
+  async createXeroInvoice(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const {
+      organizationName,
+      purchaseOrderNumber,
+      programName,
+      baseTicketPrice,
+      totalCost,
+      totalTickets,
+      offerDetails,
+      discountCode,
+      discountType,
+      discountValue,
+      stripePaymentIntentId,
+      internalReference
+    } = params;
+
+    if (!organizationName || !programName || totalCost === undefined || !totalTickets) {
+      throw new Error('Missing required parameters: organizationName, programName, totalCost, totalTickets');
+    }
+
+    // Get valid Xero token
+    const { accessToken, tenantId } = await getValidXeroAccessToken();
+
+    // Find or create contact
+    const contactId = await findOrCreateXeroContact(accessToken, tenantId, organizationName);
+
+    // Calculate unit price
+    const unitPrice = (totalCost / totalTickets).toFixed(2);
+
+    // Build line description
+    let description = `${programName} tickets.\nPrice: £${baseTicketPrice}`;
+    if (offerDetails) {
+      description += `\nOffer: ${offerDetails}`;
+    }
+    if (internalReference) {
+      description += `\nRef: ${internalReference}`;
+    }
+    if (discountCode) {
+      const discountDisplay = discountType === 'percentage'
+        ? `${discountValue}%`
+        : `£${(discountValue || 0).toFixed(2)}`;
+      description += `\nDiscount Code: ${discountCode} (${discountDisplay} off)`;
+    }
+    if (stripePaymentIntentId) {
+      description += `\nStripe Payment ID: ${stripePaymentIntentId}`;
+    }
+
+    // Create invoice
+    const invoicePayload = {
+      Invoices: [{
+        Type: 'ACCREC',
+        Contact: { ContactID: contactId },
+        Reference: purchaseOrderNumber || '',
+        Status: 'DRAFT',
+        DueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        LineItems: [{
+          Description: description,
+          Quantity: totalTickets,
+          UnitAmount: unitPrice,
+          AccountCode: '200'
+        }]
+      }]
+    };
+
+    const invoiceResponse = await fetch('https://api.xero.com/api.xro/2.0/Invoices', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'xero-tenant-id': tenantId,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(invoicePayload)
+    });
+
+    const invoiceData = await invoiceResponse.json();
+
+    if (!invoiceResponse.ok || !invoiceData.Invoices || invoiceData.Invoices.length === 0) {
+      throw new Error(`Failed to create invoice: ${JSON.stringify(invoiceData)}`);
+    }
+
+    const invoice = invoiceData.Invoices[0];
+
+    return {
+      success: true,
+      invoice_id: invoice.InvoiceID,
+      invoice_number: invoice.InvoiceNumber,
+      total: invoice.Total,
+      status: invoice.Status
+    };
+  },
+
+  async getXeroConnectionStatus(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    const { data: tokens } = await supabase
+      .from('xero_token')
+      .select('expires_at, tenant_id');
+
+    if (!tokens || tokens.length === 0) {
+      return {
+        connected: false,
+        message: 'Xero not connected. Please authenticate.'
+      };
+    }
+
+    const token = tokens[0];
+    const expiresAt = new Date(token.expires_at);
+    const now = new Date();
+
+    return {
+      connected: true,
+      tenant_id: token.tenant_id,
+      expires_at: token.expires_at,
+      is_expired: expiresAt <= now
     };
   }
 };

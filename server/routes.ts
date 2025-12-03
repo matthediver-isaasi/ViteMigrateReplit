@@ -4729,8 +4729,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             
             if (new Date(xeroToken.expires_at) <= new Date(Date.now() + 5 * 60 * 1000)) {
               // Refresh token
-              const XERO_CLIENT_ID = process.env.ZOHO_CLIENT_ID; // These are actually Xero credentials
-              const XERO_CLIENT_SECRET = process.env.ZOHO_CLIENT_SECRET;
+              const XERO_CLIENT_ID = process.env.XERO_CLIENT_ID;
+              const XERO_CLIENT_SECRET = process.env.XERO_CLIENT_SECRET;
               
               if (XERO_CLIENT_ID && XERO_CLIENT_SECRET) {
                 const tokenResponse = await fetch('https://identity.xero.com/connect/token', {

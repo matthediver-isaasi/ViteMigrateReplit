@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useId } from "react";
 import AGCASButton from "../../ui/AGCASButton";
 
 export default function IEditHeroElement({ content, variant, settings }) {
@@ -35,8 +35,34 @@ export default function IEditHeroElement({ content, variant, settings }) {
     custom_height = 400,
     button_top_margin = 32,
     text_vertical_align = 'center',
-    button
+    button,
+    // Mobile-specific settings
+    mobile_heading_font_size,
+    mobile_subheading_font_size,
+    mobile_padding_top,
+    mobile_padding_bottom,
+    mobile_padding_left,
+    mobile_padding_right,
+    mobile_height_type = 'auto',
+    mobile_custom_height = 300,
+    mobile_text_align,
+    mobile_button_top_margin
   } = content;
+
+  // Generate unique ID for this instance to scope CSS
+  const reactId = useId();
+  const instanceId = `hero-${reactId.replace(/:/g, '')}`;
+
+  // Calculate mobile values with fallbacks
+  const mobileHeadingFontSize = mobile_heading_font_size || Math.max(28, Math.round(heading_font_size * 0.6));
+  const mobileSubheadingFontSize = mobile_subheading_font_size || Math.max(16, Math.round(subheading_font_size * 0.8));
+  const mobilePaddingTop = mobile_padding_top !== undefined ? mobile_padding_top : Math.max(40, Math.round(padding_top * 0.5));
+  const mobilePaddingBottom = mobile_padding_bottom !== undefined ? mobile_padding_bottom : Math.max(40, Math.round(padding_bottom * 0.5));
+  const mobilePaddingLeft = mobile_padding_left !== undefined ? mobile_padding_left : Math.max(16, padding_left);
+  const mobilePaddingRight = mobile_padding_right !== undefined ? mobile_padding_right : Math.max(16, padding_right);
+  const mobileTextAlign = mobile_text_align || text_align;
+  const mobileButtonTopMargin = mobile_button_top_margin !== undefined ? mobile_button_top_margin : Math.max(16, Math.round(button_top_margin * 0.75));
+  const mobileUnderlineWidth = Math.min(heading_underline_width, 80);
 
   const isImageSized = height_type === 'image' && background_type === 'image' && image_url;
 
@@ -44,6 +70,13 @@ export default function IEditHeroElement({ content, variant, settings }) {
     if (height_type === 'full') return { minHeight: '100vh' };
     if (height_type === 'custom') return { minHeight: `${custom_height}px` };
     if (height_type === 'image') return {};
+    return {};
+  };
+
+  const getMobileHeightStyle = () => {
+    if (mobile_height_type === 'full') return { minHeight: '100vh' };
+    if (mobile_height_type === 'custom') return { minHeight: `${mobile_custom_height}px` };
+    if (height_type === 'image') return {}; // Keep image sizing on mobile too
     return {};
   };
 
@@ -65,118 +98,179 @@ export default function IEditHeroElement({ content, variant, settings }) {
     return 'center';
   };
 
-  const containerStyle = {
-    paddingLeft: `${padding_left}px`,
-    paddingRight: `${padding_right}px`,
-    paddingTop: `${padding_top}px`,
-    paddingBottom: `${padding_bottom}px`,
-    textAlign: text_align
-  };
+  const desktopHeight = getHeightStyle();
+  const mobileHeight = getMobileHeightStyle();
+
+  // Responsive CSS styles
+  const responsiveStyles = `
+    .${instanceId} .hero-container {
+      ${desktopHeight.minHeight ? `min-height: ${desktopHeight.minHeight};` : ''}
+    }
+    
+    .${instanceId} .hero-content {
+      padding-left: ${padding_left}px;
+      padding-right: ${padding_right}px;
+      padding-top: ${padding_top}px;
+      padding-bottom: ${padding_bottom}px;
+      text-align: ${text_align};
+    }
+    
+    .${instanceId} .hero-heading {
+      font-family: ${heading_font_family};
+      font-size: ${heading_font_size}px;
+      letter-spacing: ${heading_letter_spacing}px;
+      color: ${text_color};
+    }
+    
+    .${instanceId} .hero-underline {
+      width: ${heading_underline_width}px;
+    }
+    
+    .${instanceId} .hero-subheading {
+      font-family: ${subheading_font_family};
+      font-size: ${subheading_font_size}px;
+      line-height: ${subheading_line_height};
+      color: ${text_color};
+    }
+    
+    .${instanceId} .hero-button-wrapper {
+      margin-top: ${button_top_margin}px;
+    }
+    
+    /* Mobile styles - below 768px */
+    @media (max-width: 767px) {
+      .${instanceId} .hero-container {
+        ${mobileHeight.minHeight ? `min-height: ${mobileHeight.minHeight};` : ''}
+      }
+      
+      .${instanceId} .hero-content {
+        padding-left: ${mobilePaddingLeft}px;
+        padding-right: ${mobilePaddingRight}px;
+        padding-top: ${mobilePaddingTop}px;
+        padding-bottom: ${mobilePaddingBottom}px;
+        text-align: ${mobileTextAlign};
+      }
+      
+      .${instanceId} .hero-heading {
+        font-size: ${mobileHeadingFontSize}px;
+      }
+      
+      .${instanceId} .hero-underline {
+        width: ${mobileUnderlineWidth}px;
+        ${mobileTextAlign === 'center' ? 'margin-left: auto; margin-right: auto;' : 
+          mobileTextAlign === 'right' ? 'margin-left: auto; margin-right: 0;' : 
+          'margin-left: 0; margin-right: auto;'}
+      }
+      
+      .${instanceId} .hero-subheading {
+        font-size: ${mobileSubheadingFontSize}px;
+      }
+      
+      .${instanceId} .hero-button-wrapper {
+        margin-top: ${mobileButtonTopMargin}px;
+      }
+    }
+  `;
 
   if (isImageSized) {
     return (
-      <div 
-        style={{ 
-          display: 'grid',
-          gridTemplateColumns: '1fr',
-          gridTemplateRows: '1fr',
-          width: '100%'
-        }}
-      >
-        {/* Image layer - sets the size */}
-        <img 
-          src={image_url} 
-          alt={content.heading || 'Hero background'} 
+      <div className={instanceId}>
+        <style>{responsiveStyles}</style>
+        <div 
           style={{ 
-            gridColumn: '1 / -1',
-            gridRow: '1 / -1',
-            display: 'block', 
-            width: '100%', 
-            height: 'auto' 
+            display: 'grid',
+            gridTemplateColumns: '1fr',
+            gridTemplateRows: '1fr',
+            width: '100%'
           }}
-        />
-        {/* Overlay layer */}
-        {overlay_enabled && (
+        >
+          {/* Image layer - sets the size */}
+          <img 
+            src={image_url} 
+            alt={content.heading || 'Hero background'} 
+            style={{ 
+              gridColumn: '1 / -1',
+              gridRow: '1 / -1',
+              display: 'block', 
+              width: '100%', 
+              height: 'auto' 
+            }}
+          />
+          {/* Overlay layer */}
+          {overlay_enabled && (
+            <div 
+              style={{ 
+                gridColumn: '1 / -1',
+                gridRow: '1 / -1',
+                backgroundColor: overlay_color, 
+                opacity: parseInt(overlay_opacity) / 100
+              }} 
+            />
+          )}
+          {/* Text layer */}
           <div 
             style={{ 
               gridColumn: '1 / -1',
               gridRow: '1 / -1',
-              backgroundColor: overlay_color, 
-              opacity: parseInt(overlay_opacity) / 100
-            }} 
-          />
-        )}
-        {/* Text layer */}
-        <div 
-          style={{ 
-            gridColumn: '1 / -1',
-            gridRow: '1 / -1',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: getTextVerticalAlign()
-          }}
-        >
-          <div className="max-w-7xl mx-auto px-4 w-full" style={containerStyle}>
-            {content.heading && (
-              <div>
-                <h1 
-                  className="font-bold"
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: getTextVerticalAlign()
+            }}
+          >
+            <div className="hero-content max-w-7xl mx-auto px-4 w-full">
+              {content.heading && (
+                <div>
+                  <h1 
+                    className="hero-heading font-bold"
+                    style={{ 
+                      marginBottom: heading_underline_enabled 
+                        ? `${heading_underline_spacing}px` 
+                        : (content.subheading || (button && button.text)) ? '24px' : '0'
+                    }}
+                  >
+                    {content.heading}
+                  </h1>
+                  {heading_underline_enabled && (
+                    <div 
+                      className="hero-underline"
+                      style={{
+                        height: `${heading_underline_weight}px`,
+                        backgroundColor: heading_underline_color,
+                        margin: text_align === 'center' ? '0 auto' : text_align === 'right' ? '0 0 0 auto' : '0',
+                        marginBottom: (content.subheading || (button && button.text)) ? `${heading_underline_to_content_spacing}px` : '0'
+                      }}
+                    />
+                  )}
+                </div>
+              )}
+              {content.subheading && (
+                <p 
+                  className="hero-subheading opacity-90"
                   style={{ 
-                    fontFamily: heading_font_family,
-                    fontSize: `${heading_font_size}px`,
-                    letterSpacing: `${heading_letter_spacing}px`,
-                    color: text_color,
-                    marginBottom: heading_underline_enabled 
-                      ? `${heading_underline_spacing}px` 
-                      : (content.subheading || (button && button.text)) ? '24px' : '0'
+                    whiteSpace: 'pre-line',
+                    marginBottom: (button && button.text) ? '24px' : '0'
                   }}
                 >
-                  {content.heading}
-                </h1>
-                {heading_underline_enabled && (
-                  <div 
-                    style={{
-                      width: `${heading_underline_width}px`,
-                      height: `${heading_underline_weight}px`,
-                      backgroundColor: heading_underline_color,
-                      margin: text_align === 'center' ? '0 auto' : text_align === 'right' ? '0 0 0 auto' : '0',
-                      marginBottom: (content.subheading || (button && button.text)) ? `${heading_underline_to_content_spacing}px` : '0'
-                    }}
+                  {content.subheading}
+                </p>
+              )}
+              {button && button.text && (
+                <div className="hero-button-wrapper" style={{ marginBottom: 0 }}>
+                  <AGCASButton
+                    text={button.text}
+                    link={button.link}
+                    buttonStyleId={button.button_style_id}
+                    customBgColor={button.custom_bg_color}
+                    customTextColor={button.custom_text_color}
+                    customBorderColor={button.custom_border_color}
+                    transparentBg={button.transparent_bg}
+                    openInNewTab={button.open_in_new_tab}
+                    size={button.size || 'large'}
+                    showArrow={button.show_arrow}
                   />
-                )}
-              </div>
-            )}
-            {content.subheading && (
-              <p 
-                className="opacity-90"
-                style={{ 
-                  fontFamily: subheading_font_family,
-                  fontSize: `${subheading_font_size}px`,
-                  lineHeight: subheading_line_height,
-                  color: text_color,
-                  whiteSpace: 'pre-line',
-                  marginBottom: (button && button.text) ? '24px' : '0'
-                }}
-              >
-                {content.subheading}
-              </p>
-            )}
-            {button && button.text && (
-              <div style={{ marginTop: `${button_top_margin}px`, marginBottom: 0 }}>
-                <AGCASButton
-                  text={button.text}
-                  link={button.link}
-                  buttonStyleId={button.button_style_id}
-                  customBgColor={button.custom_bg_color}
-                  customTextColor={button.custom_text_color}
-                  customBorderColor={button.custom_border_color}
-                  transparentBg={button.transparent_bg}
-                  openInNewTab={button.open_in_new_tab}
-                  size={button.size || 'large'}
-                  showArrow={button.show_arrow}
-                />
-              </div>
-            )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -184,91 +278,86 @@ export default function IEditHeroElement({ content, variant, settings }) {
   }
 
   return (
-    <div 
-      className="relative w-full overflow-hidden"
-      style={{ ...getHeightStyle(), ...getBackgroundStyle() }}
-    >
-      {background_type === 'image' && image_url && (
-        <>
-          <img 
-            src={image_url} 
-            alt={content.heading || 'Hero background'} 
-            className="absolute inset-0 w-full h-full"
-            style={{ objectFit: image_fit }}
-          />
-          {overlay_enabled && (
-            <div 
-              className="absolute inset-0" 
-              style={{ 
-                backgroundColor: overlay_color, 
-                opacity: parseInt(overlay_opacity) / 100 
-              }} 
+    <div className={instanceId}>
+      <style>{responsiveStyles}</style>
+      <div 
+        className="hero-container relative w-full overflow-hidden"
+        style={{ ...getBackgroundStyle() }}
+      >
+        {background_type === 'image' && image_url && (
+          <>
+            <img 
+              src={image_url} 
+              alt={content.heading || 'Hero background'} 
+              className="absolute inset-0 w-full h-full"
+              style={{ objectFit: image_fit }}
             />
-          )}
-        </>
-      )}
-      
-      <div className="relative max-w-7xl mx-auto px-4" style={containerStyle}>
-        {content.heading && (
-          <div>
-            <h1 
-              className="font-bold"
-              style={{ 
-                fontFamily: heading_font_family,
-                fontSize: `${heading_font_size}px`,
-                letterSpacing: `${heading_letter_spacing}px`,
-                color: text_color,
-                marginBottom: heading_underline_enabled 
-                  ? `${heading_underline_spacing}px` 
-                  : (content.subheading || (button && button.text)) ? '24px' : '0'
-              }}
-            >
-              {content.heading}
-            </h1>
-            {heading_underline_enabled && (
+            {overlay_enabled && (
               <div 
-                style={{
-                  width: `${heading_underline_width}px`,
-                  height: `${heading_underline_weight}px`,
-                  backgroundColor: heading_underline_color,
-                  margin: text_align === 'center' ? '0 auto' : text_align === 'right' ? '0 0 0 auto' : '0',
-                  marginBottom: (content.subheading || (button && button.text)) ? `${heading_underline_to_content_spacing}px` : '0'
-                }}
+                className="absolute inset-0" 
+                style={{ 
+                  backgroundColor: overlay_color, 
+                  opacity: parseInt(overlay_opacity) / 100 
+                }} 
               />
             )}
-          </div>
+          </>
         )}
-        {content.subheading && (
-          <p 
-            className="opacity-90"
-            style={{ 
-              fontFamily: subheading_font_family,
-              fontSize: `${subheading_font_size}px`,
-              lineHeight: subheading_line_height,
-              color: text_color,
-              whiteSpace: 'pre-line',
-              marginBottom: (button && button.text) ? '24px' : '0'
-            }}
-          >
-            {content.subheading}
-          </p>
-        )}
-        {button && button.text && (
-          <div style={{ marginTop: `${button_top_margin}px`, marginBottom: 0 }}>
-            <AGCASButton
-              text={button.text}
-              link={button.link}
-              buttonStyleId={button.button_style_id}
-              customBgColor={button.custom_bg_color}
-              customTextColor={button.custom_text_color}
-              customBorderColor={button.custom_border_color}
-              transparentBg={button.transparent_bg}
-              openInNewTab={button.open_in_new_tab}
-              size={button.size || 'large'}
-              showArrow={button.show_arrow}
-            />
-          </div>
-        )}
+        
+        <div className="hero-content relative max-w-7xl mx-auto px-4">
+          {content.heading && (
+            <div>
+              <h1 
+                className="hero-heading font-bold"
+                style={{ 
+                  marginBottom: heading_underline_enabled 
+                    ? `${heading_underline_spacing}px` 
+                    : (content.subheading || (button && button.text)) ? '24px' : '0'
+                }}
+              >
+                {content.heading}
+              </h1>
+              {heading_underline_enabled && (
+                <div 
+                  className="hero-underline"
+                  style={{
+                    height: `${heading_underline_weight}px`,
+                    backgroundColor: heading_underline_color,
+                    margin: text_align === 'center' ? '0 auto' : text_align === 'right' ? '0 0 0 auto' : '0',
+                    marginBottom: (content.subheading || (button && button.text)) ? `${heading_underline_to_content_spacing}px` : '0'
+                  }}
+                />
+              )}
+            </div>
+          )}
+          {content.subheading && (
+            <p 
+              className="hero-subheading opacity-90"
+              style={{ 
+                whiteSpace: 'pre-line',
+                marginBottom: (button && button.text) ? '24px' : '0'
+              }}
+            >
+              {content.subheading}
+            </p>
+          )}
+          {button && button.text && (
+            <div className="hero-button-wrapper" style={{ marginBottom: 0 }}>
+              <AGCASButton
+                text={button.text}
+                link={button.link}
+                buttonStyleId={button.button_style_id}
+                customBgColor={button.custom_bg_color}
+                customTextColor={button.custom_text_color}
+                customBorderColor={button.custom_border_color}
+                transparentBg={button.transparent_bg}
+                openInNewTab={button.open_in_new_tab}
+                size={button.size || 'large'}
+                showArrow={button.show_arrow}
+              />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -294,6 +383,7 @@ export function IEditHeroElementEditor({ element, onChange }) {
 
   const [isUploading, setIsUploading] = useState(false);
   const [buttonStyles, setButtonStyles] = useState([]);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   const updateContent = (key, value) => {
     onChange({ ...element, content: { ...content, [key]: value } });
@@ -351,6 +441,13 @@ export function IEditHeroElementEditor({ element, onChange }) {
   const button = content.button || defaultButton;
 
   const gradientPreview = `linear-gradient(${content.gradient_angle || 135}deg, ${content.gradient_start_color || '#3b82f6'}, ${content.gradient_end_color || '#8b5cf6'})`;
+
+  // Calculate default mobile values for display
+  const defaultMobileHeadingSize = Math.max(28, Math.round((content.heading_font_size || 48) * 0.6));
+  const defaultMobileSubheadingSize = Math.max(16, Math.round((content.subheading_font_size || 20) * 0.8));
+  const defaultMobilePaddingTop = Math.max(40, Math.round((content.padding_top || 80) * 0.5));
+  const defaultMobilePaddingBottom = Math.max(40, Math.round((content.padding_bottom || 80) * 0.5));
+  const defaultMobileButtonMargin = Math.max(16, Math.round((content.button_top_margin || 32) * 0.75));
 
   return (
     <div className="space-y-4">
@@ -1021,6 +1118,196 @@ export function IEditHeroElementEditor({ element, onChange }) {
             </label>
           </div>
         </div>
+      </div>
+
+      {/* Mobile Settings Section */}
+      <div className="border-t pt-4 mt-4">
+        <button
+          type="button"
+          onClick={() => setShowMobileSettings(!showMobileSettings)}
+          className="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+        >
+          <svg 
+            className={`w-4 h-4 transition-transform ${showMobileSettings ? 'rotate-90' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          Mobile Settings
+          <span className="text-xs font-normal text-slate-500">(screens below 768px)</span>
+        </button>
+        
+        {showMobileSettings && (
+          <div className="mt-4 space-y-4 p-4 bg-blue-50 rounded-lg">
+            <p className="text-xs text-slate-600 mb-3">
+              Leave fields empty to use automatic scaling based on desktop values.
+            </p>
+
+            {/* Mobile Font Sizes */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Mobile Heading Size
+                  <span className="text-xs text-slate-500 block">Default: {defaultMobileHeadingSize}px</span>
+                </label>
+                <input
+                  type="number"
+                  value={content.mobile_heading_font_size || ''}
+                  onChange={(e) => updateContent('mobile_heading_font_size', e.target.value ? parseInt(e.target.value) : '')}
+                  placeholder={defaultMobileHeadingSize}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="16"
+                  max="96"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Mobile Subheading Size
+                  <span className="text-xs text-slate-500 block">Default: {defaultMobileSubheadingSize}px</span>
+                </label>
+                <input
+                  type="number"
+                  value={content.mobile_subheading_font_size || ''}
+                  onChange={(e) => updateContent('mobile_subheading_font_size', e.target.value ? parseInt(e.target.value) : '')}
+                  placeholder={defaultMobileSubheadingSize}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="12"
+                  max="48"
+                />
+              </div>
+            </div>
+
+            {/* Mobile Height */}
+            {content.height_type !== 'image' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Mobile Container Height</label>
+                  <select
+                    value={content.mobile_height_type || 'auto'}
+                    onChange={(e) => updateContent('mobile_height_type', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  >
+                    <option value="auto">Auto (Based on Content)</option>
+                    <option value="full">Full Viewport</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+
+                {content.mobile_height_type === 'custom' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Mobile Custom Height (px)</label>
+                    <input
+                      type="number"
+                      value={content.mobile_custom_height || 300}
+                      onChange={(e) => updateContent('mobile_custom_height', parseInt(e.target.value) || 300)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                      min="100"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mobile Padding */}
+            <div className="space-y-3">
+              <h5 className="text-sm font-medium">Mobile Padding</h5>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Top
+                    <span className="text-xs text-slate-500 block">Default: {defaultMobilePaddingTop}px</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={content.mobile_padding_top ?? ''}
+                    onChange={(e) => updateContent('mobile_padding_top', e.target.value ? parseInt(e.target.value) : undefined)}
+                    placeholder={defaultMobilePaddingTop}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Bottom
+                    <span className="text-xs text-slate-500 block">Default: {defaultMobilePaddingBottom}px</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={content.mobile_padding_bottom ?? ''}
+                    onChange={(e) => updateContent('mobile_padding_bottom', e.target.value ? parseInt(e.target.value) : undefined)}
+                    placeholder={defaultMobilePaddingBottom}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Left
+                    <span className="text-xs text-slate-500 block">Default: {content.padding_left || 16}px</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={content.mobile_padding_left ?? ''}
+                    onChange={(e) => updateContent('mobile_padding_left', e.target.value ? parseInt(e.target.value) : undefined)}
+                    placeholder={content.padding_left || 16}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">
+                    Right
+                    <span className="text-xs text-slate-500 block">Default: {content.padding_right || 16}px</span>
+                  </label>
+                  <input
+                    type="number"
+                    value={content.mobile_padding_right ?? ''}
+                    onChange={(e) => updateContent('mobile_padding_right', e.target.value ? parseInt(e.target.value) : undefined)}
+                    placeholder={content.padding_right || 16}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                    min="0"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile Text Alignment */}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Mobile Text Alignment
+                <span className="text-xs text-slate-500 ml-2">Default: Same as desktop</span>
+              </label>
+              <select
+                value={content.mobile_text_align || ''}
+                onChange={(e) => updateContent('mobile_text_align', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              >
+                <option value="">Same as Desktop ({content.text_align || 'center'})</option>
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+
+            {/* Mobile Button Margin */}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Mobile Button Top Margin
+                <span className="text-xs text-slate-500 block">Default: {defaultMobileButtonMargin}px</span>
+              </label>
+              <input
+                type="number"
+                value={content.mobile_button_top_margin ?? ''}
+                onChange={(e) => updateContent('mobile_button_top_margin', e.target.value ? parseInt(e.target.value) : undefined)}
+                placeholder={defaultMobileButtonMargin}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                min="0"
+              />
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

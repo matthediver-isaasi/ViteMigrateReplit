@@ -10,7 +10,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-export default function ColleagueSelector({ organizationId, onSelect, memberInfo }) {
+export default function ColleagueSelector({ organizationId, onSelect, memberInfo, ticketRoleIds = [] }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -22,7 +22,7 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
   const [showDropdown, setShowDropdown] = useState(false);
   const [syncError, setSyncError] = useState(null);
 
-  // Sync with CRM and then load contacts from Supabase
+  // Sync with CRM and then load members from Supabase
   useEffect(() => {
     const syncAndLoadMembers = async () => {
       if (!organizationId) {
@@ -53,24 +53,34 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
           console.log('[ColleagueSelector] CRM sync complete:', syncResult);
         }
         
-        // Step 2: Load contacts from organization_contact table
-        console.log('[ColleagueSelector] Loading contacts from Supabase...');
+        // Step 2: Load members from member table (includes role_id for filtering)
+        console.log('[ColleagueSelector] Loading members from Supabase...');
         const { data, error } = await supabase
-          .from('organization_contact')
-          .select('id, email, first_name, last_name, zoho_contact_id, is_active')
+          .from('member')
+          .select('id, email, first_name, last_name, zoho_contact_id, login_enabled, role_id')
           .eq('organization_id', organizationId)
-          .eq('is_active', true)
+          .eq('login_enabled', true)
           .order('first_name', { ascending: true });
 
         if (error) {
-          console.error('[ColleagueSelector] Error loading contacts:', error);
+          console.error('[ColleagueSelector] Error loading members:', error);
           setMembers([]);
         } else {
           // Exclude the current member from the list
-          const filteredMembers = (data || []).filter(
+          let filteredMembers = (data || []).filter(
             m => m.email?.toLowerCase() !== memberInfo?.email?.toLowerCase()
           );
-          console.log('[ColleagueSelector] Loaded', filteredMembers.length, 'active contacts');
+          
+          // If ticketRoleIds is specified and not empty, filter by role
+          if (ticketRoleIds && ticketRoleIds.length > 0) {
+            console.log('[ColleagueSelector] Filtering by ticket role IDs:', ticketRoleIds);
+            filteredMembers = filteredMembers.filter(m => {
+              // Only include members whose role_id is in the ticket's role_ids
+              return m.role_id && ticketRoleIds.includes(m.role_id);
+            });
+          }
+          
+          console.log('[ColleagueSelector] Loaded', filteredMembers.length, 'eligible members');
           setMembers(filteredMembers);
         }
       } catch (error) {
@@ -84,7 +94,7 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
     };
 
     syncAndLoadMembers();
-  }, [organizationId, memberInfo?.email]);
+  }, [organizationId, memberInfo?.email, JSON.stringify(ticketRoleIds)]);
 
   // Filter members based on search term
   const filteredMembers = members.filter(member => {

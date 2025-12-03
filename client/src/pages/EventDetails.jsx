@@ -354,7 +354,7 @@ export default function EventDetailsPage() {
     return parsed;
   }, [event, isOneOffEvent]);
   
-  // Filter ticket classes based on user's role
+  // Get ALL ticket classes (not filtered by role) - user can select any ticket type
   const availableTicketClasses = useMemo(() => {
     if (!isOneOffEvent || !pricingConfig) return [];
     
@@ -379,17 +379,9 @@ export default function EventDetailsPage() {
       }];
     }
     
-    // Filter ticket classes that the user can access and normalize values
+    // Return ALL ticket classes (not filtered by role) - normalize values only
     return ticketClasses
-      .filter(tc => {
-        if (!tc || typeof tc !== 'object') return false;
-        // If no role_ids specified (empty array), ticket is available to all roles
-        const roleIds = Array.isArray(tc.role_ids) ? tc.role_ids : [];
-        if (roleIds.length === 0) return true;
-        // If user's role is in the ticket's role_ids, they can access it
-        if (userRoleId && roleIds.includes(userRoleId)) return true;
-        return false;
-      })
+      .filter(tc => tc && typeof tc === 'object')
       .map(tc => {
         // Explicitly extract only the fields we need - do NOT spread tc
         // This prevents any unexpected object properties from leaking into JSX
@@ -407,7 +399,7 @@ export default function EventDetailsPage() {
           bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
         };
       });
-  }, [isOneOffEvent, pricingConfig, userRoleId]);
+  }, [isOneOffEvent, pricingConfig]);
   
   // Auto-select first available ticket class
   useEffect(() => {
@@ -424,6 +416,46 @@ export default function EventDetailsPage() {
     if (!selectedTicketClassId) return availableTicketClasses[0] || null;
     return availableTicketClasses.find(tc => tc.id === selectedTicketClassId) || availableTicketClasses[0] || null;
   }, [availableTicketClasses, selectedTicketClassId]);
+  
+  // Check if user can self-register based on selected ticket's role restrictions
+  const canSelfRegister = useMemo(() => {
+    if (!isOneOffEvent || !selectedTicketClass) return true; // Non-one-off events have no role restrictions
+    
+    const roleIds = selectedTicketClass.role_ids || [];
+    // If no role_ids specified (empty array), ticket is available to all roles
+    if (roleIds.length === 0) return true;
+    // Check if user's role is in the selected ticket's role_ids
+    return userRoleId && roleIds.includes(userRoleId);
+  }, [isOneOffEvent, selectedTicketClass, userRoleId]);
+  
+  // Filter registration modes based on canSelfRegister for one-off events
+  const effectiveRegistrationModes = useMemo(() => {
+    if (!isOneOffEvent) return availableRegistrationModes;
+    
+    // For one-off events, filter out 'self' mode if user can't self-register for selected ticket
+    if (!canSelfRegister) {
+      return availableRegistrationModes.filter(mode => mode.id !== 'self');
+    }
+    return availableRegistrationModes;
+  }, [availableRegistrationModes, isOneOffEvent, canSelfRegister]);
+  
+  // When ticket selection changes and user can no longer self-register, handle mode/attendance changes
+  useEffect(() => {
+    if (isOneOffEvent && !canSelfRegister) {
+      // If in self mode, switch to colleagues mode
+      if (registrationMode === 'self') {
+        console.log('[EventDetails] User can no longer self-register for selected ticket, switching to colleagues mode');
+        setRegistrationMode('colleagues');
+        setAttendees([]);
+        setMemberAttending(false);
+      } else if (memberAttending) {
+        // If in colleagues mode but was attending, remove self from attendees
+        console.log('[EventDetails] User can no longer self-register, removing self from attendees');
+        setAttendees(prev => prev.filter(a => !a.isSelf));
+        setMemberAttending(false);
+      }
+    }
+  }, [isOneOffEvent, canSelfRegister, registrationMode, memberAttending]);
   
   // ========== END PRICING/TICKET CLASS HOOKS ==========
 
@@ -909,7 +941,7 @@ export default function EventDetailsPage() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-xl">Attendees</CardTitle>
                     <div className="flex items-center gap-4">
-                      {currentMemberInfo && (
+                      {currentMemberInfo && canSelfRegister && (
                         <div className="flex items-center gap-3" id="member-attending-toggle">
                           <Switch
                             id="member-attending"
@@ -952,6 +984,7 @@ export default function EventDetailsPage() {
                           organizationId={currentMemberInfo?.organization_id}
                           onSelect={handleColleagueSelect}
                           memberInfo={currentMemberInfo}
+                          ticketRoleIds={selectedTicketClass?.role_ids || []}
                         />
                       </div>
                     </div>
@@ -1134,12 +1167,13 @@ export default function EventDetailsPage() {
               selectedTicketClass={selectedTicketClass}
             />
 
-            {availableRegistrationModes.length > 1 && (
+            {effectiveRegistrationModes.length > 0 && (
               <div>
                 <RegistrationModeSelector
                   mode={registrationMode}
                   onModeChange={handleModeChange}
                   isFeatureExcluded={isFeatureExcluded}
+                  canSelfRegister={canSelfRegister}
                 />
               </div>
             )}

@@ -66,7 +66,13 @@ Preferred communication style: Simple, everyday language.
   - `bulk_discount_threshold` / `bulk_discount_percentage`: For bulk discounts
 - `ticket_price`: Legacy field - stores default ticket price for backward compatibility
 
-**Ticket Class Filtering:** On EventDetails page, users only see ticket classes matching their role. If no matching ticket classes exist, a "No Tickets Available" message is shown.
+**Ticket Class Selection & Role-Based Filtering:** On EventDetails page for one-off events:
+- All ticket classes are displayed to the user, regardless of their role
+- Users can select any ticket class they wish to purchase
+- Self-registration ("Self Register" mode or "I am attending" toggle) is only available if the user's role matches the selected ticket's `role_ids`
+- When adding colleagues, the colleague list is filtered to show only members whose `role_id` matches the selected ticket's `role_ids`
+- If a ticket has empty `role_ids`, it's available to all roles (no restrictions)
+- When the user switches to a ticket they cannot self-register for, they are automatically switched to "Register Attendees" mode and removed from the attendee list if they were attending
 
 **One-Off Event Payment Methods:**
 - Training vouchers (from ProgramTicketTransaction with type='voucher')

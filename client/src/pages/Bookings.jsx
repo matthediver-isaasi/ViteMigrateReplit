@@ -211,8 +211,10 @@ export default function BookingsPage() {
 
   const isLoading = loadingBookings || loadingEvents;
 
+  // Group bookings by booking_group_reference (for multi-attendee bookings) 
+  // or fallback to booking_reference for single-attendee/legacy bookings
   const bookingsByReference = bookings.reduce((acc, booking) => {
-    const ref = booking.booking_reference || 'unknown';
+    const ref = booking.booking_group_reference || booking.booking_reference || 'unknown';
     if (!acc[ref]) {
       acc[ref] = [];
     }

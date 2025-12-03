@@ -476,33 +476,51 @@ export default function EventDetailsPage() {
   const availableTicketClasses = useMemo(() => {
     if (!isOneOffEvent || !pricingConfig) return [];
     
-    const ticketClasses = pricingConfig.ticket_classes || [];
+    // Ensure ticket_classes is an array
+    const rawTicketClasses = pricingConfig.ticket_classes;
+    const ticketClasses = Array.isArray(rawTicketClasses) ? rawTicketClasses : [];
     
     // If no ticket classes defined, use legacy single-price format
     if (ticketClasses.length === 0) {
       return [{
         id: 'default',
         name: 'Standard Ticket',
-        price: pricingConfig.ticket_price || 0,
+        price: Number(pricingConfig.ticket_price) || 0,
         role_ids: [],
         is_default: true,
-        offer_type: pricingConfig.offer_type || 'none',
+        offer_type: String(pricingConfig.offer_type || 'none'),
         bogo_logic_type: pricingConfig.bogo_logic_type,
-        bogo_buy_quantity: pricingConfig.bogo_buy_quantity,
-        bogo_get_free_quantity: pricingConfig.bogo_get_free_quantity,
-        bulk_discount_threshold: pricingConfig.bulk_discount_threshold,
-        bulk_discount_percentage: pricingConfig.bulk_discount_percentage
+        bogo_buy_quantity: Number(pricingConfig.bogo_buy_quantity) || 0,
+        bogo_get_free_quantity: Number(pricingConfig.bogo_get_free_quantity) || 0,
+        bulk_discount_threshold: Number(pricingConfig.bulk_discount_threshold) || 0,
+        bulk_discount_percentage: Number(pricingConfig.bulk_discount_percentage) || 0
       }];
     }
     
-    // Filter ticket classes that the user can access
-    return ticketClasses.filter(tc => {
-      // If no role_ids specified (empty array), ticket is available to all roles
-      if (!tc.role_ids || tc.role_ids.length === 0) return true;
-      // If user's role is in the ticket's role_ids, they can access it
-      if (userRoleId && tc.role_ids.includes(userRoleId)) return true;
-      return false;
-    });
+    // Filter ticket classes that the user can access and normalize values
+    return ticketClasses
+      .filter(tc => {
+        if (!tc || typeof tc !== 'object') return false;
+        // If no role_ids specified (empty array), ticket is available to all roles
+        const roleIds = Array.isArray(tc.role_ids) ? tc.role_ids : [];
+        if (roleIds.length === 0) return true;
+        // If user's role is in the ticket's role_ids, they can access it
+        if (userRoleId && roleIds.includes(userRoleId)) return true;
+        return false;
+      })
+      .map(tc => ({
+        ...tc,
+        id: String(tc.id || `ticket-${Date.now()}`),
+        name: String(tc.name || 'Ticket'),
+        price: Number(tc.price) || 0,
+        role_ids: Array.isArray(tc.role_ids) ? tc.role_ids : [],
+        is_default: Boolean(tc.is_default),
+        offer_type: String(tc.offer_type || 'none'),
+        bogo_buy_quantity: Number(tc.bogo_buy_quantity) || 0,
+        bogo_get_free_quantity: Number(tc.bogo_get_free_quantity) || 0,
+        bulk_discount_threshold: Number(tc.bulk_discount_threshold) || 0,
+        bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
+      }));
   }, [isOneOffEvent, pricingConfig, userRoleId]);
   
   // Auto-select first available ticket class
@@ -989,41 +1007,45 @@ export default function EventDetailsPage() {
                 </CardHeader>
                 <CardContent>
                   <RadioGroup 
-                    value={selectedTicketClassId || ''} 
+                    value={String(selectedTicketClassId || '')} 
                     onValueChange={setSelectedTicketClassId}
                     className="space-y-3"
                   >
-                    {availableTicketClasses.map((tc) => (
-                      <div 
-                        key={tc.id}
-                        className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                          selectedTicketClassId === tc.id 
-                            ? 'border-blue-500 bg-blue-50' 
-                            : 'border-slate-200 hover:bg-slate-50'
-                        }`}
-                        onClick={() => setSelectedTicketClassId(tc.id)}
-                        data-testid={`ticket-class-${tc.id}`}
-                      >
-                        <div className="flex items-center gap-3">
-                          <RadioGroupItem value={tc.id} id={`ticket-${tc.id}`} />
-                          <div>
-                            <Label htmlFor={`ticket-${tc.id}`} className="font-medium cursor-pointer">
-                              {tc.name}
-                            </Label>
-                            {tc.offer_type && tc.offer_type !== 'none' && (
-                              <div className="text-xs text-green-600 mt-0.5">
-                                {tc.offer_type === 'bogo' && `Buy ${tc.bogo_buy_quantity}, get ${tc.bogo_get_free_quantity} free`}
-                                {tc.offer_type === 'bulk_discount' && `${tc.bulk_discount_percentage}% off for ${tc.bulk_discount_threshold}+ tickets`}
-                              </div>
-                            )}
+                    {availableTicketClasses.map((tc) => {
+                      const ticketId = String(tc.id || '');
+                      const ticketPrice = Number(tc.price) || 0;
+                      return (
+                        <div 
+                          key={ticketId}
+                          className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                            String(selectedTicketClassId) === ticketId 
+                              ? 'border-blue-500 bg-blue-50' 
+                              : 'border-slate-200 hover:bg-slate-50'
+                          }`}
+                          onClick={() => setSelectedTicketClassId(ticketId)}
+                          data-testid={`ticket-class-${ticketId}`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <RadioGroupItem value={ticketId} id={`ticket-${ticketId}`} />
+                            <div>
+                              <Label htmlFor={`ticket-${ticketId}`} className="font-medium cursor-pointer">
+                                {String(tc.name || 'Ticket')}
+                              </Label>
+                              {tc.offer_type && tc.offer_type !== 'none' && (
+                                <div className="text-xs text-green-600 mt-0.5">
+                                  {tc.offer_type === 'bogo' && `Buy ${tc.bogo_buy_quantity || 0}, get ${tc.bogo_get_free_quantity || 0} free`}
+                                  {tc.offer_type === 'bulk_discount' && `${tc.bulk_discount_percentage || 0}% off for ${tc.bulk_discount_threshold || 0}+ tickets`}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-lg font-semibold text-slate-900">
+                            <PoundSterling className="h-4 w-4" />
+                            {ticketPrice.toFixed(2)}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1 text-lg font-semibold text-slate-900">
-                          <PoundSterling className="h-4 w-4" />
-                          {(tc.price || 0).toFixed(2)}
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </RadioGroup>
                 </CardContent>
               </Card>
@@ -1041,17 +1063,17 @@ export default function EventDetailsPage() {
                 <CardContent>
                   <div className="flex items-center justify-between p-4 rounded-lg border border-slate-200 bg-slate-50">
                     <div>
-                      <div className="font-medium text-slate-900">{selectedTicketClass.name}</div>
+                      <div className="font-medium text-slate-900">{String(selectedTicketClass.name || 'Ticket')}</div>
                       {selectedTicketClass.offer_type && selectedTicketClass.offer_type !== 'none' && (
                         <div className="text-xs text-green-600 mt-0.5">
-                          {selectedTicketClass.offer_type === 'bogo' && `Buy ${selectedTicketClass.bogo_buy_quantity}, get ${selectedTicketClass.bogo_get_free_quantity} free`}
-                          {selectedTicketClass.offer_type === 'bulk_discount' && `${selectedTicketClass.bulk_discount_percentage}% off for ${selectedTicketClass.bulk_discount_threshold}+ tickets`}
+                          {selectedTicketClass.offer_type === 'bogo' && `Buy ${selectedTicketClass.bogo_buy_quantity || 0}, get ${selectedTicketClass.bogo_get_free_quantity || 0} free`}
+                          {selectedTicketClass.offer_type === 'bulk_discount' && `${selectedTicketClass.bulk_discount_percentage || 0}% off for ${selectedTicketClass.bulk_discount_threshold || 0}+ tickets`}
                         </div>
                       )}
                     </div>
                     <div className="flex items-center gap-1 text-lg font-semibold text-slate-900">
                       <PoundSterling className="h-4 w-4" />
-                      {(selectedTicketClass.price || 0).toFixed(2)}
+                      {(Number(selectedTicketClass.price) || 0).toFixed(2)}
                     </div>
                   </div>
                 </CardContent>

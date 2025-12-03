@@ -404,12 +404,19 @@ export default function PaymentOptions({
 
   // Process one-off booking (after payment if needed)
   const processOneOffBooking = async (stripePaymentId = null) => {
+    console.log('[PaymentOptions] processOneOffBooking started');
     setSubmitting(true);
 
     try {
+      // Log attendees before filtering
+      console.log('[PaymentOptions] All attendees before filter:', JSON.stringify(attendees));
+      const validAttendees = attendees.filter(a => a.isValid);
+      console.log('[PaymentOptions] Valid attendees after filter:', JSON.stringify(validAttendees));
+      console.log('[PaymentOptions] Valid attendees count:', validAttendees.length);
+      
       const bookingPayload = {
         eventId: event.id,
-        attendees: attendees.filter(a => a.isValid),
+        attendees: validAttendees,
         registrationMode: registrationMode,
         ticketsRequired: ticketsRequired,
         totalCost: totalCost,
@@ -442,7 +449,9 @@ export default function PaymentOptions({
         };
       }
 
+      console.log('[PaymentOptions] Calling createOneOffEventBooking API with payload:', JSON.stringify(bookingPayload));
       const response = await base44.functions.invoke('createOneOffEventBooking', bookingPayload);
+      console.log('[PaymentOptions] API response received:', JSON.stringify(response.data));
 
       if (response.data.success) {
         sessionStorage.removeItem(`event_registration_${event.id}`);

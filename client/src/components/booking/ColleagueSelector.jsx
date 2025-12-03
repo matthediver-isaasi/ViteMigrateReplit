@@ -127,23 +127,40 @@ export default function ColleagueSelector({ organizationId, onSelect, memberInfo
     
     try {
       // Check if email exists in the member table for this organization
+      // Use maybeSingle() instead of single() to avoid 406 error when no member found
       const { data: existingMember, error } = await supabase
         .from('member')
         .select('id, email, first_name, last_name, zoho_contact_id, login_enabled')
         .eq('email', manualEmail.toLowerCase())
         .eq('organization_id', organizationId)
         .limit(1)
-        .single();
+        .maybeSingle();
 
-      if (error || !existingMember) {
-        // Member not found in organization
+      if (error) {
+        console.error('[ColleagueSelector] Member lookup error:', error);
+        // For any error, treat as external email
         onSelect({
           email: manualEmail,
           first_name: "",
           last_name: "",
-          isValid: false,
-          validationStatus: 'not_found',
-          validationMessage: 'This email is not registered as a member of your organisation'
+          isValid: true,
+          validationStatus: 'external',
+          validationMessage: 'External attendee - will be registered with this email'
+        });
+        setManualEmail("");
+        setShowManualEntry(false);
+        return;
+      }
+      
+      if (!existingMember) {
+        // Email not found in organization - treat as valid external attendee
+        onSelect({
+          email: manualEmail,
+          first_name: "",
+          last_name: "",
+          isValid: true,
+          validationStatus: 'external',
+          validationMessage: 'External attendee - will be registered with this email'
         });
       } else if (!existingMember.login_enabled) {
         // Member exists but is not active

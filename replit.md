@@ -69,10 +69,11 @@ Preferred communication style: Simple, everyday language.
 **Ticket Class Selection & Role-Based Filtering:** On EventDetails page for one-off events:
 - All ticket classes are displayed to the user, regardless of their role
 - Users can select any ticket class they wish to purchase
-- Self-registration ("Self Register" mode or "I am attending" toggle) is only available if the user's role matches the selected ticket's `role_ids`
+- The Attendees card is always shown by default (no registration mode selection cards)
+- Self-registration via "I am attending" toggle is only available if the user's role matches the selected ticket's `role_ids`
 - When adding colleagues, the colleague list is filtered to show only members whose `role_id` matches the selected ticket's `role_ids`
 - If a ticket has empty `role_ids`, it's available to all roles (no restrictions)
-- When the user switches to a ticket they cannot self-register for, they are automatically switched to "Register Attendees" mode and removed from the attendee list if they were attending
+- When the user switches to a ticket they cannot self-register for, they are removed from the attendee list if they were attending
 
 **One-Off Event Payment Methods:**
 - Training vouchers (from ProgramTicketTransaction with type='voucher')

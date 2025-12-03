@@ -15,7 +15,6 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import AttendeeList from "../components/booking/AttendeeList";
 import PaymentOptions from "../components/booking/PaymentOptions";
-import RegistrationModeSelector from "../components/booking/RegistrationModeSelector";
 import ColleagueSelector from "../components/booking/ColleagueSelector";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
@@ -56,34 +55,6 @@ export default function EventDetailsPage() {
       setShowTour(true);
     }
   }, [shouldShowTours, hasSeenTour, currentMemberInfo]);
-
-  // Calculate available registration modes
-  const availableRegistrationModes = React.useMemo(() => {
-    const modes = [
-    {
-      id: 'self',
-      icon: 'User',
-      title: 'Self Register',
-      description: 'Register yourself only',
-      featureId: 'element_SelfRegistration'
-    },
-    {
-      id: 'colleagues',
-      icon: 'Users',
-      title: 'Register Attendees',
-      description: 'Register your attendee(s) now'
-    }];
-
-    const filtered = modes.filter((modeOption) => {
-      if (modeOption.featureId && isFeatureExcluded) {
-        return !isFeatureExcluded(modeOption.featureId);
-      }
-      return true;
-    });
-    
-    console.log('[EventDetails] Available registration modes:', filtered.map(m => m.id));
-    return filtered;
-  }, [isFeatureExcluded]);
 
   useEffect(() => {
     if (!memberInfo) {
@@ -428,16 +399,6 @@ export default function EventDetailsPage() {
     return userRoleId && roleIds.includes(userRoleId);
   }, [isOneOffEvent, selectedTicketClass, userRoleId]);
   
-  // Filter registration modes based on canSelfRegister for one-off events
-  const effectiveRegistrationModes = useMemo(() => {
-    if (!isOneOffEvent) return availableRegistrationModes;
-    
-    // For one-off events, filter out 'self' mode if user can't self-register for selected ticket
-    if (!canSelfRegister) {
-      return availableRegistrationModes.filter(mode => mode.id !== 'self');
-    }
-    return availableRegistrationModes;
-  }, [availableRegistrationModes, isOneOffEvent, canSelfRegister]);
   
   // When ticket selection changes and user can no longer self-register, handle mode/attendance changes
   useEffect(() => {
@@ -476,34 +437,6 @@ export default function EventDetailsPage() {
       isSelf: false
     }]);
     setShowColleagueSelector(false);
-  };
-
-  const handleModeChange = (mode) => {
-    setRegistrationMode(mode);
-    setShowColleagueSelector(false); // Reset when mode changes
-
-    if (currentMemberInfo) {
-      if (mode === 'self') {
-        setAttendees([{
-          email: currentMemberInfo.email || "",
-          first_name: currentMemberInfo.first_name || "",
-          last_name: currentMemberInfo.last_name || "",
-          isValid: true,
-          isSelf: true
-        }]);
-        setMemberAttending(true);
-      } else if (mode === 'colleagues') {
-        setAttendees([]);
-        setMemberAttending(false);
-        setShowColleagueSelector(true); // Auto-show when switching to colleagues mode
-      }
-    } else {
-      setAttendees([]);
-      setMemberAttending(false);
-      if (mode === 'colleagues') {
-        setShowColleagueSelector(true);
-      }
-    }
   };
 
   const toggleMemberAttendance = () => {
@@ -935,11 +868,10 @@ export default function EventDetailsPage() {
               )}
             </Card>
 
-            {registrationMode === 'colleagues' && (
-              <Card className="border-slate-200 shadow-sm">
-                <CardHeader className="border-b border-slate-200">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-xl">Attendees</CardTitle>
+            <Card className="border-slate-200 shadow-sm">
+              <CardHeader className="border-b border-slate-200">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">Attendees</CardTitle>
                     <div className="flex items-center gap-4">
                       {currentMemberInfo && canSelfRegister && (
                         <div className="flex items-center gap-3" id="member-attending-toggle">
@@ -1044,7 +976,6 @@ export default function EventDetailsPage() {
                   )}
                 </CardContent>
               </Card>
-            )}
           </div>
 
           <div className="lg:col-span-1 space-y-6">
@@ -1167,16 +1098,6 @@ export default function EventDetailsPage() {
               selectedTicketClass={selectedTicketClass}
             />
 
-            {effectiveRegistrationModes.length > 0 && (
-              <div>
-                <RegistrationModeSelector
-                  mode={registrationMode}
-                  onModeChange={handleModeChange}
-                  isFeatureExcluded={isFeatureExcluded}
-                  canSelfRegister={canSelfRegister}
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>

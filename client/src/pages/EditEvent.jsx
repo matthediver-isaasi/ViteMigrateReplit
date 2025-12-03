@@ -24,7 +24,8 @@ import {
   Users,
   Ticket,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Check
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -739,24 +740,30 @@ export default function EditEvent() {
                             <div className="text-sm text-slate-500">Loading roles...</div>
                           ) : (
                             <div className="flex flex-wrap gap-2">
-                              {roles.map(role => (
-                                <div
-                                  key={role.id}
-                                  className={`flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
-                                    (ticket.role_ids || []).includes(role.id)
-                                      ? 'bg-blue-100 border-blue-300 text-blue-800'
-                                      : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
-                                  }`}
-                                  onClick={() => toggleRoleForTicket(ticket.id, role.id)}
-                                  data-testid={`role-toggle-${ticket.id}-${role.id}`}
-                                >
-                                  <Checkbox
-                                    checked={(ticket.role_ids || []).includes(role.id)}
-                                    className="h-3.5 w-3.5"
-                                  />
-                                  <span className="text-sm">{role.name}</span>
-                                </div>
-                              ))}
+                              {roles.map(role => {
+                                const isSelected = (ticket.role_ids || []).includes(role.id);
+                                return (
+                                  <div
+                                    key={role.id}
+                                    className={`flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
+                                      isSelected
+                                        ? 'bg-blue-100 border-blue-300 text-blue-800'
+                                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                                    }`}
+                                    onClick={() => toggleRoleForTicket(ticket.id, role.id)}
+                                    data-testid={`role-toggle-${ticket.id}-${role.id}`}
+                                  >
+                                    <div className={`h-3.5 w-3.5 rounded border flex items-center justify-center ${
+                                      isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 bg-white'
+                                    }`}>
+                                      {isSelected && (
+                                        <Check className="h-2.5 w-2.5 text-white" />
+                                      )}
+                                    </div>
+                                    <span className="text-sm">{role.name}</span>
+                                  </div>
+                                );
+                              })}
                             </div>
                           )}
                           

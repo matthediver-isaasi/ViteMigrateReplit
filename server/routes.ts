@@ -571,12 +571,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       req.session.memberId = member.id;
       req.session.memberEmail = member.email;
 
-      console.log('[Auth Login] Success for:', email, 'Session ID:', req.sessionID);
-      
-      res.json({ 
-        success: true, 
-        member,
-        isTemporaryPassword: credentials.is_temp_password 
+      // Explicitly save session for serverless environments
+      req.session.save((err) => {
+        if (err) {
+          console.error('[Auth Login] Session save error:', err);
+          return res.status(500).json({ success: false, error: 'Failed to create session' });
+        }
+        
+        console.log('[Auth Login] Success for:', email, 'Session ID:', req.sessionID);
+        
+        res.json({ 
+          success: true, 
+          member,
+          isTemporaryPassword: credentials.is_temp_password 
+        });
       });
     } catch (error) {
       console.error('Login error:', error);
@@ -732,8 +740,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         .eq('id', member.id)
         .single();
 
-      console.log('[Auth] Password set for:', email);
-      res.json({ success: true, member: fullMember });
+      // Explicitly save session for serverless environments
+      req.session.save((err) => {
+        if (err) {
+          console.error('[Auth] Session save error:', err);
+          return res.status(500).json({ success: false, error: 'Failed to create session' });
+        }
+        
+        console.log('[Auth] Password set for:', email);
+        res.json({ success: true, member: fullMember });
+      });
     } catch (error) {
       console.error('Set password error:', error);
       res.status(500).json({ success: false, error: 'Failed to set password' });

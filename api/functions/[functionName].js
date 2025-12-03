@@ -1602,15 +1602,31 @@ const functionHandlers = {
               lineDescription += `\nRef: ${event.internal_reference}`;
             }
 
+            // Get Xero account code from system settings (default to '200' for Sales)
+            const { data: accountCodeSetting } = await supabase
+              .from('system_settings')
+              .select('setting_value')
+              .eq('setting_key', 'xero_sales_account_code')
+              .maybeSingle();
+            
+            const xeroAccountCode = accountCodeSetting?.setting_value || '200';
+            xeroDebug.accountCodeUsed = xeroAccountCode;
+            
+            // Calculate due date (30 days from now)
+            const dueDate = new Date();
+            dueDate.setDate(dueDate.getDate() + 30);
+            const dueDateString = dueDate.toISOString().split('T')[0]; // YYYY-MM-DD format
+            
             // Create invoice
             const invoicePayload = {
               Type: 'ACCREC',
               Contact: { ContactID: contactId },
+              DueDate: dueDateString,
               LineItems: [{
                 Description: lineDescription,
                 Quantity: 1,
                 UnitAmount: validatedRemainingBalance,
-                AccountCode: '200'
+                AccountCode: xeroAccountCode
               }],
               Reference: purchaseOrderNumber || bookingReference,
               Status: 'AUTHORISED'

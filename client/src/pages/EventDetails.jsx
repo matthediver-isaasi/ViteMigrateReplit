@@ -68,6 +68,7 @@ export default function EventDetailsPage() {
   }, [memberInfo]);
 
   // Initialization useEffect - now only runs once per eventId change
+  // Always defaults to 'colleagues' mode with Attendees card shown
   useEffect(() => {
     console.log('[EventDetails] Initialization useEffect - hasInitialized.current:', hasInitialized.current, 'eventId:', eventId);
     
@@ -80,137 +81,41 @@ export default function EventDetailsPage() {
     console.log('[EventDetails] Running initialization logic');
     hasInitialized.current = eventId; // Mark as initialized for this eventId
 
-    if (currentMemberInfo) {
-      if (eventId) {
-        const savedRegistration = sessionStorage.getItem(`event_registration_${eventId}`);
-        console.log('[EventDetails] Saved registration in sessionStorage:', savedRegistration ? 'exists' : 'not found');
+    if (currentMemberInfo && eventId) {
+      const savedRegistration = sessionStorage.getItem(`event_registration_${eventId}`);
+      console.log('[EventDetails] Saved registration in sessionStorage:', savedRegistration ? 'exists' : 'not found');
 
-        if (savedRegistration) {
-          let { attendees: savedAttendees, registrationMode: savedMode, memberAttending: savedMemberAttending } = JSON.parse(savedRegistration);
-          console.log('[EventDetails] Loaded saved registration - mode:', savedMode, 'attendees:', savedAttendees.length);
+      if (savedRegistration) {
+        let { attendees: savedAttendees, memberAttending: savedMemberAttending } = JSON.parse(savedRegistration);
+        console.log('[EventDetails] Loaded saved registration - attendees:', savedAttendees.length);
 
-          // CRITICAL FIX: Check if saved mode is still available for this user
-          const isSavedModeAvailable = availableRegistrationModes.some(mode => mode.id === savedMode);
-          console.log('[EventDetails] Is saved mode "' + savedMode + '" still available?', isSavedModeAvailable);
-
-          if (!isSavedModeAvailable) {
-            console.log('[EventDetails] Saved mode is no longer available - resetting to defaults');
-            // Clear the invalid saved registration
-            sessionStorage.removeItem(`event_registration_${eventId}`);
-            
-            // Set up defaults as if no saved registration exists
-            let initialRegistrationMode;
-            let initialMemberAttending = false;
-            let initialAttendees = [];
-            let initialShowColleagueSelector = false;
-
-            const colleaguesModeOption = availableRegistrationModes.find(mode => mode.id === 'colleagues');
-            const selfModeOption = availableRegistrationModes.find(mode => mode.id === 'self');
-            
-            if (colleaguesModeOption) {
-              initialRegistrationMode = 'colleagues';
-              initialShowColleagueSelector = true;
-            } else if (selfModeOption) {
-              initialRegistrationMode = 'self';
-              initialMemberAttending = true;
-              initialAttendees = [{
-                email: currentMemberInfo.email || "",
-                first_name: currentMemberInfo.first_name || "",
-                last_name: currentMemberInfo.last_name || "",
-                isValid: true,
-                isSelf: true
-              }];
-            } else {
-              initialRegistrationMode = availableRegistrationModes.length > 0 ? availableRegistrationModes[0].id : 'colleagues';
-              if (initialRegistrationMode === 'colleagues') {
-                initialShowColleagueSelector = true;
-              }
-            }
-            
-            setRegistrationMode(initialRegistrationMode);
-            setMemberAttending(initialMemberAttending);
-            setAttendees(initialAttendees);
-            setShowColleagueSelector(initialShowColleagueSelector);
-            return;
-          }
-
-          // Saved mode is valid - use it
-          if (savedMode === 'links') {
-            savedMode = 'self';
-            savedMemberAttending = true;
-            savedAttendees = [{
-              email: currentMemberInfo.email || "",
-              first_name: currentMemberInfo.first_name || "",
-              last_name: currentMemberInfo.last_name || "",
-              isValid: true,
-              isSelf: true
-            }];
-            console.log('[EventDetails] Converted links mode to self mode');
-          }
-
-          setAttendees(savedAttendees);
-          setRegistrationMode(savedMode);
-          setMemberAttending(savedMemberAttending !== undefined ? savedMemberAttending : false);
-          
-          // Only auto-show colleague selector if in colleagues mode with no attendees
-          if (savedMode === 'colleagues' && savedAttendees.length === 0) {
-            setShowColleagueSelector(true);
-          } else {
-            setShowColleagueSelector(false);
-          }
+        setAttendees(savedAttendees);
+        setRegistrationMode('colleagues');
+        setMemberAttending(savedMemberAttending !== undefined ? savedMemberAttending : false);
+        
+        // Only auto-show colleague selector if no attendees
+        if (savedAttendees.length === 0) {
+          setShowColleagueSelector(true);
         } else {
-          // No saved registration - set defaults
-          console.log('[EventDetails] No saved registration - initializing defaults');
-          
-          let initialRegistrationMode;
-          let initialMemberAttending = false;
-          let initialAttendees = [];
-          let initialShowColleagueSelector = false;
-
-          const colleaguesModeOption = availableRegistrationModes.find(mode => mode.id === 'colleagues');
-          const selfModeOption = availableRegistrationModes.find(mode => mode.id === 'self');
-          
-          if (colleaguesModeOption) {
-            initialRegistrationMode = 'colleagues';
-            initialShowColleagueSelector = true;
-          } else if (selfModeOption) {
-            initialRegistrationMode = 'self';
-            initialMemberAttending = true;
-            initialAttendees = [{
-              email: currentMemberInfo.email || "",
-              first_name: currentMemberInfo.first_name || "",
-              last_name: currentMemberInfo.last_name || "",
-              isValid: true,
-              isSelf: true
-            }];
-          } else {
-            initialRegistrationMode = availableRegistrationModes.length > 0 ? availableRegistrationModes[0].id : 'colleagues';
-            if (initialRegistrationMode === 'colleagues') {
-              initialShowColleagueSelector = true;
-            }
-          }
-          
-          setRegistrationMode(initialRegistrationMode);
-          setMemberAttending(initialMemberAttending);
-          setAttendees(initialAttendees);
-          setShowColleagueSelector(initialShowColleagueSelector);
+          setShowColleagueSelector(false);
         }
+      } else {
+        // No saved registration - set defaults
+        console.log('[EventDetails] No saved registration - initializing defaults');
+        setRegistrationMode('colleagues');
+        setMemberAttending(false);
+        setAttendees([]);
+        setShowColleagueSelector(true);
       }
     } else {
       // For unauthenticated users
       console.log('[EventDetails] No memberInfo - setting up for unauthenticated user');
       setAttendees([]);
-      const colleaguesModeOption = availableRegistrationModes.find(mode => mode.id === 'colleagues');
-      const defaultMode = colleaguesModeOption ? 'colleagues' : (availableRegistrationModes.length > 0 ? availableRegistrationModes[0].id : 'colleagues');
-      setRegistrationMode(defaultMode);
+      setRegistrationMode('colleagues');
       setMemberAttending(false);
-      if (defaultMode === 'colleagues') {
-        setShowColleagueSelector(true);
-      } else {
-        setShowColleagueSelector(false);
-      }
+      setShowColleagueSelector(true);
     }
-  }, [eventId]); // CRITICAL: Removed currentMemberInfo and availableRegistrationModes from dependencies
+  }, [eventId]); // CRITICAL: Only depends on eventId
 
   // Separate useEffect to save state to sessionStorage
   useEffect(() => {

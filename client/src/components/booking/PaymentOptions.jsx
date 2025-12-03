@@ -127,7 +127,8 @@ export default function PaymentOptions({
   // Payment state for one-off events
   const [selectedVouchers, setSelectedVouchers] = useState([]);
   const [trainingFundAmount, setTrainingFundAmount] = useState(0);
-  const [remainingBalancePaymentMethod, setRemainingBalancePaymentMethod] = useState('account');
+  // For non-logged-in users (public checkout), default to card payment
+  const [remainingBalancePaymentMethod, setRemainingBalancePaymentMethod] = useState(memberInfo ? 'account' : 'card');
   const [purchaseOrderNumber, setPurchaseOrderNumber] = useState('');
   const [showStripeModal, setShowStripeModal] = useState(false);
   const [stripeClientSecret, setStripeClientSecret] = useState(null);
@@ -475,8 +476,8 @@ export default function PaymentOptions({
         {/* Payment Options */}
         {totalCost > 0 && ticketsRequired > 0 && (
           <div className="space-y-4">
-            {/* Vouchers */}
-            {!isFeatureExcluded('payment_training_vouchers') && (
+            {/* Vouchers - only for logged-in members */}
+            {memberInfo && !isFeatureExcluded('payment_training_vouchers') && (
               <div className="p-4 rounded-lg border border-slate-200 bg-blue-50">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -512,8 +513,8 @@ export default function PaymentOptions({
               </div>
             )}
 
-            {/* Training Fund */}
-            {!isFeatureExcluded('payment_training_fund') && (
+            {/* Training Fund - only for logged-in members */}
+            {memberInfo && !isFeatureExcluded('payment_training_fund') && (
               <div className="p-4 rounded-lg border border-slate-200 bg-green-50">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -550,69 +551,84 @@ export default function PaymentOptions({
                   </div>
                 </div>
 
-                <RadioGroup value={remainingBalancePaymentMethod} onValueChange={setRemainingBalancePaymentMethod}>
-                  <div className="space-y-3">
-                    <div className="space-y-2">
-                      <div
-                        className="flex items-start space-x-3 p-3 rounded-lg border-2 transition-colors cursor-pointer hover:bg-slate-100"
-                        style={{ borderColor: remainingBalancePaymentMethod === 'account' ? '#6366f1' : '#e2e8f0' }}
-                        onClick={() => setRemainingBalancePaymentMethod('account')}
-                      >
-                        <RadioGroupItem value="account" id="account" className="mt-1" />
-                        <div className="flex-1">
-                          <Label htmlFor="account" className="text-sm font-medium cursor-pointer">Charge to Organisation Account</Label>
-                          <p className="text-xs text-slate-500 mt-1">Requires purchase order number</p>
-                        </div>
-                      </div>
-
-                      {remainingBalancePaymentMethod === 'account' && (
-                        <div className="ml-6 space-y-3">
-                          {!poSupplyLater && (
-                            <Input
-                              placeholder="Purchase Order Number *"
-                              value={purchaseOrderNumber}
-                              onChange={(e) => setPurchaseOrderNumber(e.target.value)}
-                              className="mt-2"
-                              data-testid="input-purchase-order"
-                            />
-                          )}
-                          <div className="flex items-center space-x-2 mt-2">
-                            <Switch
-                              id="po-supply-later"
-                              checked={poSupplyLater}
-                              onCheckedChange={(checked) => {
-                                setPoSupplyLater(checked);
-                                if (checked) {
-                                  setPurchaseOrderNumber('');
-                                }
-                              }}
-                              data-testid="switch-po-supply-later"
-                            />
-                            <Label htmlFor="po-supply-later" className="text-sm cursor-pointer">
-                              Supply later
-                            </Label>
-                          </div>
-                        </div>
+                {/* For non-logged-in users, only show card payment option */}
+                {!memberInfo ? (
+                  <div className="flex items-start space-x-3 p-3 rounded-lg border-2 border-indigo-500 bg-white">
+                    <CreditCard className="w-5 h-5 text-indigo-600 mt-0.5" />
+                    <div className="flex-1">
+                      <Label className="text-sm font-medium">Pay by Credit/Debit Card</Label>
+                      {stripeAvailable ? (
+                        <p className="text-xs text-slate-500 mt-1">Secure payment via Stripe</p>
+                      ) : (
+                        <p className="text-xs text-amber-600 mt-1">Card payments not currently available</p>
                       )}
                     </div>
+                  </div>
+                ) : (
+                  <RadioGroup value={remainingBalancePaymentMethod} onValueChange={setRemainingBalancePaymentMethod}>
+                    <div className="space-y-3">
+                      <div className="space-y-2">
+                        <div
+                          className="flex items-start space-x-3 p-3 rounded-lg border-2 transition-colors cursor-pointer hover:bg-slate-100"
+                          style={{ borderColor: remainingBalancePaymentMethod === 'account' ? '#6366f1' : '#e2e8f0' }}
+                          onClick={() => setRemainingBalancePaymentMethod('account')}
+                        >
+                          <RadioGroupItem value="account" id="account" className="mt-1" />
+                          <div className="flex-1">
+                            <Label htmlFor="account" className="text-sm font-medium cursor-pointer">Charge to Organisation Account</Label>
+                            <p className="text-xs text-slate-500 mt-1">Requires purchase order number</p>
+                          </div>
+                        </div>
 
-                    <div
-                      className={`flex items-start space-x-3 p-3 rounded-lg border-2 transition-colors ${stripeAvailable ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
-                      style={{ borderColor: remainingBalancePaymentMethod === 'card' ? '#6366f1' : '#e2e8f0' }}
-                      onClick={() => stripeAvailable && setRemainingBalancePaymentMethod('card')}
-                    >
-                      <RadioGroupItem value="card" id="card" className="mt-1" disabled={!stripeAvailable} />
-                      <div className="flex-1">
-                        <Label htmlFor="card" className={`text-sm font-medium ${stripeAvailable ? 'cursor-pointer' : 'cursor-not-allowed'}`}>Pay by Credit/Debit Card</Label>
-                        {stripeAvailable ? (
-                          <p className="text-xs text-slate-500 mt-1">Secure payment via Stripe</p>
-                        ) : (
-                          <p className="text-xs text-amber-600 mt-1">Card payments not currently available</p>
+                        {remainingBalancePaymentMethod === 'account' && (
+                          <div className="ml-6 space-y-3">
+                            {!poSupplyLater && (
+                              <Input
+                                placeholder="Purchase Order Number *"
+                                value={purchaseOrderNumber}
+                                onChange={(e) => setPurchaseOrderNumber(e.target.value)}
+                                className="mt-2"
+                                data-testid="input-purchase-order"
+                              />
+                            )}
+                            <div className="flex items-center space-x-2 mt-2">
+                              <Switch
+                                id="po-supply-later"
+                                checked={poSupplyLater}
+                                onCheckedChange={(checked) => {
+                                  setPoSupplyLater(checked);
+                                  if (checked) {
+                                    setPurchaseOrderNumber('');
+                                  }
+                                }}
+                                data-testid="switch-po-supply-later"
+                              />
+                              <Label htmlFor="po-supply-later" className="text-sm cursor-pointer">
+                                Supply later
+                              </Label>
+                            </div>
+                          </div>
                         )}
                       </div>
+
+                      <div
+                        className={`flex items-start space-x-3 p-3 rounded-lg border-2 transition-colors ${stripeAvailable ? 'cursor-pointer hover:bg-slate-100' : 'opacity-60 cursor-not-allowed'}`}
+                        style={{ borderColor: remainingBalancePaymentMethod === 'card' ? '#6366f1' : '#e2e8f0' }}
+                        onClick={() => stripeAvailable && setRemainingBalancePaymentMethod('card')}
+                      >
+                        <RadioGroupItem value="card" id="card" className="mt-1" disabled={!stripeAvailable} />
+                        <div className="flex-1">
+                          <Label htmlFor="card" className={`text-sm font-medium ${stripeAvailable ? 'cursor-pointer' : 'cursor-not-allowed'}`}>Pay by Credit/Debit Card</Label>
+                          {stripeAvailable ? (
+                            <p className="text-xs text-slate-500 mt-1">Secure payment via Stripe</p>
+                          ) : (
+                            <p className="text-xs text-amber-600 mt-1">Card payments not currently available</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </RadioGroup>
+                  </RadioGroup>
+                )}
               </div>
             )}
 

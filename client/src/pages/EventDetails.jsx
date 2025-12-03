@@ -466,8 +466,27 @@ export default function EventDetailsPage() {
   // Calculate ticket count and costs
   const ticketsRequired = registrationMode === 'links' ? 0 : attendees.filter((a) => a.isValid).length;
   
-  // One-off event pricing calculations
-  const pricingConfig = isOneOffEvent ? event.pricing_config : null;
+  // One-off event pricing calculations - parse if it's a JSON string
+  const pricingConfig = useMemo(() => {
+    if (!isOneOffEvent || !event.pricing_config) return null;
+    
+    // Handle case where pricing_config is a JSON string from the database
+    if (typeof event.pricing_config === 'string') {
+      try {
+        return JSON.parse(event.pricing_config);
+      } catch (e) {
+        console.error('Failed to parse pricing_config:', e);
+        return null;
+      }
+    }
+    
+    // Already an object
+    if (typeof event.pricing_config === 'object') {
+      return event.pricing_config;
+    }
+    
+    return null;
+  }, [isOneOffEvent, event.pricing_config]);
   
   // Get the user's role ID
   const userRoleId = memberRole?.id || currentMemberInfo?.role_id;

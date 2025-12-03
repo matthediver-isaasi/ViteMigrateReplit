@@ -508,7 +508,7 @@ export default function EventDetailsPage() {
         role_ids: [],
         is_default: true,
         offer_type: String(pricingConfig.offer_type || 'none'),
-        bogo_logic_type: pricingConfig.bogo_logic_type,
+        bogo_logic_type: String(pricingConfig.bogo_logic_type || 'buy_x_get_y_free'),
         bogo_buy_quantity: Number(pricingConfig.bogo_buy_quantity) || 0,
         bogo_get_free_quantity: Number(pricingConfig.bogo_get_free_quantity) || 0,
         bulk_discount_threshold: Number(pricingConfig.bulk_discount_threshold) || 0,
@@ -527,19 +527,23 @@ export default function EventDetailsPage() {
         if (userRoleId && roleIds.includes(userRoleId)) return true;
         return false;
       })
-      .map(tc => ({
-        ...tc,
-        id: String(tc.id || `ticket-${Date.now()}`),
-        name: String(tc.name || 'Ticket'),
-        price: Number(tc.price) || 0,
-        role_ids: Array.isArray(tc.role_ids) ? tc.role_ids : [],
-        is_default: Boolean(tc.is_default),
-        offer_type: String(tc.offer_type || 'none'),
-        bogo_buy_quantity: Number(tc.bogo_buy_quantity) || 0,
-        bogo_get_free_quantity: Number(tc.bogo_get_free_quantity) || 0,
-        bulk_discount_threshold: Number(tc.bulk_discount_threshold) || 0,
-        bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
-      }));
+      .map(tc => {
+        // Explicitly extract only the fields we need - do NOT spread tc
+        // This prevents any unexpected object properties from leaking into JSX
+        return {
+          id: String(tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
+          name: String(tc.name || 'Ticket'),
+          price: Number(tc.price) || 0,
+          role_ids: Array.isArray(tc.role_ids) ? tc.role_ids : [],
+          is_default: Boolean(tc.is_default),
+          offer_type: String(tc.offer_type || 'none'),
+          bogo_logic_type: String(tc.bogo_logic_type || 'buy_x_get_y_free'),
+          bogo_buy_quantity: Number(tc.bogo_buy_quantity) || 0,
+          bogo_get_free_quantity: Number(tc.bogo_get_free_quantity) || 0,
+          bulk_discount_threshold: Number(tc.bulk_discount_threshold) || 0,
+          bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
+        };
+      });
   }, [isOneOffEvent, pricingConfig, userRoleId]);
   
   // Auto-select first available ticket class

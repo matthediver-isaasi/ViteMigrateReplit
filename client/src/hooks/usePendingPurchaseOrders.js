@@ -5,6 +5,8 @@ import { useMemberAccess } from './useMemberAccess';
 export function usePendingPurchaseOrders() {
   const queryClient = useQueryClient();
   const { memberInfo } = useMemberAccess();
+  
+  console.log('[usePendingPurchaseOrders] memberInfo:', memberInfo ? { id: memberInfo.id, email: memberInfo.email } : null);
 
   const { data: pendingPOBookings = [], isLoading, refetch } = useQuery({
     queryKey: ['pending-po-bookings', memberInfo?.id],

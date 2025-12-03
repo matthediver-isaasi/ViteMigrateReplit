@@ -3991,7 +3991,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
-      // If paying to account, create an account charge record
+      // If paying to account, create an account charge record and optionally a Xero invoice
+      let xeroInvoiceResult = null;
       if (validatedRemainingBalance > 0 && paymentMethod === 'account') {
         await supabase
           .from('program_ticket_transaction')
@@ -4006,6 +4007,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
             po_to_follow: poToFollow,
             notes: `Account charge: £${validatedRemainingBalance.toFixed(2)} for ${event.title || 'event'} (PO: ${poToFollow ? 'To follow' : (purchaseOrderNumber || 'N/A')})`
           });
+
+        // Check if Xero invoice generation is enabled
+        const { data: xeroSettings } = await supabase
+          .from('system_settings')
+          .select('setting_value')
+          .eq('setting_key', 'xero_invoice_enabled')
+          .single();
+
+        const xeroInvoiceEnabled = xeroSettings?.setting_value === 'true';
+
+        if (xeroInvoiceEnabled) {
+          try {
+            console.log('[createOneOffEventBooking] Creating Xero invoice for account charge:', validatedRemainingBalance);
+
+            const { accessToken, tenantId } = await getValidXeroAccessToken(supabase);
+
+            if (accessToken && tenantId) {
+              // Find or create Xero contact
+              const contactId = await findOrCreateXeroContact(accessToken, tenantId, org.name);
+
+              // Build line description with internal reference if present
+              let lineDescription = `${event.title || 'One-off Event'} - ${ticketsRequired} attendee${ticketsRequired > 1 ? 's' : ''}`;
+              if (event.internal_reference) {
+                lineDescription += `\nRef: ${event.internal_reference}`;
+              }
+
+              // Create invoice
+              const invoicePayload = {
+                Type: 'ACCREC',
+                Contact: { ContactID: contactId },
+                LineItems: [{
+                  Description: lineDescription,
+                  Quantity: 1,
+                  UnitAmount: validatedRemainingBalance,
+                  AccountCode: '200'
+                }],
+                Reference: purchaseOrderNumber || bookingReference,
+                Status: 'AUTHORISED'
+              };
+
+              const invoiceResponse = await fetch('https://api.xero.com/api.xro/2.0/Invoices', {
+                method: 'POST',
+                headers: {
+                  'Authorization': `Bearer ${accessToken}`,
+                  'xero-tenant-id': tenantId,
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ Invoices: [invoicePayload] })
+              });
+
+              const invoiceData = await invoiceResponse.json() as any;
+
+              if (invoiceData.Invoices && invoiceData.Invoices.length > 0) {
+                xeroInvoiceResult = {
+                  invoice_id: invoiceData.Invoices[0].InvoiceID,
+                  invoice_number: invoiceData.Invoices[0].InvoiceNumber,
+                  total: invoiceData.Invoices[0].Total,
+                  status: invoiceData.Invoices[0].Status
+                };
+                console.log('[createOneOffEventBooking] Xero invoice created:', xeroInvoiceResult);
+              }
+            } else {
+              console.log('[createOneOffEventBooking] Xero not configured, skipping invoice creation');
+            }
+          } catch (xeroError: any) {
+            console.error('[createOneOffEventBooking] Xero invoice creation failed:', xeroError.message);
+            // Don't fail the booking, just log the error
+          }
+        }
       }
 
       res.json({
@@ -4018,7 +4088,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           training_fund_amount: validatedTrainingFundAmount,
           account_amount: paymentMethod === 'account' ? validatedRemainingBalance : 0,
           card_amount: paymentMethod === 'card' ? validatedRemainingBalance : 0
-        }
+        },
+        xero_invoice: xeroInvoiceResult
       });
 
     } catch (error: any) {
@@ -8824,7 +8895,8 @@ AGCAS Events Team
         discountCode,
         discountType,
         discountValue,
-        stripePaymentIntentId
+        stripePaymentIntentId,
+        internalReference
       } = req.body;
 
       if (!organizationName || !programName || totalCost === undefined || !totalTickets) {
@@ -8847,6 +8919,11 @@ AGCAS Events Team
       let description = `${programName} tickets.\nPrice: £${baseTicketPrice}`;
       if (offerDetails) {
         description += `\nOffer: ${offerDetails}`;
+      }
+
+      // Add internal reference if present (for event tracking)
+      if (internalReference) {
+        description += `\nRef: ${internalReference}`;
       }
 
       // Add discount code information if present

@@ -65,6 +65,7 @@ export default function EditEvent() {
   const [formData, setFormData] = useState({
     title: "",
     description: "",
+    internal_reference: "",
     program_tag: "",
     start_date: "",
     end_date: "",
@@ -189,6 +190,7 @@ export default function EditEvent() {
       setFormData({
         title: event.title || "",
         description: event.description || "",
+        internal_reference: event.internal_reference || "",
         program_tag: event.program_tag || "",
         start_date: event.start_date || "",
         end_date: event.end_date || "",
@@ -350,6 +352,7 @@ export default function EditEvent() {
     const eventData = {
       title: formData.title,
       description: formData.description || null,
+      internal_reference: formData.internal_reference || null,
       program_tag: formData.program_tag,
       start_date: formData.start_date,
       end_date: formData.end_date || formData.start_date,
@@ -580,6 +583,20 @@ export default function EditEvent() {
                   rows={4}
                   data-testid="input-description"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="internal_reference">Internal Reference</Label>
+                <Input
+                  id="internal_reference"
+                  value={formData.internal_reference}
+                  onChange={(e) => handleInputChange('internal_reference', e.target.value)}
+                  placeholder="e.g. PROJECT-123, Budget Code, etc."
+                  data-testid="input-internal-reference"
+                />
+                <p className="text-xs text-slate-500">
+                  For internal use only. Not shown to attendees but included on invoices.
+                </p>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

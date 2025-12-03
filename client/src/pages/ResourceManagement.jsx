@@ -2355,9 +2355,9 @@ export default function ResourceManagementPage() {
               </div>
             </DialogHeader>
 
-            <div className="grid md:grid-cols-4 gap-4 py-4">
+            <div className="grid md:grid-cols-4 gap-4 py-4 overflow-hidden min-h-0">
               {/* Folder Navigation Sidebar */}
-              <div className="md:col-span-1 border-r border-slate-200 pr-4">
+              <div className="md:col-span-1 border-r border-slate-200 pr-4 overflow-y-auto">
                 <h3 className="text-sm font-semibold text-slate-700 mb-3">Folders</h3>
                 
                 {/* Breadcrumb */}
@@ -2405,7 +2405,7 @@ export default function ResourceManagementPage() {
               </div>
 
               {/* Files Grid */}
-              <div className="md:col-span-3 flex flex-col">
+              <div className="md:col-span-3 flex flex-col min-h-0">
                 {/* File count and info */}
                 <div className="flex items-center justify-between mb-3 text-sm text-slate-600">
                   <span>
@@ -2419,7 +2419,7 @@ export default function ResourceManagementPage() {
                   )}
                 </div>
 
-                <div className="flex-1 overflow-y-auto">
+                <div className="flex-1 overflow-y-auto min-h-0">
                   {filteredRepositoryFiles.length === 0 ? (
                     <div className="text-center py-12">
                       <FileText className="w-16 h-16 text-slate-300 mx-auto mb-4" />

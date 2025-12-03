@@ -1295,6 +1295,45 @@ const functionHandlers = {
     return response;
   },
 
+  async checkDuplicateRegistrations(params) {
+    if (!supabase) throw new Error('Supabase not configured');
+    
+    const { eventId, attendeeEmails } = params;
+    
+    if (!eventId || !attendeeEmails || !Array.isArray(attendeeEmails) || attendeeEmails.length === 0) {
+      return { success: true, duplicates: [] };
+    }
+    
+    // Normalize emails to lowercase for comparison
+    const normalizedEmails = attendeeEmails.map(email => email.toLowerCase().trim());
+    
+    // Check for existing confirmed bookings for this event with these attendee emails
+    const { data: existingBookings, error } = await supabase
+      .from('booking')
+      .select('attendee_email, attendee_first_name, attendee_last_name, status')
+      .eq('event_id', eventId)
+      .in('status', ['confirmed', 'pending'])
+      .in('attendee_email', normalizedEmails);
+    
+    if (error) {
+      console.error('[checkDuplicateRegistrations] Error:', error);
+      return { success: false, error: error.message };
+    }
+    
+    // Build list of duplicates with attendee info
+    const duplicates = existingBookings.map(booking => ({
+      email: booking.attendee_email,
+      name: `${booking.attendee_first_name || ''} ${booking.attendee_last_name || ''}`.trim() || booking.attendee_email,
+      status: booking.status
+    }));
+    
+    return {
+      success: true,
+      hasDuplicates: duplicates.length > 0,
+      duplicates
+    };
+  },
+
   async createOneOffEventBooking(params) {
     if (!supabase) throw new Error('Supabase not configured');
     

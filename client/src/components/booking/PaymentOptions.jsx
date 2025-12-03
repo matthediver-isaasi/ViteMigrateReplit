@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Loader2, Ticket, AlertCircle, PoundSterling, Wallet, CreditCard, Tag, Gift, CheckCircle } from "lucide-react";
+import { Loader2, Ticket, AlertCircle, PoundSterling, Wallet, CreditCard, Tag, Gift, CheckCircle, Users } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { loadStripe } from "@stripe/stripe-js";
@@ -137,6 +137,11 @@ export default function PaymentOptions({
   const [stripePaymentIntentId, setStripePaymentIntentId] = useState(null);
   const [stripeAvailable, setStripeAvailable] = useState(false);
   const [poSupplyLater, setPoSupplyLater] = useState(false);
+  
+  // Duplicate registration check state
+  const [showDuplicateWarning, setShowDuplicateWarning] = useState(false);
+  const [duplicateAttendees, setDuplicateAttendees] = useState([]);
+  const [checkingDuplicates, setCheckingDuplicates] = useState(false);
 
   // Initialize Stripe by fetching the publishable key from the backend
   useEffect(() => {
@@ -499,8 +504,55 @@ export default function PaymentOptions({
     await processOneOffBooking(stripePaymentIntentId);
   };
 
-  // Main submit handler
-  const handleSubmit = () => {
+  // Check for duplicate registrations before proceeding
+  const checkForDuplicates = async () => {
+    // Get list of attendee emails to check
+    let emailsToCheck = [];
+    
+    if (isGuestCheckout && guestInfo?.email) {
+      emailsToCheck = [guestInfo.email];
+    } else if (attendees && attendees.length > 0) {
+      emailsToCheck = attendees
+        .filter(a => a.isValid && a.email)
+        .map(a => a.email.toLowerCase().trim());
+    }
+    
+    if (emailsToCheck.length === 0) {
+      return { hasDuplicates: false, duplicates: [] };
+    }
+    
+    try {
+      setCheckingDuplicates(true);
+      const response = await base44.functions.invoke('checkDuplicateRegistrations', {
+        eventId: event.id,
+        attendeeEmails: emailsToCheck
+      });
+      
+      if (response.data.success && response.data.hasDuplicates) {
+        return { hasDuplicates: true, duplicates: response.data.duplicates };
+      }
+      return { hasDuplicates: false, duplicates: [] };
+    } catch (error) {
+      console.error('Error checking for duplicates:', error);
+      // If check fails, allow booking to proceed (fail open)
+      return { hasDuplicates: false, duplicates: [] };
+    } finally {
+      setCheckingDuplicates(false);
+    }
+  };
+
+  // Main submit handler with duplicate check
+  const handleSubmit = async () => {
+    // Check for duplicate registrations first
+    const { hasDuplicates, duplicates } = await checkForDuplicates();
+    
+    if (hasDuplicates) {
+      setDuplicateAttendees(duplicates);
+      setShowDuplicateWarning(true);
+      return;
+    }
+    
+    // No duplicates, proceed with booking
     if (isOneOffEvent) {
       handleOneOffBooking();
     } else {
@@ -855,11 +907,16 @@ export default function PaymentOptions({
           <Button
             id="confirm-booking-button"
             onClick={handleSubmit}
-            disabled={!canProceed}
+            disabled={!canProceed || checkingDuplicates}
             className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
             size="lg"
           >
-            {submitting ? (
+            {checkingDuplicates ? (
+              <>
+                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                Checking...
+              </>
+            ) : submitting ? (
               <>
                 <Loader2 className="w-5 h-5 mr-2 animate-spin" />
                 Processing...
@@ -904,6 +961,53 @@ export default function PaymentOptions({
               />
             </Elements>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Duplicate Registration Warning Modal */}
+      <Dialog open={showDuplicateWarning} onOpenChange={setShowDuplicateWarning}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-amber-600">
+              <AlertCircle className="w-5 h-5" />
+              Duplicate Registration Detected
+            </DialogTitle>
+            <DialogDescription>
+              The following attendees are already registered for this event and cannot be booked again.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="mt-4 space-y-3">
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="w-4 h-4 text-amber-600" />
+                <span className="font-medium text-amber-800">Already Registered:</span>
+              </div>
+              <ul className="space-y-2">
+                {duplicateAttendees.map((attendee, index) => (
+                  <li key={index} className="flex items-center gap-2 text-sm text-amber-700">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0"></span>
+                    <span className="font-medium">{attendee.name}</span>
+                    <span className="text-amber-500">({attendee.email})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            
+            <p className="text-sm text-slate-600">
+              Please remove the duplicate attendees from your registration and try again.
+            </p>
+          </div>
+
+          <div className="mt-4 flex justify-end">
+            <Button
+              onClick={() => setShowDuplicateWarning(false)}
+              className="bg-amber-600 hover:bg-amber-700"
+              data-testid="button-close-duplicate-warning"
+            >
+              OK, I'll Update Attendees
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </>

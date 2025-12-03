@@ -1541,7 +1541,17 @@ const functionHandlers = {
 
     // If paying to account, create an account charge record and optionally a Xero invoice
     let xeroInvoiceResult = null;
+    let xeroDebugInfo = {
+      validatedRemainingBalance,
+      paymentMethod,
+      accountChargeConditionMet: validatedRemainingBalance > 0 && paymentMethod === 'account'
+    };
+    
+    console.log('[createOneOffEventBooking] Xero invoice check:', JSON.stringify(xeroDebugInfo));
+    
     if (validatedRemainingBalance > 0 && paymentMethod === 'account') {
+      console.log('[createOneOffEventBooking] Account payment detected, creating account charge record');
+      
       await supabase
         .from('program_ticket_transaction')
         .insert({
@@ -1557,23 +1567,29 @@ const functionHandlers = {
         });
 
       // Check if Xero invoice generation is enabled
-      const { data: xeroSettings } = await supabase
+      const { data: xeroSettings, error: xeroSettingsError } = await supabase
         .from('system_settings')
         .select('setting_value')
         .eq('setting_key', 'xero_invoice_enabled')
         .maybeSingle();
 
+      console.log('[createOneOffEventBooking] Xero settings query result:', JSON.stringify({ xeroSettings, xeroSettingsError }));
+
       const xeroInvoiceEnabled = xeroSettings?.setting_value === 'true';
+      console.log('[createOneOffEventBooking] xeroInvoiceEnabled:', xeroInvoiceEnabled);
 
       if (xeroInvoiceEnabled) {
         try {
           console.log('[createOneOffEventBooking] Creating Xero invoice for account charge:', validatedRemainingBalance);
 
           const { accessToken, tenantId } = await getValidXeroAccessToken();
+          console.log('[createOneOffEventBooking] Got Xero access token, tenantId:', tenantId ? 'present' : 'missing');
 
           if (accessToken && tenantId) {
             // Find or create Xero contact
+            console.log('[createOneOffEventBooking] Finding/creating Xero contact for:', org.name);
             const contactId = await findOrCreateXeroContact(accessToken, tenantId, org.name);
+            console.log('[createOneOffEventBooking] Got Xero contactId:', contactId);
 
             // Build line description with internal reference if present
             let lineDescription = `${event.title || 'One-off Event'} - ${ticketsRequired} attendee${ticketsRequired > 1 ? 's' : ''}`;
@@ -1595,6 +1611,8 @@ const functionHandlers = {
               Status: 'AUTHORISED'
             };
 
+            console.log('[createOneOffEventBooking] Creating Xero invoice with payload:', JSON.stringify(invoicePayload));
+
             const invoiceResponse = await fetch('https://api.xero.com/api.xro/2.0/Invoices', {
               method: 'POST',
               headers: {
@@ -1606,6 +1624,7 @@ const functionHandlers = {
             });
 
             const invoiceData = await invoiceResponse.json();
+            console.log('[createOneOffEventBooking] Xero API response:', JSON.stringify(invoiceData));
 
             if (invoiceData.Invoices && invoiceData.Invoices.length > 0) {
               xeroInvoiceResult = {
@@ -1615,15 +1634,21 @@ const functionHandlers = {
                 status: invoiceData.Invoices[0].Status
               };
               console.log('[createOneOffEventBooking] Xero invoice created:', xeroInvoiceResult);
+            } else {
+              console.error('[createOneOffEventBooking] Xero API did not return invoice:', JSON.stringify(invoiceData));
             }
           } else {
-            console.log('[createOneOffEventBooking] Xero not configured, skipping invoice creation');
+            console.log('[createOneOffEventBooking] Xero not configured (missing accessToken or tenantId), skipping invoice creation');
           }
         } catch (xeroError) {
-          console.error('[createOneOffEventBooking] Xero invoice creation failed:', xeroError.message);
+          console.error('[createOneOffEventBooking] Xero invoice creation failed:', xeroError.message, xeroError.stack);
           // Don't fail the booking, just log the error
         }
+      } else {
+        console.log('[createOneOffEventBooking] Xero invoice generation is disabled in system settings');
       }
+    } else {
+      console.log('[createOneOffEventBooking] Skipping Xero invoice - conditions not met:', JSON.stringify(xeroDebugInfo));
     }
 
     return {

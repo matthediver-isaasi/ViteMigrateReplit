@@ -1067,7 +1067,8 @@ export default function EventDetailsPage() {
                               <Label htmlFor={`ticket-${ticketId}`} className="font-medium cursor-pointer">
                                 {String(tc.name || 'Ticket')}
                               </Label>
-                              {tc.offer_type && tc.offer_type !== 'none' && (
+                              {/* Hide offers for guest checkout - they can only purchase 1 ticket */}
+                              {!isGuestCheckout && tc.offer_type && tc.offer_type !== 'none' && (
                                 <div className="text-xs text-green-600 mt-0.5">
                                   {tc.offer_type === 'bogo' && `Buy ${tc.bogo_buy_quantity || 0}, get ${tc.bogo_get_free_quantity || 0} free`}
                                   {tc.offer_type === 'bulk_discount' && `${tc.bulk_discount_percentage || 0}% off for ${tc.bulk_discount_threshold || 0}+ tickets`}
@@ -1100,7 +1101,8 @@ export default function EventDetailsPage() {
                   <div className="flex items-center justify-between p-4 rounded-lg border border-slate-200 bg-slate-50">
                     <div>
                       <div className="font-medium text-slate-900">{String(selectedTicketClass.name || 'Ticket')}</div>
-                      {selectedTicketClass.offer_type && selectedTicketClass.offer_type !== 'none' && (
+                      {/* Hide offers for guest checkout - they can only purchase 1 ticket */}
+                      {!isGuestCheckout && selectedTicketClass.offer_type && selectedTicketClass.offer_type !== 'none' && (
                         <div className="text-xs text-green-600 mt-0.5">
                           {selectedTicketClass.offer_type === 'bogo' && `Buy ${selectedTicketClass.bogo_buy_quantity || 0}, get ${selectedTicketClass.bogo_get_free_quantity || 0} free`}
                           {selectedTicketClass.offer_type === 'bulk_discount' && `${selectedTicketClass.bulk_discount_percentage || 0}% off for ${selectedTicketClass.bulk_discount_threshold || 0}+ tickets`}

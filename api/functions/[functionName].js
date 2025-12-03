@@ -1596,11 +1596,25 @@ const functionHandlers = {
             const contactId = await findOrCreateXeroContact(accessToken, tenantId, org.name);
             xeroDebug.contactId = contactId;
 
-            // Build line description with internal reference if present
-            let lineDescription = `${event.title || 'One-off Event'} - ${ticketsRequired} attendee${ticketsRequired > 1 ? 's' : ''}`;
-            if (event.internal_reference) {
-              lineDescription += `\nRef: ${event.internal_reference}`;
-            }
+            // Build attendee list for description
+            const attendeeList = attendees.map(a => {
+              const firstName = a.first_name || a.firstName || '';
+              const lastName = a.last_name || a.lastName || '';
+              return `${firstName} ${lastName}`.trim() || a.email;
+            }).join('\n');
+
+            // Build line description with full event details
+            const lineDescriptionParts = [
+              `Event: ${event.title || 'One-off Event'}`,
+              `Reference: ${event.internal_reference || 'N/A'}`,
+              `Ticket class: ${ticketClassName || 'Standard'}`,
+              `Attendees: ${ticketsRequired}`,
+              attendeeList
+            ];
+            const lineDescription = lineDescriptionParts.join('\n');
+
+            // Calculate unit price per ticket
+            const unitPricePerTicket = ticketClassPrice || (validatedRemainingBalance / ticketsRequired);
 
             // Get Xero account code from system settings (default to '200' for Sales)
             const { data: accountCodeSetting } = await supabase
@@ -1617,6 +1631,9 @@ const functionHandlers = {
             dueDate.setDate(dueDate.getDate() + 30);
             const dueDateString = dueDate.toISOString().split('T')[0]; // YYYY-MM-DD format
             
+            // Determine reference: PO number or "TBC" if supply later was selected
+            const invoiceReference = poToFollow ? 'TBC' : (purchaseOrderNumber || 'TBC');
+            
             // Create invoice
             const invoicePayload = {
               Type: 'ACCREC',
@@ -1624,11 +1641,11 @@ const functionHandlers = {
               DueDate: dueDateString,
               LineItems: [{
                 Description: lineDescription,
-                Quantity: 1,
-                UnitAmount: validatedRemainingBalance,
+                Quantity: ticketsRequired,
+                UnitAmount: unitPricePerTicket,
                 AccountCode: xeroAccountCode
               }],
-              Reference: purchaseOrderNumber || bookingReference,
+              Reference: invoiceReference,
               Status: 'AUTHORISED'
             };
 

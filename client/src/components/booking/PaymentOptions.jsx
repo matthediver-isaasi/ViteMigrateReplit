@@ -289,6 +289,16 @@ export default function PaymentOptions({
 
   // Handle one-off event booking with payment
   const handleOneOffBooking = async () => {
+    console.log('[PaymentOptions] handleOneOffBooking called', {
+      isGuestCheckout,
+      ticketsRequired,
+      totalCost,
+      remainingBalance,
+      remainingBalancePaymentMethod,
+      guestInfo: guestInfo ? { email: guestInfo.email, first_name: guestInfo.first_name } : null,
+      attendeesCount: attendees?.length
+    });
+
     // For guest checkout, skip member-specific validations
     if (!isGuestCheckout) {
       // Validate attendees
@@ -327,12 +337,21 @@ export default function PaymentOptions({
 
     // If paying by card and there's a remaining balance, create Stripe payment intent
     // For guest checkout, card is the only payment option
+    console.log('[PaymentOptions] Checking Stripe condition:', {
+      remainingBalance,
+      remainingBalancePaymentMethod,
+      isGuestCheckout,
+      conditionResult: remainingBalance > 0 && (remainingBalancePaymentMethod === 'card' || isGuestCheckout)
+    });
+
     if (remainingBalance > 0 && (remainingBalancePaymentMethod === 'card' || isGuestCheckout)) {
       if (!paymentEmail) {
         toast.error("Please provide a valid email address");
+        console.log('[PaymentOptions] No payment email, returning early');
         return;
       }
 
+      console.log('[PaymentOptions] Creating Stripe payment intent for amount:', remainingBalance);
       setSubmitting(true);
       try {
         const response = await base44.functions.invoke('createStripePaymentIntent', {
@@ -348,15 +367,18 @@ export default function PaymentOptions({
           }
         });
 
+        console.log('[PaymentOptions] Stripe payment intent response:', response.data);
         if (response.data.success) {
+          console.log('[PaymentOptions] Setting Stripe modal state to true');
           setStripeClientSecret(response.data.clientSecret);
           setStripePaymentIntentId(response.data.paymentIntentId);
           setShowStripeModal(true);
         } else {
+          console.error('[PaymentOptions] Stripe payment intent failed:', response.data.error);
           toast.error("Failed to initialize payment: " + (response.data.error || "Unknown error"));
         }
       } catch (error) {
-        console.error("Error creating Stripe Payment Intent:", error);
+        console.error("[PaymentOptions] Error creating Stripe Payment Intent:", error);
         toast.error("Failed to initialize payment");
       } finally {
         setSubmitting(false);
@@ -370,7 +392,8 @@ export default function PaymentOptions({
       return;
     }
 
-    // Process the booking
+    // Process the booking (for free events or when payment is fully covered)
+    console.log('[PaymentOptions] Processing booking directly (no Stripe needed)', { remainingBalance, totalCost });
     await processOneOffBooking();
   };
 

@@ -3264,18 +3264,67 @@ const functionHandlers = {
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
 
+  const { functionName, ...queryParams } = req.query;
+
+  // Handle OAuth callbacks that come as GET requests
+  const oauthCallbackFunctions = ['xeroOAuthCallback', 'zohoOAuthCallback'];
+  
+  if (req.method === 'GET' && oauthCallbackFunctions.includes(functionName)) {
+    try {
+      const handlerFn = functionHandlers[functionName];
+      if (!handlerFn) {
+        return res.status(404).send('Callback handler not found');
+      }
+      
+      // Pass query params (code, state, error) as the params
+      const result = await handlerFn(queryParams, req);
+      
+      // Return an HTML page that closes the popup
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head><title>Authentication Complete</title></head>
+          <body>
+            <h2>${result.success ? '✓ Authentication Successful' : '✗ Authentication Failed'}</h2>
+            <p>${result.message || (result.success ? 'You can close this window.' : 'Please try again.')}</p>
+            <script>
+              setTimeout(function() { window.close(); }, 2000);
+            </script>
+          </body>
+        </html>
+      `;
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(200).send(html);
+    } catch (error) {
+      console.error(`OAuth callback ${functionName} error:`, error);
+      const html = `
+        <!DOCTYPE html>
+        <html>
+          <head><title>Authentication Error</title></head>
+          <body>
+            <h2>✗ Authentication Failed</h2>
+            <p>${error.message || 'An error occurred during authentication.'}</p>
+            <script>
+              setTimeout(function() { window.close(); }, 3000);
+            </script>
+          </body>
+        </html>
+      `;
+      res.setHeader('Content-Type', 'text/html');
+      return res.status(200).send(html);
+    }
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
-
-  const { functionName } = req.query;
   
   try {
     const handlerFn = functionHandlers[functionName];

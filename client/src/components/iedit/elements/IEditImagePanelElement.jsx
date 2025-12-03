@@ -13,12 +13,20 @@ export default function IEditImagePanelElement({ content, variant, settings }) {
     overlay_enabled = false,
     overlay_color = '#000000',
     overlay_opacity = 50,
+    height_type = 'custom',
     min_height = 500,
     divider_color = '#ffffff',
     divider_weight = 1,
     divider_opacity = 30,
     panels = []
   } = content || {};
+
+  // Use all configured panels (up to 5) without filtering empty ones
+  // This ensures dividers appear correctly even for blank panels
+  const displayPanels = panels.length > 0 ? panels.slice(0, 5) : [{}];
+
+  // When height_type is 'image' and we have an image, use CSS Grid to size based on image
+  const isImageSized = height_type === 'image' && background_type === 'image' && image_url;
 
   const getBackgroundStyle = () => {
     if (background_type === 'color') {
@@ -32,10 +40,146 @@ export default function IEditImagePanelElement({ content, variant, settings }) {
     return {};
   };
 
-  // Use all configured panels (up to 5) without filtering empty ones
-  // This ensures dividers appear correctly even for blank panels
-  const displayPanels = panels.length > 0 ? panels.slice(0, 5) : [{}];
+  // Render panels content - shared between both layouts
+  const renderPanels = () => (
+    displayPanels.map((panel, index) => {
+      const panelPaddingTop = panel.padding_top ?? 40;
+      const panelPaddingBottom = panel.padding_bottom ?? 40;
+      const panelPaddingLeft = panel.padding_left ?? 20;
+      const panelPaddingRight = panel.padding_right ?? 20;
+      
+      return (
+        <div 
+          key={index}
+          className="flex-1 flex flex-col justify-between relative"
+          style={{
+            borderRight: index < displayPanels.length - 1 
+              ? `${divider_weight}px solid rgba(${hexToRgb(divider_color)}, ${divider_opacity / 100})` 
+              : 'none',
+            paddingTop: `${panelPaddingTop}px`,
+            paddingBottom: `${panelPaddingBottom}px`,
+            paddingLeft: `${panelPaddingLeft}px`,
+            paddingRight: `${panelPaddingRight}px`
+          }}
+        >
+          <div 
+            style={{
+              textAlign: panel.header_align || 'left'
+            }}
+          >
+            {panel.header_text && (
+              <h3 
+                style={{ 
+                  fontFamily: panel.header_font_family || 'Poppins',
+                  fontSize: `${panel.header_font_size || 24}px`,
+                  fontWeight: panel.header_font_weight || 600,
+                  color: panel.header_color || '#ffffff',
+                  letterSpacing: `${panel.header_letter_spacing || 0}px`,
+                  lineHeight: panel.header_line_height || 1.3,
+                  margin: 0,
+                  whiteSpace: 'pre-line'
+                }}
+              >
+                {panel.header_text}
+              </h3>
+            )}
+          </div>
+          
+          <div 
+            className="mt-auto"
+            style={{
+              textAlign: panel.bottom_align || 'left'
+            }}
+          >
+            {panel.bottom_text && (
+              <p 
+                style={{ 
+                  fontFamily: panel.bottom_font_family || 'Poppins',
+                  fontSize: `${panel.bottom_font_size || 16}px`,
+                  fontWeight: panel.bottom_font_weight || 400,
+                  color: panel.bottom_color || '#ffffff',
+                  letterSpacing: `${panel.bottom_letter_spacing || 0}px`,
+                  lineHeight: panel.bottom_line_height || 1.5,
+                  margin: 0,
+                  marginBottom: panel.button?.text ? '16px' : 0,
+                  whiteSpace: 'pre-line'
+                }}
+              >
+                {panel.bottom_text}
+              </p>
+            )}
+            
+            {panel.button?.text && (
+              <AGCASButton
+                text={panel.button.text}
+                link={panel.button.link}
+                buttonStyleId={panel.button.button_style_id}
+                customBgColor={panel.button.custom_bg_color}
+                customTextColor={panel.button.custom_text_color}
+                customBorderColor={panel.button.custom_border_color}
+                transparentBg={panel.button.transparent_bg}
+                openInNewTab={panel.button.open_in_new_tab}
+                size={panel.button.size || 'default'}
+                showArrow={panel.button.show_arrow}
+              />
+            )}
+          </div>
+        </div>
+      );
+    })
+  );
 
+  // When using image-based sizing, use CSS Grid layout
+  if (isImageSized) {
+    return (
+      <div 
+        style={{ 
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          gridTemplateRows: '1fr',
+          width: '100%'
+        }}
+      >
+        {/* Image layer - sets the size */}
+        <img 
+          src={image_url} 
+          alt="Panel background" 
+          style={{ 
+            gridColumn: '1 / -1',
+            gridRow: '1 / -1',
+            display: 'block', 
+            width: '100%', 
+            height: 'auto' 
+          }}
+        />
+        {/* Overlay layer */}
+        {overlay_enabled && (
+          <div 
+            style={{ 
+              gridColumn: '1 / -1',
+              gridRow: '1 / -1',
+              backgroundColor: overlay_color, 
+              opacity: parseInt(overlay_opacity) / 100
+            }} 
+          />
+        )}
+        {/* Panels layer */}
+        <div 
+          style={{ 
+            gridColumn: '1 / -1',
+            gridRow: '1 / -1',
+            display: 'flex',
+            width: '100%',
+            height: '100%'
+          }}
+        >
+          {renderPanels()}
+        </div>
+      </div>
+    );
+  }
+
+  // Default layout with min_height
   return (
     <div 
       className="relative w-full overflow-hidden"
@@ -70,91 +214,7 @@ export default function IEditImagePanelElement({ content, variant, settings }) {
           minHeight: `${min_height}px`
         }}
       >
-        {displayPanels.map((panel, index) => {
-          const panelPaddingTop = panel.padding_top ?? 40;
-          const panelPaddingBottom = panel.padding_bottom ?? 40;
-          const panelPaddingLeft = panel.padding_left ?? 20;
-          const panelPaddingRight = panel.padding_right ?? 20;
-          
-          return (
-            <div 
-              key={index}
-              className="flex-1 flex flex-col justify-between relative"
-              style={{
-                borderRight: index < displayPanels.length - 1 
-                  ? `${divider_weight}px solid rgba(${hexToRgb(divider_color)}, ${divider_opacity / 100})` 
-                  : 'none',
-                paddingTop: `${panelPaddingTop}px`,
-                paddingBottom: `${panelPaddingBottom}px`,
-                paddingLeft: `${panelPaddingLeft}px`,
-                paddingRight: `${panelPaddingRight}px`
-              }}
-            >
-              <div 
-                style={{
-                  textAlign: panel.header_align || 'left'
-                }}
-              >
-                {panel.header_text && (
-                  <h3 
-                    style={{ 
-                      fontFamily: panel.header_font_family || 'Poppins',
-                      fontSize: `${panel.header_font_size || 24}px`,
-                      fontWeight: panel.header_font_weight || 600,
-                      color: panel.header_color || '#ffffff',
-                      letterSpacing: `${panel.header_letter_spacing || 0}px`,
-                      lineHeight: panel.header_line_height || 1.3,
-                      margin: 0,
-                      whiteSpace: 'pre-line'
-                    }}
-                  >
-                    {panel.header_text}
-                  </h3>
-                )}
-              </div>
-              
-              <div 
-                className="mt-auto"
-                style={{
-                  textAlign: panel.bottom_align || 'left'
-                }}
-              >
-                {panel.bottom_text && (
-                  <p 
-                    style={{ 
-                      fontFamily: panel.bottom_font_family || 'Poppins',
-                      fontSize: `${panel.bottom_font_size || 16}px`,
-                      fontWeight: panel.bottom_font_weight || 400,
-                      color: panel.bottom_color || '#ffffff',
-                      letterSpacing: `${panel.bottom_letter_spacing || 0}px`,
-                      lineHeight: panel.bottom_line_height || 1.5,
-                      margin: 0,
-                      marginBottom: panel.button?.text ? '16px' : 0,
-                      whiteSpace: 'pre-line'
-                    }}
-                  >
-                    {panel.bottom_text}
-                  </p>
-                )}
-                
-                {panel.button?.text && (
-                  <AGCASButton
-                    text={panel.button.text}
-                    link={panel.button.link}
-                    buttonStyleId={panel.button.button_style_id}
-                    customBgColor={panel.button.custom_bg_color}
-                    customTextColor={panel.button.custom_text_color}
-                    customBorderColor={panel.button.custom_border_color}
-                    transparentBg={panel.button.transparent_bg}
-                    openInNewTab={panel.button.open_in_new_tab}
-                    size={panel.button.size || 'default'}
-                    showArrow={panel.button.show_arrow}
-                  />
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {renderPanels()}
       </div>
     </div>
   );
@@ -510,15 +570,34 @@ export function IEditImagePanelElementEditor({ element, onChange }) {
       )}
 
       <div>
-        <label className="block text-sm font-medium mb-1">Minimum Height (px)</label>
-        <input
-          type="number"
-          value={content.min_height || 500}
-          onChange={(e) => updateContent('min_height', parseInt(e.target.value) || 500)}
+        <label className="block text-sm font-medium mb-1">Height Setting</label>
+        <select
+          value={content.height_type || 'custom'}
+          onChange={(e) => updateContent('height_type', e.target.value)}
           className="w-full px-3 py-2 border border-slate-300 rounded-md"
-          min="200"
-        />
+        >
+          <option value="custom">Custom Height</option>
+          <option value="image">Match Image Height</option>
+        </select>
+        <p className="text-xs text-slate-500 mt-1">
+          {content.height_type === 'image' 
+            ? 'Container will size to match the background image height'
+            : 'Set a minimum height in pixels'}
+        </p>
       </div>
+
+      {(content.height_type || 'custom') === 'custom' && (
+        <div>
+          <label className="block text-sm font-medium mb-1">Minimum Height (px)</label>
+          <input
+            type="number"
+            value={content.min_height || 500}
+            onChange={(e) => updateContent('min_height', parseInt(e.target.value) || 500)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            min="200"
+          />
+        </div>
+      )}
 
 
       <div className="border-t pt-4 mt-4">

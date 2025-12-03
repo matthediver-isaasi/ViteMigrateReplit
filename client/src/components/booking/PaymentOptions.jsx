@@ -122,7 +122,9 @@ export default function PaymentOptions({
   ticketPrice = 0,
   isFeatureExcluded = () => false,
   selectedTicketClass = null,
-  onCanProceedChange = null
+  onCanProceedChange = null,
+  isGuestCheckout = false,
+  guestInfo = null
 }) {
   // Payment state for one-off events
   const [selectedVouchers, setSelectedVouchers] = useState([]);
@@ -206,9 +208,13 @@ export default function PaymentOptions({
   };
 
   // Check if fully paid for one-off events
+  // For guest checkout, card is the only payment option
   const isFullyPaid = Math.abs(remainingBalance) < 0.01 || 
-    (remainingBalance > 0 && (remainingBalancePaymentMethod === 'card' || 
-      (remainingBalancePaymentMethod === 'account' && (purchaseOrderNumber.trim() || poSupplyLater))));
+    (remainingBalance > 0 && (
+      isGuestCheckout || // Guest checkout always uses card
+      remainingBalancePaymentMethod === 'card' || 
+      (remainingBalancePaymentMethod === 'account' && (purchaseOrderNumber.trim() || poSupplyLater))
+    ));
 
   // Handle program event booking (existing logic)
   const handleProgramBooking = async () => {
@@ -283,49 +289,62 @@ export default function PaymentOptions({
 
   // Handle one-off event booking with payment
   const handleOneOffBooking = async () => {
-    // Validate attendees
-    if (registrationMode === 'colleagues' || registrationMode === 'self') {
-      const invalidAttendees = attendees.filter(a => {
-        const needsManualName = !a.isSelf && 
-                               (a.validationStatus === 'unregistered_domain_match' || 
-                                a.validationStatus === 'external');
-        
-        if (needsManualName && (!a.first_name || !a.last_name)) {
-          return true;
-        }
-        
-        return false;
-      });
+    // For guest checkout, skip member-specific validations
+    if (!isGuestCheckout) {
+      // Validate attendees
+      if (registrationMode === 'colleagues' || registrationMode === 'self') {
+        const invalidAttendees = attendees.filter(a => {
+          const needsManualName = !a.isSelf && 
+                                 (a.validationStatus === 'unregistered_domain_match' || 
+                                  a.validationStatus === 'external');
+          
+          if (needsManualName && (!a.first_name || !a.last_name)) {
+            return true;
+          }
+          
+          return false;
+        });
 
-      if (invalidAttendees.length > 0) {
-        toast.error('Please provide first and last names for all attendees');
+        if (invalidAttendees.length > 0) {
+          toast.error('Please provide first and last names for all attendees');
+          return;
+        }
+      }
+
+      if (registrationMode === 'colleagues' && attendees.some(a => !a.isValid)) {
+        toast.error("Please remove or fix invalid attendee emails");
         return;
       }
     }
 
-    if (registrationMode === 'colleagues' && attendees.some(a => !a.isValid)) {
-      toast.error("Please remove or fix invalid attendee emails");
+    if (ticketsRequired === 0) {
+      toast.error(isGuestCheckout ? "Please fill in your details" : "Please add at least one attendee");
       return;
     }
 
-    if (ticketsRequired === 0) {
-      toast.error("Please add at least one attendee");
-      return;
-    }
+    // Determine email for Stripe payment - use guest email for guest checkout
+    const paymentEmail = isGuestCheckout ? guestInfo?.email : memberInfo?.email;
 
     // If paying by card and there's a remaining balance, create Stripe payment intent
-    if (remainingBalance > 0 && remainingBalancePaymentMethod === 'card') {
+    // For guest checkout, card is the only payment option
+    if (remainingBalance > 0 && (remainingBalancePaymentMethod === 'card' || isGuestCheckout)) {
+      if (!paymentEmail) {
+        toast.error("Please provide a valid email address");
+        return;
+      }
+
       setSubmitting(true);
       try {
         const response = await base44.functions.invoke('createStripePaymentIntent', {
           amount: remainingBalance,
           currency: 'gbp',
-          memberEmail: memberInfo.email,
+          memberEmail: paymentEmail,
           metadata: {
             event_id: event.id,
             event_title: event.title,
-            organization_id: organizationInfo?.id,
-            booking_type: 'one_off_event'
+            organization_id: organizationInfo?.id || null,
+            booking_type: isGuestCheckout ? 'guest_one_off_event' : 'one_off_event',
+            is_guest: isGuestCheckout ? 'true' : 'false'
           }
         });
 
@@ -360,36 +379,60 @@ export default function PaymentOptions({
     setSubmitting(true);
 
     try {
-      const response = await base44.functions.invoke('createOneOffEventBooking', {
+      const bookingPayload = {
         eventId: event.id,
-        memberEmail: memberInfo.email,
         attendees: attendees.filter(a => a.isValid),
         registrationMode: registrationMode,
         ticketsRequired: ticketsRequired,
         totalCost: totalCost,
         pricingDetails: oneOffCostDetails,
-        selectedVoucherIds: isFeatureExcluded('payment_training_vouchers') ? [] : selectedVouchers,
-        trainingFundAmount: isFeatureExcluded('payment_training_fund') ? 0 : trainingFundAmount,
-        accountAmount: remainingBalancePaymentMethod === 'account' ? remainingBalance : 0,
-        purchaseOrderNumber: remainingBalancePaymentMethod === 'account' ? purchaseOrderNumber.trim() : null,
-        poToFollow: remainingBalancePaymentMethod === 'account' ? poSupplyLater : false,
-        paymentMethod: remainingBalance > 0 ? remainingBalancePaymentMethod : 'fully_covered',
+        paymentMethod: remainingBalance > 0 ? (isGuestCheckout ? 'card' : remainingBalancePaymentMethod) : 'fully_covered',
         stripePaymentIntentId: stripePaymentId,
         ticketClassId: selectedTicketClass?.id || null,
         ticketClassName: selectedTicketClass?.name || null,
-        ticketClassPrice: selectedTicketClass?.price || ticketPrice
-      });
+        ticketClassPrice: selectedTicketClass?.price || ticketPrice,
+        isGuestBooking: isGuestCheckout
+      };
+
+      // Add member-specific fields for logged-in users
+      if (!isGuestCheckout) {
+        bookingPayload.memberEmail = memberInfo.email;
+        bookingPayload.selectedVoucherIds = isFeatureExcluded('payment_training_vouchers') ? [] : selectedVouchers;
+        bookingPayload.trainingFundAmount = isFeatureExcluded('payment_training_fund') ? 0 : trainingFundAmount;
+        bookingPayload.accountAmount = remainingBalancePaymentMethod === 'account' ? remainingBalance : 0;
+        bookingPayload.purchaseOrderNumber = remainingBalancePaymentMethod === 'account' ? purchaseOrderNumber.trim() : null;
+        bookingPayload.poToFollow = remainingBalancePaymentMethod === 'account' ? poSupplyLater : false;
+      } else {
+        // Add guest-specific fields
+        bookingPayload.guestInfo = {
+          first_name: guestInfo.first_name,
+          last_name: guestInfo.last_name,
+          email: guestInfo.email,
+          organization: guestInfo.organization,
+          phone: guestInfo.phone || null,
+          job_title: guestInfo.job_title || null
+        };
+      }
+
+      const response = await base44.functions.invoke('createOneOffEventBooking', bookingPayload);
 
       if (response.data.success) {
         sessionStorage.removeItem(`event_registration_${event.id}`);
         
-        if (refreshOrganizationInfo) {
+        if (refreshOrganizationInfo && !isGuestCheckout) {
           refreshOrganizationInfo();
         }
         
         toast.success("Booking confirmed!");
+        
+        // For guest checkout, redirect to a confirmation page or Events page
+        // For member checkout, redirect to Bookings page
         setTimeout(() => {
-          window.location.href = createPageUrl('Bookings');
+          if (isGuestCheckout) {
+            window.location.href = createPageUrl('Events');
+          } else {
+            window.location.href = createPageUrl('Bookings');
+          }
         }, 1500);
       } else {
         toast.error(response.data.error || "Failed to create booking");

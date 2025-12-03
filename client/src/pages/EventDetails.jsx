@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video, AlertTriangle, PoundSterling } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video, AlertTriangle, PoundSterling, User } from "lucide-react";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
@@ -35,6 +36,28 @@ export default function EventDetailsPage() {
   const [showColleagueSelector, setShowColleagueSelector] = useState(false);
   const [selectedTicketClassId, setSelectedTicketClassId] = useState(null);
   const [paymentCanProceed, setPaymentCanProceed] = useState(false);
+
+  // Guest registration form state (for non-logged-in users)
+  const [guestInfo, setGuestInfo] = useState({
+    first_name: '',
+    last_name: '',
+    email: '',
+    organization: '',
+    phone: '',
+    job_title: ''
+  });
+
+  // Validate guest form
+  const isGuestFormValid = useMemo(() => {
+    return guestInfo.first_name.trim() !== '' &&
+           guestInfo.last_name.trim() !== '' &&
+           guestInfo.email.trim() !== '' &&
+           guestInfo.email.includes('@') &&
+           guestInfo.organization.trim() !== '';
+  }, [guestInfo]);
+
+  // Check if user is a guest (not logged in)
+  const isGuestCheckout = !currentMemberInfo;
 
   // Track if initialization has completed to prevent resets on subsequent renders
   const hasInitialized = useRef(null);
@@ -453,7 +476,10 @@ export default function EventDetailsPage() {
   const hasUnlimitedCapacity = event.available_seats === 0 || event.available_seats === null;
   
   // Calculate ticket count and costs
-  const ticketsRequired = registrationMode === 'links' ? 0 : attendees.filter((a) => a.isValid).length;
+  // For guest checkout, it's always 1 ticket if form is valid
+  const ticketsRequired = isGuestCheckout 
+    ? (isGuestFormValid ? 1 : 0)
+    : (registrationMode === 'links' ? 0 : attendees.filter((a) => a.isValid).length);
   
   // Use selected ticket class price (or legacy price)
   const ticketPrice = selectedTicketClass?.price || pricingConfig?.ticket_price || 0;
@@ -787,7 +813,10 @@ export default function EventDetailsPage() {
             <Card className="border-slate-200 shadow-sm">
               <CardHeader className="border-b border-slate-200">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">Attendees</CardTitle>
+                  <CardTitle className="text-xl">
+                    {isGuestCheckout ? 'Your Details' : 'Attendees'}
+                  </CardTitle>
+                  {!isGuestCheckout && (
                     <div className="flex items-center gap-4">
                       {currentMemberInfo && canSelfRegister && (
                         <div className="flex items-center gap-3" id="member-attending-toggle">
@@ -812,86 +841,177 @@ export default function EventDetailsPage() {
                         Add Colleague
                       </Button>
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-6 space-y-4">
-                  {showColleagueSelector && (
-                    <div className="p-4 border border-blue-200 rounded-lg bg-blue-50">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-medium text-slate-900">Add Colleague</h3>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setShowColleagueSelector(false)}
-                        >
-                          Cancel
-                        </Button>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="pt-6 space-y-4">
+                {/* Guest Registration Form - shown for non-logged-in users */}
+                {isGuestCheckout ? (
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <User className="w-5 h-5 text-blue-600" />
+                      <p className="text-sm text-blue-800">
+                        Please enter your details to register for this event.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="guest-first-name">First Name <span className="text-red-500">*</span></Label>
+                        <Input
+                          id="guest-first-name"
+                          placeholder="Enter your first name"
+                          value={guestInfo.first_name}
+                          onChange={(e) => setGuestInfo({...guestInfo, first_name: e.target.value})}
+                          data-testid="input-guest-first-name"
+                        />
                       </div>
-                      <div id="colleague-search-input">
-                        <ColleagueSelector
-                          organizationId={currentMemberInfo?.organization_id}
-                          onSelect={handleColleagueSelect}
-                          memberInfo={currentMemberInfo}
-                          ticketRoleIds={selectedTicketClass?.role_ids || []}
+                      <div className="space-y-2">
+                        <Label htmlFor="guest-last-name">Last Name <span className="text-red-500">*</span></Label>
+                        <Input
+                          id="guest-last-name"
+                          placeholder="Enter your last name"
+                          value={guestInfo.last_name}
+                          onChange={(e) => setGuestInfo({...guestInfo, last_name: e.target.value})}
+                          data-testid="input-guest-last-name"
                         />
                       </div>
                     </div>
-                  )}
 
-                  {attendees.length === 0 ? (
-                    <div className="text-center py-8 text-slate-500">
-                      <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-                      <p>No attendees added yet</p>
-                      {currentMemberInfo && (
-                        <p className="text-sm mt-1">Toggle "I am attending" or add colleagues to get started.</p>
-                      )}
-                    </div>
-                  ) : (
-                    <>
-                      <AttendeeList
-                        attendees={attendees}
-                        onUpdate={updateAttendee}
-                        onRemove={removeAttendee}
-                        memberInfo={currentMemberInfo}
+                    <div className="space-y-2">
+                      <Label htmlFor="guest-email">Email Address <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="guest-email"
+                        type="email"
+                        placeholder="your.email@example.com"
+                        value={guestInfo.email}
+                        onChange={(e) => setGuestInfo({...guestInfo, email: e.target.value})}
+                        data-testid="input-guest-email"
                       />
-                      
-                      <div className="pt-4 border-t border-slate-200">
-                        <Button
-                          onClick={() => {
-                            console.log('[EventDetails] Button clicked!');
-                            console.log('[EventDetails] Button disabled state:', !canConfirmBooking);
-                            handleConfirmBooking();
-                          }}
-                          disabled={!canConfirmBooking}
-                          className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                          size="lg"
-                        >
-                          {submitting ? (
-                            <>
-                              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                              Processing...
-                            </>
-                          ) : (
-                            'Confirm Booking'
-                          )}
-                        </Button>
-                        
-                        {!hasEnoughTickets && event.program_tag && (
-                          <p className="text-xs text-center text-amber-600 mt-2">
-                            Insufficient program tickets. You need {ticketsRequired - availableProgramTickets} more ticket{ticketsRequired - availableProgramTickets > 1 ? 's' : ''}.
-                          </p>
-                        )}
-                        
-                        {ticketsRequired === 0 && (
-                          <p className="text-xs text-center text-slate-500 mt-2">
-                            Add attendees to proceed with booking
-                          </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="guest-organization">Organisation <span className="text-red-500">*</span></Label>
+                      <Input
+                        id="guest-organization"
+                        placeholder="Your company or organisation"
+                        value={guestInfo.organization}
+                        onChange={(e) => setGuestInfo({...guestInfo, organization: e.target.value})}
+                        data-testid="input-guest-organization"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="guest-job-title">Job Title</Label>
+                        <Input
+                          id="guest-job-title"
+                          placeholder="Your job title"
+                          value={guestInfo.job_title}
+                          onChange={(e) => setGuestInfo({...guestInfo, job_title: e.target.value})}
+                          data-testid="input-guest-job-title"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="guest-phone">Phone Number</Label>
+                        <Input
+                          id="guest-phone"
+                          type="tel"
+                          placeholder="Optional"
+                          value={guestInfo.phone}
+                          onChange={(e) => setGuestInfo({...guestInfo, phone: e.target.value})}
+                          data-testid="input-guest-phone"
+                        />
+                      </div>
+                    </div>
+
+                    {!isGuestFormValid && (
+                      <p className="text-xs text-slate-500">
+                        <span className="text-red-500">*</span> Required fields
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <>
+                    {showColleagueSelector && (
+                      <div className="p-4 border border-blue-200 rounded-lg bg-blue-50">
+                        <div className="flex items-center justify-between mb-3">
+                          <h3 className="font-medium text-slate-900">Add Colleague</h3>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setShowColleagueSelector(false)}
+                          >
+                            Cancel
+                          </Button>
+                        </div>
+                        <div id="colleague-search-input">
+                          <ColleagueSelector
+                            organizationId={currentMemberInfo?.organization_id}
+                            onSelect={handleColleagueSelect}
+                            memberInfo={currentMemberInfo}
+                            ticketRoleIds={selectedTicketClass?.role_ids || []}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {attendees.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500">
+                        <Users className="w-12 h-12 text-slate-300 mx-auto mb-3" />
+                        <p>No attendees added yet</p>
+                        {currentMemberInfo && (
+                          <p className="text-sm mt-1">Toggle "I am attending" or add colleagues to get started.</p>
                         )}
                       </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
+                    ) : (
+                      <>
+                        <AttendeeList
+                          attendees={attendees}
+                          onUpdate={updateAttendee}
+                          onRemove={removeAttendee}
+                          memberInfo={currentMemberInfo}
+                        />
+                        
+                        <div className="pt-4 border-t border-slate-200">
+                          <Button
+                            onClick={() => {
+                              console.log('[EventDetails] Button clicked!');
+                              console.log('[EventDetails] Button disabled state:', !canConfirmBooking);
+                              handleConfirmBooking();
+                            }}
+                            disabled={!canConfirmBooking}
+                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                            size="lg"
+                          >
+                            {submitting ? (
+                              <>
+                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                Processing...
+                              </>
+                            ) : (
+                              'Confirm Booking'
+                            )}
+                          </Button>
+                          
+                          {!hasEnoughTickets && event.program_tag && (
+                            <p className="text-xs text-center text-amber-600 mt-2">
+                              Insufficient program tickets. You need {ticketsRequired - availableProgramTickets} more ticket{ticketsRequired - availableProgramTickets > 1 ? 's' : ''}.
+                            </p>
+                          )}
+                          
+                          {ticketsRequired === 0 && (
+                            <p className="text-xs text-center text-slate-500 mt-2">
+                              Add attendees to proceed with booking
+                            </p>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </div>
 
           <div className="lg:col-span-1 space-y-6">
@@ -1000,12 +1120,23 @@ export default function EventDetailsPage() {
               totalCost={totalCost}
               memberInfo={currentMemberInfo}
               organizationInfo={organizationInfo}
-              attendees={attendees.filter((a) => a.isValid)}
+              attendees={isGuestCheckout 
+                ? (isGuestFormValid ? [{
+                    email: guestInfo.email,
+                    first_name: guestInfo.first_name,
+                    last_name: guestInfo.last_name,
+                    isValid: true,
+                    isGuest: true,
+                    organization: guestInfo.organization,
+                    phone: guestInfo.phone,
+                    job_title: guestInfo.job_title
+                  }] : [])
+                : attendees.filter((a) => a.isValid)}
               numberOfLinks={0}
               event={event}
               submitting={submitting}
               setSubmitting={setSubmitting}
-              registrationMode={registrationMode}
+              registrationMode={isGuestCheckout ? 'guest' : registrationMode}
               refreshOrganizationInfo={refreshOrganizationInfo}
               isOneOffEvent={isOneOffEvent}
               oneOffCostDetails={oneOffCostDetails}
@@ -1013,6 +1144,8 @@ export default function EventDetailsPage() {
               isFeatureExcluded={isFeatureExcluded}
               selectedTicketClass={selectedTicketClass}
               onCanProceedChange={setPaymentCanProceed}
+              isGuestCheckout={isGuestCheckout}
+              guestInfo={guestInfo}
             />
 
           </div>

@@ -89,7 +89,15 @@ Preferred communication style: Simple, everyday language.
 - Organization account (creates account_charge transaction with PO number)
 - Stripe card payment (verified via PaymentIntent before booking creation)
 
-**Backend Function:** `createOneOffEventBooking` handles payment processing with server-side validation of voucher ownership, training fund amounts, and Stripe payment verification.
+**Guest Checkout (Public Tickets):** Non-logged-in users can purchase public ticket classes:
+- Guest registration form captures: first_name, last_name, email (required), organization (required), phone (optional), job_title (optional for Zoom integration)
+- Payment via Stripe only (no vouchers, training fund, or account options)
+- `isGuestCheckout` flag tracks non-authenticated booking flow
+- Frontend passes `guestInfo` object and `isGuestBooking: true` to backend
+- ticketsRequired = 1 for guest checkout (single attendee per booking)
+- Attendees array includes `isGuest: true` flag for guest attendees
+
+**Backend Function:** `createOneOffEventBooking` handles payment processing with server-side validation of voucher ownership, training fund amounts, and Stripe payment verification. Supports guest bookings with null member_id/organization_id when isGuestBooking is true.
 
 **Content Management:** BlogPost, Resource, NewsPost, IEditPage/IEditPageElement (dynamic page builder).
 

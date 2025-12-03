@@ -1611,6 +1611,115 @@ const functionHandlers = {
       return { success: false, error: 'No bookings were created' };
     }
 
+    // Register attendees with Zoom if this is a Zoom webinar event
+    let zoomRegistrationResults = [];
+    if (event.zoom_webinar_id) {
+      console.log('[createOneOffEventBooking] Event has zoom_webinar_id:', event.zoom_webinar_id);
+      
+      // Fetch the webinar details
+      const { data: webinar, error: webinarError } = await supabase
+        .from('zoom_webinar')
+        .select('*')
+        .eq('id', event.zoom_webinar_id)
+        .single();
+      
+      if (webinar && !webinarError) {
+        console.log('[createOneOffEventBooking] Found webinar:', webinar.topic, 'zoom_id:', webinar.zoom_webinar_id);
+        
+        // Check if registration is required and webinar is valid for registration
+        if (webinar.zoom_webinar_id && webinar.registration_required && webinar.status === 'scheduled') {
+          const webinarStartTime = new Date(webinar.start_time);
+          if (webinarStartTime > new Date()) {
+            console.log('[createOneOffEventBooking] Registering', attendees.length, 'attendees with Zoom');
+            
+            try {
+              const zoomToken = await getZoomAccessToken();
+              
+              // Register each attendee with Zoom
+              for (let i = 0; i < attendees.length; i++) {
+                const attendee = attendees[i];
+                console.log(`[createOneOffEventBooking] Registering attendee ${i + 1}/${attendees.length}: ${attendee.email}`);
+                
+                try {
+                  const zoomResponse = await fetch(
+                    `https://api.zoom.us/v2/webinars/${webinar.zoom_webinar_id}/registrants`,
+                    {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${zoomToken}`,
+                        'Content-Type': 'application/json'
+                      },
+                      body: JSON.stringify({
+                        first_name: attendee.first_name || attendee.firstName || 'Guest',
+                        last_name: attendee.last_name || attendee.lastName || 'Attendee',
+                        email: attendee.email,
+                        auto_approve: true
+                      })
+                    }
+                  );
+                  
+                  console.log(`[createOneOffEventBooking] Zoom API response status: ${zoomResponse.status}`);
+                  
+                  if (!zoomResponse.ok) {
+                    const errorData = await zoomResponse.json().catch(() => ({}));
+                    console.error(`[createOneOffEventBooking] Zoom registration error for ${attendee.email}:`, JSON.stringify(errorData));
+                    
+                    if (errorData.code === 3027) {
+                      // Already registered - not an error
+                      console.log(`[createOneOffEventBooking] ${attendee.email} already registered`);
+                      zoomRegistrationResults.push({ email: attendee.email, success: true, already_registered: true });
+                    } else {
+                      zoomRegistrationResults.push({ 
+                        email: attendee.email, 
+                        success: false, 
+                        error: errorData.message || 'Zoom registration failed',
+                        code: errorData.code 
+                      });
+                    }
+                  } else {
+                    const zoomData = await zoomResponse.json();
+                    console.log(`[createOneOffEventBooking] ✓ Registered ${attendee.email}, registrant_id: ${zoomData.registrant_id}`);
+                    
+                    zoomRegistrationResults.push({ 
+                      email: attendee.email, 
+                      success: true, 
+                      registrant_id: zoomData.registrant_id 
+                    });
+                    
+                    // Update the booking record with the Zoom registrant ID
+                    const attendeeBookingRef = attendees.length > 1 
+                      ? `${bookingReference}-${i + 1}` 
+                      : bookingReference;
+                    
+                    await supabase
+                      .from('booking')
+                      .update({ zoom_registrant_id: zoomData.registrant_id })
+                      .eq('booking_reference', attendeeBookingRef);
+                  }
+                } catch (zoomErr) {
+                  console.error(`[createOneOffEventBooking] Zoom registration exception for ${attendee.email}:`, zoomErr.message);
+                  zoomRegistrationResults.push({ email: attendee.email, success: false, error: zoomErr.message });
+                }
+              }
+            } catch (tokenErr) {
+              console.error('[createOneOffEventBooking] Failed to get Zoom access token:', tokenErr.message);
+              zoomRegistrationResults.push({ error: 'Failed to get Zoom access token', details: tokenErr.message });
+            }
+          } else {
+            console.log('[createOneOffEventBooking] Webinar has already started, skipping registration');
+          }
+        } else {
+          console.log('[createOneOffEventBooking] Webinar registration not required or not scheduled:', {
+            zoom_webinar_id: webinar.zoom_webinar_id,
+            registration_required: webinar.registration_required,
+            status: webinar.status
+          });
+        }
+      } else {
+        console.log('[createOneOffEventBooking] Failed to fetch webinar:', webinarError?.message);
+      }
+    }
+
     // If paying to account, create an account charge record and optionally a Xero invoice
     let xeroInvoiceResult = null;
     let xeroDebug = {
@@ -1813,7 +1922,7 @@ const functionHandlers = {
       }
     }
 
-    return {
+    const response = {
       success: true,
       booking_reference: bookingReference,
       booking_group_reference: bookingReference, // Base reference for grouping
@@ -1828,6 +1937,17 @@ const functionHandlers = {
       xero_invoice: xeroInvoiceResult,
       xero_debug: xeroDebug
     };
+
+    // Add Zoom registration results if applicable
+    if (event.zoom_webinar_id) {
+      response.zoom_registration = {
+        webinar_id: event.zoom_webinar_id,
+        registrations: zoomRegistrationResults,
+        all_successful: zoomRegistrationResults.every(r => r.success !== false)
+      };
+    }
+
+    return response;
   },
 
   async processProgramTicketPurchase(params) {

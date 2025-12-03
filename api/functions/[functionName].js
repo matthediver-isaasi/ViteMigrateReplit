@@ -1364,12 +1364,20 @@ const functionHandlers = {
       totalCost,
       paymentMethod,
       ticketClassId,
-      ticketClassName
+      ticketClassName,
+      attendeesReceived: attendees?.length || 0,
+      attendeesData: JSON.stringify(attendees)
     });
 
     // Validate required fields
     if (!eventId || !memberEmail || !ticketsRequired) {
       return { success: false, error: 'Missing required parameters' };
+    }
+    
+    // Validate attendees array
+    if (!attendees || !Array.isArray(attendees) || attendees.length === 0) {
+      console.error('[createOneOffEventBooking] No attendees provided:', { attendees });
+      return { success: false, error: 'No attendees provided' };
     }
 
     // Get member details
@@ -1522,8 +1530,11 @@ const functionHandlers = {
     
     // Create booking records for each attendee
     const createdBookings = [];
+    console.log('[createOneOffEventBooking] About to create bookings for', attendees.length, 'attendees');
     
-    for (const attendee of attendees) {
+    for (let i = 0; i < attendees.length; i++) {
+      const attendee = attendees[i];
+      console.log(`[createOneOffEventBooking] Processing attendee ${i + 1}/${attendees.length}:`, attendee.email);
       // Calculate ticket price - use ticket class price if provided, otherwise from pricing config or total cost
       const ticketPriceValue = ticketClassPrice || event.pricing_config?.ticketPrice || (totalCost / ticketsRequired);
       

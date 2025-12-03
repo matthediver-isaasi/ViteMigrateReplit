@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import bcrypt from 'bcryptjs';
+import { getSessionMember } from '../_lib/session.js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
@@ -7,17 +8,6 @@ const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
 const supabase = supabaseUrl && supabaseServiceKey 
   ? createClient(supabaseUrl, supabaseServiceKey)
   : null;
-
-function parseCookies(cookieHeader) {
-  const cookies = {};
-  if (cookieHeader) {
-    cookieHeader.split(';').forEach(cookie => {
-      const [name, value] = cookie.trim().split('=');
-      cookies[name] = value;
-    });
-  }
-  return cookies;
-}
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -33,12 +23,14 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const cookies = parseCookies(req.headers.cookie);
-  const memberId = cookies.memberId || req.cookies?.memberId;
+  // Get member from PostgreSQL session (same as login uses)
+  const sessionMember = await getSessionMember(req);
 
-  if (!memberId) {
+  if (!sessionMember) {
     return res.status(401).json({ success: false, error: 'Not authenticated' });
   }
+
+  const memberId = sessionMember.id;
 
   if (!supabase) {
     return res.status(503).json({ error: 'Supabase not configured' });

@@ -121,7 +121,8 @@ export default function PaymentOptions({
   oneOffCostDetails = null,
   ticketPrice = 0,
   isFeatureExcluded = () => false,
-  selectedTicketClass = null
+  selectedTicketClass = null,
+  onCanProceedChange = null
 }) {
   // Payment state for one-off events
   const [selectedVouchers, setSelectedVouchers] = useState([]);
@@ -715,6 +716,13 @@ export default function PaymentOptions({
   const canProceed = isOneOffEvent 
     ? (ticketsRequired > 0 && !submitting && (totalCost === 0 || isFullyPaid))
     : (hasEnoughTickets && event.program_tag && !submitting && ticketsRequired > 0);
+
+  // Notify parent component of canProceed state changes
+  useEffect(() => {
+    if (onCanProceedChange) {
+      onCanProceedChange(canProceed);
+    }
+  }, [canProceed, onCanProceedChange]);
 
   return (
     <>

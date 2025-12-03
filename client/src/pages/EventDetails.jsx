@@ -34,6 +34,7 @@ export default function EventDetailsPage() {
   const [memberAttending, setMemberAttending] = useState(false);
   const [showColleagueSelector, setShowColleagueSelector] = useState(false);
   const [selectedTicketClassId, setSelectedTicketClassId] = useState(null);
+  const [paymentCanProceed, setPaymentCanProceed] = useState(false);
 
   // Track if initialization has completed to prevent resets on subsequent renders
   const hasInitialized = useRef(null);
@@ -515,10 +516,10 @@ export default function EventDetailsPage() {
   // Check if user has no tickets available for their role
   const noTicketsForRole = isOneOffEvent && availableTicketClasses.length === 0;
   
-  // For one-off events, booking is enabled when we have attendees and a valid ticket class
+  // For one-off events, use paymentCanProceed from PaymentOptions (includes payment validation)
   // For program events, need enough tickets
   const canConfirmBooking = isOneOffEvent 
-    ? (!submitting && ticketsRequired > 0 && selectedTicketClass && !noTicketsForRole)
+    ? paymentCanProceed
     : (hasEnoughTickets && event.program_tag && !submitting && ticketsRequired > 0);
 
   // Check if available seats display is excluded
@@ -1001,6 +1002,7 @@ export default function EventDetailsPage() {
               ticketPrice={ticketPrice}
               isFeatureExcluded={isFeatureExcluded}
               selectedTicketClass={selectedTicketClass}
+              onCanProceedChange={setPaymentCanProceed}
             />
 
           </div>

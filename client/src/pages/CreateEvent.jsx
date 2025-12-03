@@ -56,6 +56,10 @@ async function apiRequest(url, options = {}) {
 }
 
 // Helper function to create a new ticket class with unique ID
+// visibility_mode options:
+// - 'members_only': Only visible to logged-in members (respects role_ids if set)
+// - 'members_and_public': Visible to both members and public (non-logged-in) users
+// - 'public_only': Only visible to public (non-logged-in) users, hidden from members
 const createEmptyTicketClass = (isDefault = false) => ({
   id: `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
   name: isDefault ? "Standard Ticket" : "",
@@ -63,8 +67,8 @@ const createEmptyTicketClass = (isDefault = false) => ({
   is_free: false, // When true, ticket is free (price = 0)
   role_ids: [], // Empty array means "All Roles"
   is_default: isDefault,
-  is_public: false, // Whether this ticket is visible to non-logged-in users
-  role_match_only: false, // When true, ticket is only visible if user's role matches role_ids
+  visibility_mode: 'members_only', // 'members_only', 'members_and_public', or 'public_only'
+  role_match_only: false, // When true AND visibility includes members, ticket only shows if user's role matches role_ids
   offer_type: "none",
   bogo_logic_type: "buy_x_get_y_free",
   bogo_buy_quantity: "",
@@ -361,7 +365,7 @@ export default function CreateEvent() {
           price: parseFloat(ticket.price),
           role_ids: ticket.role_ids || [],
           is_default: ticket.is_default || false,
-          is_public: ticket.is_public || false,
+          visibility_mode: ticket.visibility_mode || 'members_only',
           role_match_only: ticket.role_match_only || false,
           offer_type: ticket.offer_type
         };
@@ -741,10 +745,16 @@ export default function CreateEvent() {
                             {ticket.is_default && (
                               <Badge variant="secondary" className="text-xs">Default</Badge>
                             )}
-                            {ticket.is_public && (
+                            {ticket.visibility_mode === 'members_and_public' && (
                               <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
                                 <Globe className="h-3 w-3 mr-1" />
-                                Public
+                                Members & Public
+                              </Badge>
+                            )}
+                            {ticket.visibility_mode === 'public_only' && (
+                              <Badge variant="outline" className="text-xs bg-purple-50 text-purple-700 border-purple-200">
+                                <Globe className="h-3 w-3 mr-1" />
+                                Public Only
                               </Badge>
                             )}
                           </div>
@@ -874,8 +884,8 @@ export default function CreateEvent() {
                             </div>
                           )}
 
-                          {/* Role Match Only Toggle - only show if roles are selected */}
-                          {(ticket.role_ids || []).length > 0 && (
+                          {/* Role Match Only Toggle - only show if roles are selected AND visibility includes members */}
+                          {(ticket.role_ids || []).length > 0 && ticket.visibility_mode !== 'public_only' && (
                             <div className="mt-3 flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg">
                               <div className="flex items-center gap-2">
                                 <Users className="h-4 w-4 text-amber-600" />
@@ -900,27 +910,83 @@ export default function CreateEvent() {
                           )}
                         </div>
 
-                        {/* Public Ticket Toggle */}
-                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                          <div className="flex items-center gap-3">
+                        {/* Ticket Visibility Mode */}
+                        <div className="space-y-3">
+                          <div className="flex items-center gap-2">
                             <Globe className="h-5 w-5 text-blue-600" />
-                            <div className="space-y-0.5">
-                              <Label htmlFor={`public-toggle-${ticket.id}`} className="text-base font-medium">
-                                Public Ticket
-                              </Label>
-                              <p className="text-sm text-slate-500">
-                                {ticket.is_public 
-                                  ? "This ticket is visible to non-logged in visitors" 
-                                  : "This ticket is only visible to logged in members"}
-                              </p>
+                            <Label className="text-base font-medium">Ticket Visibility</Label>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                            <div 
+                              className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                                (ticket.visibility_mode || 'members_only') === 'members_only'
+                                  ? 'border-blue-500 bg-blue-50' 
+                                  : 'border-slate-200 hover:bg-slate-50'
+                              }`}
+                              onClick={() => updateTicketClass(ticket.id, 'visibility_mode', 'members_only')}
+                              data-testid={`visibility-members-only-${ticket.id}`}
+                            >
+                              <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                                (ticket.visibility_mode || 'members_only') === 'members_only' 
+                                  ? 'border-blue-500' 
+                                  : 'border-slate-300'
+                              }`}>
+                                {(ticket.visibility_mode || 'members_only') === 'members_only' && (
+                                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">Members Only</p>
+                                <p className="text-xs text-slate-500">Logged-in members only</p>
+                              </div>
+                            </div>
+                            <div 
+                              className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                                ticket.visibility_mode === 'members_and_public'
+                                  ? 'border-blue-500 bg-blue-50' 
+                                  : 'border-slate-200 hover:bg-slate-50'
+                              }`}
+                              onClick={() => updateTicketClass(ticket.id, 'visibility_mode', 'members_and_public')}
+                              data-testid={`visibility-members-and-public-${ticket.id}`}
+                            >
+                              <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                                ticket.visibility_mode === 'members_and_public' 
+                                  ? 'border-blue-500' 
+                                  : 'border-slate-300'
+                              }`}>
+                                {ticket.visibility_mode === 'members_and_public' && (
+                                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">Members & Public</p>
+                                <p className="text-xs text-slate-500">Both members and visitors</p>
+                              </div>
+                            </div>
+                            <div 
+                              className={`flex items-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                                ticket.visibility_mode === 'public_only'
+                                  ? 'border-blue-500 bg-blue-50' 
+                                  : 'border-slate-200 hover:bg-slate-50'
+                              }`}
+                              onClick={() => updateTicketClass(ticket.id, 'visibility_mode', 'public_only')}
+                              data-testid={`visibility-public-only-${ticket.id}`}
+                            >
+                              <div className={`h-4 w-4 rounded-full border-2 flex items-center justify-center ${
+                                ticket.visibility_mode === 'public_only' 
+                                  ? 'border-blue-500' 
+                                  : 'border-slate-300'
+                              }`}>
+                                {ticket.visibility_mode === 'public_only' && (
+                                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                                )}
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium">Public Only</p>
+                                <p className="text-xs text-slate-500">Non-logged in visitors only</p>
+                              </div>
                             </div>
                           </div>
-                          <Switch
-                            id={`public-toggle-${ticket.id}`}
-                            checked={ticket.is_public || false}
-                            onCheckedChange={(checked) => updateTicketClass(ticket.id, 'is_public', checked)}
-                            data-testid={`switch-public-${ticket.id}`}
-                          />
                         </div>
 
                         <Separator />

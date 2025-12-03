@@ -56,7 +56,14 @@ const getTimezoneAbbr = (dateStr, timezone = DEFAULT_TIMEZONE) => {
 const hasPublicTickets = (event) => {
   // One-off events have pricing_config with ticket_classes
   if (event.pricing_config?.ticket_classes && Array.isArray(event.pricing_config.ticket_classes)) {
-    return event.pricing_config.ticket_classes.some(tc => tc.is_public === true);
+    return event.pricing_config.ticket_classes.some(tc => {
+      // New visibility_mode field
+      if (tc.visibility_mode) {
+        return tc.visibility_mode === 'members_and_public' || tc.visibility_mode === 'public_only';
+      }
+      // Backwards compatibility: check legacy is_public field
+      return tc.is_public === true;
+    });
   }
   // Program events (with program_tag) are not shown on public page by default
   return false;

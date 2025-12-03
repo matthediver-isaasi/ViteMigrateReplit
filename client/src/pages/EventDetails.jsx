@@ -284,32 +284,46 @@ export default function EventDetailsPage() {
       return [legacyTicket];
     }
     
-    // Normalize ticket classes and filter for non-logged-in users
+    // Normalize ticket classes with backwards compatibility for is_public field
     const normalizedTickets = ticketClasses
       .filter(tc => tc && typeof tc === 'object')
-      .map(tc => ({
-        id: String(tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
-        name: String(tc.name || 'Ticket'),
-        price: Number(tc.price) || 0,
-        role_ids: Array.isArray(tc.role_ids) ? tc.role_ids : [],
-        is_default: Boolean(tc.is_default),
-        is_public: Boolean(tc.is_public),
-        role_match_only: Boolean(tc.role_match_only),
-        offer_type: String(tc.offer_type || 'none'),
-        bogo_logic_type: String(tc.bogo_logic_type || 'buy_x_get_y_free'),
-        bogo_buy_quantity: Number(tc.bogo_buy_quantity) || 0,
-        bogo_get_free_quantity: Number(tc.bogo_get_free_quantity) || 0,
-        bulk_discount_threshold: Number(tc.bulk_discount_threshold) || 0,
-        bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
-      }));
+      .map(tc => {
+        // Handle backwards compatibility: convert is_public to visibility_mode
+        let visibilityMode = tc.visibility_mode;
+        if (!visibilityMode) {
+          // Legacy tickets: if is_public was true, treat as 'members_and_public', otherwise 'members_only'
+          visibilityMode = tc.is_public ? 'members_and_public' : 'members_only';
+        }
+        
+        return {
+          id: String(tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
+          name: String(tc.name || 'Ticket'),
+          price: Number(tc.price) || 0,
+          role_ids: Array.isArray(tc.role_ids) ? tc.role_ids : [],
+          is_default: Boolean(tc.is_default),
+          visibility_mode: visibilityMode,
+          role_match_only: Boolean(tc.role_match_only),
+          offer_type: String(tc.offer_type || 'none'),
+          bogo_logic_type: String(tc.bogo_logic_type || 'buy_x_get_y_free'),
+          bogo_buy_quantity: Number(tc.bogo_buy_quantity) || 0,
+          bogo_get_free_quantity: Number(tc.bogo_get_free_quantity) || 0,
+          bulk_discount_threshold: Number(tc.bulk_discount_threshold) || 0,
+          bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
+        };
+      });
     
-    // For non-logged-in users, only show public tickets
+    // For non-logged-in users, only show tickets with visibility that includes public
     if (!currentMemberInfo) {
-      return normalizedTickets.filter(tc => tc.is_public === true);
+      return normalizedTickets.filter(tc => 
+        tc.visibility_mode === 'members_and_public' || tc.visibility_mode === 'public_only'
+      );
     }
     
-    // For logged-in users, filter out tickets with role_match_only=true if user's role doesn't match
+    // For logged-in members, filter based on visibility_mode and role_match_only
     return normalizedTickets.filter(tc => {
+      // Public-only tickets are NOT visible to logged-in members
+      if (tc.visibility_mode === 'public_only') return false;
+      
       // If role_match_only is false or not set, show the ticket
       if (!tc.role_match_only) return true;
       

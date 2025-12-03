@@ -71,6 +71,12 @@ export default function IEditPageEditorPage() {
     enabled: !!pageId
   });
 
+  // Fetch all pages for "Copy to Page" feature
+  const { data: allPages = [] } = useQuery({
+    queryKey: ['iedit-all-pages'],
+    queryFn: () => base44.entities.IEditPage.list()
+  });
+
   // Update local state when elements are fetched
   useEffect(() => {
     if (pageElements) {
@@ -183,6 +189,37 @@ export default function IEditPageEditorPage() {
     };
 
     createElementMutation.mutate(duplicated);
+  };
+
+  // Copy element to another page
+  const handleCopyToPage = async (element, targetPageId) => {
+    try {
+      // Get elements from target page to determine display order
+      const targetPageElements = await base44.entities.IEditPageElement.list({ 
+        filter: { page_id: targetPageId } 
+      });
+      
+      const newElement = {
+        page_id: targetPageId,
+        element_type: element.element_type,
+        display_order: targetPageElements.length,
+        content: { ...element.content },
+        style_variant: element.style_variant,
+        settings: { ...element.settings }
+      };
+
+      await base44.entities.IEditPageElement.create(newElement);
+      
+      // Find the target page name for the toast
+      const targetPage = allPages.find(p => p.id === targetPageId);
+      toast.success(`Element copied to "${targetPage?.title || 'page'}"`);
+      
+      // Invalidate target page elements cache
+      queryClient.invalidateQueries({ queryKey: ['iedit-page-elements', targetPageId] });
+    } catch (error) {
+      console.error('Failed to copy element:', error);
+      toast.error('Failed to copy element to page');
+    }
   };
 
   // Update page settings
@@ -351,6 +388,9 @@ export default function IEditPageEditorPage() {
                                     onEdit={() => setEditingElement(element)}
                                     onDelete={() => handleDeleteElement(element.id)}
                                     onDuplicate={() => handleDuplicateElement(element)}
+                                    onCopyToPage={handleCopyToPage}
+                                    availablePages={allPages}
+                                    currentPageId={pageId}
                                   />
                                 </div>
                               )}

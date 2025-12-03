@@ -44,7 +44,6 @@ export default function IEditTextBlockElement({ content, variant, settings }) {
             letterSpacing: `${heading_letter_spacing}px`,
             lineHeight: heading_line_height,
             textAlign: heading_align,
-            marginBottom: `${heading_margin_bottom}px`,
             margin: 0,
             marginBottom: text ? `${heading_margin_bottom}px` : 0
           }}

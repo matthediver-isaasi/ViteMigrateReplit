@@ -20,6 +20,7 @@ import { IEditHeroElementEditor } from "./elements/IEditHeroElement";
 import { IEditOrganisationDirectoryElementEditor } from "./elements/IEditOrganisationDirectoryElement";
 import { IEditTextBlockElementEditor } from "./elements/IEditTextBlockElement";
 import { IEditFeaturedJobElementEditor } from "./elements/IEditFeaturedJobElement";
+import { IEditImagePanelElementEditor } from "./elements/IEditImagePanelElement";
 
 export default function IEditElementEditor({ element, onClose, onSave }) {
   const [editedContent, setEditedContent] = useState(element.content || {});
@@ -133,6 +134,9 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
 
   // Check if this is a Featured Job element (custom editor)
   const isFeaturedJob = element.element_type === 'featured_job';
+
+  // Check if this is an Image Panel element (custom editor)
+  const isImagePanel = element.element_type === 'image_panel';
 
   // Check if this is a Form element (needs form selector)
   const isFormElement = element.element_type === 'form';
@@ -452,6 +456,11 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
             />
           ) : isFeaturedJob ? (
             <IEditFeaturedJobElementEditor 
+              element={{ ...element, content: editedContent }}
+              onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
+            />
+          ) : isImagePanel ? (
+            <IEditImagePanelElementEditor 
               element={{ ...element, content: editedContent }}
               onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
             />

@@ -60,6 +60,7 @@ const createEmptyTicketClass = (isDefault = false) => ({
   id: `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
   name: isDefault ? "Standard Ticket" : "",
   price: "",
+  is_free: false, // When true, ticket is free (price = 0)
   role_ids: [], // Empty array means "All Roles"
   is_default: isDefault,
   is_public: false, // Whether this ticket is visible to non-logged-in users
@@ -273,15 +274,17 @@ export default function CreateEvent() {
           return;
         }
 
-        // Price is required
-        if (ticket.price === "" || ticket.price === null || ticket.price === undefined) {
-          toast.error(`Please enter a price for "${ticket.name}"`);
-          return;
-        }
-        const price = parseFloat(ticket.price);
-        if (isNaN(price) || price < 0) {
-          toast.error(`Price for "${ticket.name}" must be a valid positive number`);
-          return;
+        // Price validation: either is_free must be true, or price must be > 0
+        if (!ticket.is_free) {
+          if (ticket.price === "" || ticket.price === null || ticket.price === undefined) {
+            toast.error(`Please enter a price for "${ticket.name}" or mark it as free`);
+            return;
+          }
+          const price = parseFloat(ticket.price);
+          if (isNaN(price) || price <= 0) {
+            toast.error(`Price for "${ticket.name}" must be greater than zero, or mark the ticket as free`);
+            return;
+          }
         }
 
         // Validate BOGO offer
@@ -774,8 +777,8 @@ export default function CreateEvent() {
                     {expandedTickets[ticket.id] && (
                       <div className="p-4 space-y-4 border-t border-slate-200">
                         {/* Ticket Name and Price */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2 md:col-span-2">
                             <Label htmlFor={`ticket-name-${ticket.id}`}>Ticket Name *</Label>
                             <Input
                               id={`ticket-name-${ticket.id}`}
@@ -787,19 +790,38 @@ export default function CreateEvent() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor={`ticket-price-${ticket.id}`}>Price (£) *</Label>
-                            <div className="relative">
-                              <PoundSterling className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                              <Input
-                                id={`ticket-price-${ticket.id}`}
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={ticket.price}
-                                onChange={(e) => updateTicketClass(ticket.id, 'price', e.target.value)}
-                                placeholder="0.00"
-                                className="pl-9"
-                                data-testid={`input-ticket-price-${ticket.id}`}
-                              />
+                            <div className="flex items-center gap-3">
+                              <div className="relative w-28">
+                                <PoundSterling className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <Input
+                                  id={`ticket-price-${ticket.id}`}
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={ticket.is_free ? "0" : ticket.price}
+                                  onChange={(e) => updateTicketClass(ticket.id, 'price', e.target.value)}
+                                  placeholder="0.00"
+                                  className="pl-9"
+                                  disabled={ticket.is_free}
+                                  data-testid={`input-ticket-price-${ticket.id}`}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  id={`ticket-free-${ticket.id}`}
+                                  checked={ticket.is_free || false}
+                                  onCheckedChange={(checked) => {
+                                    updateTicketClass(ticket.id, 'is_free', checked);
+                                    if (checked) {
+                                      updateTicketClass(ticket.id, 'price', '0');
+                                    }
+                                  }}
+                                  data-testid={`switch-free-${ticket.id}`}
+                                />
+                                <Label htmlFor={`ticket-free-${ticket.id}`} className="text-sm font-medium">
+                                  Free
+                                </Label>
+                              </div>
                             </div>
                           </div>
                         </div>

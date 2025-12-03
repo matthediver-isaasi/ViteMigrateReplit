@@ -39,6 +39,7 @@ const createEmptyTicketClass = (isDefault = false) => ({
   id: `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
   name: isDefault ? "Standard Ticket" : "",
   price: "",
+  is_free: false, // When true, ticket is free (price = 0)
   role_ids: [],
   is_default: isDefault,
   is_public: false, // Whether this ticket is visible to non-logged-in users
@@ -214,25 +215,29 @@ export default function EditEvent() {
         // Check if using new ticket_classes format or legacy single-price format
         if (config.ticket_classes && Array.isArray(config.ticket_classes) && config.ticket_classes.length > 0) {
           // New ticket classes format
-          const loadedTickets = config.ticket_classes.map(tc => ({
-            id: tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            name: tc.name || "Standard Ticket",
-            price: tc.price !== null && tc.price !== undefined ? String(tc.price) : "",
-            role_ids: tc.role_ids || [],
-            is_default: tc.is_default || false,
-            is_public: tc.is_public || false,
-            role_match_only: tc.role_match_only || false,
-            offer_type: tc.offer_type || "none",
-            bogo_logic_type: tc.bogo_logic_type || "buy_x_get_y_free",
-            bogo_buy_quantity: tc.bogo_buy_quantity !== null && tc.bogo_buy_quantity !== undefined 
-              ? String(tc.bogo_buy_quantity) : "",
-            bogo_get_free_quantity: tc.bogo_get_free_quantity !== null && tc.bogo_get_free_quantity !== undefined 
-              ? String(tc.bogo_get_free_quantity) : "",
-            bulk_discount_threshold: tc.bulk_discount_threshold !== null && tc.bulk_discount_threshold !== undefined 
-              ? String(tc.bulk_discount_threshold) : "",
-            bulk_discount_percentage: tc.bulk_discount_percentage !== null && tc.bulk_discount_percentage !== undefined 
-              ? String(tc.bulk_discount_percentage) : ""
-          }));
+          const loadedTickets = config.ticket_classes.map(tc => {
+            const priceValue = tc.price !== null && tc.price !== undefined ? Number(tc.price) : null;
+            return {
+              id: tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+              name: tc.name || "Standard Ticket",
+              price: priceValue !== null ? String(priceValue) : "",
+              is_free: priceValue === 0,
+              role_ids: tc.role_ids || [],
+              is_default: tc.is_default || false,
+              is_public: tc.is_public || false,
+              role_match_only: tc.role_match_only || false,
+              offer_type: tc.offer_type || "none",
+              bogo_logic_type: tc.bogo_logic_type || "buy_x_get_y_free",
+              bogo_buy_quantity: tc.bogo_buy_quantity !== null && tc.bogo_buy_quantity !== undefined 
+                ? String(tc.bogo_buy_quantity) : "",
+              bogo_get_free_quantity: tc.bogo_get_free_quantity !== null && tc.bogo_get_free_quantity !== undefined 
+                ? String(tc.bogo_get_free_quantity) : "",
+              bulk_discount_threshold: tc.bulk_discount_threshold !== null && tc.bulk_discount_threshold !== undefined 
+                ? String(tc.bulk_discount_threshold) : "",
+              bulk_discount_percentage: tc.bulk_discount_percentage !== null && tc.bulk_discount_percentage !== undefined 
+                ? String(tc.bulk_discount_percentage) : ""
+            };
+          });
           setTicketClasses(loadedTickets);
           // Expand first ticket by default
           if (loadedTickets.length > 0) {
@@ -240,11 +245,13 @@ export default function EditEvent() {
           }
         } else {
           // Legacy single-price format - convert to ticket class
+          const legacyPrice = config.ticket_price !== null && config.ticket_price !== undefined 
+            ? Number(config.ticket_price) : null;
           const legacyTicket = {
             id: `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
             name: "Standard Ticket",
-            price: config.ticket_price !== null && config.ticket_price !== undefined 
-              ? String(config.ticket_price) : "",
+            price: legacyPrice !== null ? String(legacyPrice) : "",
+            is_free: legacyPrice === 0,
             role_ids: [],
             is_default: true,
             is_public: false,
@@ -309,14 +316,17 @@ export default function EditEvent() {
           return;
         }
 
-        if (ticket.price === "" || ticket.price === null || ticket.price === undefined) {
-          toast.error(`Please enter a price for "${ticket.name}"`);
-          return;
-        }
-        const price = parseFloat(ticket.price);
-        if (isNaN(price) || price < 0) {
-          toast.error(`Price for "${ticket.name}" must be a valid positive number`);
-          return;
+        // Price validation: either is_free must be true, or price must be > 0
+        if (!ticket.is_free) {
+          if (ticket.price === "" || ticket.price === null || ticket.price === undefined) {
+            toast.error(`Please enter a price for "${ticket.name}" or mark it as free`);
+            return;
+          }
+          const price = parseFloat(ticket.price);
+          if (isNaN(price) || price <= 0) {
+            toast.error(`Price for "${ticket.name}" must be greater than zero, or mark the ticket as free`);
+            return;
+          }
         }
 
         if (ticket.offer_type === "bogo") {
@@ -727,8 +737,8 @@ export default function EditEvent() {
                     {/* Ticket Details - Collapsible */}
                     {expandedTickets[ticket.id] && (
                       <div className="p-4 space-y-4 border-t border-slate-200">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                          <div className="space-y-2 md:col-span-2">
                             <Label htmlFor={`ticket-name-${ticket.id}`}>Ticket Name *</Label>
                             <Input
                               id={`ticket-name-${ticket.id}`}
@@ -740,19 +750,38 @@ export default function EditEvent() {
                           </div>
                           <div className="space-y-2">
                             <Label htmlFor={`ticket-price-${ticket.id}`}>Price (£) *</Label>
-                            <div className="relative">
-                              <PoundSterling className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
-                              <Input
-                                id={`ticket-price-${ticket.id}`}
-                                type="number"
-                                step="0.01"
-                                min="0"
-                                value={ticket.price}
-                                onChange={(e) => updateTicketClass(ticket.id, 'price', e.target.value)}
-                                placeholder="0.00"
-                                className="pl-9"
-                                data-testid={`input-ticket-price-${ticket.id}`}
-                              />
+                            <div className="flex items-center gap-3">
+                              <div className="relative w-28">
+                                <PoundSterling className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <Input
+                                  id={`ticket-price-${ticket.id}`}
+                                  type="number"
+                                  step="0.01"
+                                  min="0"
+                                  value={ticket.is_free ? "0" : ticket.price}
+                                  onChange={(e) => updateTicketClass(ticket.id, 'price', e.target.value)}
+                                  placeholder="0.00"
+                                  className="pl-9"
+                                  disabled={ticket.is_free}
+                                  data-testid={`input-ticket-price-${ticket.id}`}
+                                />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Switch
+                                  id={`ticket-free-${ticket.id}`}
+                                  checked={ticket.is_free || false}
+                                  onCheckedChange={(checked) => {
+                                    updateTicketClass(ticket.id, 'is_free', checked);
+                                    if (checked) {
+                                      updateTicketClass(ticket.id, 'price', '0');
+                                    }
+                                  }}
+                                  data-testid={`switch-free-${ticket.id}`}
+                                />
+                                <Label htmlFor={`ticket-free-${ticket.id}`} className="text-sm font-medium">
+                                  Free
+                                </Label>
+                              </div>
                             </div>
                           </div>
                         </div>

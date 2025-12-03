@@ -3603,6 +3603,9 @@ const functionHandlers = {
     const updatedInvoice = updateData.Invoices[0];
     console.log('[updateXeroInvoicePO] Invoice updated successfully:', updatedInvoice.InvoiceNumber);
 
+    // Wait a moment for Xero to regenerate the PDF with new reference
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
     // Fetch the updated PDF from Xero
     console.log('[updateXeroInvoicePO] Fetching updated invoice PDF...');
     const pdfResponse = await fetch(`https://api.xero.com/api.xro/2.0/Invoices/${booking.xero_invoice_id}`, {
@@ -3615,7 +3618,28 @@ const functionHandlers = {
     });
 
     if (!pdfResponse.ok) {
-      throw new Error(`Failed to fetch updated PDF: ${pdfResponse.status}`);
+      console.error('[updateXeroInvoicePO] PDF fetch failed:', pdfResponse.status);
+      // Still update the PO number even if PDF fetch fails
+      const { error: poOnlyError } = await supabase
+        .from('booking')
+        .update({
+          purchase_order_number: purchaseOrderNumber,
+          po_to_follow: false
+        })
+        .eq('booking_group_reference', bookingGroupReference);
+      
+      if (poOnlyError) {
+        throw new Error(`Failed to update PO number: ${poOnlyError.message}`);
+      }
+      
+      return {
+        success: true,
+        invoice_id: booking.xero_invoice_id,
+        invoice_number: booking.xero_invoice_number,
+        reference: purchaseOrderNumber,
+        pdf_updated: false,
+        message: 'PO number updated but PDF refresh failed'
+      };
     }
 
     const pdfBuffer = await pdfResponse.arrayBuffer();
@@ -3633,6 +3657,7 @@ const functionHandlers = {
       .eq('booking_group_reference', bookingGroupReference);
 
     if (updateError) {
+      console.error('[updateXeroInvoicePO] DB update error:', updateError);
       throw new Error(`Failed to update bookings with new PDF: ${updateError.message}`);
     }
 

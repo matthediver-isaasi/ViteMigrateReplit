@@ -1538,11 +1538,16 @@ const functionHandlers = {
       // Calculate ticket price - use ticket class price if provided, otherwise from pricing config or total cost
       const ticketPriceValue = ticketClassPrice || event.pricing_config?.ticketPrice || (totalCost / ticketsRequired);
       
+      // Generate unique booking reference for each attendee (append index if multiple attendees)
+      const attendeeBookingRef = attendees.length > 1 
+        ? `${bookingReference}-${i + 1}` 
+        : bookingReference;
+      
       const bookingData = {
         event_id: event.id,
         member_id: member.id,
         organization_id: org.id,
-        booking_reference: bookingReference,
+        booking_reference: attendeeBookingRef,
         attendee_email: attendee.email,
         attendee_first_name: attendee.first_name || attendee.firstName,
         attendee_last_name: attendee.last_name || attendee.lastName,

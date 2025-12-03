@@ -56,6 +56,9 @@ export default function EditEvent() {
 
   // Program vs One-off toggle
   const [isProgramEvent, setIsProgramEvent] = useState(true);
+  
+  // Public event toggle
+  const [isPublic, setIsPublic] = useState(false);
 
   // Ticket classes state for one-off events
   const [ticketClasses, setTicketClasses] = useState([createEmptyTicketClass(true)]);
@@ -202,6 +205,9 @@ export default function EditEvent() {
       // Set isProgramEvent based on whether event has a program_tag
       const hasProgram = event.program_tag && event.program_tag !== "";
       setIsProgramEvent(hasProgram);
+      
+      // Set isPublic from event data
+      setIsPublic(event.is_public === true);
 
       // Load pricing config for one-off events
       if (event.pricing_config) {
@@ -353,7 +359,8 @@ export default function EditEvent() {
       location: formData.location || null,
       image_url: formData.image_url || null,
       available_seats: isNaN(parsedSeats) ? null : parsedSeats,
-      zoom_webinar_id: formData.zoom_webinar_id || null
+      zoom_webinar_id: formData.zoom_webinar_id || null,
+      is_public: isPublic
     };
 
     // Add ticket classes for one-off events
@@ -521,6 +528,29 @@ export default function EditEvent() {
                     Program
                   </span>
                 </div>
+              </div>
+
+              {/* Public Event Toggle */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Globe className="h-5 w-5 text-blue-600" />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="public-toggle" className="text-base font-medium">
+                      Public Event
+                    </Label>
+                    <p className="text-sm text-slate-500">
+                      {isPublic 
+                        ? "This event is visible to non-logged in visitors" 
+                        : "This event is only visible to logged in members"}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="public-toggle"
+                  checked={isPublic}
+                  onCheckedChange={setIsPublic}
+                  data-testid="switch-public-toggle"
+                />
               </div>
 
               {/* Program Selection - Only shown when isProgramEvent is true */}

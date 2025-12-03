@@ -75,6 +75,7 @@ export default function CreateEvent() {
   const queryClient = useQueryClient();
   const [isOnline, setIsOnline] = useState(false);
   const [isProgramEvent, setIsProgramEvent] = useState(true);
+  const [isPublic, setIsPublic] = useState(false);
   const [selectedWebinarId, setSelectedWebinarId] = useState("");
   
   // Ticket classes state for one-off events
@@ -336,7 +337,8 @@ export default function CreateEvent() {
       location: locationValue,
       image_url: formData.image_url || null,
       available_seats: isOnline ? null : (formData.available_seats ? parseInt(formData.available_seats) : null),
-      zoom_webinar_id: isOnline && selectedWebinarId ? selectedWebinarId : null
+      zoom_webinar_id: isOnline && selectedWebinarId ? selectedWebinarId : null,
+      is_public: isPublic
     };
 
     // Add ticket classes for one-off events as JSON in pricing_config field
@@ -571,6 +573,29 @@ export default function CreateEvent() {
                     Program
                   </span>
                 </div>
+              </div>
+
+              {/* Public Event Toggle */}
+              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                <div className="flex items-center gap-3">
+                  <Globe className="h-5 w-5 text-blue-600" />
+                  <div className="space-y-0.5">
+                    <Label htmlFor="public-toggle" className="text-base font-medium">
+                      Public Event
+                    </Label>
+                    <p className="text-sm text-slate-500">
+                      {isPublic 
+                        ? "This event is visible to non-logged in visitors" 
+                        : "This event is only visible to logged in members"}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="public-toggle"
+                  checked={isPublic}
+                  onCheckedChange={setIsPublic}
+                  data-testid="switch-public-toggle"
+                />
               </div>
 
               {/* Program Selection - Only shown when isProgramEvent is true */}

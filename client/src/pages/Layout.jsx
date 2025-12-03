@@ -431,9 +431,9 @@ export default function Layout({ children, currentPageName }) {
   const sidebarContentRef = React.useRef(null);
   const lastActivityUpdateRef = React.useRef(null);
 
-  const { hasPendingPOs } = usePendingPurchaseOrders();
-
-
+  const { hasPendingPOs, pendingPOCount, isLoading: pendingPOsLoading } = usePendingPurchaseOrders();
+  
+  console.log('[Layout] hasPendingPOs:', hasPendingPOs, 'count:', pendingPOCount, 'isLoading:', pendingPOsLoading);
 
   // Fetch global border radius setting
   const DEFAULT_BORDER_RADIUS = '8px';

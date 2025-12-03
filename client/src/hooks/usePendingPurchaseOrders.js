@@ -9,16 +9,22 @@ export function usePendingPurchaseOrders() {
   const { data: pendingPOBookings = [], isLoading, refetch } = useQuery({
     queryKey: ['pending-po-bookings', memberInfo?.id],
     queryFn: async () => {
-      if (!memberInfo?.id) return [];
+      console.log('[usePendingPurchaseOrders] Query running, memberInfo.id:', memberInfo?.id);
+      if (!memberInfo?.id) {
+        console.log('[usePendingPurchaseOrders] No member ID, returning empty');
+        return [];
+      }
       
       try {
         const myBookings = await base44.entities.Booking.filter({ member_id: memberInfo.id });
+        console.log('[usePendingPurchaseOrders] Fetched bookings count:', myBookings.length);
         
         const pendingBookings = myBookings.filter(booking => 
           booking.po_to_follow === true && 
           (!booking.purchase_order_number || booking.purchase_order_number.trim() === '')
         );
         
+        console.log('[usePendingPurchaseOrders] Pending PO bookings:', pendingBookings.length);
         return pendingBookings;
       } catch (error) {
         console.error('[usePendingPurchaseOrders] Error fetching bookings:', error);
@@ -32,6 +38,8 @@ export function usePendingPurchaseOrders() {
 
   const hasPendingPOs = pendingPOBookings.length > 0;
   const pendingPOCount = pendingPOBookings.length;
+  
+  console.log('[usePendingPurchaseOrders] hasPendingPOs:', hasPendingPOs, 'count:', pendingPOCount, 'isLoading:', isLoading);
 
   const invalidatePendingPOs = () => {
     queryClient.invalidateQueries({ queryKey: ['pending-po-bookings'] });

@@ -185,7 +185,7 @@ export default function BookingsPage() {
     }
   };
 
-  const handleSubmitPurchaseOrder = async (bookingReference, bookingId) => {
+  const handleSubmitPurchaseOrder = async (bookingReference, bookingId, hasXeroInvoice) => {
     const poNumber = poInputValues[bookingReference]?.trim();
     if (!poNumber) {
       toast.error('Please enter a PO number');
@@ -194,18 +194,34 @@ export default function BookingsPage() {
 
     setSubmittingPoFor(bookingReference);
     try {
-      await base44.entities.Booking.update(bookingId, {
-        purchase_order_number: poNumber,
-        po_to_follow: false
-      });
+      if (hasXeroInvoice) {
+        // Update Xero invoice reference and refresh the PDF
+        const response = await base44.functions.invoke('updateXeroInvoicePO', {
+          bookingGroupReference: bookingReference,
+          purchaseOrderNumber: poNumber
+        });
 
-      toast.success('Purchase order number submitted successfully');
+        if (!response.data.success) {
+          throw new Error(response.data.error || 'Failed to update invoice');
+        }
+
+        toast.success('PO number added and invoice updated successfully');
+      } else {
+        // No Xero invoice - just update the booking directly
+        await base44.entities.Booking.update(bookingId, {
+          purchase_order_number: poNumber,
+          po_to_follow: false
+        });
+
+        toast.success('Purchase order number submitted successfully');
+      }
+
       setPoInputValues(prev => ({ ...prev, [bookingReference]: '' }));
       queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
       queryClient.invalidateQueries({ queryKey: ['pending-po-bookings'] });
     } catch (error) {
       console.error('Error submitting PO number:', error);
-      toast.error('Failed to submit PO number. Please try again.');
+      toast.error(error.message || 'Failed to submit PO number. Please try again.');
     } finally {
       setSubmittingPoFor(null);
     }
@@ -617,7 +633,7 @@ export default function BookingsPage() {
                                         />
                                         <Button
                                           size="sm"
-                                          onClick={() => handleSubmitPurchaseOrder(bookingRef, firstBooking.id)}
+                                          onClick={() => handleSubmitPurchaseOrder(bookingRef, firstBooking.id, !!firstBooking.xero_invoice_id)}
                                           disabled={submittingPoFor === bookingRef || !poInputValues[bookingRef]?.trim()}
                                           data-testid={`button-submit-po-${bookingRef}`}
                                         >

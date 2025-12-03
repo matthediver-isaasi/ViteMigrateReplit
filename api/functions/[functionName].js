@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import Stripe from 'stripe';
 import crypto from 'crypto';
+import { getSession } from '../_lib/session.js';
 
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
@@ -3525,6 +3526,123 @@ const functionHandlers = {
       invoice_number: invoice.InvoiceNumber,
       total: invoice.Total,
       status: invoice.Status
+    };
+  },
+
+  async updateXeroInvoicePO(params, req) {
+    if (!supabase) throw new Error('Supabase not configured');
+
+    // Verify authentication
+    const session = await getSession(req);
+    if (!session?.data?.memberId) {
+      throw new Error('Authentication required');
+    }
+    const memberId = session.data.memberId;
+
+    const { bookingGroupReference, purchaseOrderNumber } = params;
+
+    if (!bookingGroupReference) {
+      throw new Error('Missing required parameter: bookingGroupReference');
+    }
+
+    if (!purchaseOrderNumber) {
+      throw new Error('Missing required parameter: purchaseOrderNumber');
+    }
+
+    // First, get the booking to find the Xero invoice ID and verify ownership
+    const { data: booking, error: fetchError } = await supabase
+      .from('booking')
+      .select('xero_invoice_id, xero_invoice_number, member_id')
+      .eq('booking_group_reference', bookingGroupReference)
+      .not('xero_invoice_id', 'is', null)
+      .limit(1)
+      .maybeSingle();
+
+    if (fetchError) {
+      throw new Error(`Failed to fetch booking: ${fetchError.message}`);
+    }
+
+    if (!booking || !booking.xero_invoice_id) {
+      throw new Error('No Xero invoice found for this booking');
+    }
+
+    // Verify ownership - the authenticated member must own this booking
+    if (booking.member_id !== memberId) {
+      throw new Error('Not authorized to update this booking');
+    }
+
+    // Get valid Xero token
+    const { accessToken, tenantId } = await getValidXeroAccessToken();
+
+    // Update the invoice reference in Xero using POST to the specific invoice
+    const updatePayload = {
+      Invoices: [{
+        InvoiceID: booking.xero_invoice_id,
+        Reference: purchaseOrderNumber
+      }]
+    };
+
+    console.log('[updateXeroInvoicePO] Updating invoice reference in Xero:', booking.xero_invoice_id, 'with PO:', purchaseOrderNumber);
+
+    const updateResponse = await fetch('https://api.xero.com/api.xro/2.0/Invoices', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'xero-tenant-id': tenantId,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updatePayload)
+    });
+
+    const updateData = await updateResponse.json();
+
+    if (!updateResponse.ok || !updateData.Invoices || updateData.Invoices.length === 0) {
+      throw new Error(`Failed to update invoice reference: ${JSON.stringify(updateData)}`);
+    }
+
+    const updatedInvoice = updateData.Invoices[0];
+    console.log('[updateXeroInvoicePO] Invoice updated successfully:', updatedInvoice.InvoiceNumber);
+
+    // Fetch the updated PDF from Xero
+    console.log('[updateXeroInvoicePO] Fetching updated invoice PDF...');
+    const pdfResponse = await fetch(`https://api.xero.com/api.xro/2.0/Invoices/${booking.xero_invoice_id}`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'xero-tenant-id': tenantId,
+        'Accept': 'application/pdf'
+      }
+    });
+
+    if (!pdfResponse.ok) {
+      throw new Error(`Failed to fetch updated PDF: ${pdfResponse.status}`);
+    }
+
+    const pdfBuffer = await pdfResponse.arrayBuffer();
+    const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+    console.log('[updateXeroInvoicePO] Updated PDF fetched, size:', pdfBase64.length);
+
+    // Update all booking records with the new PDF
+    const { error: updateError } = await supabase
+      .from('booking')
+      .update({
+        xero_invoice_pdf_base64: pdfBase64,
+        purchase_order_number: purchaseOrderNumber,
+        po_to_follow: false
+      })
+      .eq('booking_group_reference', bookingGroupReference);
+
+    if (updateError) {
+      throw new Error(`Failed to update bookings with new PDF: ${updateError.message}`);
+    }
+
+    console.log('[updateXeroInvoicePO] All bookings updated with new invoice PDF');
+
+    return {
+      success: true,
+      invoice_id: booking.xero_invoice_id,
+      invoice_number: booking.xero_invoice_number,
+      reference: purchaseOrderNumber
     };
   },
 

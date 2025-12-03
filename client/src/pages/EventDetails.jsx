@@ -316,6 +316,117 @@ export default function EventDetailsPage() {
     return joinLinkSettings[webinarId] === true;
   };
 
+  // ========== PRICING/TICKET CLASS HOOKS - MUST BE BEFORE EARLY RETURNS ==========
+  // These hooks MUST be called unconditionally to avoid React hooks order violations
+  
+  // Determine if this is a one-off event (guard for null event)
+  const isOneOffEvent = event && (!event.program_tag || event.program_tag === "");
+  
+  // Get the user's role ID
+  const userRoleId = memberRole?.id || currentMemberInfo?.role_id;
+  
+  // One-off event pricing calculations - parse if it's a JSON string
+  const pricingConfig = useMemo(() => {
+    // Guard for missing event or not a one-off event
+    if (!event || !isOneOffEvent || !event.pricing_config) return null;
+    
+    let parsed = null;
+    
+    // Handle case where pricing_config is a JSON string from the database
+    if (typeof event.pricing_config === 'string') {
+      try {
+        parsed = JSON.parse(event.pricing_config);
+      } catch (e) {
+        console.error('Failed to parse pricing_config:', e);
+        return null;
+      }
+    } else if (typeof event.pricing_config === 'object' && event.pricing_config !== null) {
+      // Already an object - make a shallow copy to avoid mutation issues
+      parsed = { ...event.pricing_config };
+    }
+    
+    // Validate that parsed is a plain object
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      console.error('pricing_config is not a valid object:', parsed);
+      return null;
+    }
+    
+    return parsed;
+  }, [event, isOneOffEvent]);
+  
+  // Filter ticket classes based on user's role
+  const availableTicketClasses = useMemo(() => {
+    if (!isOneOffEvent || !pricingConfig) return [];
+    
+    // Ensure ticket_classes is an array
+    const rawTicketClasses = pricingConfig.ticket_classes;
+    const ticketClasses = Array.isArray(rawTicketClasses) ? rawTicketClasses : [];
+    
+    // If no ticket classes defined, use legacy single-price format
+    if (ticketClasses.length === 0) {
+      return [{
+        id: 'default',
+        name: 'Standard Ticket',
+        price: Number(pricingConfig.ticket_price) || 0,
+        role_ids: [],
+        is_default: true,
+        offer_type: String(pricingConfig.offer_type || 'none'),
+        bogo_logic_type: String(pricingConfig.bogo_logic_type || 'buy_x_get_y_free'),
+        bogo_buy_quantity: Number(pricingConfig.bogo_buy_quantity) || 0,
+        bogo_get_free_quantity: Number(pricingConfig.bogo_get_free_quantity) || 0,
+        bulk_discount_threshold: Number(pricingConfig.bulk_discount_threshold) || 0,
+        bulk_discount_percentage: Number(pricingConfig.bulk_discount_percentage) || 0
+      }];
+    }
+    
+    // Filter ticket classes that the user can access and normalize values
+    return ticketClasses
+      .filter(tc => {
+        if (!tc || typeof tc !== 'object') return false;
+        // If no role_ids specified (empty array), ticket is available to all roles
+        const roleIds = Array.isArray(tc.role_ids) ? tc.role_ids : [];
+        if (roleIds.length === 0) return true;
+        // If user's role is in the ticket's role_ids, they can access it
+        if (userRoleId && roleIds.includes(userRoleId)) return true;
+        return false;
+      })
+      .map(tc => {
+        // Explicitly extract only the fields we need - do NOT spread tc
+        // This prevents any unexpected object properties from leaking into JSX
+        return {
+          id: String(tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
+          name: String(tc.name || 'Ticket'),
+          price: Number(tc.price) || 0,
+          role_ids: Array.isArray(tc.role_ids) ? tc.role_ids : [],
+          is_default: Boolean(tc.is_default),
+          offer_type: String(tc.offer_type || 'none'),
+          bogo_logic_type: String(tc.bogo_logic_type || 'buy_x_get_y_free'),
+          bogo_buy_quantity: Number(tc.bogo_buy_quantity) || 0,
+          bogo_get_free_quantity: Number(tc.bogo_get_free_quantity) || 0,
+          bulk_discount_threshold: Number(tc.bulk_discount_threshold) || 0,
+          bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
+        };
+      });
+  }, [isOneOffEvent, pricingConfig, userRoleId]);
+  
+  // Auto-select first available ticket class
+  useEffect(() => {
+    if (availableTicketClasses.length > 0 && !selectedTicketClassId) {
+      // Prefer default ticket, otherwise use first available
+      const defaultTicket = availableTicketClasses.find(tc => tc.is_default);
+      setSelectedTicketClassId(defaultTicket?.id || availableTicketClasses[0]?.id);
+    }
+  }, [availableTicketClasses, selectedTicketClassId]);
+  
+  // Get selected ticket class
+  const selectedTicketClass = useMemo(() => {
+    if (availableTicketClasses.length === 0) return null;
+    if (!selectedTicketClassId) return availableTicketClasses[0] || null;
+    return availableTicketClasses.find(tc => tc.id === selectedTicketClassId) || availableTicketClasses[0] || null;
+  }, [availableTicketClasses, selectedTicketClassId]);
+  
+  // ========== END PRICING/TICKET CLASS HOOKS ==========
+
   const removeAttendee = (index) => {
     setAttendees(attendees.filter((_, i) => i !== index));
   };
@@ -460,106 +571,8 @@ export default function EventDetailsPage() {
   const endDate = event.end_date ? new Date(event.end_date) : null;
   const hasUnlimitedCapacity = event.available_seats === 0 || event.available_seats === null;
   
-  // Determine if this is a one-off event (no program_tag)
-  const isOneOffEvent = !event.program_tag || event.program_tag === "";
-  
   // Calculate ticket count and costs
   const ticketsRequired = registrationMode === 'links' ? 0 : attendees.filter((a) => a.isValid).length;
-  
-  // One-off event pricing calculations - parse if it's a JSON string
-  const pricingConfig = useMemo(() => {
-    if (!isOneOffEvent || !event.pricing_config) return null;
-    
-    // Handle case where pricing_config is a JSON string from the database
-    if (typeof event.pricing_config === 'string') {
-      try {
-        return JSON.parse(event.pricing_config);
-      } catch (e) {
-        console.error('Failed to parse pricing_config:', e);
-        return null;
-      }
-    }
-    
-    // Already an object
-    if (typeof event.pricing_config === 'object') {
-      return event.pricing_config;
-    }
-    
-    return null;
-  }, [isOneOffEvent, event.pricing_config]);
-  
-  // Get the user's role ID
-  const userRoleId = memberRole?.id || currentMemberInfo?.role_id;
-  
-  // Filter ticket classes based on user's role
-  const availableTicketClasses = useMemo(() => {
-    if (!isOneOffEvent || !pricingConfig) return [];
-    
-    // Ensure ticket_classes is an array
-    const rawTicketClasses = pricingConfig.ticket_classes;
-    const ticketClasses = Array.isArray(rawTicketClasses) ? rawTicketClasses : [];
-    
-    // If no ticket classes defined, use legacy single-price format
-    if (ticketClasses.length === 0) {
-      return [{
-        id: 'default',
-        name: 'Standard Ticket',
-        price: Number(pricingConfig.ticket_price) || 0,
-        role_ids: [],
-        is_default: true,
-        offer_type: String(pricingConfig.offer_type || 'none'),
-        bogo_logic_type: String(pricingConfig.bogo_logic_type || 'buy_x_get_y_free'),
-        bogo_buy_quantity: Number(pricingConfig.bogo_buy_quantity) || 0,
-        bogo_get_free_quantity: Number(pricingConfig.bogo_get_free_quantity) || 0,
-        bulk_discount_threshold: Number(pricingConfig.bulk_discount_threshold) || 0,
-        bulk_discount_percentage: Number(pricingConfig.bulk_discount_percentage) || 0
-      }];
-    }
-    
-    // Filter ticket classes that the user can access and normalize values
-    return ticketClasses
-      .filter(tc => {
-        if (!tc || typeof tc !== 'object') return false;
-        // If no role_ids specified (empty array), ticket is available to all roles
-        const roleIds = Array.isArray(tc.role_ids) ? tc.role_ids : [];
-        if (roleIds.length === 0) return true;
-        // If user's role is in the ticket's role_ids, they can access it
-        if (userRoleId && roleIds.includes(userRoleId)) return true;
-        return false;
-      })
-      .map(tc => {
-        // Explicitly extract only the fields we need - do NOT spread tc
-        // This prevents any unexpected object properties from leaking into JSX
-        return {
-          id: String(tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
-          name: String(tc.name || 'Ticket'),
-          price: Number(tc.price) || 0,
-          role_ids: Array.isArray(tc.role_ids) ? tc.role_ids : [],
-          is_default: Boolean(tc.is_default),
-          offer_type: String(tc.offer_type || 'none'),
-          bogo_logic_type: String(tc.bogo_logic_type || 'buy_x_get_y_free'),
-          bogo_buy_quantity: Number(tc.bogo_buy_quantity) || 0,
-          bogo_get_free_quantity: Number(tc.bogo_get_free_quantity) || 0,
-          bulk_discount_threshold: Number(tc.bulk_discount_threshold) || 0,
-          bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
-        };
-      });
-  }, [isOneOffEvent, pricingConfig, userRoleId]);
-  
-  // Auto-select first available ticket class
-  useEffect(() => {
-    if (availableTicketClasses.length > 0 && !selectedTicketClassId) {
-      // Prefer default ticket, otherwise use first available
-      const defaultTicket = availableTicketClasses.find(tc => tc.is_default);
-      setSelectedTicketClassId(defaultTicket?.id || availableTicketClasses[0]?.id);
-    }
-  }, [availableTicketClasses, selectedTicketClassId]);
-  
-  // Get selected ticket class
-  const selectedTicketClass = useMemo(() => {
-    if (!selectedTicketClassId) return availableTicketClasses[0] || null;
-    return availableTicketClasses.find(tc => tc.id === selectedTicketClassId) || availableTicketClasses[0] || null;
-  }, [availableTicketClasses, selectedTicketClassId]);
   
   // Use selected ticket class price (or legacy price)
   const ticketPrice = selectedTicketClass?.price || pricingConfig?.ticket_price || 0;

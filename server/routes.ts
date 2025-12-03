@@ -5724,7 +5724,110 @@ AGCAS Events Team
         `);
       }
 
-      // Use the first tenant
+      // If multiple tenants, show selection page
+      if (connections.length > 1) {
+        // Store tokens temporarily with all connection info
+        const tempTokenData = {
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_in: tokenData.expires_in,
+          token_type: tokenData.token_type || 'Bearer',
+          connections: connections.map((c: any) => ({
+            tenantId: c.tenantId,
+            tenantName: c.tenantName,
+            tenantType: c.tenantType
+          }))
+        };
+        
+        // Store in database temporarily with a special marker
+        const { data: existingTokens } = await supabase
+          .from('xero_token')
+          .select('*');
+        
+        const tempRecord = {
+          access_token: tokenData.access_token,
+          refresh_token: tokenData.refresh_token,
+          expires_at: new Date(Date.now() + (tokenData.expires_in * 1000)).toISOString(),
+          tenant_id: 'PENDING_SELECTION',
+          token_type: tokenData.token_type || 'Bearer',
+        };
+        
+        if (existingTokens && existingTokens.length > 0) {
+          await supabase
+            .from('xero_token')
+            .update(tempRecord)
+            .eq('id', existingTokens[0].id);
+        } else {
+          await supabase
+            .from('xero_token')
+            .insert(tempRecord);
+        }
+        
+        // Show tenant selection page
+        const tenantOptions = connections.map((c: any) => `
+          <button onclick="selectTenant('${c.tenantId}', '${c.tenantName.replace(/'/g, "\\'")}')" 
+                  style="display: block; width: 100%; margin: 10px 0; padding: 15px 20px; 
+                         background: white; border: 2px solid #e2e8f0; border-radius: 8px; 
+                         cursor: pointer; text-align: left; font-size: 16px;
+                         transition: all 0.2s;">
+            <strong>${c.tenantName}</strong>
+            <span style="color: #64748b; font-size: 14px; display: block; margin-top: 4px;">
+              ${c.tenantType === 'ORGANISATION' ? 'Organization' : c.tenantType}
+            </span>
+          </button>
+        `).join('');
+        
+        return res.send(`
+          <html>
+            <head>
+              <style>
+                body {
+                  font-family: system-ui;
+                  padding: 40px;
+                  max-width: 500px;
+                  margin: 0 auto;
+                  background: linear-gradient(to br, #f8fafc, #eff6ff);
+                }
+                h1 { color: #1e40af; margin-bottom: 10px; }
+                p { color: #64748b; margin-bottom: 30px; }
+                button:hover { border-color: #2563eb !important; background: #f8fafc !important; }
+              </style>
+            </head>
+            <body>
+              <h1>Select Xero Organization</h1>
+              <p>You have multiple Xero organizations. Please select which one to use for invoicing:</p>
+              ${tenantOptions}
+              <script>
+                async function selectTenant(tenantId, tenantName) {
+                  try {
+                    const response = await fetch('/api/xero/select-tenant', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ tenantId, tenantName })
+                    });
+                    
+                    if (response.ok) {
+                      document.body.innerHTML = \`
+                        <h1 style="color: #16a34a;">Xero Connected Successfully</h1>
+                        <p>Connected to: <strong>\${tenantName}</strong></p>
+                        <p style="font-size: 14px; color: #64748b;">You can now close this window.</p>
+                        <button onclick="window.close()" style="margin-top: 20px; padding: 12px 24px; background: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer;">Close Window</button>
+                      \`;
+                      setTimeout(() => window.close(), 3000);
+                    } else {
+                      alert('Failed to select tenant. Please try again.');
+                    }
+                  } catch (error) {
+                    alert('Error: ' + error.message);
+                  }
+                }
+              </script>
+            </body>
+          </html>
+        `);
+      }
+
+      // Single tenant - use it directly
       const tenantId = connections[0].tenantId;
 
       // Calculate expiration
@@ -5790,6 +5893,35 @@ AGCAS Events Team
         </html>
       `);
 
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Xero tenant selection endpoint
+  app.post('/api/xero/select-tenant', async (req, res) => {
+    try {
+      const { tenantId, tenantName } = req.body;
+      
+      if (!tenantId) {
+        return res.status(400).json({ error: 'Tenant ID is required' });
+      }
+      
+      // Update the existing token record with the selected tenant
+      const { data: existingTokens } = await supabase
+        .from('xero_token')
+        .select('*');
+      
+      if (!existingTokens || existingTokens.length === 0) {
+        return res.status(400).json({ error: 'No pending token found' });
+      }
+      
+      await supabase
+        .from('xero_token')
+        .update({ tenant_id: tenantId })
+        .eq('id', existingTokens[0].id);
+      
+      res.json({ success: true, tenantName });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
     }

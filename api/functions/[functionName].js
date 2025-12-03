@@ -3096,8 +3096,16 @@ const functionHandlers = {
   // ============ Xero Integration Functions ============
 
   async getXeroAuthUrl(params, req) {
+    // Debug: log which env vars are present
+    const debug = {
+      hasClientId: !!XERO_CLIENT_ID,
+      hasRedirectUri: !!XERO_REDIRECT_URI,
+      redirectUriValue: XERO_REDIRECT_URI ? XERO_REDIRECT_URI.substring(0, 30) + '...' : 'NOT SET'
+    };
+    console.log('getXeroAuthUrl debug:', debug);
+    
     if (!XERO_CLIENT_ID || !XERO_REDIRECT_URI) {
-      throw new Error('Xero not configured - missing XERO_CLIENT_ID or XERO_REDIRECT_URI');
+      throw new Error(`Xero not configured - hasClientId: ${!!XERO_CLIENT_ID}, hasRedirectUri: ${!!XERO_REDIRECT_URI}`);
     }
 
     const authUrl = `https://login.xero.com/identity/connect/authorize?` + new URLSearchParams({

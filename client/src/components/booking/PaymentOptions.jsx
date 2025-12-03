@@ -817,7 +817,7 @@ export default function PaymentOptions({
                 Processing...
               </>
             ) : isOneOffEvent ? (
-              totalCost > 0 ? `Book & Pay £${remainingBalance.toFixed(2)}` : 'Confirm Free Booking'
+              totalCost > 0 ? `Book & Pay £${remainingBalance.toFixed(2)}` : 'Confirm Booking'
             ) : (
               'Confirm Booking'
             )}

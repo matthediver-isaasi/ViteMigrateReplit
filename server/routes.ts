@@ -4122,7 +4122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get Booking Invoice PDF (for download/preview)
+  // Get Booking Invoice PDF (for download/preview) - fetches directly from Xero
   app.get('/api/booking-invoice/:bookingGroupRef', async (req: Request, res: Response) => {
     if (!supabase) {
       return res.status(503).json({ error: 'Supabase not configured' });
@@ -4142,12 +4142,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
 
     try {
-      // Fetch booking with Xero invoice data and verify ownership
+      // Fetch booking with Xero invoice ID and verify ownership
       const { data: booking, error } = await supabase
         .from('booking')
-        .select('xero_invoice_id, xero_invoice_number, xero_invoice_pdf_base64, member_id')
+        .select('xero_invoice_id, xero_invoice_number, member_id')
         .eq('booking_group_reference', bookingGroupRef)
-        .not('xero_invoice_pdf_base64', 'is', null)
+        .not('xero_invoice_id', 'is', null)
         .limit(1)
         .maybeSingle();
 
@@ -4156,7 +4156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ error: 'Failed to fetch booking' });
       }
 
-      if (!booking || !booking.xero_invoice_pdf_base64) {
+      if (!booking || !booking.xero_invoice_id) {
         return res.status(404).json({ error: 'Invoice not found for this booking' });
       }
 
@@ -4165,8 +4165,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(403).json({ error: 'Not authorized to view this invoice' });
       }
 
-      // Convert base64 to buffer
-      const pdfBuffer = Buffer.from(booking.xero_invoice_pdf_base64, 'base64');
+      // Fetch PDF directly from Xero (single source of truth)
+      const { accessToken, tenantId } = await getValidXeroAccessToken(supabase);
+      
+      const pdfResponse = await fetch(`https://api.xero.com/api.xro/2.0/Invoices/${booking.xero_invoice_id}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'xero-tenant-id': tenantId,
+          'Accept': 'application/pdf'
+        }
+      });
+
+      if (!pdfResponse.ok) {
+        console.error('Failed to fetch PDF from Xero:', pdfResponse.status);
+        return res.status(500).json({ error: 'Failed to fetch invoice from Xero' });
+      }
+
+      const pdfBuffer = Buffer.from(await pdfResponse.arrayBuffer());
       
       // Set headers for PDF download or inline viewing
       res.setHeader('Content-Type', 'application/pdf');
@@ -4181,7 +4197,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.send(pdfBuffer);
     } catch (error: any) {
       console.error('Error serving invoice PDF:', error);
-      return res.status(500).json({ error: 'Failed to serve invoice' });
+      return res.status(500).json({ error: 'Failed to fetch invoice from Xero' });
     }
   });
 

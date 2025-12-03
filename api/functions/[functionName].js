@@ -1787,47 +1787,21 @@ const functionHandlers = {
                 status: invoice.Status
               };
               
-              // Fetch PDF from Xero and store as base64
-              try {
-                console.log('[createOneOffEventBooking] Fetching invoice PDF from Xero...');
-                const pdfResponse = await fetch(`https://api.xero.com/api.xro/2.0/Invoices/${invoice.InvoiceID}`, {
-                  method: 'GET',
-                  headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'xero-tenant-id': tenantId,
-                    'Accept': 'application/pdf'
-                  }
-                });
-                
-                if (pdfResponse.ok) {
-                  const pdfBuffer = await pdfResponse.arrayBuffer();
-                  const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
-                  xeroInvoiceResult.pdf_base64 = pdfBase64;
-                  console.log('[createOneOffEventBooking] Invoice PDF fetched successfully, size:', pdfBase64.length);
-                  
-                  // Update all booking records with Xero invoice data
-                  const { error: updateError } = await supabase
-                    .from('booking')
-                    .update({
-                      xero_invoice_id: invoice.InvoiceID,
-                      xero_invoice_number: invoice.InvoiceNumber,
-                      xero_invoice_pdf_base64: pdfBase64
-                    })
-                    .eq('booking_group_reference', bookingReference);
-                  
-                  if (updateError) {
-                    console.error('[createOneOffEventBooking] Failed to update bookings with Xero data:', updateError);
-                    xeroDebug.updateError = updateError.message;
-                  } else {
-                    console.log('[createOneOffEventBooking] Bookings updated with Xero invoice data');
-                  }
-                } else {
-                  console.error('[createOneOffEventBooking] Failed to fetch PDF:', pdfResponse.status);
-                  xeroDebug.pdfFetchError = `Status: ${pdfResponse.status}`;
-                }
-              } catch (pdfError) {
-                console.error('[createOneOffEventBooking] PDF fetch error:', pdfError.message);
-                xeroDebug.pdfFetchError = pdfError.message;
+              // Update all booking records with Xero invoice ID and number
+              // PDF is fetched on-demand from Xero (single source of truth)
+              const { error: updateError } = await supabase
+                .from('booking')
+                .update({
+                  xero_invoice_id: invoice.InvoiceID,
+                  xero_invoice_number: invoice.InvoiceNumber
+                })
+                .eq('booking_group_reference', bookingReference);
+              
+              if (updateError) {
+                console.error('[createOneOffEventBooking] Failed to update bookings with Xero data:', updateError);
+                xeroDebug.updateError = updateError.message;
+              } else {
+                console.log('[createOneOffEventBooking] Bookings updated with Xero invoice ID:', invoice.InvoiceNumber);
               }
             }
           }
@@ -3601,67 +3575,22 @@ const functionHandlers = {
     }
 
     const updatedInvoice = updateData.Invoices[0];
-    console.log('[updateXeroInvoicePO] Invoice updated successfully:', updatedInvoice.InvoiceNumber);
+    console.log('[updateXeroInvoicePO] Invoice reference updated in Xero:', updatedInvoice.InvoiceNumber);
 
-    // Wait a moment for Xero to regenerate the PDF with new reference
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Fetch the updated PDF from Xero
-    console.log('[updateXeroInvoicePO] Fetching updated invoice PDF...');
-    const pdfResponse = await fetch(`https://api.xero.com/api.xro/2.0/Invoices/${booking.xero_invoice_id}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'xero-tenant-id': tenantId,
-        'Accept': 'application/pdf'
-      }
-    });
-
-    if (!pdfResponse.ok) {
-      console.error('[updateXeroInvoicePO] PDF fetch failed:', pdfResponse.status);
-      // Still update the PO number even if PDF fetch fails
-      const { error: poOnlyError } = await supabase
-        .from('booking')
-        .update({
-          purchase_order_number: purchaseOrderNumber,
-          po_to_follow: false
-        })
-        .eq('booking_group_reference', bookingGroupReference);
-      
-      if (poOnlyError) {
-        throw new Error(`Failed to update PO number: ${poOnlyError.message}`);
-      }
-      
-      return {
-        success: true,
-        invoice_id: booking.xero_invoice_id,
-        invoice_number: booking.xero_invoice_number,
-        reference: purchaseOrderNumber,
-        pdf_updated: false,
-        message: 'PO number updated but PDF refresh failed'
-      };
-    }
-
-    const pdfBuffer = await pdfResponse.arrayBuffer();
-    const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
-    console.log('[updateXeroInvoicePO] Updated PDF fetched, size:', pdfBase64.length);
-
-    // Update all booking records with the new PDF
+    // Update booking records with PO number (PDF is fetched on-demand from Xero)
     const { error: updateError } = await supabase
       .from('booking')
       .update({
-        xero_invoice_pdf_base64: pdfBase64,
         purchase_order_number: purchaseOrderNumber,
         po_to_follow: false
       })
       .eq('booking_group_reference', bookingGroupReference);
 
     if (updateError) {
-      console.error('[updateXeroInvoicePO] DB update error:', updateError);
-      throw new Error(`Failed to update bookings with new PDF: ${updateError.message}`);
+      throw new Error(`Failed to update booking PO number: ${updateError.message}`);
     }
 
-    console.log('[updateXeroInvoicePO] All bookings updated with new invoice PDF');
+    console.log('[updateXeroInvoicePO] Booking PO number updated');
 
     return {
       success: true,

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { getSession } from '../_lib/session.js';
+import { fetchXeroInvoicePdf } from '../_lib/xero.js';
 
 const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_KEY;
@@ -27,12 +28,12 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Fetch booking with Xero invoice data and verify ownership
+    // Fetch booking with Xero invoice ID and verify ownership
     const { data: booking, error } = await supabase
       .from('booking')
-      .select('xero_invoice_id, xero_invoice_number, xero_invoice_pdf_base64, member_id')
+      .select('xero_invoice_id, xero_invoice_number, member_id')
       .eq('booking_group_reference', bookingGroupRef)
-      .not('xero_invoice_pdf_base64', 'is', null)
+      .not('xero_invoice_id', 'is', null)
       .limit(1)
       .maybeSingle();
 
@@ -41,7 +42,7 @@ export default async function handler(req, res) {
       return res.status(500).json({ error: 'Failed to fetch booking' });
     }
 
-    if (!booking || !booking.xero_invoice_pdf_base64) {
+    if (!booking || !booking.xero_invoice_id) {
       return res.status(404).json({ error: 'Invoice not found for this booking' });
     }
 
@@ -50,11 +51,11 @@ export default async function handler(req, res) {
       return res.status(403).json({ error: 'Not authorized to view this invoice' });
     }
 
+    // Fetch PDF directly from Xero (single source of truth)
+    const pdfBuffer = await fetchXeroInvoicePdf(booking.xero_invoice_id);
+
     // Check if inline preview is requested
     const inline = req.query.inline === 'true';
-    
-    // Convert base64 to buffer
-    const pdfBuffer = Buffer.from(booking.xero_invoice_pdf_base64, 'base64');
     
     // Set headers for PDF download or inline viewing
     res.setHeader('Content-Type', 'application/pdf');
@@ -69,6 +70,6 @@ export default async function handler(req, res) {
     return res.send(pdfBuffer);
   } catch (error) {
     console.error('Error serving invoice PDF:', error);
-    return res.status(500).json({ error: 'Failed to serve invoice' });
+    return res.status(500).json({ error: 'Failed to fetch invoice from Xero' });
   }
 }

@@ -14,10 +14,6 @@ export default function IEditImagePanelElement({ content, variant, settings }) {
     overlay_color = '#000000',
     overlay_opacity = 50,
     min_height = 500,
-    padding_top = 60,
-    padding_bottom = 60,
-    padding_left = 40,
-    padding_right = 40,
     divider_color = '#ffffff',
     divider_weight = 1,
     divider_opacity = 30,
@@ -71,88 +67,94 @@ export default function IEditImagePanelElement({ content, variant, settings }) {
       <div 
         className="relative h-full flex"
         style={{
-          minHeight: `${min_height}px`,
-          paddingTop: `${padding_top}px`,
-          paddingBottom: `${padding_bottom}px`,
-          paddingLeft: `${padding_left}px`,
-          paddingRight: `${padding_right}px`
+          minHeight: `${min_height}px`
         }}
       >
-        {displayPanels.map((panel, index) => (
-          <div 
-            key={index}
-            className="flex-1 flex flex-col justify-between relative"
-            style={{
-              borderRight: index < displayPanels.length - 1 
-                ? `${divider_weight}px solid rgba(${hexToRgb(divider_color)}, ${divider_opacity / 100})` 
-                : 'none'
-            }}
-          >
+        {displayPanels.map((panel, index) => {
+          const panelPaddingTop = panel.padding_top ?? 40;
+          const panelPaddingBottom = panel.padding_bottom ?? 40;
+          const panelPaddingLeft = panel.padding_left ?? 20;
+          const panelPaddingRight = panel.padding_right ?? 20;
+          
+          return (
             <div 
-              className="px-4"
+              key={index}
+              className="flex-1 flex flex-col justify-between relative"
               style={{
-                textAlign: panel.header_align || 'left'
+                borderRight: index < displayPanels.length - 1 
+                  ? `${divider_weight}px solid rgba(${hexToRgb(divider_color)}, ${divider_opacity / 100})` 
+                  : 'none',
+                paddingTop: `${panelPaddingTop}px`,
+                paddingBottom: `${panelPaddingBottom}px`,
+                paddingLeft: `${panelPaddingLeft}px`,
+                paddingRight: `${panelPaddingRight}px`
               }}
             >
-              {panel.header_text && (
-                <h3 
-                  style={{ 
-                    fontFamily: panel.header_font_family || 'Poppins',
-                    fontSize: `${panel.header_font_size || 24}px`,
-                    fontWeight: panel.header_font_weight || 600,
-                    color: panel.header_color || '#ffffff',
-                    letterSpacing: `${panel.header_letter_spacing || 0}px`,
-                    lineHeight: panel.header_line_height || 1.3,
-                    margin: 0,
-                    whiteSpace: 'pre-line'
-                  }}
-                >
-                  {panel.header_text}
-                </h3>
-              )}
-            </div>
-            
-            <div 
-              className="px-4 mt-auto"
-              style={{
-                textAlign: panel.bottom_align || 'left'
-              }}
-            >
-              {panel.bottom_text && (
-                <p 
-                  style={{ 
-                    fontFamily: panel.bottom_font_family || 'Poppins',
-                    fontSize: `${panel.bottom_font_size || 16}px`,
-                    fontWeight: panel.bottom_font_weight || 400,
-                    color: panel.bottom_color || '#ffffff',
-                    letterSpacing: `${panel.bottom_letter_spacing || 0}px`,
-                    lineHeight: panel.bottom_line_height || 1.5,
-                    margin: 0,
-                    marginBottom: panel.button?.text ? '16px' : 0,
-                    whiteSpace: 'pre-line'
-                  }}
-                >
-                  {panel.bottom_text}
-                </p>
-              )}
+              <div 
+                style={{
+                  textAlign: panel.header_align || 'left'
+                }}
+              >
+                {panel.header_text && (
+                  <h3 
+                    style={{ 
+                      fontFamily: panel.header_font_family || 'Poppins',
+                      fontSize: `${panel.header_font_size || 24}px`,
+                      fontWeight: panel.header_font_weight || 600,
+                      color: panel.header_color || '#ffffff',
+                      letterSpacing: `${panel.header_letter_spacing || 0}px`,
+                      lineHeight: panel.header_line_height || 1.3,
+                      margin: 0,
+                      whiteSpace: 'pre-line'
+                    }}
+                  >
+                    {panel.header_text}
+                  </h3>
+                )}
+              </div>
               
-              {panel.button?.text && (
-                <AGCASButton
-                  text={panel.button.text}
-                  link={panel.button.link}
-                  buttonStyleId={panel.button.button_style_id}
-                  customBgColor={panel.button.custom_bg_color}
-                  customTextColor={panel.button.custom_text_color}
-                  customBorderColor={panel.button.custom_border_color}
-                  transparentBg={panel.button.transparent_bg}
-                  openInNewTab={panel.button.open_in_new_tab}
-                  size={panel.button.size || 'default'}
-                  showArrow={panel.button.show_arrow}
-                />
-              )}
+              <div 
+                className="mt-auto"
+                style={{
+                  textAlign: panel.bottom_align || 'left'
+                }}
+              >
+                {panel.bottom_text && (
+                  <p 
+                    style={{ 
+                      fontFamily: panel.bottom_font_family || 'Poppins',
+                      fontSize: `${panel.bottom_font_size || 16}px`,
+                      fontWeight: panel.bottom_font_weight || 400,
+                      color: panel.bottom_color || '#ffffff',
+                      letterSpacing: `${panel.bottom_letter_spacing || 0}px`,
+                      lineHeight: panel.bottom_line_height || 1.5,
+                      margin: 0,
+                      marginBottom: panel.button?.text ? '16px' : 0,
+                      whiteSpace: 'pre-line'
+                    }}
+                  >
+                    {panel.bottom_text}
+                  </p>
+                )}
+                
+                {panel.button?.text && (
+                  <AGCASButton
+                    text={panel.button.text}
+                    link={panel.button.link}
+                    buttonStyleId={panel.button.button_style_id}
+                    customBgColor={panel.button.custom_bg_color}
+                    customTextColor={panel.button.custom_text_color}
+                    customBorderColor={panel.button.custom_border_color}
+                    transparentBg={panel.button.transparent_bg}
+                    openInNewTab={panel.button.open_in_new_tab}
+                    size={panel.button.size || 'default'}
+                    showArrow={panel.button.show_arrow}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -190,6 +192,10 @@ export function IEditImagePanelElementEditor({ element, onChange }) {
     bottom_letter_spacing: 0,
     bottom_line_height: 1.5,
     bottom_align: 'left',
+    padding_top: 40,
+    padding_bottom: 40,
+    padding_left: 20,
+    padding_right: 20,
     button: null
   };
 
@@ -514,48 +520,6 @@ export function IEditImagePanelElementEditor({ element, onChange }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">Padding Top (px)</label>
-          <input
-            type="number"
-            value={content.padding_top || 60}
-            onChange={(e) => updateContent('padding_top', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="0"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Padding Bottom (px)</label>
-          <input
-            type="number"
-            value={content.padding_bottom || 60}
-            onChange={(e) => updateContent('padding_bottom', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="0"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Padding Left (px)</label>
-          <input
-            type="number"
-            value={content.padding_left || 40}
-            onChange={(e) => updateContent('padding_left', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="0"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Padding Right (px)</label>
-          <input
-            type="number"
-            value={content.padding_right || 40}
-            onChange={(e) => updateContent('padding_right', parseInt(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="0"
-          />
-        </div>
-      </div>
 
       <div className="border-t pt-4 mt-4">
         <h4 className="font-semibold text-slate-900 mb-3">Vertical Divider Lines</h4>
@@ -650,6 +614,52 @@ export function IEditImagePanelElementEditor({ element, onChange }) {
               
               {expandedPanels[index] && (
                 <div className="p-3 space-y-4">
+                  <div className="border-b pb-3">
+                    <h5 className="text-sm font-semibold text-slate-700 mb-2">Panel Padding</h5>
+                    <div className="grid grid-cols-4 gap-2">
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Top</label>
+                        <input
+                          type="number"
+                          value={panel.padding_top ?? 40}
+                          onChange={(e) => updatePanel(index, 'padding_top', parseInt(e.target.value) || 0)}
+                          className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Bottom</label>
+                        <input
+                          type="number"
+                          value={panel.padding_bottom ?? 40}
+                          onChange={(e) => updatePanel(index, 'padding_bottom', parseInt(e.target.value) || 0)}
+                          className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Left</label>
+                        <input
+                          type="number"
+                          value={panel.padding_left ?? 20}
+                          onChange={(e) => updatePanel(index, 'padding_left', parseInt(e.target.value) || 0)}
+                          className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                          min="0"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-medium mb-1">Right</label>
+                        <input
+                          type="number"
+                          value={panel.padding_right ?? 20}
+                          onChange={(e) => updatePanel(index, 'padding_right', parseInt(e.target.value) || 0)}
+                          className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                          min="0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="border-b pb-3">
                     <h5 className="text-sm font-semibold text-slate-700 mb-2">Header Text (Top)</h5>
                     <div className="space-y-3">

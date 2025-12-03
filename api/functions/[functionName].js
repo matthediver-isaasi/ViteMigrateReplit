@@ -1603,18 +1603,49 @@ const functionHandlers = {
               return `${firstName} ${lastName}`.trim() || a.email;
             }).join('\n');
 
-            // Build line description with full event details
+            // Build financial breakdown
+            const ticketUnitPrice = ticketClassPrice || (totalCost / ticketsRequired);
+            const ticketSubtotal = ticketUnitPrice * ticketsRequired;
+            
+            let financialBreakdown = [];
+            financialBreakdown.push(`${ticketsRequired} x ${ticketClassName || 'Ticket'} @ £${ticketUnitPrice.toFixed(2)} = £${ticketSubtotal.toFixed(2)}`);
+            
+            // Add any discounts/offers applied
+            if (voucherAmountApplied > 0) {
+              financialBreakdown.push(`Voucher applied: -£${voucherAmountApplied.toFixed(2)}`);
+            }
+            if (validatedTrainingFundAmount > 0) {
+              financialBreakdown.push(`Training fund applied: -£${validatedTrainingFundAmount.toFixed(2)}`);
+            }
+            
+            // Check if there was a BOGO or bulk discount in pricing details
+            if (pricingDetails) {
+              if (pricingDetails.freeTickets && pricingDetails.freeTickets > 0) {
+                financialBreakdown.push(`BOGO offer: ${pricingDetails.freeTickets} free ticket${pricingDetails.freeTickets > 1 ? 's' : ''}`);
+              }
+              if (pricingDetails.bulkDiscountAmount && pricingDetails.bulkDiscountAmount > 0) {
+                financialBreakdown.push(`Bulk discount: -£${pricingDetails.bulkDiscountAmount.toFixed(2)}`);
+              }
+              if (pricingDetails.discountAmount && pricingDetails.discountAmount > 0 && !pricingDetails.bulkDiscountAmount) {
+                financialBreakdown.push(`Discount applied: -£${pricingDetails.discountAmount.toFixed(2)}`);
+              }
+            }
+            
+            financialBreakdown.push(`Total to invoice: £${validatedRemainingBalance.toFixed(2)}`);
+
+            // Build line description with full event details and financial breakdown
             const lineDescriptionParts = [
               `Event: ${event.title || 'One-off Event'}`,
               `Reference: ${event.internal_reference || 'N/A'}`,
               `Ticket class: ${ticketClassName || 'Standard'}`,
               `Attendees: ${ticketsRequired}`,
-              attendeeList
+              attendeeList,
+              '',
+              '----------------------------------------------',
+              'Financial Breakdown:',
+              ...financialBreakdown
             ];
             const lineDescription = lineDescriptionParts.join('\n');
-
-            // Calculate unit price per ticket
-            const unitPricePerTicket = ticketClassPrice || (validatedRemainingBalance / ticketsRequired);
 
             // Get Xero account code from system settings (default to '200' for Sales)
             const { data: accountCodeSetting } = await supabase
@@ -1634,15 +1665,15 @@ const functionHandlers = {
             // Determine reference: PO number or "TBC" if supply later was selected
             const invoiceReference = poToFollow ? 'TBC' : (purchaseOrderNumber || 'TBC');
             
-            // Create invoice
+            // Create invoice with quantity 1 and total amount
             const invoicePayload = {
               Type: 'ACCREC',
               Contact: { ContactID: contactId },
               DueDate: dueDateString,
               LineItems: [{
                 Description: lineDescription,
-                Quantity: ticketsRequired,
-                UnitAmount: unitPricePerTicket,
+                Quantity: 1,
+                UnitAmount: validatedRemainingBalance,
                 AccountCode: xeroAccountCode
               }],
               Reference: invoiceReference,

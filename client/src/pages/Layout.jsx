@@ -1521,12 +1521,9 @@ useEffect(() => {
                               <SidebarMenuSub>
                                 {item.subItems.map(subItem => {
                                   const isSubItemActive = subItem.url === location.pathname;
-                                  // Check for pending PO warning by title OR url pattern for submenu items
-                                  const isSubEventsPage = subItem.title?.toLowerCase().includes('event') || 
-                                                          subItem.url?.toLowerCase().includes('events');
-                                  const isSubBookingsPage = subItem.title?.toLowerCase().includes('booking') || 
-                                                            subItem.url?.toLowerCase().includes('bookings');
-                                  const showSubPendingPOWarning = hasPendingPOs && (isSubEventsPage || isSubBookingsPage);
+                                  // Show pending PO bell only on the Bookings page link
+                                  const isBookingsPage = subItem.url === '/bookings' || subItem.url === 'Bookings';
+                                  const showSubPendingPOWarning = hasPendingPOs && isBookingsPage;
                                   return (
                                     <SidebarMenuSubItem key={subItem.title}>
                                       <Link
@@ -1548,12 +1545,9 @@ useEffect(() => {
                           </Collapsible>
                         );
                       } else {
-                        // Check for pending PO warning by title OR url pattern
-                        const isEventsPage = item.title?.toLowerCase().includes('event') || 
-                                            item.url?.toLowerCase().includes('events');
-                        const isBookingsPage = item.title?.toLowerCase().includes('booking') || 
-                                              item.url?.toLowerCase().includes('bookings');
-                        const showPendingPOWarning = hasPendingPOs && (isEventsPage || isBookingsPage);
+                        // Show pending PO bell only on the Bookings page link
+                        const isBookingsPage = item.url === '/bookings' || item.url === 'Bookings';
+                        const showPendingPOWarning = hasPendingPOs && isBookingsPage;
                         return (
                           <SidebarMenuItem 
                             key={item.title}

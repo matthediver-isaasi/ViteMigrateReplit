@@ -41,6 +41,7 @@ const createEmptyTicketClass = (isDefault = false) => ({
   price: "",
   role_ids: [],
   is_default: isDefault,
+  is_public: false, // Whether this ticket is visible to non-logged-in users
   offer_type: "none",
   bogo_logic_type: "buy_x_get_y_free",
   bogo_buy_quantity: "",
@@ -56,9 +57,6 @@ export default function EditEvent() {
 
   // Program vs One-off toggle
   const [isProgramEvent, setIsProgramEvent] = useState(true);
-  
-  // Public event toggle
-  const [isPublic, setIsPublic] = useState(false);
 
   // Ticket classes state for one-off events
   const [ticketClasses, setTicketClasses] = useState([createEmptyTicketClass(true)]);
@@ -205,9 +203,6 @@ export default function EditEvent() {
       // Set isProgramEvent based on whether event has a program_tag
       const hasProgram = event.program_tag && event.program_tag !== "";
       setIsProgramEvent(hasProgram);
-      
-      // Set isPublic from event data
-      setIsPublic(event.is_public === true);
 
       // Load pricing config for one-off events
       if (event.pricing_config) {
@@ -222,6 +217,7 @@ export default function EditEvent() {
             price: tc.price !== null && tc.price !== undefined ? String(tc.price) : "",
             role_ids: tc.role_ids || [],
             is_default: tc.is_default || false,
+            is_public: tc.is_public || false,
             offer_type: tc.offer_type || "none",
             bogo_logic_type: tc.bogo_logic_type || "buy_x_get_y_free",
             bogo_buy_quantity: tc.bogo_buy_quantity !== null && tc.bogo_buy_quantity !== undefined 
@@ -247,6 +243,7 @@ export default function EditEvent() {
               ? String(config.ticket_price) : "",
             role_ids: [],
             is_default: true,
+            is_public: false,
             offer_type: config.offer_type || "none",
             bogo_logic_type: config.bogo_logic_type || "buy_x_get_y_free",
             bogo_buy_quantity: config.bogo_buy_quantity !== null && config.bogo_buy_quantity !== undefined 
@@ -359,8 +356,7 @@ export default function EditEvent() {
       location: formData.location || null,
       image_url: formData.image_url || null,
       available_seats: isNaN(parsedSeats) ? null : parsedSeats,
-      zoom_webinar_id: formData.zoom_webinar_id || null,
-      is_public: isPublic
+      zoom_webinar_id: formData.zoom_webinar_id || null
     };
 
     // Add ticket classes for one-off events
@@ -372,6 +368,7 @@ export default function EditEvent() {
           price: parseFloat(ticket.price),
           role_ids: ticket.role_ids || [],
           is_default: ticket.is_default || false,
+          is_public: ticket.is_public || false,
           offer_type: ticket.offer_type
         };
 
@@ -530,29 +527,6 @@ export default function EditEvent() {
                 </div>
               </div>
 
-              {/* Public Event Toggle */}
-              <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <Globe className="h-5 w-5 text-blue-600" />
-                  <div className="space-y-0.5">
-                    <Label htmlFor="public-toggle" className="text-base font-medium">
-                      Public Event
-                    </Label>
-                    <p className="text-sm text-slate-500">
-                      {isPublic 
-                        ? "This event is visible to non-logged in visitors" 
-                        : "This event is only visible to logged in members"}
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  id="public-toggle"
-                  checked={isPublic}
-                  onCheckedChange={setIsPublic}
-                  data-testid="switch-public-toggle"
-                />
-              </div>
-
               {/* Program Selection - Only shown when isProgramEvent is true */}
               {isProgramEvent && (
                 <div className="space-y-2">
@@ -691,6 +665,12 @@ export default function EditEvent() {
                             {ticket.is_default && (
                               <Badge variant="secondary" className="text-xs">Default</Badge>
                             )}
+                            {ticket.is_public && (
+                              <Badge variant="outline" className="text-xs bg-green-50 text-green-700 border-green-200">
+                                <Globe className="h-3 w-3 mr-1" />
+                                Public
+                              </Badge>
+                            )}
                           </div>
                           <div className="flex items-center gap-2 text-sm text-slate-500">
                             <span>£{ticket.price || "0.00"}</span>
@@ -802,6 +782,29 @@ export default function EditEvent() {
                               This ticket is available to all roles
                             </div>
                           )}
+                        </div>
+
+                        {/* Public Ticket Toggle */}
+                        <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <Globe className="h-5 w-5 text-blue-600" />
+                            <div className="space-y-0.5">
+                              <Label htmlFor={`public-toggle-${ticket.id}`} className="text-base font-medium">
+                                Public Ticket
+                              </Label>
+                              <p className="text-sm text-slate-500">
+                                {ticket.is_public 
+                                  ? "This ticket is visible to non-logged in visitors" 
+                                  : "This ticket is only visible to logged in members"}
+                              </p>
+                            </div>
+                          </div>
+                          <Switch
+                            id={`public-toggle-${ticket.id}`}
+                            checked={ticket.is_public || false}
+                            onCheckedChange={(checked) => updateTicketClass(ticket.id, 'is_public', checked)}
+                            data-testid={`switch-public-${ticket.id}`}
+                          />
                         </div>
 
                         <Separator />

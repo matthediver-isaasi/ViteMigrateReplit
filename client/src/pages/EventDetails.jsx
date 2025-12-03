@@ -231,7 +231,8 @@ export default function EventDetailsPage() {
     return parsed;
   }, [event, isOneOffEvent]);
   
-  // Get ALL ticket classes (not filtered by role) - user can select any ticket type
+  // Get ticket classes - for non-logged-in users, only show public tickets
+  // For logged-in users, show all ticket classes
   const availableTicketClasses = useMemo(() => {
     if (!isOneOffEvent || !pricingConfig) return [];
     
@@ -241,42 +242,51 @@ export default function EventDetailsPage() {
     
     // If no ticket classes defined, use legacy single-price format
     if (ticketClasses.length === 0) {
-      return [{
+      const legacyTicket = {
         id: 'default',
         name: 'Standard Ticket',
         price: Number(pricingConfig.ticket_price) || 0,
         role_ids: [],
         is_default: true,
+        is_public: false, // Legacy tickets are not public by default
         offer_type: String(pricingConfig.offer_type || 'none'),
         bogo_logic_type: String(pricingConfig.bogo_logic_type || 'buy_x_get_y_free'),
         bogo_buy_quantity: Number(pricingConfig.bogo_buy_quantity) || 0,
         bogo_get_free_quantity: Number(pricingConfig.bogo_get_free_quantity) || 0,
         bulk_discount_threshold: Number(pricingConfig.bulk_discount_threshold) || 0,
         bulk_discount_percentage: Number(pricingConfig.bulk_discount_percentage) || 0
-      }];
+      };
+      // Non-logged-in users cannot see legacy tickets (not public)
+      if (!currentMemberInfo && !legacyTicket.is_public) return [];
+      return [legacyTicket];
     }
     
-    // Return ALL ticket classes (not filtered by role) - normalize values only
-    return ticketClasses
+    // Normalize ticket classes and filter for non-logged-in users
+    const normalizedTickets = ticketClasses
       .filter(tc => tc && typeof tc === 'object')
-      .map(tc => {
-        // Explicitly extract only the fields we need - do NOT spread tc
-        // This prevents any unexpected object properties from leaking into JSX
-        return {
-          id: String(tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
-          name: String(tc.name || 'Ticket'),
-          price: Number(tc.price) || 0,
-          role_ids: Array.isArray(tc.role_ids) ? tc.role_ids : [],
-          is_default: Boolean(tc.is_default),
-          offer_type: String(tc.offer_type || 'none'),
-          bogo_logic_type: String(tc.bogo_logic_type || 'buy_x_get_y_free'),
-          bogo_buy_quantity: Number(tc.bogo_buy_quantity) || 0,
-          bogo_get_free_quantity: Number(tc.bogo_get_free_quantity) || 0,
-          bulk_discount_threshold: Number(tc.bulk_discount_threshold) || 0,
-          bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
-        };
-      });
-  }, [isOneOffEvent, pricingConfig]);
+      .map(tc => ({
+        id: String(tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`),
+        name: String(tc.name || 'Ticket'),
+        price: Number(tc.price) || 0,
+        role_ids: Array.isArray(tc.role_ids) ? tc.role_ids : [],
+        is_default: Boolean(tc.is_default),
+        is_public: Boolean(tc.is_public),
+        offer_type: String(tc.offer_type || 'none'),
+        bogo_logic_type: String(tc.bogo_logic_type || 'buy_x_get_y_free'),
+        bogo_buy_quantity: Number(tc.bogo_buy_quantity) || 0,
+        bogo_get_free_quantity: Number(tc.bogo_get_free_quantity) || 0,
+        bulk_discount_threshold: Number(tc.bulk_discount_threshold) || 0,
+        bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
+      }));
+    
+    // For non-logged-in users, only show public tickets
+    if (!currentMemberInfo) {
+      return normalizedTickets.filter(tc => tc.is_public === true);
+    }
+    
+    // For logged-in users, show all tickets
+    return normalizedTickets;
+  }, [isOneOffEvent, pricingConfig, currentMemberInfo]);
   
   // Auto-select first available ticket class
   useEffect(() => {

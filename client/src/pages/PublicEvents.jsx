@@ -52,16 +52,28 @@ const getTimezoneAbbr = (dateStr, timezone = DEFAULT_TIMEZONE) => {
   }
 };
 
+// Helper function to check if an event has at least one public ticket class
+const hasPublicTickets = (event) => {
+  // One-off events have pricing_config with ticket_classes
+  if (event.pricing_config?.ticket_classes && Array.isArray(event.pricing_config.ticket_classes)) {
+    return event.pricing_config.ticket_classes.some(tc => tc.is_public === true);
+  }
+  // Program events (with program_tag) are not shown on public page by default
+  return false;
+};
+
 export default function PublicEventsPage() {
-  const { data: events = [], isLoading } = useQuery({
+  const { data: allEvents = [], isLoading } = useQuery({
     queryKey: ['public-events'],
     queryFn: () => base44.entities.Event.list({ 
-      filter: { status: 'published' }, 
       sort: { start_date: 'desc' },
-      limit: 50 
+      limit: 100 
     }),
     staleTime: 0
   });
+
+  // Filter to only show events with at least one public ticket class
+  const events = allEvents.filter(hasPublicTickets);
 
   return (
     <div className="bg-white min-h-screen">

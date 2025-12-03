@@ -60,11 +60,19 @@ Preferred communication style: Simple, everyday language.
   - `price`: Price per attendee in GBP
   - `role_ids`: Array of role IDs that can purchase this ticket (empty = all roles)
   - `is_default`: Boolean indicating the default ticket class
+  - `is_public`: Boolean indicating if the ticket is visible to non-logged-in users (default: false)
   - `offer_type`: 'none', 'bogo', or 'bulk_discount'
   - `bogo_logic_type`: 'buy_x_get_y_free' or 'enter_total_pay_less'
   - `bogo_buy_quantity` / `bogo_get_free_quantity`: For BOGO offers
   - `bulk_discount_threshold` / `bulk_discount_percentage`: For bulk discounts
 - `ticket_price`: Legacy field - stores default ticket price for backward compatibility
+
+**Public Tickets:** Ticket classes can be marked as "public" to make them visible to non-logged-in visitors:
+- Each ticket class has an `is_public` toggle in the Create/Edit Event forms
+- Events with at least one public ticket class appear on the PublicEvents page
+- Non-logged-in users on EventDetails only see ticket classes marked as public
+- Logged-in members see all ticket classes regardless of public status
+- Legacy/migrated events default to `is_public: false` (member-only)
 
 **Ticket Class Selection & Role-Based Filtering:** On EventDetails page for one-off events:
 - All ticket classes are displayed to the user, regardless of their role

@@ -1621,16 +1621,28 @@ const functionHandlers = {
               headers: {
                 'Authorization': `Bearer ${accessToken}`,
                 'xero-tenant-id': tenantId,
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
               },
               body: JSON.stringify({ Invoices: [invoicePayload] })
             });
 
             xeroDebug.invoiceResponseStatus = invoiceResponse.status;
-            const invoiceData = await invoiceResponse.json();
-            xeroDebug.invoiceResponseBody = invoiceData;
+            
+            // Get response as text first to handle both JSON and XML errors
+            const responseText = await invoiceResponse.text();
+            xeroDebug.invoiceResponseRaw = responseText.substring(0, 500); // First 500 chars for debugging
+            
+            let invoiceData = null;
+            try {
+              invoiceData = JSON.parse(responseText);
+              xeroDebug.invoiceResponseBody = invoiceData;
+            } catch (parseError) {
+              xeroDebug.invoiceResponseBody = responseText.substring(0, 500);
+              xeroDebug.parseError = 'Response was not JSON: ' + responseText.substring(0, 200);
+            }
 
-            if (invoiceData.Invoices && invoiceData.Invoices.length > 0) {
+            if (invoiceData && invoiceData.Invoices && invoiceData.Invoices.length > 0) {
               xeroInvoiceResult = {
                 invoice_id: invoiceData.Invoices[0].InvoiceID,
                 invoice_number: invoiceData.Invoices[0].InvoiceNumber,
@@ -1641,6 +1653,7 @@ const functionHandlers = {
           }
         } catch (xeroError) {
           xeroDebug.error = xeroError.message;
+          xeroDebug.errorStack = xeroError.stack;
           // Don't fail the booking, just log the error
         }
       }

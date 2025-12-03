@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Clock, User, Ticket, AlertCircle, Pencil, Send, Loader2 } from "lucide-react";
+import { Calendar, MapPin, Clock, User, Ticket, AlertCircle, Pencil, Send, Loader2, FileText, Download, Eye } from "lucide-react";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
@@ -19,6 +19,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PageTour from "../components/tour/PageTour";
@@ -38,6 +44,10 @@ export default function BookingsPage() {
   const [tourAutoShow, setTourAutoShow] = React.useState(false);
   const [poInputValues, setPoInputValues] = React.useState({});
   const [submittingPoFor, setSubmittingPoFor] = React.useState(null);
+  const [loadingInvoiceFor, setLoadingInvoiceFor] = React.useState(null);
+  const [invoiceModalOpen, setInvoiceModalOpen] = React.useState(false);
+  const [currentInvoiceUrl, setCurrentInvoiceUrl] = React.useState(null);
+  const [currentInvoiceNumber, setCurrentInvoiceNumber] = React.useState(null);
   
   // Add ref to track if tour has been auto-started in this session
   const hasAutoStartedTour = React.useRef(false);
@@ -199,6 +209,87 @@ export default function BookingsPage() {
     } finally {
       setSubmittingPoFor(null);
     }
+  };
+
+  const handleViewInvoice = async (bookingGroupRef, invoiceNumber) => {
+    setLoadingInvoiceFor(bookingGroupRef);
+    
+    try {
+      // Fetch the PDF with inline=true for preview (include credentials for session auth)
+      const response = await fetch(`/api/booking-invoice/${encodeURIComponent(bookingGroupRef)}?inline=true`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Failed to load invoice' }));
+        throw new Error(error.error || 'Failed to load invoice');
+      }
+      
+      // Get the PDF as a blob
+      const pdfBlob = await response.blob();
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      
+      // Add parameters to hide navigation panes and fit to page
+      const pdfUrl = `${blobUrl}#view=Fit&navpanes=0&toolbar=0`;
+      
+      setCurrentInvoiceUrl(pdfUrl);
+      setCurrentInvoiceNumber(invoiceNumber);
+      setInvoiceModalOpen(true);
+    } catch (error) {
+      console.error('Error loading invoice:', error);
+      toast.error(error.message || 'Failed to load invoice');
+    } finally {
+      setLoadingInvoiceFor(null);
+    }
+  };
+
+  const handleDownloadInvoice = async (bookingGroupRef, invoiceNumber) => {
+    setLoadingInvoiceFor(bookingGroupRef);
+    
+    try {
+      // Fetch the PDF for download (include credentials for session auth)
+      const response = await fetch(`/api/booking-invoice/${encodeURIComponent(bookingGroupRef)}`, {
+        credentials: 'include'
+      });
+      
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ error: 'Failed to download invoice' }));
+        throw new Error(error.error || 'Failed to download invoice');
+      }
+      
+      // Get the PDF as a blob
+      const pdfBlob = await response.blob();
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      
+      // Create download link
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `invoice-${invoiceNumber || bookingGroupRef}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Cleanup
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+      
+      toast.success('Downloading invoice...');
+    } catch (error) {
+      console.error('Error downloading invoice:', error);
+      toast.error(error.message || 'Failed to download invoice');
+    } finally {
+      setLoadingInvoiceFor(null);
+    }
+  };
+
+  const handleInvoiceModalClose = (open) => {
+    if (!open && currentInvoiceUrl) {
+      // Remove any URL parameters before revoking
+      const baseBlobUrl = currentInvoiceUrl.split('#')[0];
+      URL.revokeObjectURL(baseBlobUrl);
+      setCurrentInvoiceUrl(null);
+      setCurrentInvoiceNumber(null);
+    }
+    setInvoiceModalOpen(open);
   };
 
   if (!memberInfo) {
@@ -546,6 +637,54 @@ export default function BookingsPage() {
                         </div>
                       )}
                       
+                      {/* Invoice download/preview for one-off events with Xero invoice */}
+                      {isOneOffEvent && firstBooking.xero_invoice_number && (
+                        <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-blue-600" />
+                            <span className="text-sm text-blue-800">
+                              Invoice: <span className="font-mono font-medium">{firstBooking.xero_invoice_number}</span>
+                            </span>
+                          </div>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleViewInvoice(bookingRef, firstBooking.xero_invoice_number)}
+                              disabled={loadingInvoiceFor === bookingRef}
+                              data-testid={`button-view-invoice-${bookingRef}`}
+                              className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                            >
+                              {loadingInvoiceFor === bookingRef ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownloadInvoice(bookingRef, firstBooking.xero_invoice_number)}
+                              disabled={loadingInvoiceFor === bookingRef}
+                              data-testid={`button-download-invoice-${bookingRef}`}
+                              className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                            >
+                              {loadingInvoiceFor === bookingRef ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                <>
+                                  <Download className="w-4 h-4 mr-1" />
+                                  Download
+                                </>
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                      
                       {groupBookings.some(b => b.status === 'pending') && (
                         <div className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                           <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -582,6 +721,46 @@ export default function BookingsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Invoice Preview Dialog */}
+      <Dialog open={invoiceModalOpen} onOpenChange={handleInvoiceModalClose}>
+        <DialogContent className="max-w-4xl h-[80vh] p-0 flex flex-col">
+          <DialogHeader className="p-4 pb-2 border-b">
+            <DialogTitle className="flex items-center justify-between">
+              <span>Invoice {currentInvoiceNumber}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (currentInvoiceUrl) {
+                    const baseBlobUrl = currentInvoiceUrl.split('#')[0];
+                    const link = document.createElement('a');
+                    link.href = baseBlobUrl;
+                    link.download = `invoice-${currentInvoiceNumber || 'download'}.pdf`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                    toast.success('Downloading invoice...');
+                  }
+                }}
+                data-testid="button-download-from-preview"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download
+              </Button>
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-hidden p-4">
+            {currentInvoiceUrl && (
+              <iframe
+                src={currentInvoiceUrl}
+                className="w-full h-full rounded border border-slate-200"
+                title={`Invoice ${currentInvoiceNumber}`}
+              />
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

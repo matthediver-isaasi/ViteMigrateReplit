@@ -1778,12 +1778,56 @@ const functionHandlers = {
             }
 
             if (invoiceData && invoiceData.Invoices && invoiceData.Invoices.length > 0) {
+              const invoice = invoiceData.Invoices[0];
               xeroInvoiceResult = {
-                invoice_id: invoiceData.Invoices[0].InvoiceID,
-                invoice_number: invoiceData.Invoices[0].InvoiceNumber,
-                total: invoiceData.Invoices[0].Total,
-                status: invoiceData.Invoices[0].Status
+                invoice_id: invoice.InvoiceID,
+                invoice_number: invoice.InvoiceNumber,
+                total: invoice.Total,
+                status: invoice.Status
               };
+              
+              // Fetch PDF from Xero and store as base64
+              try {
+                console.log('[createOneOffEventBooking] Fetching invoice PDF from Xero...');
+                const pdfResponse = await fetch(`https://api.xero.com/api.xro/2.0/Invoices/${invoice.InvoiceID}`, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'xero-tenant-id': tenantId,
+                    'Accept': 'application/pdf'
+                  }
+                });
+                
+                if (pdfResponse.ok) {
+                  const pdfBuffer = await pdfResponse.arrayBuffer();
+                  const pdfBase64 = Buffer.from(pdfBuffer).toString('base64');
+                  xeroInvoiceResult.pdf_base64 = pdfBase64;
+                  console.log('[createOneOffEventBooking] Invoice PDF fetched successfully, size:', pdfBase64.length);
+                  
+                  // Update all booking records with Xero invoice data
+                  const { error: updateError } = await supabase
+                    .from('booking')
+                    .update({
+                      xero_invoice_id: invoice.InvoiceID,
+                      xero_invoice_number: invoice.InvoiceNumber,
+                      xero_invoice_pdf_base64: pdfBase64
+                    })
+                    .eq('booking_group_reference', bookingReference);
+                  
+                  if (updateError) {
+                    console.error('[createOneOffEventBooking] Failed to update bookings with Xero data:', updateError);
+                    xeroDebug.updateError = updateError.message;
+                  } else {
+                    console.log('[createOneOffEventBooking] Bookings updated with Xero invoice data');
+                  }
+                } else {
+                  console.error('[createOneOffEventBooking] Failed to fetch PDF:', pdfResponse.status);
+                  xeroDebug.pdfFetchError = `Status: ${pdfResponse.status}`;
+                }
+              } catch (pdfError) {
+                console.error('[createOneOffEventBooking] PDF fetch error:', pdfError.message);
+                xeroDebug.pdfFetchError = pdfError.message;
+              }
             }
           }
         } catch (xeroError) {

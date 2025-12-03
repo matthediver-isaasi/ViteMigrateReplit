@@ -4122,6 +4122,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get Booking Invoice PDF (for download/preview)
+  app.get('/api/booking-invoice/:bookingGroupRef', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    // Check authentication
+    const session = req.session as any;
+    if (!session?.memberId) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+
+    const { bookingGroupRef } = req.params;
+    const inline = req.query.inline === 'true';
+
+    if (!bookingGroupRef) {
+      return res.status(400).json({ error: 'Booking group reference required' });
+    }
+
+    try {
+      // Fetch booking with Xero invoice data and verify ownership
+      const { data: booking, error } = await supabase
+        .from('booking')
+        .select('xero_invoice_id, xero_invoice_number, xero_invoice_pdf_base64, member_id')
+        .eq('booking_group_reference', bookingGroupRef)
+        .not('xero_invoice_pdf_base64', 'is', null)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching booking:', error);
+        return res.status(500).json({ error: 'Failed to fetch booking' });
+      }
+
+      if (!booking || !booking.xero_invoice_pdf_base64) {
+        return res.status(404).json({ error: 'Invoice not found for this booking' });
+      }
+
+      // Verify ownership - the logged-in member must be the one who made the booking
+      if (booking.member_id !== session.memberId) {
+        return res.status(403).json({ error: 'Not authorized to view this invoice' });
+      }
+
+      // Convert base64 to buffer
+      const pdfBuffer = Buffer.from(booking.xero_invoice_pdf_base64, 'base64');
+      
+      // Set headers for PDF download or inline viewing
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', pdfBuffer.length);
+      
+      if (inline) {
+        res.setHeader('Content-Disposition', `inline; filename="invoice-${booking.xero_invoice_number || bookingGroupRef}.pdf"`);
+      } else {
+        res.setHeader('Content-Disposition', `attachment; filename="invoice-${booking.xero_invoice_number || bookingGroupRef}.pdf"`);
+      }
+      
+      return res.send(pdfBuffer);
+    } catch (error: any) {
+      console.error('Error serving invoice PDF:', error);
+      return res.status(500).json({ error: 'Failed to serve invoice' });
+    }
+  });
+
   // Validate Colleague (check if email belongs to same organization)
   app.post('/api/functions/validateColleague', async (req: Request, res: Response) => {
     if (!supabase) {

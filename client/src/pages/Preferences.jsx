@@ -654,7 +654,22 @@ export default function PreferencesPage() {
       if (error) throw error;
       return data;
     },
-    onSuccess: () => {
+    onSuccess: (updatedMember) => {
+      // Update session storage with new member data so it persists on page refresh
+      if (updatedMember) {
+        const storedMember = sessionStorage.getItem('agcas_member');
+        if (storedMember) {
+          try {
+            const parsed = JSON.parse(storedMember);
+            const updatedSession = { ...parsed, ...updatedMember };
+            sessionStorage.setItem('agcas_member', JSON.stringify(updatedSession));
+            // Also update the local state
+            setSessionMember(updatedSession);
+          } catch {
+            // Ignore parse errors
+          }
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ["memberRecord"] });
       queryClient.invalidateQueries({ queryKey: ["all-members-directory"] });
       toast.success("Profile updated successfully");

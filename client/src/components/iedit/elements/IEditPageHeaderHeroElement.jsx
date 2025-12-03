@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useId } from "react";
 
 export default function IEditPageHeaderHeroElement({ content, variant, settings, isFirst }) {
   const { 
@@ -23,8 +23,25 @@ export default function IEditPageHeaderHeroElement({ content, variant, settings,
     image_fit = 'cover',
     overlay_enabled = false,
     overlay_color = '#000000',
-    overlay_opacity = '50'
+    overlay_opacity = '50',
+    // Mobile-specific settings with sensible defaults
+    mobile_font_size,
+    mobile_height_type = 'auto',
+    mobile_custom_height = '250',
+    mobile_padding_vertical,
+    mobile_padding_horizontal,
+    mobile_text_alignment
   } = content;
+
+  // Generate unique ID for this instance to scope CSS
+  const reactId = useId();
+  const instanceId = `hero-${reactId.replace(/:/g, '')}`;
+
+  // Calculate mobile values with fallbacks
+  const mobileFontSize = mobile_font_size || Math.max(24, Math.round(parseInt(header_font_size) * 0.6));
+  const mobilePaddingVertical = mobile_padding_vertical || Math.max(32, Math.round(parseInt(padding_vertical) * 0.5));
+  const mobilePaddingHorizontal = mobile_padding_horizontal || Math.max(16, parseInt(padding_horizontal));
+  const mobileTextAlignment = mobile_text_alignment || text_alignment;
 
   const textAlignClass = {
     left: 'text-left',
@@ -32,11 +49,18 @@ export default function IEditPageHeaderHeroElement({ content, variant, settings,
     right: 'text-right'
   }[text_alignment] || 'text-left';
 
-  const getHeightStyle = () => {
+  const getDesktopHeight = () => {
     if (background_type === 'image' && image_fit === 'original') return {};
     if (height_type === 'full') return { height: '100vh' };
     if (height_type === 'custom') return { height: `${custom_height}px` };
     return { minHeight: '400px' };
+  };
+
+  const getMobileHeight = () => {
+    if (background_type === 'image' && image_fit === 'original') return {};
+    if (mobile_height_type === 'full') return { height: '100vh' };
+    if (mobile_height_type === 'custom') return { height: `${mobile_custom_height}px` };
+    return { minHeight: '250px' };
   };
 
   const getBackgroundStyle = () => {
@@ -46,60 +70,113 @@ export default function IEditPageHeaderHeroElement({ content, variant, settings,
     return {};
   };
 
+  const desktopHeight = getDesktopHeight();
+  const mobileHeight = getMobileHeight();
+
   return (
-    <div 
-      className="relative w-full overflow-hidden" 
-      style={{ ...getHeightStyle(), ...getBackgroundStyle() }}
-    >
-      {background_type === 'image' && image_url && (
-        <>
-          <img 
-            src={image_url} 
-            alt={header_text || 'Hero image'} 
-            className={image_fit === 'original' ? 'w-full h-auto block' : 'absolute inset-0 w-full h-full'}
-            style={image_fit === 'original' ? {} : { objectFit: image_fit }}
-          />
-          {overlay_enabled && (
-            <div 
-              className="absolute inset-0" 
-              style={{ 
-                backgroundColor: overlay_color, 
-                opacity: parseInt(overlay_opacity) / 100 
-              }} 
-            />
-          )}
-        </>
-      )}
+    <>
+      {/* Instance-scoped responsive styles */}
+      <style>
+        {`
+          .${instanceId} {
+            ${desktopHeight.minHeight ? `min-height: ${desktopHeight.minHeight};` : ''}
+            ${desktopHeight.height ? `height: ${desktopHeight.height};` : ''}
+          }
+          
+          .${instanceId} .hero-content {
+            padding-left: ${padding_horizontal}px;
+            padding-right: ${padding_horizontal}px;
+            padding-top: ${padding_vertical}px;
+            padding-bottom: ${padding_vertical}px;
+          }
+          
+          .${instanceId} .hero-text-box {
+            padding-left: ${text_padding_left}px;
+            padding-right: ${text_padding_right}px;
+            padding-top: ${text_padding_top}px;
+            padding-bottom: ${text_padding_bottom}px;
+          }
+          
+          .${instanceId} .hero-title {
+            font-family: ${header_font_family};
+            font-size: ${header_font_size}px;
+            color: ${header_color};
+            line-height: ${line_spacing};
+          }
+          
+          /* Mobile styles - below 768px */
+          @media (max-width: 767px) {
+            .${instanceId} {
+              ${mobileHeight.minHeight ? `min-height: ${mobileHeight.minHeight};` : ''}
+              ${mobileHeight.height ? `height: ${mobileHeight.height};` : ''}
+            }
+            
+            .${instanceId} .hero-content {
+              padding-left: ${mobilePaddingHorizontal}px;
+              padding-right: ${mobilePaddingHorizontal}px;
+              padding-top: ${mobilePaddingVertical}px;
+              padding-bottom: ${mobilePaddingVertical}px;
+            }
+            
+            .${instanceId} .hero-text-box {
+              max-width: 100% !important;
+              margin-left: 0 !important;
+              margin-right: 0 !important;
+              padding-left: ${Math.min(parseInt(text_padding_left), 16)}px;
+              padding-right: ${Math.min(parseInt(text_padding_right), 16)}px;
+              padding-top: ${Math.max(16, Math.round(parseInt(text_padding_top) * 0.5))}px;
+              padding-bottom: ${Math.max(16, Math.round(parseInt(text_padding_bottom) * 0.5))}px;
+              text-align: ${mobileTextAlignment};
+            }
+            
+            .${instanceId} .hero-title {
+              font-size: ${mobileFontSize}px;
+            }
+          }
+        `}
+      </style>
       
       <div 
-        className={`${background_type === 'image' && image_fit === 'original' ? 'absolute inset-0 flex items-center' : 'relative h-full flex items-center'} max-w-7xl mx-auto`} 
-        style={{ paddingLeft: `${padding_horizontal}px`, paddingRight: `${padding_horizontal}px` }}
+        className={`${instanceId} relative w-full overflow-hidden`}
+        style={{ ...getBackgroundStyle() }}
       >
+        {background_type === 'image' && image_url && (
+          <>
+            <img 
+              src={image_url} 
+              alt={header_text || 'Hero image'} 
+              className={image_fit === 'original' ? 'w-full h-auto block' : 'absolute inset-0 w-full h-full'}
+              style={image_fit === 'original' ? {} : { objectFit: image_fit }}
+            />
+            {overlay_enabled && (
+              <div 
+                className="absolute inset-0" 
+                style={{ 
+                  backgroundColor: overlay_color, 
+                  opacity: parseInt(overlay_opacity) / 100 
+                }} 
+              />
+            )}
+          </>
+        )}
+        
         <div 
-          className={`max-w-2xl ${header_position === 'right' ? 'ml-auto' : 'mr-auto'} ${textAlignClass}`}
-          style={{
-            paddingLeft: `${text_padding_left}px`,
-            paddingRight: `${text_padding_right}px`,
-            paddingTop: `${text_padding_top}px`,
-            paddingBottom: `${text_padding_bottom}px`
-          }}
+          className={`hero-content ${background_type === 'image' && image_fit === 'original' ? 'absolute inset-0 flex items-center' : 'relative h-full flex items-center'} max-w-7xl mx-auto`}
         >
-          {header_text && (
-            <h1 
-              className="whitespace-pre-line"
-              style={{ 
-                fontFamily: header_font_family,
-                fontSize: `${header_font_size}px`,
-                color: header_color,
-                lineHeight: line_spacing
-              }}
-            >
-              {header_text}
-            </h1>
-          )}
+          <div 
+            className={`hero-text-box max-w-2xl ${header_position === 'right' ? 'ml-auto' : 'mr-auto'} ${textAlignClass}`}
+          >
+            {header_text && (
+              <h1 
+                className="hero-title whitespace-pre-line"
+              >
+                {header_text}
+              </h1>
+            )}
+          </div>
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -126,10 +203,18 @@ export function IEditPageHeaderHeroElementEditor({ element, onChange }) {
     image_fit: 'cover',
     overlay_enabled: false,
     overlay_color: '#000000',
-    overlay_opacity: '50'
+    overlay_opacity: '50',
+    // Mobile defaults
+    mobile_font_size: '',
+    mobile_height_type: 'auto',
+    mobile_custom_height: '250',
+    mobile_padding_vertical: '',
+    mobile_padding_horizontal: '',
+    mobile_text_alignment: ''
   };
 
   const [isUploading, setIsUploading] = useState(false);
+  const [showMobileSettings, setShowMobileSettings] = useState(false);
 
   const updateContent = (key, value) => {
     onChange({ ...element, content: { ...content, [key]: value } });
@@ -160,6 +245,11 @@ export function IEditPageHeaderHeroElementEditor({ element, onChange }) {
       setIsUploading(false);
     }
   };
+
+  // Calculate default mobile values for display
+  const defaultMobileFontSize = Math.max(24, Math.round(parseInt(content.header_font_size || 48) * 0.6));
+  const defaultMobilePaddingVertical = Math.max(32, Math.round(parseInt(content.padding_vertical || 80) * 0.5));
+  const defaultMobilePaddingHorizontal = Math.max(16, parseInt(content.padding_horizontal || 16));
 
   return (
     <div className="space-y-4">
@@ -486,6 +576,133 @@ export function IEditPageHeaderHeroElementEditor({ element, onChange }) {
             />
           </div>
         </div>
+      </div>
+
+      {/* Mobile Settings Section */}
+      <div className="border-t pt-4 mt-4">
+        <button
+          type="button"
+          onClick={() => setShowMobileSettings(!showMobileSettings)}
+          className="flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-700"
+        >
+          <svg 
+            className={`w-4 h-4 transition-transform ${showMobileSettings ? 'rotate-90' : ''}`} 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+          Mobile Settings
+          <span className="text-xs font-normal text-slate-500">(screens below 768px)</span>
+        </button>
+        
+        {showMobileSettings && (
+          <div className="mt-4 space-y-4 p-4 bg-blue-50 rounded-lg">
+            <p className="text-xs text-slate-600 mb-3">
+              Leave fields empty to use automatic scaling based on desktop values.
+            </p>
+
+            {/* Mobile Font Size */}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Mobile Font Size (px)
+                <span className="text-xs text-slate-500 ml-2">Default: {defaultMobileFontSize}px</span>
+              </label>
+              <input
+                type="number"
+                value={content.mobile_font_size || ''}
+                onChange={(e) => updateContent('mobile_font_size', e.target.value)}
+                placeholder={defaultMobileFontSize}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                min="16"
+                max="72"
+              />
+            </div>
+
+            {/* Mobile Height */}
+            {(content.background_type === 'color' || content.image_fit !== 'original') && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Mobile Container Height</label>
+                  <select
+                    value={content.mobile_height_type || 'auto'}
+                    onChange={(e) => updateContent('mobile_height_type', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  >
+                    <option value="auto">Auto (Min 250px)</option>
+                    <option value="full">Full Viewport</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                </div>
+
+                {content.mobile_height_type === 'custom' && (
+                  <div>
+                    <label className="block text-sm font-medium mb-1">Mobile Custom Height (px)</label>
+                    <input
+                      type="number"
+                      value={content.mobile_custom_height || 250}
+                      onChange={(e) => updateContent('mobile_custom_height', e.target.value)}
+                      className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                      min="100"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Mobile Padding */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Mobile Vertical Padding
+                  <span className="text-xs text-slate-500 block">Default: {defaultMobilePaddingVertical}px</span>
+                </label>
+                <input
+                  type="number"
+                  value={content.mobile_padding_vertical || ''}
+                  onChange={(e) => updateContent('mobile_padding_vertical', e.target.value)}
+                  placeholder={defaultMobilePaddingVertical}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="0"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Mobile Horizontal Padding
+                  <span className="text-xs text-slate-500 block">Default: {defaultMobilePaddingHorizontal}px</span>
+                </label>
+                <input
+                  type="number"
+                  value={content.mobile_padding_horizontal || ''}
+                  onChange={(e) => updateContent('mobile_padding_horizontal', e.target.value)}
+                  placeholder={defaultMobilePaddingHorizontal}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="0"
+                />
+              </div>
+            </div>
+
+            {/* Mobile Text Alignment */}
+            <div>
+              <label className="block text-sm font-medium mb-1">
+                Mobile Text Alignment
+                <span className="text-xs text-slate-500 ml-2">Default: Same as desktop</span>
+              </label>
+              <select
+                value={content.mobile_text_alignment || ''}
+                onChange={(e) => updateContent('mobile_text_alignment', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              >
+                <option value="">Same as Desktop ({content.text_alignment || 'left'})</option>
+                <option value="left">Left</option>
+                <option value="center">Center</option>
+                <option value="right">Right</option>
+              </select>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

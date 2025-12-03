@@ -42,43 +42,22 @@ export default function EventsPage({
   const [showTour, setShowTour] = useState(false);
   const [tourAutoShow, setTourAutoShow] = useState(false);
 
-  console.log(
-    "[Events] Render - showTour:",
-    showTour,
-    "tourAutoShow:",
-    tourAutoShow,
-    "shouldShowTours (from memberRole):",
-    memberRole?.show_tours
-  );
-
   // Determine if tours should be shown for this user
   const shouldShowTours = memberRole?.show_tours !== false;
 
   // Check if user has seen this page's tour
   const hasSeenTour = memberInfo?.page_tours_seen?.Events === true;
 
-  console.log("[Events] shouldShowTours:", shouldShowTours, "hasSeenTour:", hasSeenTour);
-
   // Refresh organization info on mount to get latest ticket balances
   useEffect(() => {
     if (refreshOrganizationInfo) {
-      console.log('[Events] Refreshing organization info on mount');
       refreshOrganizationInfo();
     }
   }, []); // Only run on mount
 
   // Auto-show tour on first visit if tours are enabled
   useEffect(() => {
-    console.log(
-      "[Events] Auto-show useEffect - shouldShowTours:",
-      shouldShowTours,
-      "hasSeenTour:",
-      hasSeenTour,
-      "memberInfo:",
-      !!memberInfo
-    );
     if (shouldShowTours && !hasSeenTour && memberInfo) {
-      console.log("[Events] Auto-showing tour");
       setTourAutoShow(true);
       setShowTour(true);
     }
@@ -92,7 +71,6 @@ export default function EventsPage({
   } = useQuery({
     queryKey: ["events"],
     queryFn: async () => {
-      console.log("[Events] Fetching events via base44 client");
       try {
         const data = await base44.entities.Event.list({ sort: { start_date: 'asc' } });
         return data || [];
@@ -233,17 +211,11 @@ export default function EventsPage({
 
   // Update member tour status via base44 client
   const updateMemberTourStatus = async (tourKey) => {
-    console.log("[Events] updateMemberTourStatus called for:", tourKey);
-
     if (!memberInfo || memberInfo.is_team_member) {
       return;
     }
 
     if (!memberInfo.id) {
-      console.warn(
-        "[Events] memberInfo.id is missing; cannot update tour status.",
-        memberInfo
-      );
       return;
     }
 
@@ -257,7 +229,6 @@ export default function EventsPage({
 
       const updatedMemberInfo = { ...memberInfo, page_tours_seen: updatedTours };
       sessionStorage.setItem("agcas_member", JSON.stringify(updatedMemberInfo));
-      console.log("[Events] Tour status updated successfully");
 
       // Notify Layout to reload memberInfo
       if (typeof reloadMemberInfo === "function") {
@@ -269,33 +240,27 @@ export default function EventsPage({
   };
 
   const handleTourComplete = async () => {
-    console.log("[Events] handleTourComplete called");
     setShowTour(false);
     setTourAutoShow(false);
   };
 
   const handleTourDismiss = async () => {
-    console.log("[Events] handleTourDismiss called");
     setShowTour(false);
     setTourAutoShow(false);
     await updateMemberTourStatus("Events");
   };
 
   const handleStartTour = () => {
-    console.log("[Events] handleStartTour called - resetting then showing tour");
     // First reset the states
     setShowTour(false);
     setTourAutoShow(false);
 
     // Then set them to true after a brief delay to ensure PageTour remounts
     setTimeout(() => {
-      console.log("[Events] Now setting showTour and tourAutoShow to true");
       setShowTour(true);
       setTourAutoShow(true);
     }, 10);
   };
-
-  console.log("[Events] Rendering PageTour?", showTour && shouldShowTours);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">

@@ -1,10 +1,10 @@
 
 import React from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Clock, User, Ticket, AlertCircle, Pencil } from "lucide-react";
+import { Calendar, MapPin, Clock, User, Ticket, AlertCircle, Pencil, Send, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
@@ -28,12 +29,15 @@ import { useLayoutContext } from "@/contexts/LayoutContext";
 export default function BookingsPage() {
   const { memberInfo, memberRole } = useMemberAccess();
   const { hasBanner } = useLayoutContext();
+  const queryClient = useQueryClient();
   const [cancellingTicketId, setCancellingTicketId] = React.useState(null);
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
   const [ticketToCancel, setTicketToCancel] = React.useState(null);
   const [cancelledTicketIds, setCancelledTicketIds] = React.useState(new Set());
   const [showTour, setShowTour] = React.useState(false);
   const [tourAutoShow, setTourAutoShow] = React.useState(false);
+  const [poInputValues, setPoInputValues] = React.useState({});
+  const [submittingPoFor, setSubmittingPoFor] = React.useState(null);
   
   // Add ref to track if tour has been auto-started in this session
   const hasAutoStartedTour = React.useRef(false);
@@ -168,6 +172,32 @@ export default function BookingsPage() {
     } finally {
       setCancellingTicketId(null);
       setTicketToCancel(null);
+    }
+  };
+
+  const handleSubmitPurchaseOrder = async (bookingReference, bookingId) => {
+    const poNumber = poInputValues[bookingReference]?.trim();
+    if (!poNumber) {
+      toast.error('Please enter a PO number');
+      return;
+    }
+
+    setSubmittingPoFor(bookingReference);
+    try {
+      await base44.entities.Booking.update(bookingId, {
+        purchase_order_number: poNumber,
+        po_to_follow: false
+      });
+
+      toast.success('Purchase order number submitted successfully');
+      setPoInputValues(prev => ({ ...prev, [bookingReference]: '' }));
+      queryClient.invalidateQueries({ queryKey: ['my-bookings'] });
+      queryClient.invalidateQueries({ queryKey: ['pending-po-bookings'] });
+    } catch (error) {
+      console.error('Error submitting PO number:', error);
+      toast.error('Failed to submit PO number. Please try again.');
+    } finally {
+      setSubmittingPoFor(null);
     }
   };
 
@@ -477,9 +507,34 @@ export default function BookingsPage() {
                                     </div>
                                   )}
                                   {firstBooking.po_to_follow && !firstBooking.purchase_order_number && (
-                                    <div className="flex justify-between pt-2 border-t border-slate-200">
-                                      <span className="text-slate-600">PO Number:</span>
-                                      <span className="text-amber-600 italic">To be supplied</span>
+                                    <div className="pt-2 border-t border-slate-200">
+                                      <div className="flex items-center justify-between mb-2">
+                                        <span className="text-slate-600">PO Number:</span>
+                                        <span className="text-amber-600 italic text-sm">To be supplied</span>
+                                      </div>
+                                      <div className="flex gap-2">
+                                        <Input
+                                          type="text"
+                                          placeholder="Enter PO number"
+                                          value={poInputValues[bookingRef] || ''}
+                                          onChange={(e) => setPoInputValues(prev => ({ ...prev, [bookingRef]: e.target.value }))}
+                                          className="flex-1 text-sm"
+                                          data-testid={`input-po-number-${bookingRef}`}
+                                          disabled={submittingPoFor === bookingRef}
+                                        />
+                                        <Button
+                                          size="sm"
+                                          onClick={() => handleSubmitPurchaseOrder(bookingRef, firstBooking.id)}
+                                          disabled={submittingPoFor === bookingRef || !poInputValues[bookingRef]?.trim()}
+                                          data-testid={`button-submit-po-${bookingRef}`}
+                                        >
+                                          {submittingPoFor === bookingRef ? (
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                          ) : (
+                                            <Send className="w-4 h-4" />
+                                          )}
+                                        </Button>
+                                      </div>
                                     </div>
                                   )}
                                 </>

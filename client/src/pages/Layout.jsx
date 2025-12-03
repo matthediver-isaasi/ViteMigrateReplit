@@ -2,7 +2,7 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Calendar, User, CreditCard, LogOut, Ticket, Wallet, Shield, Users, Settings, Sparkles, ShoppingCart, History, BarChart3, Briefcase, FileEdit, Image, FileText, AtSign, FolderTree, Square, Trophy, BookOpen, Mail, MousePointer2, Building, Download, HelpCircle, Menu, ChevronRight, Video } from "lucide-react";
+import { Calendar, User, CreditCard, LogOut, Ticket, Wallet, Shield, Users, Settings, Sparkles, ShoppingCart, History, BarChart3, Briefcase, FileEdit, Image, FileText, AtSign, FolderTree, Square, Trophy, BookOpen, Mail, MousePointer2, Building, Download, HelpCircle, Menu, ChevronRight, Video, Bell } from "lucide-react";
 import { useLayoutContext } from "@/contexts/LayoutContext";
 import { useArticleUrl } from "@/contexts/ArticleUrlContext";
 import {
@@ -31,6 +31,7 @@ import FloaterDisplay from "@/components/floaters/FloaterDisplay";
 import NewsTickerBar from "@/components/news/NewsTickerBar";
 import PortalHeroBanner from "@/components/banners/PortalHeroBanner";
 import NextEventCountdown from "@/components/navigation/NextEventCountdown";
+import { usePendingPurchaseOrders } from "@/hooks/usePendingPurchaseOrders";
 
 import { useQuery } from '@tanstack/react-query';
 import { base44 } from "@/api/base44Client";
@@ -429,6 +430,8 @@ export default function Layout({ children, currentPageName }) {
   const mainContentRef = React.useRef(null);
   const sidebarContentRef = React.useRef(null);
   const lastActivityUpdateRef = React.useRef(null);
+
+  const { hasPendingPOs } = usePendingPurchaseOrders();
 
 
 
@@ -1536,6 +1539,7 @@ useEffect(() => {
                           </Collapsible>
                         );
                       } else {
+                        const showPendingPOWarning = hasPendingPOs && (item.title === "Browse Events" || item.title === "Bookings");
                         return (
                           <SidebarMenuItem 
                             key={item.title}
@@ -1549,7 +1553,10 @@ useEffect(() => {
                             >
                               <Link to={item.url} className="flex items-center gap-3 px-3 py-2.5">
                                 <Icon className="w-4 h-4" />
-                                <span>{item.title}</span>
+                                <span className="flex-1">{item.title}</span>
+                                {showPendingPOWarning && (
+                                  <Bell className="w-4 h-4 text-amber-500 animate-pulse" data-testid="pending-po-warning-bell" />
+                                )}
                               </Link>
                             </SidebarMenuButton>
                           </SidebarMenuItem>

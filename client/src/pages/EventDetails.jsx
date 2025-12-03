@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video, AlertTriangle, PoundSterling } from "lucide-react";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
@@ -33,6 +34,7 @@ export default function EventDetailsPage() {
   const [registrationMode, setRegistrationMode] = useState('colleagues');
   const [memberAttending, setMemberAttending] = useState(false);
   const [showColleagueSelector, setShowColleagueSelector] = useState(false);
+  const [selectedTicketClassId, setSelectedTicketClassId] = useState(null);
 
   // Track if initialization has completed to prevent resets on subsequent renders
   const hasInitialized = useRef(null);
@@ -466,25 +468,81 @@ export default function EventDetailsPage() {
   
   // One-off event pricing calculations
   const pricingConfig = isOneOffEvent ? event.pricing_config : null;
-  const ticketPrice = pricingConfig?.ticket_price || 0;
   
-  // Calculate one-off event cost with offers
+  // Get the user's role ID
+  const userRoleId = memberRole?.id || currentMemberInfo?.role_id;
+  
+  // Filter ticket classes based on user's role
+  const availableTicketClasses = useMemo(() => {
+    if (!isOneOffEvent || !pricingConfig) return [];
+    
+    const ticketClasses = pricingConfig.ticket_classes || [];
+    
+    // If no ticket classes defined, use legacy single-price format
+    if (ticketClasses.length === 0) {
+      return [{
+        id: 'default',
+        name: 'Standard Ticket',
+        price: pricingConfig.ticket_price || 0,
+        role_ids: [],
+        is_default: true,
+        offer_type: pricingConfig.offer_type || 'none',
+        bogo_logic_type: pricingConfig.bogo_logic_type,
+        bogo_buy_quantity: pricingConfig.bogo_buy_quantity,
+        bogo_get_free_quantity: pricingConfig.bogo_get_free_quantity,
+        bulk_discount_threshold: pricingConfig.bulk_discount_threshold,
+        bulk_discount_percentage: pricingConfig.bulk_discount_percentage
+      }];
+    }
+    
+    // Filter ticket classes that the user can access
+    return ticketClasses.filter(tc => {
+      // If no role_ids specified (empty array), ticket is available to all roles
+      if (!tc.role_ids || tc.role_ids.length === 0) return true;
+      // If user's role is in the ticket's role_ids, they can access it
+      if (userRoleId && tc.role_ids.includes(userRoleId)) return true;
+      return false;
+    });
+  }, [isOneOffEvent, pricingConfig, userRoleId]);
+  
+  // Auto-select first available ticket class
+  useEffect(() => {
+    if (availableTicketClasses.length > 0 && !selectedTicketClassId) {
+      // Prefer default ticket, otherwise use first available
+      const defaultTicket = availableTicketClasses.find(tc => tc.is_default);
+      setSelectedTicketClassId(defaultTicket?.id || availableTicketClasses[0]?.id);
+    }
+  }, [availableTicketClasses, selectedTicketClassId]);
+  
+  // Get selected ticket class
+  const selectedTicketClass = useMemo(() => {
+    if (!selectedTicketClassId) return availableTicketClasses[0] || null;
+    return availableTicketClasses.find(tc => tc.id === selectedTicketClassId) || availableTicketClasses[0] || null;
+  }, [availableTicketClasses, selectedTicketClassId]);
+  
+  // Use selected ticket class price (or legacy price)
+  const ticketPrice = selectedTicketClass?.price || pricingConfig?.ticket_price || 0;
+  
+  // Calculate one-off event cost with offers based on selected ticket class
   const calculateOneOffCost = () => {
-    if (!isOneOffEvent || !pricingConfig || ticketsRequired === 0) {
+    if (!isOneOffEvent || !selectedTicketClass || ticketsRequired === 0) {
       return { totalCost: 0, ticketsToPay: ticketsRequired, freeTickets: 0, discount: 0, discountDescription: '' };
     }
     
-    const basePrice = ticketPrice;
+    const basePrice = selectedTicketClass.price || 0;
     let ticketsToPay = ticketsRequired;
     let freeTickets = 0;
     let discount = 0;
     let discountDescription = '';
     
-    if (pricingConfig.offer_type === 'bogo' && pricingConfig.bogo_buy_quantity && pricingConfig.bogo_get_free_quantity) {
-      const buyQty = pricingConfig.bogo_buy_quantity;
-      const freeQty = pricingConfig.bogo_get_free_quantity;
+    // Use offer configuration from selected ticket class
+    const offerType = selectedTicketClass.offer_type || 'none';
+    
+    if (offerType === 'bogo' && selectedTicketClass.bogo_buy_quantity && selectedTicketClass.bogo_get_free_quantity) {
+      const buyQty = selectedTicketClass.bogo_buy_quantity;
+      const freeQty = selectedTicketClass.bogo_get_free_quantity;
       
-      if (pricingConfig.bogo_logic_type === 'enter_total_pay_less') {
+      if (selectedTicketClass.bogo_logic_type === 'enter_total_pay_less') {
         // "Enter Total, Pay Less" - customer enters total tickets they want
         // For every (buyQty + freeQty) tickets, they only pay for buyQty
         const bundleSize = buyQty + freeQty;
@@ -496,7 +554,6 @@ export default function EventDetailsPage() {
         discountDescription = `Buy ${buyQty}, get ${freeQty} free`;
       } else {
         // "Buy X, Get Y Free" (legacy) - customer pays for X and gets Y free on top
-        // This means if they want 3 total and it's buy 2 get 1 free, they buy 2 and get 1 free = 3 total
         const bundleSize = buyQty + freeQty;
         const fullBundles = Math.floor(ticketsRequired / bundleSize);
         const remainder = ticketsRequired % bundleSize;
@@ -505,9 +562,9 @@ export default function EventDetailsPage() {
         freeTickets = ticketsRequired - ticketsToPay;
         discountDescription = `Buy ${buyQty}, get ${freeQty} free`;
       }
-    } else if (pricingConfig.offer_type === 'bulk_discount' && pricingConfig.bulk_discount_threshold && pricingConfig.bulk_discount_percentage) {
-      const threshold = pricingConfig.bulk_discount_threshold;
-      const percentage = pricingConfig.bulk_discount_percentage;
+    } else if (offerType === 'bulk_discount' && selectedTicketClass.bulk_discount_threshold && selectedTicketClass.bulk_discount_percentage) {
+      const threshold = selectedTicketClass.bulk_discount_threshold;
+      const percentage = selectedTicketClass.bulk_discount_percentage;
       
       if (ticketsRequired >= threshold) {
         discount = (basePrice * ticketsRequired * percentage) / 100;
@@ -531,10 +588,13 @@ export default function EventDetailsPage() {
     organizationInfo.program_ticket_balances[event.program_tag] || 0 : 0;
   const hasEnoughTickets = isOneOffEvent ? true : availableProgramTickets >= ticketsRequired;
   
-  // For one-off events, booking is enabled when we have attendees (payment handled separately)
+  // Check if user has no tickets available for their role
+  const noTicketsForRole = isOneOffEvent && availableTicketClasses.length === 0;
+  
+  // For one-off events, booking is enabled when we have attendees and a valid ticket class
   // For program events, need enough tickets
   const canConfirmBooking = isOneOffEvent 
-    ? (!submitting && ticketsRequired > 0)
+    ? (!submitting && ticketsRequired > 0 && selectedTicketClass && !noTicketsForRole)
     : (hasEnoughTickets && event.program_tag && !submitting && ticketsRequired > 0);
 
   // Check if available seats display is excluded
@@ -901,6 +961,103 @@ export default function EventDetailsPage() {
           </div>
 
           <div className="lg:col-span-1 space-y-6">
+            {/* No tickets available for role message */}
+            {isOneOffEvent && noTicketsForRole && (
+              <Card className="border-amber-200 bg-amber-50 shadow-sm mb-4">
+                <CardContent className="pt-6">
+                  <div className="flex items-start gap-3">
+                    <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-medium text-amber-800">No Tickets Available</h3>
+                      <p className="text-sm text-amber-700 mt-1">
+                        There are no ticket classes available for your role. Please contact the event organizer for assistance.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Ticket Class Selector - Only shown for one-off events with multiple ticket classes */}
+            {isOneOffEvent && availableTicketClasses.length > 1 && (
+              <Card className="border-slate-200 shadow-sm mb-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Ticket className="h-5 w-5 text-blue-600" />
+                    Select Ticket Type
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <RadioGroup 
+                    value={selectedTicketClassId || ''} 
+                    onValueChange={setSelectedTicketClassId}
+                    className="space-y-3"
+                  >
+                    {availableTicketClasses.map((tc) => (
+                      <div 
+                        key={tc.id}
+                        className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                          selectedTicketClassId === tc.id 
+                            ? 'border-blue-500 bg-blue-50' 
+                            : 'border-slate-200 hover:bg-slate-50'
+                        }`}
+                        onClick={() => setSelectedTicketClassId(tc.id)}
+                        data-testid={`ticket-class-${tc.id}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <RadioGroupItem value={tc.id} id={`ticket-${tc.id}`} />
+                          <div>
+                            <Label htmlFor={`ticket-${tc.id}`} className="font-medium cursor-pointer">
+                              {tc.name}
+                            </Label>
+                            {tc.offer_type && tc.offer_type !== 'none' && (
+                              <div className="text-xs text-green-600 mt-0.5">
+                                {tc.offer_type === 'bogo' && `Buy ${tc.bogo_buy_quantity}, get ${tc.bogo_get_free_quantity} free`}
+                                {tc.offer_type === 'bulk_discount' && `${tc.bulk_discount_percentage}% off for ${tc.bulk_discount_threshold}+ tickets`}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1 text-lg font-semibold text-slate-900">
+                          <PoundSterling className="h-4 w-4" />
+                          {(tc.price || 0).toFixed(2)}
+                        </div>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Single ticket class display - shown when only one option */}
+            {isOneOffEvent && availableTicketClasses.length === 1 && selectedTicketClass && (
+              <Card className="border-slate-200 shadow-sm mb-4">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Ticket className="h-5 w-5 text-blue-600" />
+                    Ticket
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between p-4 rounded-lg border border-slate-200 bg-slate-50">
+                    <div>
+                      <div className="font-medium text-slate-900">{selectedTicketClass.name}</div>
+                      {selectedTicketClass.offer_type && selectedTicketClass.offer_type !== 'none' && (
+                        <div className="text-xs text-green-600 mt-0.5">
+                          {selectedTicketClass.offer_type === 'bogo' && `Buy ${selectedTicketClass.bogo_buy_quantity}, get ${selectedTicketClass.bogo_get_free_quantity} free`}
+                          {selectedTicketClass.offer_type === 'bulk_discount' && `${selectedTicketClass.bulk_discount_percentage}% off for ${selectedTicketClass.bulk_discount_threshold}+ tickets`}
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 text-lg font-semibold text-slate-900">
+                      <PoundSterling className="h-4 w-4" />
+                      {(selectedTicketClass.price || 0).toFixed(2)}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
             <PaymentOptions
               totalCost={totalCost}
               memberInfo={currentMemberInfo}
@@ -916,6 +1073,7 @@ export default function EventDetailsPage() {
               oneOffCostDetails={oneOffCostDetails}
               ticketPrice={ticketPrice}
               isFeatureExcluded={isFeatureExcluded}
+              selectedTicketClass={selectedTicketClass}
             />
 
             {availableRegistrationModes.length > 1 && (

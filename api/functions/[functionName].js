@@ -1208,7 +1208,10 @@ const functionHandlers = {
       purchaseOrderNumber = null,
       poToFollow = false,
       paymentMethod = 'account',
-      stripePaymentIntentId = null
+      stripePaymentIntentId = null,
+      ticketClassId = null,
+      ticketClassName = null,
+      ticketClassPrice = null
     } = params;
 
     console.log('[createOneOffEventBooking] Starting booking:', {
@@ -1216,7 +1219,9 @@ const functionHandlers = {
       memberEmail,
       ticketsRequired,
       totalCost,
-      paymentMethod
+      paymentMethod,
+      ticketClassId,
+      ticketClassName
     });
 
     // Validate required fields
@@ -1376,8 +1381,8 @@ const functionHandlers = {
     const createdBookings = [];
     
     for (const attendee of attendees) {
-      // Calculate ticket price from pricing config or total cost
-      const ticketPrice = event.pricing_config?.ticketPrice || (totalCost / ticketsRequired);
+      // Calculate ticket price - use ticket class price if provided, otherwise from pricing config or total cost
+      const ticketPriceValue = ticketClassPrice || event.pricing_config?.ticketPrice || (totalCost / ticketsRequired);
       
       const bookingData = {
         event_id: event.id,
@@ -1389,7 +1394,7 @@ const functionHandlers = {
         attendee_last_name: attendee.last_name || attendee.lastName,
         status: 'confirmed',
         payment_method: paymentMethod,
-        ticket_price: ticketPrice,
+        ticket_price: ticketPriceValue,
         total_cost: totalCost / ticketsRequired,
         voucher_amount: voucherAmountApplied / ticketsRequired,
         training_fund_amount: validatedTrainingFundAmount / ticketsRequired,
@@ -1397,7 +1402,9 @@ const functionHandlers = {
         purchase_order_number: purchaseOrderNumber,
         po_to_follow: paymentMethod === 'account' ? poToFollow : false,
         stripe_payment_intent_id: stripePaymentIntentId,
-        is_one_off_event: true
+        is_one_off_event: true,
+        ticket_class_id: ticketClassId,
+        ticket_class_name: ticketClassName
       };
 
       console.log('[createOneOffEventBooking] Inserting booking:', JSON.stringify(bookingData));

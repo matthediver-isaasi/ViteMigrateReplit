@@ -120,7 +120,8 @@ export default function PaymentOptions({
   isOneOffEvent = false,
   oneOffCostDetails = null,
   ticketPrice = 0,
-  isFeatureExcluded = () => false
+  isFeatureExcluded = () => false,
+  selectedTicketClass = null
 }) {
   // Payment state for one-off events
   const [selectedVouchers, setSelectedVouchers] = useState([]);
@@ -371,7 +372,10 @@ export default function PaymentOptions({
         purchaseOrderNumber: remainingBalancePaymentMethod === 'account' ? purchaseOrderNumber.trim() : null,
         poToFollow: remainingBalancePaymentMethod === 'account' ? poSupplyLater : false,
         paymentMethod: remainingBalance > 0 ? remainingBalancePaymentMethod : 'fully_covered',
-        stripePaymentIntentId: stripePaymentId
+        stripePaymentIntentId: stripePaymentId,
+        ticketClassId: selectedTicketClass?.id || null,
+        ticketClassName: selectedTicketClass?.name || null,
+        ticketClassPrice: selectedTicketClass?.price || ticketPrice
       });
 
       if (response.data.success) {

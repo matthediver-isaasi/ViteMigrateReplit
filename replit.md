@@ -51,12 +51,22 @@ Preferred communication style: Simple, everyday language.
 
 **Events & Bookings:** Event (synced from Zoho Backstage or created as one-off), Booking, Program, ProgramTicketTransaction.
 
-**One-Off Events:** Events can be created as "one-off" events (is_one_off=true, program_tag="" empty string) with direct pricing instead of program ticket deduction. Pricing configuration stored in `pricing_config` JSONB column with:
-- `ticketPrice`: Base price per attendee in GBP
-- `bogoType`: BOGO offer type - 'buy_x_get_y_free' or 'enter_total_pay_less'
-- `buyQuantity` / `freeQuantity`: For 'buy_x_get_y_free' BOGO offers
-- `enterQuantity` / `payQuantity`: For 'enter_total_pay_less' BOGO offers
-- `bulkDiscountEnabled`, `bulkMinQuantity`, `bulkDiscountPercent`: Bulk discount configuration
+**One-Off Events:** Events can be created as "one-off" events (is_one_off=true, program_tag="" empty string) with direct pricing instead of program ticket deduction. Pricing configuration stored in `pricing_config` JSONB column.
+
+**Role-Based Ticket Classes:** One-off events support multiple ticket classes with role-based access control. The `pricing_config` contains:
+- `ticket_classes`: Array of ticket class objects, each with:
+  - `id`: Unique identifier for the ticket class
+  - `name`: Display name (e.g., "Member Ticket", "Non-Member Ticket")
+  - `price`: Price per attendee in GBP
+  - `role_ids`: Array of role IDs that can purchase this ticket (empty = all roles)
+  - `is_default`: Boolean indicating the default ticket class
+  - `offer_type`: 'none', 'bogo', or 'bulk_discount'
+  - `bogo_logic_type`: 'buy_x_get_y_free' or 'enter_total_pay_less'
+  - `bogo_buy_quantity` / `bogo_get_free_quantity`: For BOGO offers
+  - `bulk_discount_threshold` / `bulk_discount_percentage`: For bulk discounts
+- `ticket_price`: Legacy field - stores default ticket price for backward compatibility
+
+**Ticket Class Filtering:** On EventDetails page, users only see ticket classes matching their role. If no matching ticket classes exist, a "No Tickets Available" message is shown.
 
 **One-Off Event Payment Methods:**
 - Training vouchers (from ProgramTicketTransaction with type='voucher')

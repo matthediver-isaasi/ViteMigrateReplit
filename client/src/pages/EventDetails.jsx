@@ -973,39 +973,42 @@ export default function EventDetailsPage() {
                           memberInfo={currentMemberInfo}
                         />
                         
-                        <div className="pt-4 border-t border-slate-200">
-                          <Button
-                            onClick={() => {
-                              console.log('[EventDetails] Button clicked!');
-                              console.log('[EventDetails] Button disabled state:', !canConfirmBooking);
-                              handleConfirmBooking();
-                            }}
-                            disabled={!canConfirmBooking}
-                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                            size="lg"
-                          >
-                            {submitting ? (
-                              <>
-                                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                                Processing...
-                              </>
-                            ) : (
-                              'Confirm Booking'
+                        {/* Only show confirm button for program events - one-off events use PaymentOptions button */}
+                        {!isOneOffEvent && (
+                          <div className="pt-4 border-t border-slate-200">
+                            <Button
+                              onClick={() => {
+                                console.log('[EventDetails] Button clicked!');
+                                console.log('[EventDetails] Button disabled state:', !canConfirmBooking);
+                                handleConfirmBooking();
+                              }}
+                              disabled={!canConfirmBooking}
+                              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+                              size="lg"
+                            >
+                              {submitting ? (
+                                <>
+                                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                  Processing...
+                                </>
+                              ) : (
+                                'Confirm Booking'
+                              )}
+                            </Button>
+                            
+                            {!hasEnoughTickets && event.program_tag && (
+                              <p className="text-xs text-center text-amber-600 mt-2">
+                                Insufficient program tickets. You need {ticketsRequired - availableProgramTickets} more ticket{ticketsRequired - availableProgramTickets > 1 ? 's' : ''}.
+                              </p>
                             )}
-                          </Button>
-                          
-                          {!hasEnoughTickets && event.program_tag && (
-                            <p className="text-xs text-center text-amber-600 mt-2">
-                              Insufficient program tickets. You need {ticketsRequired - availableProgramTickets} more ticket{ticketsRequired - availableProgramTickets > 1 ? 's' : ''}.
-                            </p>
-                          )}
-                          
-                          {ticketsRequired === 0 && (
-                            <p className="text-xs text-center text-slate-500 mt-2">
-                              Add attendees to proceed with booking
-                            </p>
-                          )}
-                        </div>
+                            
+                            {ticketsRequired === 0 && (
+                              <p className="text-xs text-center text-slate-500 mt-2">
+                                Add attendees to proceed with booking
+                              </p>
+                            )}
+                          </div>
+                        )}
                       </>
                     )}
                   </>

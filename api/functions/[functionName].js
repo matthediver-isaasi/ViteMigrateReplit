@@ -1541,17 +1541,22 @@ const functionHandlers = {
 
     // If paying to account, create an account charge record and optionally a Xero invoice
     let xeroInvoiceResult = null;
-    let xeroDebugInfo = {
-      validatedRemainingBalance,
-      paymentMethod,
-      accountChargeConditionMet: validatedRemainingBalance > 0 && paymentMethod === 'account'
+    let xeroDebug = {
+      attempted: false,
+      remainingBalance: validatedRemainingBalance,
+      paymentMethod: paymentMethod,
+      conditionsMet: validatedRemainingBalance > 0 && paymentMethod === 'account',
+      settingEnabled: null,
+      settingValue: null,
+      tokenFound: null,
+      tenantIdFound: null,
+      contactId: null,
+      invoiceResponseStatus: null,
+      invoiceResponseBody: null,
+      error: null
     };
     
-    console.log('[createOneOffEventBooking] Xero invoice check:', JSON.stringify(xeroDebugInfo));
-    
     if (validatedRemainingBalance > 0 && paymentMethod === 'account') {
-      console.log('[createOneOffEventBooking] Account payment detected, creating account charge record');
-      
       await supabase
         .from('program_ticket_transaction')
         .insert({
@@ -1573,23 +1578,23 @@ const functionHandlers = {
         .eq('setting_key', 'xero_invoice_enabled')
         .maybeSingle();
 
-      console.log('[createOneOffEventBooking] Xero settings query result:', JSON.stringify({ xeroSettings, xeroSettingsError }));
+      xeroDebug.settingValue = xeroSettings?.setting_value;
+      xeroDebug.settingError = xeroSettingsError?.message;
 
       const xeroInvoiceEnabled = xeroSettings?.setting_value === 'true';
-      console.log('[createOneOffEventBooking] xeroInvoiceEnabled:', xeroInvoiceEnabled);
+      xeroDebug.settingEnabled = xeroInvoiceEnabled;
 
       if (xeroInvoiceEnabled) {
+        xeroDebug.attempted = true;
         try {
-          console.log('[createOneOffEventBooking] Creating Xero invoice for account charge:', validatedRemainingBalance);
-
           const { accessToken, tenantId } = await getValidXeroAccessToken();
-          console.log('[createOneOffEventBooking] Got Xero access token, tenantId:', tenantId ? 'present' : 'missing');
+          xeroDebug.tokenFound = !!accessToken;
+          xeroDebug.tenantIdFound = !!tenantId;
 
           if (accessToken && tenantId) {
             // Find or create Xero contact
-            console.log('[createOneOffEventBooking] Finding/creating Xero contact for:', org.name);
             const contactId = await findOrCreateXeroContact(accessToken, tenantId, org.name);
-            console.log('[createOneOffEventBooking] Got Xero contactId:', contactId);
+            xeroDebug.contactId = contactId;
 
             // Build line description with internal reference if present
             let lineDescription = `${event.title || 'One-off Event'} - ${ticketsRequired} attendee${ticketsRequired > 1 ? 's' : ''}`;
@@ -1611,8 +1616,6 @@ const functionHandlers = {
               Status: 'AUTHORISED'
             };
 
-            console.log('[createOneOffEventBooking] Creating Xero invoice with payload:', JSON.stringify(invoicePayload));
-
             const invoiceResponse = await fetch('https://api.xero.com/api.xro/2.0/Invoices', {
               method: 'POST',
               headers: {
@@ -1623,8 +1626,9 @@ const functionHandlers = {
               body: JSON.stringify({ Invoices: [invoicePayload] })
             });
 
+            xeroDebug.invoiceResponseStatus = invoiceResponse.status;
             const invoiceData = await invoiceResponse.json();
-            console.log('[createOneOffEventBooking] Xero API response:', JSON.stringify(invoiceData));
+            xeroDebug.invoiceResponseBody = invoiceData;
 
             if (invoiceData.Invoices && invoiceData.Invoices.length > 0) {
               xeroInvoiceResult = {
@@ -1633,22 +1637,13 @@ const functionHandlers = {
                 total: invoiceData.Invoices[0].Total,
                 status: invoiceData.Invoices[0].Status
               };
-              console.log('[createOneOffEventBooking] Xero invoice created:', xeroInvoiceResult);
-            } else {
-              console.error('[createOneOffEventBooking] Xero API did not return invoice:', JSON.stringify(invoiceData));
             }
-          } else {
-            console.log('[createOneOffEventBooking] Xero not configured (missing accessToken or tenantId), skipping invoice creation');
           }
         } catch (xeroError) {
-          console.error('[createOneOffEventBooking] Xero invoice creation failed:', xeroError.message, xeroError.stack);
+          xeroDebug.error = xeroError.message;
           // Don't fail the booking, just log the error
         }
-      } else {
-        console.log('[createOneOffEventBooking] Xero invoice generation is disabled in system settings');
       }
-    } else {
-      console.log('[createOneOffEventBooking] Skipping Xero invoice - conditions not met:', JSON.stringify(xeroDebugInfo));
     }
 
     return {
@@ -1662,7 +1657,8 @@ const functionHandlers = {
         account_amount: paymentMethod === 'account' ? validatedRemainingBalance : 0,
         card_amount: paymentMethod === 'card' ? validatedRemainingBalance : 0
       },
-      xero_invoice: xeroInvoiceResult
+      xero_invoice: xeroInvoiceResult,
+      xero_debug: xeroDebug
     };
   },
 

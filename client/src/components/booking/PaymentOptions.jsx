@@ -446,6 +446,15 @@ export default function PaymentOptions({
           refreshOrganizationInfo();
         }
         
+        // Log Xero debug info for troubleshooting (temporary)
+        if (response.data.xero_debug) {
+          console.log('XERO DEBUG INFO:', JSON.stringify(response.data.xero_debug, null, 2));
+          // Also show in alert for easy viewing since console may not be accessible
+          if (response.data.xero_debug.attempted || response.data.xero_debug.conditionsMet) {
+            alert('Xero Debug Info:\n' + JSON.stringify(response.data.xero_debug, null, 2));
+          }
+        }
+        
         toast.success("Booking confirmed!");
         
         // For guest checkout, redirect to a confirmation page or Events page

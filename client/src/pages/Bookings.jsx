@@ -199,18 +199,29 @@ export default function BookingsPage() {
       if (hasXeroInvoice) {
         console.log('[PO Submit] Calling updateXeroInvoicePO...');
         // Update Xero invoice reference and refresh the PDF
-        const response = await base44.functions.invoke('updateXeroInvoicePO', {
-          bookingGroupReference: bookingReference,
-          purchaseOrderNumber: poNumber
-        });
+        try {
+          const response = await base44.functions.invoke('updateXeroInvoicePO', {
+            bookingGroupReference: bookingReference,
+            purchaseOrderNumber: poNumber
+          });
 
-        console.log('[PO Submit] Response:', response);
-        
-        if (!response.data.success) {
-          throw new Error(response.data.error || 'Failed to update invoice');
+          console.log('[PO Submit] Response:', response);
+          
+          if (!response.data.success) {
+            throw new Error(response.data.error || 'Failed to update invoice');
+          }
+
+          toast.success('PO number added and invoice updated successfully');
+        } catch (invokeError) {
+          console.error('[PO Submit] Invoke error:', invokeError);
+          // If Xero update fails, fall back to just updating the booking
+          console.log('[PO Submit] Falling back to direct booking update...');
+          await base44.entities.Booking.update(bookingId, {
+            purchase_order_number: poNumber,
+            po_to_follow: false
+          });
+          toast.success('PO number saved (invoice update pending)');
         }
-
-        toast.success('PO number added and invoice updated successfully');
       } else {
         console.log('[PO Submit] No Xero invoice, updating booking directly...');
         // No Xero invoice - just update the booking directly

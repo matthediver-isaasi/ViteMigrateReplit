@@ -140,9 +140,25 @@ export default function EventsPage({
     console.error("[Events] eventsError:", eventsError);
   }
 
+  // Helper to check if an event has at least one public ticket class
+  const hasPublicTickets = (event) => {
+    // Program events (with program_tag) require login - not shown to non-logged-in users
+    if (event.program_tag && event.program_tag !== "") {
+      return false;
+    }
+    // One-off events: check if any ticket class is public
+    if (event.pricing_config?.ticket_classes && Array.isArray(event.pricing_config.ticket_classes)) {
+      return event.pricing_config.ticket_classes.some(tc => tc.is_public === true);
+    }
+    return false;
+  };
+
+  // For non-logged-in users, only show events with public tickets
+  const accessibleEvents = memberInfo ? events : events.filter(hasPublicTickets);
+
   // Build programs list including a "One-off Events" option if there are any
-  const programTags = [...new Set(events.map((e) => e.program_tag).filter(Boolean))];
-  const hasOneOffEvents = events.some(e => !e.program_tag || e.program_tag === "");
+  const programTags = [...new Set(accessibleEvents.map((e) => e.program_tag).filter(Boolean))];
+  const hasOneOffEvents = accessibleEvents.some(e => !e.program_tag || e.program_tag === "");
   const programs = [
     "all", 
     ...(hasOneOffEvents ? ["one-off"] : []),
@@ -169,7 +185,7 @@ export default function EventsPage({
     }
   };
 
-  let filteredEvents = events.filter((event) => {
+  let filteredEvents = accessibleEvents.filter((event) => {
     const matchesSearch =
       event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -197,7 +213,7 @@ export default function EventsPage({
   });
   
   // Count past events for the toggle label
-  const pastEventsCount = events.filter(event => {
+  const pastEventsCount = accessibleEvents.filter(event => {
     const matchesSearch =
       event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description?.toLowerCase().includes(searchQuery.toLowerCase());

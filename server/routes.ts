@@ -94,6 +94,11 @@ declare module 'express-session' {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Trust proxy for Vercel/production deployments - required for secure cookies behind reverse proxy
+  if (process.env.NODE_ENV === 'production') {
+    app.set('trust proxy', 1);
+  }
+
   // Session middleware with PostgreSQL store for persistence across serverless instances
   const PgStore = pgSession(session);
   

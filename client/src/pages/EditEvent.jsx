@@ -110,8 +110,14 @@ export default function EditEvent() {
   };
 
   const updateTicketClass = (ticketId, field, value) => {
-    setTicketClasses(ticketClasses.map(t => 
+    setTicketClasses(prev => prev.map(t => 
       t.id === ticketId ? { ...t, [field]: value } : t
+    ));
+  };
+
+  const setTicketFree = (ticketId, isFree) => {
+    setTicketClasses(prev => prev.map(t => 
+      t.id === ticketId ? { ...t, is_free: isFree, price: isFree ? '0' : t.price } : t
     ));
   };
 
@@ -770,12 +776,7 @@ export default function EditEvent() {
                                 <Switch
                                   id={`ticket-free-${ticket.id}`}
                                   checked={ticket.is_free || false}
-                                  onCheckedChange={(checked) => {
-                                    updateTicketClass(ticket.id, 'is_free', checked);
-                                    if (checked) {
-                                      updateTicketClass(ticket.id, 'price', '0');
-                                    }
-                                  }}
+                                  onCheckedChange={(checked) => setTicketFree(ticket.id, checked)}
                                   data-testid={`switch-free-${ticket.id}`}
                                 />
                                 <Label htmlFor={`ticket-free-${ticket.id}`} className="text-sm font-medium">

@@ -446,7 +446,10 @@ export default function EditEvent() {
       title: formData.title,
       description: formData.description || null,
       internal_reference: formData.internal_reference || null,
-      program_tag: formData.program_tag,
+      // For one-off events, program_tag should be empty string; for program events, use the selected program
+      program_tag: isOneOffEvent ? "" : formData.program_tag,
+      // Set is_one_off flag based on event type toggle
+      is_one_off: isOneOffEvent,
       start_date: formData.start_date,
       end_date: formData.end_date || formData.start_date,
       location: formData.location || null,

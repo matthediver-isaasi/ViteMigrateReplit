@@ -377,6 +377,8 @@ export default function CreateEvent() {
       description: formData.description || null,
       internal_reference: formData.internal_reference || null,
       program_tag: isProgramEvent ? formData.program_tag : "",
+      // Set is_one_off flag based on event type toggle
+      is_one_off: !isProgramEvent,
       start_date: formData.start_date,
       end_date: formData.end_date || formData.start_date,
       location: locationValue,

@@ -658,7 +658,8 @@ export function IEditAccordionElementEditor({ element, onChange }) {
 
 export function IEditAccordionElementRenderer({ element, content }) {
   const [openItems, setOpenItems] = useState([]);
-  const uniqueId = useId();
+  const rawId = useId();
+  const uniqueId = rawId.replace(/:/g, '');
   
   const displayContent = element?.content || content || {};
   const items = displayContent.items || [];

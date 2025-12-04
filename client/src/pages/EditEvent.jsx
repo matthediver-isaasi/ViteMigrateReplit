@@ -34,6 +34,7 @@ import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import EventImageUpload from "@/components/events/EventImageUpload";
+import { SpeakerSelectionModal } from "@/components/SpeakerSelectionModal";
 
 // Helper function to create a new ticket class with unique ID
 // visibility_mode options:
@@ -107,6 +108,7 @@ export default function EditEvent() {
 
   // Selected speakers state
   const [selectedSpeakers, setSelectedSpeakers] = useState([]);
+  const [speakerModalOpen, setSpeakerModalOpen] = useState(false);
 
   // Speaker toggle function
   const toggleSpeaker = (speakerId) => {

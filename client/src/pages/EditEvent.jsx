@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,8 @@ import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import EventImageUpload from "@/components/events/EventImageUpload";
 import { SpeakerSelectionModal } from "@/components/SpeakerSelectionModal";
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 // Helper function to create a new ticket class with unique ID
 // visibility_mode options:
@@ -127,6 +129,31 @@ export default function EditEvent() {
       .map(id => speakers.find(s => s.id === id)?.full_name || 'Unknown')
       .join(', ');
   };
+
+  // Rich text editor modules configuration
+  const quillModules = useMemo(() => ({
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'indent': '-1'}, { 'indent': '+1' }],
+        [{ 'align': [] }],
+        ['link'],
+        ['clean']
+      ]
+    },
+  }), []);
+
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'color', 'background',
+    'list', 'bullet', 'indent',
+    'align',
+    'link'
+  ];
 
   // Ticket class management functions
   const addTicketClass = () => {
@@ -643,14 +670,17 @@ export default function EditEvent() {
 
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="Describe the event..."
-                  rows={4}
-                  data-testid="input-description"
-                />
+                <div className="border rounded-md overflow-hidden" data-testid="input-description">
+                  <ReactQuill
+                    theme="snow"
+                    value={formData.description || ''}
+                    onChange={(value) => handleInputChange('description', value)}
+                    modules={quillModules}
+                    formats={quillFormats}
+                    placeholder="Describe the event..."
+                    style={{ minHeight: '150px' }}
+                  />
+                </div>
               </div>
 
               {/* Speakers Selection */}

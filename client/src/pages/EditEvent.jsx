@@ -25,7 +25,8 @@ import {
   Ticket,
   ChevronDown,
   ChevronUp,
-  Check
+  Check,
+  Mic
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -97,6 +98,32 @@ export default function EditEvent() {
     queryKey: ['/api/entities/Role'],
     queryFn: () => base44.entities.Role.list({ sort: { name: 'asc' } })
   });
+
+  // Fetch speakers for event assignment
+  const { data: speakers = [], isLoading: loadingSpeakers } = useQuery({
+    queryKey: ['/api/entities/Speaker'],
+    queryFn: () => base44.entities.Speaker.list({ filter: { is_active: true }, sort: { full_name: 'asc' } })
+  });
+
+  // Selected speakers state
+  const [selectedSpeakers, setSelectedSpeakers] = useState([]);
+
+  // Speaker toggle function
+  const toggleSpeaker = (speakerId) => {
+    setSelectedSpeakers(prev => 
+      prev.includes(speakerId)
+        ? prev.filter(id => id !== speakerId)
+        : [...prev, speakerId]
+    );
+  };
+
+  // Get speaker names for display
+  const getSpeakerNames = (speakerIds) => {
+    if (!speakerIds || speakerIds.length === 0) return "No speakers selected";
+    return speakerIds
+      .map(id => speakers.find(s => s.id === id)?.full_name || 'Unknown')
+      .join(', ');
+  };
 
   // Ticket class management functions
   const addTicketClass = () => {
@@ -287,6 +314,13 @@ export default function EditEvent() {
           setExpandedTickets({ [legacyTicket.id]: true });
         }
       }
+
+      // Load speaker_ids from event
+      if (event.speaker_ids && Array.isArray(event.speaker_ids)) {
+        setSelectedSpeakers(event.speaker_ids);
+      } else {
+        setSelectedSpeakers([]);
+      }
     }
   }, [event]);
 
@@ -388,7 +422,8 @@ export default function EditEvent() {
       location: formData.location || null,
       image_url: formData.image_url || null,
       available_seats: isNaN(parsedSeats) ? null : parsedSeats,
-      zoom_webinar_id: formData.zoom_webinar_id || null
+      zoom_webinar_id: formData.zoom_webinar_id || null,
+      speaker_ids: selectedSpeakers.length > 0 ? selectedSpeakers : []
     };
 
     // Add ticket classes for one-off events
@@ -613,6 +648,65 @@ export default function EditEvent() {
                   rows={4}
                   data-testid="input-description"
                 />
+              </div>
+
+              {/* Speakers Selection */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Mic className="h-4 w-4 text-slate-500" />
+                  Speakers
+                </Label>
+                <p className="text-xs text-slate-500 mb-2">
+                  Select speakers for this event. Manage speakers in the Speaker Management page.
+                </p>
+                
+                {loadingSpeakers ? (
+                  <div className="text-sm text-slate-500">Loading speakers...</div>
+                ) : speakers.length === 0 ? (
+                  <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
+                    No speakers available. <a href="/SpeakerManagement" className="text-blue-600 hover:underline" data-testid="link-add-speaker">Add speakers</a> first.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {speakers.map(speaker => {
+                      const isSelected = selectedSpeakers.includes(speaker.id);
+                      return (
+                        <div
+                          key={speaker.id}
+                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
+                            isSelected
+                              ? 'bg-purple-100 border-purple-300 text-purple-800'
+                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                          }`}
+                          onClick={() => toggleSpeaker(speaker.id)}
+                          data-testid={`speaker-toggle-${speaker.id}`}
+                        >
+                          <div className={`h-3.5 w-3.5 rounded border flex items-center justify-center ${
+                            isSelected ? 'bg-purple-600 border-purple-600' : 'border-slate-300 bg-white'
+                          }`}>
+                            {isSelected && <Check className="h-2.5 w-2.5 text-white" />}
+                          </div>
+                          {speaker.profile_photo_url ? (
+                            <img 
+                              src={speaker.profile_photo_url} 
+                              alt={speaker.full_name}
+                              className="w-5 h-5 rounded-full object-cover"
+                            />
+                          ) : (
+                            <Mic className="h-3.5 w-3.5" />
+                          )}
+                          <span className="text-sm">{speaker.full_name}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {selectedSpeakers.length > 0 && (
+                  <div className="mt-2 p-2 bg-purple-50 border border-purple-200 rounded text-sm text-purple-700">
+                    {selectedSpeakers.length} speaker{selectedSpeakers.length !== 1 ? 's' : ''} selected
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

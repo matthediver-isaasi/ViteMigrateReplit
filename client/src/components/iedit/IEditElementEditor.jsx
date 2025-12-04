@@ -22,6 +22,7 @@ import { IEditTextBlockElementEditor } from "./elements/IEditTextBlockElement";
 import { IEditFeaturedJobElementEditor } from "./elements/IEditFeaturedJobElement";
 import { IEditImagePanelElementEditor } from "./elements/IEditImagePanelElement";
 import { IEditAccordionElementEditor } from "./elements/IEditAccordionElement";
+import { IEditTwoColumnElementEditor } from "./elements/IEditTwoColumnElement";
 
 export default function IEditElementEditor({ element, onClose, onSave }) {
   const [editedContent, setEditedContent] = useState(element.content || {});
@@ -141,6 +142,9 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
 
   // Check if this is an Accordion element (custom editor)
   const isAccordion = element.element_type === 'accordion';
+
+  // Check if this is a Two Column element (custom editor)
+  const isTwoColumn = element.element_type === 'two_column';
 
   // Check if this is a Form element (needs form selector)
   const isFormElement = element.element_type === 'form';
@@ -470,6 +474,11 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
             />
           ) : isAccordion ? (
             <IEditAccordionElementEditor 
+              element={{ ...element, content: editedContent }}
+              onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
+            />
+          ) : isTwoColumn ? (
+            <IEditTwoColumnElementEditor 
               element={{ ...element, content: editedContent }}
               onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
             />

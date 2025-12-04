@@ -163,6 +163,12 @@ export default function EventsPage({
     }
   };
 
+  console.log('[Events] Debug - accessibleEvents count:', accessibleEvents.length);
+  console.log('[Events] Debug - selectedProgram:', selectedProgram);
+  console.log('[Events] Debug - searchQuery:', searchQuery);
+  console.log('[Events] Debug - showPastEvents:', showPastEvents);
+  console.log('[Events] Debug - memberInfo exists:', !!memberInfo);
+  
   let filteredEvents = accessibleEvents.filter((event) => {
     const matchesSearch =
       event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -179,10 +185,18 @@ export default function EventsPage({
     }
     
     // Filter out past events unless showPastEvents is enabled
-    const matchesTimeFilter = showPastEvents || !isEventPast(event);
+    const isPast = isEventPast(event);
+    const matchesTimeFilter = showPastEvents || !isPast;
+    
+    // Debug log for each event
+    if (!matchesTimeFilter || !matchesSearch || !matchesProgram) {
+      console.log(`[Events] Filtered out: "${event.title}" - search:${matchesSearch}, program:${matchesProgram}, time:${matchesTimeFilter}, isPast:${isPast}, start_date:${event.start_date}`);
+    }
     
     return matchesSearch && matchesProgram && matchesTimeFilter;
   });
+  
+  console.log('[Events] Debug - filteredEvents count:', filteredEvents.length);
 
   filteredEvents.sort((a, b) => {
     const dateA = new Date(a.start_date);

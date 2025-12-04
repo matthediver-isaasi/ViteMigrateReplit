@@ -115,10 +115,10 @@ export default function IEditTwoColumnElement({ content, variant, settings }) {
 
   return (
     <div 
-      className={`relative ${hasBackground ? 'py-12 px-6' : ''}`}
+      className="relative w-full"
       style={hasBackground && backgroundType !== 'image' ? getBackgroundStyle() : {}}
     >
-      {/* Background image layer */}
+      {/* Background image layer - full width */}
       {backgroundType === 'image' && content?.background_image_url && (
         <>
           <img 
@@ -139,9 +139,12 @@ export default function IEditTwoColumnElement({ content, variant, settings }) {
         </>
       )}
 
-      <div className={`relative grid ${gridClass} gap-8`}>
-        {renderColumn('left', content?.leftHeading, content?.leftContent)}
-        {renderColumn('right', content?.rightHeading, content?.rightContent)}
+      {/* Content container - constrained width */}
+      <div className={`relative max-w-7xl mx-auto px-4 ${hasBackground ? 'py-12' : ''}`}>
+        <div className={`grid ${gridClass} gap-8`}>
+          {renderColumn('left', content?.leftHeading, content?.leftContent)}
+          {renderColumn('right', content?.rightHeading, content?.rightContent)}
+        </div>
       </div>
     </div>
   );

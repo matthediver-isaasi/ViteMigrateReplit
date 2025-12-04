@@ -26,7 +26,8 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
-  Mic
+  Mic,
+  X
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -659,7 +660,7 @@ export default function EditEvent() {
                   Speakers
                 </Label>
                 <p className="text-xs text-slate-500 mb-2">
-                  Select speakers for this event. Manage speakers in the Speaker Management page.
+                  Select speakers for this event.
                 </p>
                 
                 {loadingSpeakers ? (
@@ -669,45 +670,64 @@ export default function EditEvent() {
                     No speakers available. <a href="/SpeakerManagement" className="text-blue-600 hover:underline" data-testid="link-add-speaker">Add speakers</a> first.
                   </div>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {speakers.map(speaker => {
-                      const isSelected = selectedSpeakers.includes(speaker.id);
-                      return (
-                        <div
-                          key={speaker.id}
-                          className={`flex items-center gap-2 px-3 py-1.5 rounded-full border cursor-pointer transition-colors ${
-                            isSelected
-                              ? 'bg-purple-100 border-purple-300 text-purple-800'
-                              : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                          }`}
-                          onClick={() => toggleSpeaker(speaker.id)}
-                          data-testid={`speaker-toggle-${speaker.id}`}
-                        >
-                          <div className={`h-3.5 w-3.5 rounded border flex items-center justify-center ${
-                            isSelected ? 'bg-purple-600 border-purple-600' : 'border-slate-300 bg-white'
-                          }`}>
-                            {isSelected && <Check className="h-2.5 w-2.5 text-white" />}
-                          </div>
-                          {speaker.profile_photo_url ? (
-                            <img 
-                              src={speaker.profile_photo_url} 
-                              alt={speaker.full_name}
-                              className="w-5 h-5 rounded-full object-cover"
-                            />
-                          ) : (
-                            <Mic className="h-3.5 w-3.5" />
-                          )}
-                          <span className="text-sm">{speaker.full_name}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-                
-                {selectedSpeakers.length > 0 && (
-                  <div className="mt-2 p-2 bg-purple-50 border border-purple-200 rounded text-sm text-purple-700">
-                    {selectedSpeakers.length} speaker{selectedSpeakers.length !== 1 ? 's' : ''} selected
-                  </div>
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => setSpeakerModalOpen(true)}
+                      className="w-full justify-start text-left h-auto py-2"
+                      data-testid="button-select-speakers"
+                    >
+                      <Mic className="h-4 w-4 mr-2 text-purple-600" />
+                      {selectedSpeakers.length === 0 
+                        ? "Click to select speakers..." 
+                        : `${selectedSpeakers.length} speaker${selectedSpeakers.length !== 1 ? 's' : ''} selected`
+                      }
+                    </Button>
+                    
+                    {/* Show selected speakers as chips */}
+                    {selectedSpeakers.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedSpeakers.map(speakerId => {
+                          const speaker = speakers.find(s => s.id === speakerId);
+                          if (!speaker) return null;
+                          return (
+                            <div
+                              key={speaker.id}
+                              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-100 border border-purple-300 text-purple-800"
+                            >
+                              {speaker.profile_photo_url ? (
+                                <img 
+                                  src={speaker.profile_photo_url} 
+                                  alt={speaker.full_name}
+                                  className="w-5 h-5 rounded-full object-cover"
+                                />
+                              ) : (
+                                <Mic className="h-3.5 w-3.5" />
+                              )}
+                              <span className="text-sm">{speaker.full_name}</span>
+                              <button
+                                type="button"
+                                onClick={() => toggleSpeaker(speaker.id)}
+                                className="ml-1 text-purple-600 hover:text-purple-800"
+                                data-testid={`button-remove-speaker-chip-${speaker.id}`}
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    <SpeakerSelectionModal
+                      open={speakerModalOpen}
+                      onOpenChange={setSpeakerModalOpen}
+                      speakers={speakers}
+                      selectedSpeakerIds={selectedSpeakers}
+                      onConfirm={setSelectedSpeakers}
+                    />
+                  </>
                 )}
               </div>
 

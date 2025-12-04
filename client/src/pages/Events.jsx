@@ -22,19 +22,22 @@ const DEFAULT_TIMEZONE = "Europe/London";
 export default function EventsPage({
   organizationInfo: propsOrganizationInfo,
   isFeatureExcluded,
-  memberInfo,
+  memberInfo: propsMemberInfo,
   memberRole,
   reloadMemberInfo,
 }) {
-  // Get hasBanner, refreshOrganizationInfo, and organizationInfo from layout context
+  // Get hasBanner, refreshOrganizationInfo, organizationInfo and memberInfo from layout context
   const { 
     hasBanner, 
     refreshOrganizationInfo,
-    organizationInfo: contextOrganizationInfo 
+    organizationInfo: contextOrganizationInfo,
+    memberInfo: contextMemberInfo
   } = useLayoutContext();
   
-  // Use context organizationInfo if available, otherwise fall back to props
+  // Use context values if available, otherwise fall back to props
+  // This fixes the issue where PublicLayout doesn't pass memberInfo props
   const organizationInfo = contextOrganizationInfo || propsOrganizationInfo;
+  const memberInfo = contextMemberInfo || propsMemberInfo;
   const { isAdmin } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
@@ -171,6 +174,7 @@ export default function EventsPage({
   console.log('[Events] Debug - searchQuery:', searchQuery);
   console.log('[Events] Debug - showPastEvents:', showPastEvents);
   console.log('[Events] Debug - memberInfo exists:', !!memberInfo);
+  console.log('[Events] Debug - memberInfo source:', contextMemberInfo ? 'context' : (propsMemberInfo ? 'props' : 'none'));
   
   let filteredEvents = accessibleEvents.filter((event) => {
     const matchesSearch =

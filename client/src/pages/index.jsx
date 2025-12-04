@@ -177,6 +177,7 @@ import MemberGroupManagement from "./MemberGroupManagement";
 import ArticlesSettings from "./ArticlesSettings";
 
 import GuestWriterManagement from "./GuestWriterManagement";
+import SpeakerManagement from "./SpeakerManagement";
 
 import OrganisationDirectorySettings from "./OrganisationDirectorySettings";
 
@@ -391,6 +392,8 @@ const PAGES = {
     ArticlesSettings: ArticlesSettings,
     
     GuestWriterManagement: GuestWriterManagement,
+    
+    SpeakerManagement: SpeakerManagement,
     
     OrganisationDirectorySettings: OrganisationDirectorySettings,
     
@@ -641,6 +644,8 @@ function PagesContent() {
                 <Route path="/ArticlesSettings" element={<ArticlesSettings />} />
                 
                 <Route path="/GuestWriterManagement" element={<GuestWriterManagement />} />
+                
+                <Route path="/SpeakerManagement" element={<SpeakerManagement />} />
                 
                 <Route path="/OrganisationDirectorySettings" element={<OrganisationDirectorySettings />} />
                 

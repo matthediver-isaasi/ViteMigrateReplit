@@ -125,8 +125,11 @@ export default function EventsPage({
       return false;
     }
     // One-off events: check if any ticket class is public
+    // Support both is_public field and visibility_mode field for backwards compatibility
     if (event.pricing_config?.ticket_classes && Array.isArray(event.pricing_config.ticket_classes)) {
-      return event.pricing_config.ticket_classes.some(tc => tc.is_public === true);
+      return event.pricing_config.ticket_classes.some(tc => 
+        tc.is_public === true || tc.visibility_mode === "members_and_public"
+      );
     }
     return false;
   };

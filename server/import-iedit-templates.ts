@@ -218,6 +218,40 @@ const templates = [
     content_schema: {},
     is_active: true,
     display_order: 100
+  },
+  {
+    id: 'accordion_template',
+    name: 'Accordion',
+    element_type: 'accordion',
+    description: 'Expandable FAQ-style accordion with section header, customizable styling, and background options',
+    icon: 'List',
+    category: 'interactive',
+    default_content: {
+      header_title: 'Frequently Asked Questions',
+      header_subtitle: '',
+      header_font_family: 'Poppins',
+      header_font_weight: 700,
+      header_font_size: 32,
+      header_color: '#1e293b',
+      header_align: 'center',
+      background_type: 'none',
+      item_header_font_family: 'Poppins',
+      item_header_font_weight: 600,
+      item_header_font_size: 18,
+      item_header_color: '#1e293b',
+      item_header_bg: '#ffffff',
+      item_content_font_family: 'Poppins',
+      item_content_font_weight: 400,
+      item_content_font_size: 16,
+      item_content_color: '#475569',
+      item_content_line_height: 1.6,
+      item_content_bg: '#f8fafc',
+      items: []
+    },
+    available_variants: ["default"],
+    content_schema: {},
+    is_active: true,
+    display_order: 102
   }
 ];
 

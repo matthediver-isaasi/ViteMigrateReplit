@@ -114,7 +114,8 @@ const builtInPages = [
   { value: "UnpackedInternationalEmployability", label: "Unpacked International Employability" },
   { value: "ViewPage", label: "View Page" },
   { value: "WallOfFameManagement", label: "Wall of Fame" },
-  { value: "ZoomWebinarProvisioning", label: "Zoom Webinar Management" }
+  { value: "ZoomWebinarProvisioning", label: "Zoom Webinar Management" },
+  { value: "SpeakerManagement", label: "Speaker Management" }
 ];
 
 export default function PortalMenuManagementPage() {

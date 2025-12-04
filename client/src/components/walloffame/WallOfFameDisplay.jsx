@@ -15,7 +15,17 @@ export default function WallOfFameDisplay({
   titleColor = '#1e293b',
   titleAlign = 'center',
   cardsPerRow = 4,
-  rowAlign = 'center'
+  rowAlign = 'center',
+  backgroundType = 'none',
+  backgroundColor = '#f8fafc',
+  gradientStartColor = '#3b82f6',
+  gradientEndColor = '#8b5cf6',
+  gradientAngle = 135,
+  backgroundImageUrl,
+  backgroundImageFit = 'cover',
+  overlayEnabled = false,
+  overlayColor = '#000000',
+  overlayOpacity = 50
 }) {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [flippedPerson, setFlippedPerson] = useState(null);
@@ -110,6 +120,19 @@ export default function WallOfFameDisplay({
     return section?.name || '';
   };
 
+  // Get background style
+  const getBackgroundStyle = () => {
+    if (backgroundType === 'color') {
+      return { backgroundColor };
+    }
+    if (backgroundType === 'gradient') {
+      return { 
+        background: `linear-gradient(${gradientAngle}deg, ${gradientStartColor}, ${gradientEndColor})` 
+      };
+    }
+    return {};
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -135,9 +158,37 @@ export default function WallOfFameDisplay({
     textAlign: titleAlign
   };
 
+  // Check if we have a background
+  const hasBackground = backgroundType && backgroundType !== 'none';
+
   return (
-    <div className="py-12">
-      <div className="max-w-7xl mx-auto px-4">
+    <div 
+      className="relative py-12"
+      style={hasBackground && backgroundType !== 'image' ? getBackgroundStyle() : {}}
+    >
+      {/* Background image layer */}
+      {backgroundType === 'image' && backgroundImageUrl && (
+        <>
+          <img 
+            src={backgroundImageUrl} 
+            alt="Background" 
+            className="absolute inset-0 w-full h-full"
+            style={{ objectFit: backgroundImageFit }}
+          />
+          {overlayEnabled && (
+            <div 
+              className="absolute inset-0" 
+              style={{ 
+                backgroundColor: overlayColor, 
+                opacity: parseInt(overlayOpacity) / 100 
+              }} 
+            />
+          )}
+        </>
+      )}
+
+      {/* Content layer */}
+      <div className="relative max-w-7xl mx-auto px-4">
         {/* Section header - only show if no category selected OR if multiple categories exist */}
         {!selectedCategory && (
           <div className="text-center mb-12">

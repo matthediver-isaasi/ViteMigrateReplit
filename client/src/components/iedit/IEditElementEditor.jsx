@@ -23,6 +23,7 @@ import { IEditFeaturedJobElementEditor } from "./elements/IEditFeaturedJobElemen
 import { IEditImagePanelElementEditor } from "./elements/IEditImagePanelElement";
 import { IEditAccordionElementEditor } from "./elements/IEditAccordionElement";
 import { IEditTwoColumnElementEditor } from "./elements/IEditTwoColumnElement";
+import { IEditQuoteElementEditor } from "./elements/IEditQuoteElement";
 
 export default function IEditElementEditor({ element, onClose, onSave }) {
   const [editedContent, setEditedContent] = useState(element.content || {});
@@ -145,6 +146,9 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
 
   // Check if this is a Two Column element (custom editor)
   const isTwoColumn = element.element_type === 'two_column';
+
+  // Check if this is a Quote element (custom editor)
+  const isQuote = element.element_type === 'quote';
 
   // Check if this is a Form element (needs form selector)
   const isFormElement = element.element_type === 'form';
@@ -479,6 +483,11 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
             />
           ) : isTwoColumn ? (
             <IEditTwoColumnElementEditor 
+              element={{ ...element, content: editedContent }}
+              onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
+            />
+          ) : isQuote ? (
+            <IEditQuoteElementEditor 
               element={{ ...element, content: editedContent }}
               onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
             />

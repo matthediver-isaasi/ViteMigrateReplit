@@ -18,6 +18,7 @@ import { IEditOrganisationDirectoryElementRenderer } from "./elements/IEditOrgan
 import IEditFeaturedJobElement from "./elements/IEditFeaturedJobElement";
 import IEditImagePanelElement from "./elements/IEditImagePanelElement";
 import { IEditAccordionElementRenderer } from "./elements/IEditAccordionElement";
+import IEditQuoteElement from "./elements/IEditQuoteElement";
 
 export default function IEditElementRenderer({ element, memberInfo, organizationInfo, isFirst }) {
   // Map element types to their corresponding components
@@ -41,6 +42,7 @@ export default function IEditElementRenderer({ element, memberInfo, organization
     'featured_job': IEditFeaturedJobElement,
     'image_panel': IEditImagePanelElement,
     'accordion': IEditAccordionElementRenderer,
+    'quote': IEditQuoteElement,
   };
 
   const Component = elementComponents[element.element_type];

@@ -9,7 +9,9 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video, AlertTriangle, PoundSterling, User } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video, AlertTriangle, PoundSterling, User, Mic, ChevronRight, X } from "lucide-react";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
@@ -36,6 +38,11 @@ export default function EventDetailsPage() {
   const [showColleagueSelector, setShowColleagueSelector] = useState(false);
   const [selectedTicketClassId, setSelectedTicketClassId] = useState(null);
   const [paymentCanProceed, setPaymentCanProceed] = useState(false);
+
+  // Modal states for description and speaker profiles
+  const [showDescriptionModal, setShowDescriptionModal] = useState(false);
+  const [showSpeakerModal, setShowSpeakerModal] = useState(false);
+  const [selectedSpeaker, setSelectedSpeaker] = useState(null);
 
   // Guest registration form state (for non-logged-in users)
   const [guestInfo, setGuestInfo] = useState({
@@ -161,6 +168,17 @@ export default function EventDetailsPage() {
       return events.find((e) => e.id === eventId);
     },
     enabled: !!eventId
+  });
+
+  // Query for speakers assigned to this event
+  const { data: eventSpeakers = [] } = useQuery({
+    queryKey: ['event-speakers', event?.speaker_ids],
+    queryFn: async () => {
+      if (!event?.speaker_ids || event.speaker_ids.length === 0) return [];
+      const allSpeakers = await base44.entities.Speaker.list();
+      return allSpeakers.filter(s => event.speaker_ids.includes(s.id));
+    },
+    enabled: !!event?.speaker_ids && event.speaker_ids.length > 0
   });
 
   // Query for webinar join link visibility settings
@@ -827,10 +845,69 @@ export default function EventDetailsPage() {
                 </div>
               </CardHeader>
 
+              {/* Description Preview Section */}
               {event.description && (
                 <CardContent className="pt-6 border-t border-slate-200">
                   <h3 className="font-semibold text-slate-900 mb-3">About this event</h3>
-                  <p className="text-slate-600 whitespace-pre-wrap">{event.description}</p>
+                  <div className="space-y-3">
+                    <p 
+                      className="text-slate-600 whitespace-pre-wrap line-clamp-2"
+                      data-testid="text-description-preview"
+                    >
+                      {event.description}
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-0 h-auto py-1"
+                      onClick={() => setShowDescriptionModal(true)}
+                      data-testid="button-more-information"
+                    >
+                      More information
+                      <ChevronRight className="w-4 h-4 ml-1" />
+                    </Button>
+                  </div>
+                </CardContent>
+              )}
+
+              {/* Speakers Section */}
+              {eventSpeakers.length > 0 && (
+                <CardContent className="pt-6 border-t border-slate-200">
+                  <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
+                    <Mic className="w-5 h-5 text-purple-600" />
+                    Speakers
+                  </h3>
+                  <div className="flex flex-wrap gap-4">
+                    {eventSpeakers.map((speaker) => (
+                      <button
+                        key={speaker.id}
+                        onClick={() => {
+                          setSelectedSpeaker(speaker);
+                          setShowSpeakerModal(true);
+                        }}
+                        className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 hover:border-purple-300 hover:bg-purple-50 transition-colors cursor-pointer text-left group"
+                        data-testid={`button-speaker-${speaker.id}`}
+                      >
+                        <Avatar className="h-12 w-12">
+                          {speaker.profile_photo_url ? (
+                            <AvatarImage src={speaker.profile_photo_url} alt={speaker.full_name} />
+                          ) : null}
+                          <AvatarFallback className="bg-purple-100 text-purple-700 font-medium">
+                            {speaker.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <div className="font-medium text-slate-900 group-hover:text-purple-700">
+                            {speaker.full_name}
+                          </div>
+                          {speaker.title && (
+                            <div className="text-sm text-slate-500">{speaker.title}</div>
+                          )}
+                        </div>
+                        <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-purple-600 ml-2" />
+                      </button>
+                    ))}
+                  </div>
                 </CardContent>
               )}
             </Card>
@@ -1181,6 +1258,68 @@ export default function EventDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Description Modal */}
+      <Dialog open={showDescriptionModal} onOpenChange={setShowDescriptionModal}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">About this event</DialogTitle>
+          </DialogHeader>
+          <div className="mt-4">
+            <p className="text-slate-600 whitespace-pre-wrap leading-relaxed" data-testid="text-description-full">
+              {event?.description}
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Speaker Profile Modal */}
+      <Dialog open={showSpeakerModal} onOpenChange={setShowSpeakerModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-semibold">Speaker Profile</DialogTitle>
+          </DialogHeader>
+          {selectedSpeaker && (
+            <div className="mt-4 space-y-6">
+              <div className="flex items-center gap-4">
+                <Avatar className="h-20 w-20">
+                  {selectedSpeaker.profile_photo_url ? (
+                    <AvatarImage src={selectedSpeaker.profile_photo_url} alt={selectedSpeaker.full_name} />
+                  ) : null}
+                  <AvatarFallback className="bg-purple-100 text-purple-700 font-semibold text-2xl">
+                    {selectedSpeaker.full_name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900" data-testid="text-speaker-name">
+                    {selectedSpeaker.full_name}
+                  </h3>
+                  {selectedSpeaker.title && (
+                    <p className="text-slate-500" data-testid="text-speaker-title">{selectedSpeaker.title}</p>
+                  )}
+                  {selectedSpeaker.email && (
+                    <a 
+                      href={`mailto:${selectedSpeaker.email}`} 
+                      className="text-sm text-blue-600 hover:underline"
+                      data-testid="link-speaker-email"
+                    >
+                      {selectedSpeaker.email}
+                    </a>
+                  )}
+                </div>
+              </div>
+              {selectedSpeaker.bio && (
+                <div>
+                  <h4 className="font-medium text-slate-900 mb-2">Biography</h4>
+                  <p className="text-slate-600 whitespace-pre-wrap leading-relaxed" data-testid="text-speaker-bio">
+                    {selectedSpeaker.bio}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

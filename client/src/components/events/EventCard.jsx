@@ -1,10 +1,10 @@
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, MapPin, Users, Clock, Ticket, AlertCircle, ShoppingCart, Pencil, Trash2, Video, Globe } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Ticket, AlertCircle, ShoppingCart, Pencil, Trash2, Video, Globe, UsersRound, Download, Search } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { createPageUrl } from "@/utils";
@@ -18,6 +18,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const DEFAULT_TIMEZONE = "Europe/London";
 
@@ -82,6 +97,101 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
   const queryClient = useQueryClient();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [showAttendeesModal, setShowAttendeesModal] = useState(false);
+  const [organizationFilter, setOrganizationFilter] = useState("all");
+  const [searchFilter, setSearchFilter] = useState("");
+
+  // Fetch bookings and organizations when attendees modal is open
+  const { data: bookingsData, isLoading: bookingsLoading } = useQuery({
+    queryKey: ['/api/entities/Booking', { event_id: event.id }],
+    enabled: showAttendeesModal && isAdmin,
+  });
+
+  const { data: organizationsData } = useQuery({
+    queryKey: ['/api/entities/Organization'],
+    enabled: showAttendeesModal && isAdmin,
+  });
+
+  // Create organization lookup map
+  const organizationMap = useMemo(() => {
+    if (!organizationsData) return {};
+    return organizationsData.reduce((acc, org) => {
+      acc[org.id] = org.name;
+      return acc;
+    }, {});
+  }, [organizationsData]);
+
+  // Get unique organizations from bookings for filter dropdown
+  const uniqueOrganizations = useMemo(() => {
+    if (!bookingsData) return [];
+    const orgIds = [...new Set(bookingsData.map(b => b.organization_id).filter(Boolean))];
+    return orgIds.map(id => ({
+      id,
+      name: organizationMap[id] || 'Unknown Organization'
+    })).sort((a, b) => a.name.localeCompare(b.name));
+  }, [bookingsData, organizationMap]);
+
+  // Filter attendees based on organization and search
+  const filteredAttendees = useMemo(() => {
+    if (!bookingsData) return [];
+    return bookingsData
+      .filter(booking => {
+        // Filter by organization
+        if (organizationFilter !== "all" && booking.organization_id !== organizationFilter) {
+          return false;
+        }
+        // Filter by search term
+        if (searchFilter) {
+          const search = searchFilter.toLowerCase();
+          const name = `${booking.attendee_first_name || ''} ${booking.attendee_last_name || ''}`.toLowerCase();
+          const email = (booking.attendee_email || '').toLowerCase();
+          const org = (organizationMap[booking.organization_id] || '').toLowerCase();
+          return name.includes(search) || email.includes(search) || org.includes(search);
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        const nameA = `${a.attendee_first_name || ''} ${a.attendee_last_name || ''}`;
+        const nameB = `${b.attendee_first_name || ''} ${b.attendee_last_name || ''}`;
+        return nameA.localeCompare(nameB);
+      });
+  }, [bookingsData, organizationFilter, searchFilter, organizationMap]);
+
+  // Export to CSV function
+  const exportToCSV = () => {
+    if (!filteredAttendees.length) {
+      toast.error('No attendees to export');
+      return;
+    }
+
+    const headers = ['Name', 'Email', 'Organisation'];
+    const rows = filteredAttendees.map(booking => [
+      `${booking.attendee_first_name || ''} ${booking.attendee_last_name || ''}`.trim(),
+      booking.attendee_email || '',
+      organizationMap[booking.organization_id] || ''
+    ]);
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${(cell || '').replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `attendees-${event.title.replace(/[^a-z0-9]/gi, '-')}-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Attendees exported to CSV');
+  };
+
+  const handleAttendeesClick = (e) => {
+    e.stopPropagation();
+    setShowAttendeesModal(true);
+  };
   
   // Get the event's timezone (default to Europe/London for UK events)
   const eventTimezone = event.timezone || DEFAULT_TIMEZONE;
@@ -300,8 +410,18 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
                   className="flex-1"
                   data-testid={`button-edit-event-${event.id}`}
                 >
-                  <Pencil className="w-4 h-4 mr-2" />
+                  <Pencil className="w-4 h-4 mr-1" />
                   Edit
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleAttendeesClick}
+                  className="flex-1 text-purple-600 hover:text-purple-700 hover:bg-purple-50 border-purple-200"
+                  data-testid={`button-attendees-event-${event.id}`}
+                >
+                  <UsersRound className="w-4 h-4 mr-1" />
+                  Attendees
                 </Button>
                 <Button 
                   variant="outline" 
@@ -310,7 +430,7 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
                   className="flex-1 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                   data-testid={`button-delete-event-${event.id}`}
                 >
-                  <Trash2 className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-4 h-4 mr-1" />
                   Delete
                 </Button>
               </div>
@@ -396,6 +516,117 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
                 {deleteEventMutation.isPending ? "Deleting..." : "Delete Event"}
               </Button>
             </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Attendees Modal - Only render for admins */}
+      {isAdmin && (
+        <Dialog open={showAttendeesModal} onOpenChange={(open) => {
+          setShowAttendeesModal(open);
+          if (!open) {
+            setOrganizationFilter("all");
+            setSearchFilter("");
+          }
+        }}>
+          <DialogContent className="sm:max-w-3xl max-h-[80vh] flex flex-col">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <UsersRound className="w-5 h-5 text-purple-600" />
+                Attendees - {event.title}
+              </DialogTitle>
+              <DialogDescription>
+                {bookingsData?.length || 0} registered attendee{bookingsData?.length !== 1 ? 's' : ''}
+              </DialogDescription>
+            </DialogHeader>
+
+            {/* Filters and Export */}
+            <div className="flex flex-col sm:flex-row gap-3 py-4 border-b">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <Input
+                  placeholder="Search by name, email or organisation..."
+                  value={searchFilter}
+                  onChange={(e) => setSearchFilter(e.target.value)}
+                  className="pl-9"
+                  data-testid="input-attendee-search"
+                />
+              </div>
+              <Select value={organizationFilter} onValueChange={setOrganizationFilter}>
+                <SelectTrigger className="w-full sm:w-[200px]" data-testid="select-organization-filter">
+                  <SelectValue placeholder="Filter by organisation" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Organisations</SelectItem>
+                  {uniqueOrganizations.map(org => (
+                    <SelectItem key={org.id} value={org.id}>{org.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button 
+                variant="outline" 
+                onClick={exportToCSV}
+                disabled={!filteredAttendees.length}
+                data-testid="button-export-csv"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Export CSV
+              </Button>
+            </div>
+
+            {/* Attendees Table */}
+            <div className="flex-1 overflow-auto">
+              {bookingsLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+                </div>
+              ) : filteredAttendees.length === 0 ? (
+                <div className="text-center py-12 text-slate-500">
+                  {bookingsData?.length === 0 ? (
+                    <p>No attendees registered for this event yet.</p>
+                  ) : (
+                    <p>No attendees match your search criteria.</p>
+                  )}
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Organisation</TableHead>
+                      <TableHead>Email</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredAttendees.map((booking, index) => (
+                      <TableRow key={booking.id || index} data-testid={`row-attendee-${booking.id || index}`}>
+                        <TableCell className="font-medium">
+                          {`${booking.attendee_first_name || ''} ${booking.attendee_last_name || ''}`.trim() || '-'}
+                        </TableCell>
+                        <TableCell>
+                          {organizationMap[booking.organization_id] || '-'}
+                        </TableCell>
+                        <TableCell>
+                          <a 
+                            href={`mailto:${booking.attendee_email}`} 
+                            className="text-blue-600 hover:underline"
+                          >
+                            {booking.attendee_email || '-'}
+                          </a>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </div>
+
+            {/* Footer with count */}
+            {filteredAttendees.length > 0 && (
+              <div className="pt-3 border-t text-sm text-slate-500">
+                Showing {filteredAttendees.length} of {bookingsData?.length || 0} attendee{bookingsData?.length !== 1 ? 's' : ''}
+              </div>
+            )}
           </DialogContent>
         </Dialog>
       )}

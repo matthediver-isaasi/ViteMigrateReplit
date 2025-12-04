@@ -51,7 +51,7 @@ Preferred communication style: Simple, everyday language.
 
 **Events & Bookings:** Event (synced from Zoho Backstage or created as one-off), Booking, Program, ProgramTicketTransaction.
 
-**One-Off Events:** Events can be created as "one-off" events (is_one_off=true, program_tag="" empty string) with direct pricing instead of program ticket deduction. Pricing configuration stored in `pricing_config` JSONB column.
+**One-Off Events:** Events can be created as "one-off" events (program_tag="" empty string) with direct pricing instead of program ticket deduction. Visibility is determined solely by `program_tag`: empty/null = one-off event, non-empty = program event. Pricing configuration stored in `pricing_config` JSONB column.
 
 **Role-Based Ticket Classes:** One-off events support multiple ticket classes with role-based access control. The `pricing_config` contains:
 - `ticket_classes`: Array of ticket class objects, each with:

@@ -376,9 +376,8 @@ export default function CreateEvent() {
       title: formData.title,
       description: formData.description || null,
       internal_reference: formData.internal_reference || null,
+      // Visibility is determined by program_tag: empty = one-off event, non-empty = program event
       program_tag: isProgramEvent ? formData.program_tag : "",
-      // Set is_one_off flag based on event type toggle
-      is_one_off: !isProgramEvent,
       start_date: formData.start_date,
       end_date: formData.end_date || formData.start_date,
       location: locationValue,

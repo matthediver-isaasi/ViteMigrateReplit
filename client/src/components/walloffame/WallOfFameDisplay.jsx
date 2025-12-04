@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -27,6 +27,16 @@ export default function WallOfFameDisplay({ sectionId }) {
     },
     enabled: !!sectionId,
   });
+
+  // Auto-select category if there's only one
+  useEffect(() => {
+    if (!categoriesLoading && categories.length === 1 && !selectedCategory) {
+      setSelectedCategory(categories[0]);
+    }
+  }, [categories, categoriesLoading, selectedCategory]);
+
+  // Check if we should show the back button (only when more than one category)
+  const showBackButton = categories.length > 1;
 
   const { data: people = [], isLoading: peopleLoading } = useQuery({
     queryKey: ['wall-of-fame-people', selectedCategory?.id],
@@ -112,16 +122,18 @@ export default function WallOfFameDisplay({ sectionId }) {
         ) : (
           <div>
             <div className="mb-8 text-center">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setSelectedCategory(null);
-                  setFlippedPerson(null);
-                }}
-                className="mb-4"
-              >
-                ← Back to Categories
-              </Button>
+              {showBackButton && (
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setSelectedCategory(null);
+                    setFlippedPerson(null);
+                  }}
+                  className="mb-4"
+                >
+                  ← Back to Categories
+                </Button>
+              )}
               <h3 className="text-2xl font-bold text-slate-900 mb-2">
                 {selectedCategory.name}
               </h3>

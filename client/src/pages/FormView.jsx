@@ -111,7 +111,8 @@ export default function FormViewPage() {
       form_name: form.name,
       submitted_by_email: memberInfo?.email || null,
       submitted_by_name: memberInfo ? `${memberInfo.first_name} ${memberInfo.last_name}` : null,
-      submission_data: formValues
+      submission_data: formValues,
+      created_date: new Date().toISOString()
     };
 
     submitFormMutation.mutate(submissionData);

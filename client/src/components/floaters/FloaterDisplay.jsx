@@ -103,6 +103,7 @@ export default function FloaterDisplay({ location = "portal", memberInfo, organi
         submitted_by_name: memberInfo
           ? `${memberInfo.first_name} ${memberInfo.last_name}`
           : undefined,
+        created_date: new Date().toISOString(),
       };
 
       const { error } = await supabase

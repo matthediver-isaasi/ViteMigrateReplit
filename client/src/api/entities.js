@@ -119,6 +119,7 @@ export const AwardSublevel = base44.entities.AwardSublevel;
 
 export const MemberGroupGuest = base44.entities.MemberGroupGuest;
 
+export const Speaker = base44.entities.Speaker;
 
 
 // auth sdk:

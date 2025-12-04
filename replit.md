@@ -101,6 +101,8 @@ Preferred communication style: Simple, everyday language.
 
 **Content Management:** BlogPost, Resource, NewsPost, IEditPage/IEditPageElement (dynamic page builder).
 
+**Speakers:** Speaker profiles for event assignments. Similar to GuestWriter but email is optional. Managed via `/SpeakerManagement` admin page. Events can have multiple speakers assigned (stored in `speaker_ids` array on Event).
+
 **Configuration:** NavigationItem, PortalMenu, PageBanner, TourGroup/TourStep, SystemSettings.
 
 **Communications:** CommunicationCategory (marketing segment categories), CommunicationCategoryRole (role-based category assignments), MemberCommunicationPreference (member opt-in/opt-out preferences).

@@ -99,4 +99,5 @@ export const PAGE_NAMES = [
   "PageVisibilitySettings",
   "CommunicationsManagement",
   "CustomFieldsAdmin",
+  "SpeakerManagement",
 ];

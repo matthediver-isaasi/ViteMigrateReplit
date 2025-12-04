@@ -6,7 +6,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { User, Mail, Linkedin, Loader2 } from "lucide-react";
 
-export default function WallOfFameDisplay({ sectionId }) {
+export default function WallOfFameDisplay({ 
+  sectionId,
+  customTitle,
+  titleFontFamily = 'Poppins',
+  titleFontWeight = 700,
+  titleFontSize = 32,
+  titleColor = '#1e293b',
+  titleAlign = 'center',
+  cardsPerRow = 4,
+  rowAlign = 'center'
+}) {
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [flippedPerson, setFlippedPerson] = useState(null);
 
@@ -65,6 +75,41 @@ export default function WallOfFameDisplay({ sectionId }) {
 
   const isLoading = sectionLoading || categoriesLoading;
 
+  // Get grid column classes based on cardsPerRow
+  const getGridCols = () => {
+    const cols = parseInt(cardsPerRow) || 4;
+    switch (cols) {
+      case 1: return 'grid-cols-1';
+      case 2: return 'grid-cols-1 sm:grid-cols-2';
+      case 3: return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3';
+      case 4: return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+      case 5: return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5';
+      case 6: return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6';
+      default: return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4';
+    }
+  };
+
+  // Get justify classes based on rowAlign
+  const getRowJustify = () => {
+    switch (rowAlign) {
+      case 'left': return 'justify-start';
+      case 'right': return 'justify-end';
+      case 'center':
+      default: return 'justify-center';
+    }
+  };
+
+  // Get the title to display - use customTitle if set, otherwise category name
+  const getDisplayTitle = () => {
+    if (customTitle && customTitle.trim()) {
+      return customTitle;
+    }
+    if (selectedCategory) {
+      return selectedCategory.name;
+    }
+    return section?.name || '';
+  };
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -81,22 +126,34 @@ export default function WallOfFameDisplay({ sectionId }) {
     );
   }
 
+  // Title style based on props
+  const titleStyle = {
+    fontFamily: titleFontFamily,
+    fontWeight: titleFontWeight,
+    fontSize: `${titleFontSize}px`,
+    color: titleColor,
+    textAlign: titleAlign
+  };
+
   return (
     <div className="py-12">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
-            {section.name}
-          </h2>
-          {section.description && (
-            <p className="text-lg text-slate-600 max-w-3xl mx-auto">
-              {section.description}
-            </p>
-          )}
-        </div>
+        {/* Section header - only show if no category selected OR if multiple categories exist */}
+        {!selectedCategory && (
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
+              {section.name}
+            </h2>
+            {section.description && (
+              <p className="text-lg text-slate-600 max-w-3xl mx-auto">
+                {section.description}
+              </p>
+            )}
+          </div>
+        )}
 
         {!selectedCategory ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className={`grid ${getGridCols()} gap-6`}>
             {categories.map(category => (
               <Card
                 key={category.id}
@@ -121,24 +178,27 @@ export default function WallOfFameDisplay({ sectionId }) {
           </div>
         ) : (
           <div>
-            <div className="mb-8 text-center">
+            <div className="mb-8" style={{ textAlign: titleAlign }}>
               {showBackButton && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setSelectedCategory(null);
-                    setFlippedPerson(null);
-                  }}
-                  className="mb-4"
-                >
-                  ← Back to Categories
-                </Button>
+                <div className="mb-4" style={{ textAlign: titleAlign }}>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setSelectedCategory(null);
+                      setFlippedPerson(null);
+                    }}
+                  >
+                    ← Back to Categories
+                  </Button>
+                </div>
               )}
-              <h3 className="text-2xl font-bold text-slate-900 mb-2">
-                {selectedCategory.name}
+              <h3 style={titleStyle} className="mb-2">
+                {getDisplayTitle()}
               </h3>
               {selectedCategory.description && (
-                <p className="text-slate-600">{selectedCategory.description}</p>
+                <p className="text-slate-600" style={{ textAlign: titleAlign }}>
+                  {selectedCategory.description}
+                </p>
               )}
             </div>
 
@@ -147,12 +207,17 @@ export default function WallOfFameDisplay({ sectionId }) {
                 <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className={`flex flex-wrap ${getRowJustify()} gap-6`}>
                 {people.map(person => (
                   <div
                     key={person.id}
                     className="perspective-1000"
-                    style={{ perspective: '1000px' }}
+                    style={{ 
+                      perspective: '1000px',
+                      width: `calc(${100 / (parseInt(cardsPerRow) || 4)}% - 1.5rem)`,
+                      minWidth: '280px',
+                      maxWidth: '320px'
+                    }}
                   >
                     <div
                       className={`relative w-full h-96 transition-all duration-700 cursor-pointer transform-style-3d ${

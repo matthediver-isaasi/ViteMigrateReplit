@@ -1527,7 +1527,7 @@ export default function PreferencesPage() {
                   <div className="flex items-center gap-2 mb-4">
                     <Users className="w-5 h-5 text-blue-600" />
                     <h3 className="text-sm font-semibold text-slate-900">
-                      Your Groups
+                      Groups
                     </h3>
                     <Badge variant="secondary">
                       {groupAssignments.length}
@@ -1574,7 +1574,7 @@ export default function PreferencesPage() {
                   <div className="flex items-center gap-2 mb-4">
                     <Trophy className="w-5 h-5 text-amber-600" />
                     <h3 className="text-sm font-semibold text-slate-900">
-                      Your Awards
+                      Awards
                     </h3>
                     <Badge variant="secondary">
                       {earnedOnlineAwards.length + earnedOfflineAwards.length}

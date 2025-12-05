@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import AGCASButton from "../../ui/AGCASButton";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 export default function IEditImagePanelElement({ content, variant, settings }) {
   const {
@@ -752,7 +753,35 @@ export function IEditImagePanelElementEditor({ element, onChange }) {
                           placeholder="Enter header text..."
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      
+                      <TypographyStyleSelector
+                        value={panel.header_typography_style_id}
+                        onChange={(styleId) => updatePanel(index, 'header_typography_style_id', styleId)}
+                        onApplyStyle={(style) => {
+                          const styleProps = applyTypographyStyle(style);
+                          const updates = {};
+                          if (styleProps.font_family) updates.header_font_family = styleProps.font_family;
+                          if (styleProps.font_size) updates.header_font_size = styleProps.font_size;
+                          if (styleProps.font_weight) updates.header_font_weight = styleProps.font_weight;
+                          if (styleProps.line_height) updates.header_line_height = styleProps.line_height;
+                          if (styleProps.letter_spacing !== undefined) updates.header_letter_spacing = styleProps.letter_spacing;
+                          if (styleProps.color) updates.header_color = styleProps.color;
+                          
+                          const newPanels = [...panels];
+                          if (!newPanels[index]) newPanels[index] = { ...defaultPanel };
+                          newPanels[index] = { ...newPanels[index], ...updates, header_typography_style_id: style.id };
+                          updateContent('panels', newPanels);
+                        }}
+                        filterTypes={['h1', 'h2', 'h3', 'h4']}
+                        label="Apply Typography Style"
+                        placeholder="Select a heading style..."
+                      />
+                      
+                      <details className="text-xs">
+                        <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">
+                          Manual Font Settings
+                        </summary>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-xs font-medium mb-1">Font</label>
                           <select
@@ -813,7 +842,9 @@ export function IEditImagePanelElementEditor({ element, onChange }) {
                             min="0.8"
                           />
                         </div>
-                      </div>
+                        </div>
+                      </details>
+                      
                       <div>
                         <label className="block text-xs font-medium mb-1">Alignment</label>
                         <select
@@ -842,7 +873,35 @@ export function IEditImagePanelElementEditor({ element, onChange }) {
                           placeholder="Enter bottom text..."
                         />
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
+                      
+                      <TypographyStyleSelector
+                        value={panel.bottom_typography_style_id}
+                        onChange={(styleId) => updatePanel(index, 'bottom_typography_style_id', styleId)}
+                        onApplyStyle={(style) => {
+                          const styleProps = applyTypographyStyle(style);
+                          const updates = {};
+                          if (styleProps.font_family) updates.bottom_font_family = styleProps.font_family;
+                          if (styleProps.font_size) updates.bottom_font_size = styleProps.font_size;
+                          if (styleProps.font_weight) updates.bottom_font_weight = styleProps.font_weight;
+                          if (styleProps.line_height) updates.bottom_line_height = styleProps.line_height;
+                          if (styleProps.letter_spacing !== undefined) updates.bottom_letter_spacing = styleProps.letter_spacing;
+                          if (styleProps.color) updates.bottom_color = styleProps.color;
+                          
+                          const newPanels = [...panels];
+                          if (!newPanels[index]) newPanels[index] = { ...defaultPanel };
+                          newPanels[index] = { ...newPanels[index], ...updates, bottom_typography_style_id: style.id };
+                          updateContent('panels', newPanels);
+                        }}
+                        filterTypes={['paragraph', 'h3', 'h4']}
+                        label="Apply Typography Style"
+                        placeholder="Select a text style..."
+                      />
+                      
+                      <details className="text-xs">
+                        <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">
+                          Manual Font Settings
+                        </summary>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
                         <div>
                           <label className="block text-xs font-medium mb-1">Font</label>
                           <select
@@ -903,7 +962,9 @@ export function IEditImagePanelElementEditor({ element, onChange }) {
                             min="0.8"
                           />
                         </div>
-                      </div>
+                        </div>
+                      </details>
+                      
                       <div>
                         <label className="block text-xs font-medium mb-1">Alignment</label>
                         <select

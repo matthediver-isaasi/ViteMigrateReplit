@@ -1,5 +1,6 @@
 import { useState, useEffect, useId } from "react";
 import AGCASButton from "../../ui/AGCASButton";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 export default function IEditHeroElement({ content, variant, settings }) {
   const {
@@ -786,43 +787,66 @@ export function IEditHeroElementEditor({ element, onChange }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">Heading Font</label>
-          <select
-            value={content.heading_font_family || 'Poppins'}
-            onChange={(e) => updateContent('heading_font_family', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-          >
-            <option value="Poppins">Poppins</option>
-            <option value="Degular Medium">Degular Medium</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Heading Size (px)</label>
-          <input
-            type="number"
-            value={content.heading_font_size || 48}
-            onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value) || 48)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="12"
-            max="200"
-          />
-        </div>
-      </div>
+      <TypographyStyleSelector
+        value={content.heading_typography_style_id}
+        onChange={(styleId) => updateContent('heading_typography_style_id', styleId)}
+        onApplyStyle={(style) => {
+          const mapped = applyTypographyStyle(style);
+          const updates = {};
+          if (mapped.font_family) updates.heading_font_family = mapped.font_family;
+          if (mapped.font_size) updates.heading_font_size = mapped.font_size;
+          if (mapped.font_size_mobile) updates.heading_font_size_mobile = mapped.font_size_mobile;
+          if (mapped.letter_spacing !== undefined) updates.heading_letter_spacing = mapped.letter_spacing;
+          if (mapped.line_height) updates.heading_line_height = mapped.line_height;
+          if (mapped.text_transform) updates.heading_text_transform = mapped.text_transform;
+          Object.keys(updates).forEach(key => updateContent(key, updates[key]));
+        }}
+        filterTypes={['h1', 'h2']}
+        label="Heading Typography Style"
+      />
 
-      <div>
-        <label className="block text-sm font-medium mb-1">Heading Letter Spacing (px)</label>
-        <input
-          type="number"
-          step="0.5"
-          value={content.heading_letter_spacing || 0}
-          onChange={(e) => updateContent('heading_letter_spacing', parseFloat(e.target.value) || 0)}
-          className="w-full px-3 py-2 border border-slate-300 rounded-md"
-          min="-5"
-          max="20"
-        />
-      </div>
+      <details className="text-xs">
+        <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+        <div className="mt-3 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Heading Font</label>
+              <select
+                value={content.heading_font_family || 'Poppins'}
+                onChange={(e) => updateContent('heading_font_family', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              >
+                <option value="Poppins">Poppins</option>
+                <option value="Degular Medium">Degular Medium</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Heading Size (px)</label>
+              <input
+                type="number"
+                value={content.heading_font_size || 48}
+                onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value) || 48)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                min="12"
+                max="200"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Heading Letter Spacing (px)</label>
+            <input
+              type="number"
+              step="0.5"
+              value={content.heading_letter_spacing || 0}
+              onChange={(e) => updateContent('heading_letter_spacing', parseFloat(e.target.value) || 0)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              min="-5"
+              max="20"
+            />
+          </div>
+        </div>
+      </details>
 
       <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
         <div className="flex items-center gap-2">
@@ -914,54 +938,76 @@ export function IEditHeroElementEditor({ element, onChange }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">Subheading Font</label>
-          <select
-            value={content.subheading_font_family || 'Poppins'}
-            onChange={(e) => updateContent('subheading_font_family', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-          >
-            <option value="Poppins">Poppins</option>
-            <option value="Degular Medium">Degular Medium</option>
-          </select>
+      <TypographyStyleSelector
+        value={content.subheading_typography_style_id}
+        onChange={(styleId) => updateContent('subheading_typography_style_id', styleId)}
+        onApplyStyle={(style) => {
+          const mapped = applyTypographyStyle(style);
+          const updates = {};
+          if (mapped.font_family) updates.subheading_font_family = mapped.font_family;
+          if (mapped.font_size) updates.subheading_font_size = mapped.font_size;
+          if (mapped.font_size_mobile) updates.subheading_font_size_mobile = mapped.font_size_mobile;
+          if (mapped.line_height) updates.subheading_line_height = mapped.line_height;
+          if (mapped.letter_spacing !== undefined) updates.subheading_letter_spacing = mapped.letter_spacing;
+          Object.keys(updates).forEach(key => updateContent(key, updates[key]));
+        }}
+        filterTypes={['h3', 'h4', 'paragraph']}
+        label="Subheading Typography Style"
+      />
+
+      <details className="text-xs">
+        <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+        <div className="mt-3 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Subheading Font</label>
+              <select
+                value={content.subheading_font_family || 'Poppins'}
+                onChange={(e) => updateContent('subheading_font_family', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              >
+                <option value="Poppins">Poppins</option>
+                <option value="Degular Medium">Degular Medium</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Size (px)</label>
+              <input
+                type="number"
+                value={content.subheading_font_size || 20}
+                onChange={(e) => updateContent('subheading_font_size', parseInt(e.target.value) || 20)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                min="12"
+                max="100"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Line Height</label>
+              <input
+                type="number"
+                step="0.1"
+                value={content.subheading_line_height || 1.5}
+                onChange={(e) => updateContent('subheading_line_height', parseFloat(e.target.value) || 1.5)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                min="1"
+                max="3"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Letter Spacing (px)</label>
+              <input
+                type="number"
+                step="0.5"
+                value={content.subheading_letter_spacing || 0}
+                onChange={(e) => updateContent('subheading_letter_spacing', parseFloat(e.target.value) || 0)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                min="-5"
+                max="20"
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Size (px)</label>
-          <input
-            type="number"
-            value={content.subheading_font_size || 20}
-            onChange={(e) => updateContent('subheading_font_size', parseInt(e.target.value) || 20)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="12"
-            max="100"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Line Height</label>
-          <input
-            type="number"
-            step="0.1"
-            value={content.subheading_line_height || 1.5}
-            onChange={(e) => updateContent('subheading_line_height', parseFloat(e.target.value) || 1.5)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="1"
-            max="3"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Letter Spacing (px)</label>
-          <input
-            type="number"
-            step="0.5"
-            value={content.subheading_letter_spacing || 0}
-            onChange={(e) => updateContent('subheading_letter_spacing', parseFloat(e.target.value) || 0)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="-5"
-            max="20"
-          />
-        </div>
-      </div>
+      </details>
 
       {/* Content Section */}
       <div className="border-t pt-4 mt-4">
@@ -978,103 +1024,128 @@ export function IEditHeroElementEditor({ element, onChange }) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <div>
-            <label className="block text-sm font-medium mb-1">Content Font</label>
-            <select
-              value={content.content_font_family || 'Poppins'}
-              onChange={(e) => updateContent('content_font_family', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            >
-              <option value="Poppins">Poppins</option>
-              <option value="Degular Medium">Degular Medium</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Size (px)</label>
-            <input
-              type="number"
-              value={content.content_font_size || 16}
-              onChange={(e) => updateContent('content_font_size', parseInt(e.target.value) || 16)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md"
-              min="12"
-              max="100"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Line Height</label>
-            <input
-              type="number"
-              step="0.1"
-              value={content.content_line_height || 1.6}
-              onChange={(e) => updateContent('content_line_height', parseFloat(e.target.value) || 1.6)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md"
-              min="1"
-              max="3"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Letter Spacing (px)</label>
-            <input
-              type="number"
-              step="0.5"
-              value={content.content_letter_spacing || 0}
-              onChange={(e) => updateContent('content_letter_spacing', parseFloat(e.target.value) || 0)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md"
-              min="-5"
-              max="20"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Top Margin (px)</label>
-            <input
-              type="number"
-              value={content.content_top_margin || 24}
-              onChange={(e) => updateContent('content_top_margin', parseInt(e.target.value) || 24)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md"
-              min="0"
-              max="200"
-            />
-            <p className="text-xs text-slate-500 mt-1">Space above content</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Content Color</label>
-            <div className="flex items-center gap-2 mb-1">
-              <input
-                type="checkbox"
-                id="content-use-text-color"
-                checked={!content.content_color}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    updateContent('content_color', '');
-                  } else {
-                    updateContent('content_color', content.text_color || '#ffffff');
-                  }
-                }}
-                className="w-4 h-4"
-              />
-              <label htmlFor="content-use-text-color" className="text-xs cursor-pointer">
-                Use main text color
-              </label>
-            </div>
-            {content.content_color && (
-              <div className="flex gap-2 items-center">
+        <div className="mt-3">
+          <TypographyStyleSelector
+            value={content.content_typography_style_id}
+            onChange={(styleId) => updateContent('content_typography_style_id', styleId)}
+            onApplyStyle={(style) => {
+              const mapped = applyTypographyStyle(style);
+              const updates = {};
+              if (mapped.font_family) updates.content_font_family = mapped.font_family;
+              if (mapped.font_size) updates.content_font_size = mapped.font_size;
+              if (mapped.font_size_mobile) updates.content_font_size_mobile = mapped.font_size_mobile;
+              if (mapped.line_height) updates.content_line_height = mapped.line_height;
+              if (mapped.letter_spacing !== undefined) updates.content_letter_spacing = mapped.letter_spacing;
+              if (mapped.color) updates.content_color = mapped.color;
+              Object.keys(updates).forEach(key => updateContent(key, updates[key]));
+            }}
+            filterTypes={['paragraph']}
+            label="Content Typography Style"
+          />
+        </div>
+
+        <details className="text-xs mt-3">
+          <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+          <div className="mt-3 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Content Font</label>
+                <select
+                  value={content.content_font_family || 'Poppins'}
+                  onChange={(e) => updateContent('content_font_family', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                >
+                  <option value="Poppins">Poppins</option>
+                  <option value="Degular Medium">Degular Medium</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Size (px)</label>
                 <input
-                  type="color"
-                  value={content.content_color}
-                  onChange={(e) => updateContent('content_color', e.target.value)}
-                  className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={content.content_color}
-                  onChange={(e) => updateContent('content_color', e.target.value)}
-                  className="flex-1 px-2 py-1.5 border border-slate-300 rounded-md font-mono text-sm"
+                  type="number"
+                  value={content.content_font_size || 16}
+                  onChange={(e) => updateContent('content_font_size', parseInt(e.target.value) || 16)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="12"
+                  max="100"
                 />
               </div>
-            )}
+              <div>
+                <label className="block text-sm font-medium mb-1">Line Height</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  value={content.content_line_height || 1.6}
+                  onChange={(e) => updateContent('content_line_height', parseFloat(e.target.value) || 1.6)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="1"
+                  max="3"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Letter Spacing (px)</label>
+                <input
+                  type="number"
+                  step="0.5"
+                  value={content.content_letter_spacing || 0}
+                  onChange={(e) => updateContent('content_letter_spacing', parseFloat(e.target.value) || 0)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="-5"
+                  max="20"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Top Margin (px)</label>
+                <input
+                  type="number"
+                  value={content.content_top_margin || 24}
+                  onChange={(e) => updateContent('content_top_margin', parseInt(e.target.value) || 24)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="0"
+                  max="200"
+                />
+                <p className="text-xs text-slate-500 mt-1">Space above content</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Content Color</label>
+                <div className="flex items-center gap-2 mb-1">
+                  <input
+                    type="checkbox"
+                    id="content-use-text-color"
+                    checked={!content.content_color}
+                    onChange={(e) => {
+                      if (e.target.checked) {
+                        updateContent('content_color', '');
+                      } else {
+                        updateContent('content_color', content.text_color || '#ffffff');
+                      }
+                    }}
+                    className="w-4 h-4"
+                  />
+                  <label htmlFor="content-use-text-color" className="text-xs cursor-pointer">
+                    Use main text color
+                  </label>
+                </div>
+                {content.content_color && (
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={content.content_color}
+                      onChange={(e) => updateContent('content_color', e.target.value)}
+                      className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={content.content_color}
+                      onChange={(e) => updateContent('content_color', e.target.value)}
+                      className="flex-1 px-2 py-1.5 border border-slate-300 rounded-md font-mono text-sm"
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        </details>
       </div>
 
       <div>

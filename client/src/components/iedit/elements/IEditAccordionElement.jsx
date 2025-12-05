@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ChevronDown, ChevronUp, Plus, Trash2, GripVertical } from "lucide-react";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 const fontFamilies = [
   'Poppins',
@@ -130,61 +131,82 @@ export function IEditAccordionElementEditor({ element, onChange }) {
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Title Font Family</Label>
-              <select
-                value={content.header_font_family || 'Poppins'}
-                onChange={(e) => updateContent('header_font_family', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontFamilies.map(font => (
-                  <option key={font} value={font}>{font}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Title Font Weight</Label>
-              <select
-                value={content.header_font_weight || 700}
-                onChange={(e) => updateContent('header_font_weight', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontWeights.map(weight => (
-                  <option key={weight.value} value={weight.value}>{weight.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <TypographyStyleSelector
+            value={content.header_typography_style_id}
+            onChange={(styleId) => updateContent('header_typography_style_id', styleId)}
+            onApplyStyle={(style) => {
+              const styleProps = applyTypographyStyle(style);
+              if (styleProps.font_family) updateContent('header_font_family', styleProps.font_family);
+              if (styleProps.font_size) updateContent('header_font_size', styleProps.font_size);
+              if (styleProps.font_size_mobile) updateContent('header_font_size_mobile', styleProps.font_size_mobile);
+              if (styleProps.font_weight) updateContent('header_font_weight', styleProps.font_weight);
+              if (styleProps.color) updateContent('header_color', styleProps.color);
+              updateContent('header_typography_style_id', style.id);
+            }}
+            filterTypes={['h1', 'h2', 'h3']}
+            label="Title Typography Style"
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Title Font Size (px)</Label>
-              <Input
-                type="number"
-                value={content.header_font_size || 32}
-                onChange={(e) => updateContent('header_font_size', parseInt(e.target.value) || 32)}
-                min="12"
-                max="96"
-              />
-            </div>
-            <div>
-              <Label>Title Color</Label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="color"
-                  value={content.header_color || '#1e293b'}
-                  onChange={(e) => updateContent('header_color', e.target.value)}
-                  className="w-12 h-9 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-                />
-                <Input
-                  value={content.header_color || '#1e293b'}
-                  onChange={(e) => updateContent('header_color', e.target.value)}
-                  className="flex-1 font-mono text-xs"
-                />
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Title Font Family</Label>
+                  <select
+                    value={content.header_font_family || 'Poppins'}
+                    onChange={(e) => updateContent('header_font_family', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontFamilies.map(font => (
+                      <option key={font} value={font}>{font}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>Title Font Weight</Label>
+                  <select
+                    value={content.header_font_weight || 700}
+                    onChange={(e) => updateContent('header_font_weight', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontWeights.map(weight => (
+                      <option key={weight.value} value={weight.value}>{weight.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Title Font Size (px)</Label>
+                  <Input
+                    type="number"
+                    value={content.header_font_size || 32}
+                    onChange={(e) => updateContent('header_font_size', parseInt(e.target.value) || 32)}
+                    min="12"
+                    max="96"
+                  />
+                </div>
+                <div>
+                  <Label>Title Color</Label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={content.header_color || '#1e293b'}
+                      onChange={(e) => updateContent('header_color', e.target.value)}
+                      className="w-12 h-9 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                    />
+                    <Input
+                      value={content.header_color || '#1e293b'}
+                      onChange={(e) => updateContent('header_color', e.target.value)}
+                      className="flex-1 font-mono text-xs"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </details>
 
           <div>
             <Label>Header Alignment</Label>

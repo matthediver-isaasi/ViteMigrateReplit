@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 function CardSlotEditor({ index, card, onUpdate }) {
   // Fetch article display name setting
@@ -274,223 +275,265 @@ export function IEditShowcaseElementEditor({ element, onChange }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label htmlFor="heading_font_family">Heading Font</Label>
-          <Select
-            value={content.heading_font_family || 'Poppins'}
-            onValueChange={(value) => updateContent('heading_font_family', value)}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Poppins">Poppins</SelectItem>
-              <SelectItem value="Degular Medium">Degular Medium</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="heading_font_size">Heading Size (px)</Label>
-          <Input
-            id="heading_font_size"
-            type="number"
-            value={content.heading_font_size || 48}
-            onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value) || 48)}
-            min="12"
-            max="200"
-          />
-        </div>
-      </div>
+      <TypographyStyleSelector
+        value={content.heading_typography_style_id}
+        onChange={(styleId) => updateContent('heading_typography_style_id', styleId)}
+        onApplyStyle={(style) => {
+          const styleProps = applyTypographyStyle(style);
+          const updates = {};
+          if (styleProps.font_family) updates.heading_font_family = styleProps.font_family;
+          if (styleProps.font_size) updates.heading_font_size = styleProps.font_size;
+          if (styleProps.font_size_mobile) updates.heading_font_size_mobile = styleProps.font_size_mobile;
+          if (styleProps.letter_spacing !== undefined) updates.heading_letter_spacing = styleProps.letter_spacing;
+          Object.keys(updates).forEach(key => updateContent(key, updates[key]));
+        }}
+        filterTypes={['h1', 'h2']}
+        label="Heading Typography Style"
+      />
 
-      <div>
-        <Label htmlFor="heading_letter_spacing">Heading Letter Spacing (px)</Label>
-        <Input
-          id="heading_letter_spacing"
-          type="number"
-          step="0.5"
-          value={content.heading_letter_spacing || 0}
-          onChange={(e) => updateContent('heading_letter_spacing', parseFloat(e.target.value) || 0)}
-          min="-5"
-          max="20"
-        />
-      </div>
-
-      <div>
-        <Label htmlFor="heading_color">Heading Color</Label>
-        <div className="flex gap-2">
-          <input
-            id="heading_color"
-            type="color"
-            value={content.heading_color || '#0f172a'}
-            onChange={(e) => updateContent('heading_color', e.target.value)}
-            className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-          />
-          <Input
-            value={content.heading_color || '#0f172a'}
-            onChange={(e) => updateContent('heading_color', e.target.value)}
-            placeholder="#0f172a"
-            className="flex-1"
-          />
-        </div>
-      </div>
-
-      <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
-        <div className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            id="heading_underline_enabled"
-            checked={content.heading_underline_enabled || false}
-            onChange={(e) => updateContent('heading_underline_enabled', e.target.checked)}
-            className="w-4 h-4"
-          />
-          <Label htmlFor="heading_underline_enabled" className="cursor-pointer">
-            Show line below heading
-          </Label>
-        </div>
-
-        {content.heading_underline_enabled && (
-          <>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="heading_underline_color">Line Color</Label>
-                <input
-                  id="heading_underline_color"
-                  type="color"
-                  value={content.heading_underline_color || '#000000'}
-                  onChange={(e) => updateContent('heading_underline_color', e.target.value)}
-                  className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-                />
-              </div>
-              <div>
-                <Label htmlFor="heading_underline_width">Line Width (px)</Label>
-                <Input
-                  id="heading_underline_width"
-                  type="number"
-                  value={content.heading_underline_width || 100}
-                  onChange={(e) => updateContent('heading_underline_width', parseInt(e.target.value) || 0)}
-                  min="10"
-                  max="1000"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <Label htmlFor="heading_underline_weight">Line Weight (px)</Label>
-                <Input
-                  id="heading_underline_weight"
-                  type="number"
-                  value={content.heading_underline_weight || 2}
-                  onChange={(e) => updateContent('heading_underline_weight', parseInt(e.target.value) || 1)}
-                  min="1"
-                  max="20"
-                />
-              </div>
-              <div>
-                <Label htmlFor="heading_underline_spacing">Spacing from Header (px)</Label>
-                <Input
-                  id="heading_underline_spacing"
-                  type="number"
-                  value={content.heading_underline_spacing || 16}
-                  onChange={(e) => updateContent('heading_underline_spacing', parseInt(e.target.value) || 0)}
-                  min="0"
-                  max="100"
-                />
-              </div>
-            </div>
-
+      <details className="text-xs">
+        <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+        <div className="space-y-4 mt-3">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label htmlFor="heading_underline_alignment">Line Alignment</Label>
+              <Label htmlFor="heading_font_family">Heading Font</Label>
               <Select
-                value={content.heading_underline_alignment || 'center'}
-                onValueChange={(value) => updateContent('heading_underline_alignment', value)}
+                value={content.heading_font_family || 'Poppins'}
+                onValueChange={(value) => updateContent('heading_font_family', value)}
               >
                 <SelectTrigger className="h-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="left">Left</SelectItem>
-                  <SelectItem value="center">Center</SelectItem>
-                  <SelectItem value="right">Right</SelectItem>
+                  <SelectItem value="Poppins">Poppins</SelectItem>
+                  <SelectItem value="Degular Medium">Degular Medium</SelectItem>
                 </SelectContent>
               </Select>
             </div>
-
             <div>
-              <Label htmlFor="heading_underline_to_content_spacing">Spacing to Content (px)</Label>
+              <Label htmlFor="heading_font_size">Heading Size (px)</Label>
               <Input
-                id="heading_underline_to_content_spacing"
+                id="heading_font_size"
                 type="number"
-                value={content.heading_underline_to_content_spacing || 24}
-                onChange={(e) => updateContent('heading_underline_to_content_spacing', parseInt(e.target.value) || 0)}
-                min="0"
+                value={content.heading_font_size || 48}
+                onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value) || 48)}
+                min="12"
+                max="200"
+              />
+            </div>
+          </div>
+
+          <div>
+            <Label htmlFor="heading_letter_spacing">Heading Letter Spacing (px)</Label>
+            <Input
+              id="heading_letter_spacing"
+              type="number"
+              step="0.5"
+              value={content.heading_letter_spacing || 0}
+              onChange={(e) => updateContent('heading_letter_spacing', parseFloat(e.target.value) || 0)}
+              min="-5"
+              max="20"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="heading_color">Heading Color</Label>
+            <div className="flex gap-2">
+              <input
+                id="heading_color"
+                type="color"
+                value={content.heading_color || '#0f172a'}
+                onChange={(e) => updateContent('heading_color', e.target.value)}
+                className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+              />
+              <Input
+                value={content.heading_color || '#0f172a'}
+                onChange={(e) => updateContent('heading_color', e.target.value)}
+                placeholder="#0f172a"
+                className="flex-1"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="heading_underline_enabled"
+                checked={content.heading_underline_enabled || false}
+                onChange={(e) => updateContent('heading_underline_enabled', e.target.checked)}
+                className="w-4 h-4"
+              />
+              <Label htmlFor="heading_underline_enabled" className="cursor-pointer">
+                Show line below heading
+              </Label>
+            </div>
+
+            {content.heading_underline_enabled && (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="heading_underline_color">Line Color</Label>
+                    <input
+                      id="heading_underline_color"
+                      type="color"
+                      value={content.heading_underline_color || '#000000'}
+                      onChange={(e) => updateContent('heading_underline_color', e.target.value)}
+                      className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="heading_underline_width">Line Width (px)</Label>
+                    <Input
+                      id="heading_underline_width"
+                      type="number"
+                      value={content.heading_underline_width || 100}
+                      onChange={(e) => updateContent('heading_underline_width', parseInt(e.target.value) || 0)}
+                      min="10"
+                      max="1000"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <Label htmlFor="heading_underline_weight">Line Weight (px)</Label>
+                    <Input
+                      id="heading_underline_weight"
+                      type="number"
+                      value={content.heading_underline_weight || 2}
+                      onChange={(e) => updateContent('heading_underline_weight', parseInt(e.target.value) || 1)}
+                      min="1"
+                      max="20"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="heading_underline_spacing">Spacing from Header (px)</Label>
+                    <Input
+                      id="heading_underline_spacing"
+                      type="number"
+                      value={content.heading_underline_spacing || 16}
+                      onChange={(e) => updateContent('heading_underline_spacing', parseInt(e.target.value) || 0)}
+                      min="0"
+                      max="100"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="heading_underline_alignment">Line Alignment</Label>
+                  <Select
+                    value={content.heading_underline_alignment || 'center'}
+                    onValueChange={(value) => updateContent('heading_underline_alignment', value)}
+                  >
+                    <SelectTrigger className="h-9">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="left">Left</SelectItem>
+                      <SelectItem value="center">Center</SelectItem>
+                      <SelectItem value="right">Right</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label htmlFor="heading_underline_to_content_spacing">Spacing to Content (px)</Label>
+                  <Input
+                    id="heading_underline_to_content_spacing"
+                    type="number"
+                    value={content.heading_underline_to_content_spacing || 24}
+                    onChange={(e) => updateContent('heading_underline_to_content_spacing', parseInt(e.target.value) || 0)}
+                    min="0"
+                    max="100"
+                  />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      </details>
+
+      <TypographyStyleSelector
+        value={content.subheading_typography_style_id}
+        onChange={(styleId) => updateContent('subheading_typography_style_id', styleId)}
+        onApplyStyle={(style) => {
+          const styleProps = applyTypographyStyle(style);
+          const updates = {};
+          if (styleProps.font_family) updates.subheading_font_family = styleProps.font_family;
+          if (styleProps.font_size) updates.subheading_font_size = styleProps.font_size;
+          if (styleProps.font_size_mobile) updates.subheading_font_size_mobile = styleProps.font_size_mobile;
+          if (styleProps.line_height !== undefined) updates.subheading_line_height = styleProps.line_height;
+          Object.keys(updates).forEach(key => updateContent(key, updates[key]));
+        }}
+        filterTypes={['h3', 'h4', 'paragraph']}
+        label="Subheading Typography Style"
+      />
+
+      <details className="text-xs">
+        <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+        <div className="space-y-4 mt-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label htmlFor="subheading_font_family">Description Font</Label>
+              <Select
+                value={content.subheading_font_family || 'Poppins'}
+                onValueChange={(value) => updateContent('subheading_font_family', value)}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Poppins">Poppins</SelectItem>
+                  <SelectItem value="Degular Medium">Degular Medium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="subheading_font_size">Size (px)</Label>
+              <Input
+                id="subheading_font_size"
+                type="number"
+                value={content.subheading_font_size || 20}
+                onChange={(e) => updateContent('subheading_font_size', parseInt(e.target.value) || 20)}
+                min="12"
                 max="100"
               />
             </div>
-          </>
-        )}
-      </div>
+            <div>
+              <Label htmlFor="subheading_line_height">Line Height</Label>
+              <Input
+                id="subheading_line_height"
+                type="number"
+                step="0.1"
+                value={content.subheading_line_height || 1.5}
+                onChange={(e) => updateContent('subheading_line_height', parseFloat(e.target.value) || 1.5)}
+                min="1"
+                max="3"
+              />
+            </div>
+          </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <Label htmlFor="subheading_font_family">Description Font</Label>
-          <Select
-            value={content.subheading_font_family || 'Poppins'}
-            onValueChange={(value) => updateContent('subheading_font_family', value)}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Poppins">Poppins</SelectItem>
-              <SelectItem value="Degular Medium">Degular Medium</SelectItem>
-            </SelectContent>
-          </Select>
+          <div>
+            <Label htmlFor="description_color">Description Color</Label>
+            <div className="flex gap-2">
+              <input
+                id="description_color"
+                type="color"
+                value={content.description_color || '#475569'}
+                onChange={(e) => updateContent('description_color', e.target.value)}
+                className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+              />
+              <Input
+                value={content.description_color || '#475569'}
+                onChange={(e) => updateContent('description_color', e.target.value)}
+                placeholder="#475569"
+                className="flex-1"
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <Label htmlFor="subheading_font_size">Size (px)</Label>
-          <Input
-            id="subheading_font_size"
-            type="number"
-            value={content.subheading_font_size || 20}
-            onChange={(e) => updateContent('subheading_font_size', parseInt(e.target.value) || 20)}
-            min="12"
-            max="100"
-          />
-        </div>
-        <div>
-          <Label htmlFor="subheading_line_height">Line Height</Label>
-          <Input
-            id="subheading_line_height"
-            type="number"
-            step="0.1"
-            value={content.subheading_line_height || 1.5}
-            onChange={(e) => updateContent('subheading_line_height', parseFloat(e.target.value) || 1.5)}
-            min="1"
-            max="3"
-          />
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor="description_color">Description Color</Label>
-        <div className="flex gap-2">
-          <input
-            id="description_color"
-            type="color"
-            value={content.description_color || '#475569'}
-            onChange={(e) => updateContent('description_color', e.target.value)}
-            className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-          />
-          <Input
-            value={content.description_color || '#475569'}
-            onChange={(e) => updateContent('description_color', e.target.value)}
-            placeholder="#475569"
-            className="flex-1"
-          />
-        </div>
-      </div>
+      </details>
 
       <div>
         <Label htmlFor="text_align">Header Text Alignment</Label>

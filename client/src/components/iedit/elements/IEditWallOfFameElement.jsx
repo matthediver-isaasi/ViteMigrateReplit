@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import WallOfFameDisplay from "../../walloffame/WallOfFameDisplay";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 export function IEditWallOfFameElementEditor({ element, onChange }) {
   const [isUploading, setIsUploading] = useState(false);
@@ -331,62 +332,89 @@ export function IEditWallOfFameElementEditor({ element, onChange }) {
             </p>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Font Family</Label>
-              <select
-                value={content.title_font_family || 'Poppins'}
-                onChange={(e) => updateContent('title_font_family', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontFamilies.map(font => (
-                  <option key={font} value={font}>{font}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Font Weight</Label>
-              <select
-                value={content.title_font_weight || 700}
-                onChange={(e) => updateContent('title_font_weight', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontWeights.map(weight => (
-                  <option key={weight.value} value={weight.value}>{weight.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <TypographyStyleSelector
+            value={content.title_typography_style_id}
+            onChange={(styleId) => updateContent('title_typography_style_id', styleId)}
+            onApplyStyle={(style) => {
+              const styleProps = applyTypographyStyle(style);
+              onChange({
+                ...element,
+                content: {
+                  ...content,
+                  title_typography_style_id: style.id,
+                  title_font_family: styleProps.font_family,
+                  title_font_size: styleProps.font_size,
+                  title_font_weight: styleProps.font_weight,
+                  ...(styleProps.color ? { title_color: styleProps.color } : {})
+                }
+              });
+            }}
+            filterTypes={['h1', 'h2', 'h3', 'h4']}
+            label="Title Typography Style"
+            placeholder="Select a heading style..."
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Font Size (px)</Label>
-              <Input
-                type="number"
-                value={content.title_font_size || 32}
-                onChange={(e) => updateContent('title_font_size', parseInt(e.target.value) || 32)}
-                min="12"
-                max="96"
-              />
-            </div>
-            <div>
-              <Label>Text Color</Label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="color"
-                  value={content.title_color || '#1e293b'}
-                  onChange={(e) => updateContent('title_color', e.target.value)}
-                  className="w-12 h-9 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-                />
-                <Input
-                  value={content.title_color || '#1e293b'}
-                  onChange={(e) => updateContent('title_color', e.target.value)}
-                  className="flex-1 font-mono text-xs"
-                  placeholder="#1e293b"
-                />
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+            <div className="space-y-3 mt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Font Family</Label>
+                  <select
+                    value={content.title_font_family || 'Poppins'}
+                    onChange={(e) => updateContent('title_font_family', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontFamilies.map(font => (
+                      <option key={font} value={font}>{font}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>Font Weight</Label>
+                  <select
+                    value={content.title_font_weight || 700}
+                    onChange={(e) => updateContent('title_font_weight', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontWeights.map(weight => (
+                      <option key={weight.value} value={weight.value}>{weight.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Font Size (px)</Label>
+                  <Input
+                    type="number"
+                    value={content.title_font_size || 32}
+                    onChange={(e) => updateContent('title_font_size', parseInt(e.target.value) || 32)}
+                    min="12"
+                    max="96"
+                  />
+                </div>
+                <div>
+                  <Label>Text Color</Label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={content.title_color || '#1e293b'}
+                      onChange={(e) => updateContent('title_color', e.target.value)}
+                      className="w-12 h-9 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                    />
+                    <Input
+                      value={content.title_color || '#1e293b'}
+                      onChange={(e) => updateContent('title_color', e.target.value)}
+                      className="flex-1 font-mono text-xs"
+                      placeholder="#1e293b"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </details>
 
           <div>
             <Label>Title Alignment</Label>

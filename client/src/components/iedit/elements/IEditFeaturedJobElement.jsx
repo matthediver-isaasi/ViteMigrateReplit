@@ -4,6 +4,7 @@ import { ArrowRight, MapPin, Building2, Clock, Briefcase, Calendar, Banknote } f
 import { Link } from "react-router-dom";
 import { format, differenceInDays } from "date-fns";
 import { createPageUrl } from "@/utils";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 export default function IEditFeaturedJobElement({ content, variant, settings }) {
   const {
@@ -824,62 +825,82 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
               placeholder="Use line breaks for multi-line headings"
             />
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Font Family</label>
-              <FontSelect
-                value={content.heading_font_family || 'Degular Medium'}
-                onChange={(e) => updateContent('heading_font_family', e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Size (px)</label>
-              <input 
-                type="number"
-                value={content.heading_font_size || 55}
-                onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border rounded-md"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Line Height (em)</label>
-              <input 
-                type="number"
-                value={content.heading_line_height || 0.91}
-                onChange={(e) => updateContent('heading_line_height', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border rounded-md"
-                step="0.01"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Letter Spacing (px)</label>
-              <input 
-                type="number"
-                value={content.heading_letter_spacing || 0}
-                onChange={(e) => updateContent('heading_letter_spacing', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border rounded-md"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Color</label>
-              <div className="flex gap-1">
-                <input 
-                  type="color"
-                  value={content.heading_color || '#000000'}
-                  onChange={(e) => updateContent('heading_color', e.target.value)}
-                  className="w-10 h-10 rounded border cursor-pointer"
-                />
-                <input 
-                  type="text"
-                  value={content.heading_color || '#000000'}
-                  onChange={(e) => updateContent('heading_color', e.target.value)}
-                  className="flex-1 px-2 py-2 border rounded-md text-sm"
-                />
+          <TypographyStyleSelector
+            value={content.heading_typography_style_id}
+            onChange={(styleId) => updateContent('heading_typography_style_id', styleId)}
+            onApplyStyle={(style) => {
+              const applied = applyTypographyStyle(style);
+              if (applied.font_family) updateContent('heading_font_family', applied.font_family);
+              if (applied.font_size) updateContent('heading_font_size', applied.font_size);
+              if (applied.font_size_mobile) updateContent('heading_font_size_mobile', applied.font_size_mobile);
+              if (applied.line_height) updateContent('heading_line_height', applied.line_height);
+              if (applied.letter_spacing !== undefined) updateContent('heading_letter_spacing', applied.letter_spacing);
+              if (applied.color) updateContent('heading_color', applied.color);
+            }}
+            filterTypes={['h1', 'h2']}
+            label="Typography Style"
+          />
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Font Family</label>
+                  <FontSelect
+                    value={content.heading_font_family || 'Degular Medium'}
+                    onChange={(e) => updateContent('heading_font_family', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Size (px)</label>
+                  <input 
+                    type="number"
+                    value={content.heading_font_size || 55}
+                    onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Line Height (em)</label>
+                  <input 
+                    type="number"
+                    value={content.heading_line_height || 0.91}
+                    onChange={(e) => updateContent('heading_line_height', parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 border rounded-md"
+                    step="0.01"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Letter Spacing (px)</label>
+                  <input 
+                    type="number"
+                    value={content.heading_letter_spacing || 0}
+                    onChange={(e) => updateContent('heading_letter_spacing', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Color</label>
+                  <div className="flex gap-1">
+                    <input 
+                      type="color"
+                      value={content.heading_color || '#000000'}
+                      onChange={(e) => updateContent('heading_color', e.target.value)}
+                      className="w-10 h-10 rounded border cursor-pointer"
+                    />
+                    <input 
+                      type="text"
+                      value={content.heading_color || '#000000'}
+                      onChange={(e) => updateContent('heading_color', e.target.value)}
+                      className="flex-1 px-2 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          </details>
         </div>
 
         {/* Subheading */}
@@ -892,64 +913,84 @@ export function IEditFeaturedJobElementEditor({ element, onChange }) {
             rows={2}
             placeholder="Additional descriptive text"
           />
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Font Family</label>
-              <FontSelect
-                value={content.subheading_font_family || 'Poppins'}
-                onChange={(e) => updateContent('subheading_font_family', e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Size (px)</label>
-              <input 
-                type="number"
-                value={content.subheading_font_size || 18}
-                onChange={(e) => updateContent('subheading_font_size', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border rounded-md"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Color</label>
-              <div className="flex gap-1">
-                <input 
-                  type="color"
-                  value={content.subheading_color || '#666666'}
-                  onChange={(e) => updateContent('subheading_color', e.target.value)}
-                  className="w-10 h-10 rounded border cursor-pointer"
-                />
-                <input 
-                  type="text"
-                  value={content.subheading_color || '#666666'}
-                  onChange={(e) => updateContent('subheading_color', e.target.value)}
-                  className="flex-1 px-2 py-2 border rounded-md text-sm"
-                />
+          <TypographyStyleSelector
+            value={content.subheading_typography_style_id}
+            onChange={(styleId) => updateContent('subheading_typography_style_id', styleId)}
+            onApplyStyle={(style) => {
+              const applied = applyTypographyStyle(style);
+              if (applied.font_family) updateContent('subheading_font_family', applied.font_family);
+              if (applied.font_size) updateContent('subheading_font_size', applied.font_size);
+              if (applied.font_size_mobile) updateContent('subheading_font_size_mobile', applied.font_size_mobile);
+              if (applied.line_height) updateContent('subheading_line_height', applied.line_height);
+              if (applied.letter_spacing !== undefined) updateContent('subheading_letter_spacing', applied.letter_spacing);
+              if (applied.color) updateContent('subheading_color', applied.color);
+            }}
+            filterTypes={['h3', 'h4', 'paragraph']}
+            label="Typography Style"
+          />
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Font Family</label>
+                  <FontSelect
+                    value={content.subheading_font_family || 'Poppins'}
+                    onChange={(e) => updateContent('subheading_font_family', e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Size (px)</label>
+                  <input 
+                    type="number"
+                    value={content.subheading_font_size || 18}
+                    onChange={(e) => updateContent('subheading_font_size', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Color</label>
+                  <div className="flex gap-1">
+                    <input 
+                      type="color"
+                      value={content.subheading_color || '#666666'}
+                      onChange={(e) => updateContent('subheading_color', e.target.value)}
+                      className="w-10 h-10 rounded border cursor-pointer"
+                    />
+                    <input 
+                      type="text"
+                      value={content.subheading_color || '#666666'}
+                      onChange={(e) => updateContent('subheading_color', e.target.value)}
+                      className="flex-1 px-2 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Letter Spacing (px)</label>
+                  <input 
+                    type="number"
+                    value={content.subheading_letter_spacing || 0}
+                    onChange={(e) => updateContent('subheading_letter_spacing', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border rounded-md"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-sm font-medium">Line Height</label>
+                  <input 
+                    type="number"
+                    value={content.subheading_line_height || 1.5}
+                    onChange={(e) => updateContent('subheading_line_height', parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 border rounded-md"
+                    step="0.1"
+                  />
+                </div>
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Letter Spacing (px)</label>
-              <input 
-                type="number"
-                value={content.subheading_letter_spacing || 0}
-                onChange={(e) => updateContent('subheading_letter_spacing', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border rounded-md"
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-sm font-medium">Line Height</label>
-              <input 
-                type="number"
-                value={content.subheading_line_height || 1.5}
-                onChange={(e) => updateContent('subheading_line_height', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border rounded-md"
-                step="0.1"
-              />
-            </div>
-          </div>
+          </details>
         </div>
 
         {/* Button */}

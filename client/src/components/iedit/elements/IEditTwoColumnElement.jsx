@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ChevronDown, ChevronUp, Upload, X } from "lucide-react";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 const fontFamilies = [
   'Poppins',
@@ -397,7 +398,26 @@ export function IEditTwoColumnElementEditor({ element, onChange }) {
                 placeholder="Enter heading..."
               />
             </div>
-            {renderTypographyControls(`${side}_header`, 'Header Typography')}
+            <TypographyStyleSelector
+              value={content[`${side}_header_typography_style_id`] || null}
+              onChange={(styleId) => updateContent(`${side}_header_typography_style_id`, styleId)}
+              onApplyStyle={(style) => {
+                const mapped = applyTypographyStyle(style);
+                if (mapped.font_family) updateContent(`${side}_header_font_family`, mapped.font_family);
+                if (mapped.font_size) updateContent(`${side}_header_font_size`, mapped.font_size);
+                if (mapped.font_size_mobile) updateContent(`${side}_header_font_size_mobile`, mapped.font_size_mobile);
+                if (mapped.font_weight) updateContent(`${side}_header_font_weight`, mapped.font_weight);
+                if (mapped.line_height) updateContent(`${side}_header_line_height`, mapped.line_height);
+                if (mapped.letter_spacing !== undefined) updateContent(`${side}_header_letter_spacing`, mapped.letter_spacing);
+                if (mapped.color) updateContent(`${side}_header_color`, mapped.color);
+              }}
+              filterTypes={['h2', 'h3', 'h4']}
+              label="Header Typography Style"
+            />
+            <details className="text-xs">
+              <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+              {renderTypographyControls(`${side}_header`, 'Header Typography')}
+            </details>
           </div>
         </div>
 
@@ -414,7 +434,25 @@ export function IEditTwoColumnElementEditor({ element, onChange }) {
                 rows={4}
               />
             </div>
-            {renderTypographyControls(`${side}_content`, 'Content Typography')}
+            <TypographyStyleSelector
+              value={content[`${side}_content_typography_style_id`] || null}
+              onChange={(styleId) => updateContent(`${side}_content_typography_style_id`, styleId)}
+              onApplyStyle={(style) => {
+                const mapped = applyTypographyStyle(style);
+                if (mapped.font_family) updateContent(`${side}_content_font_family`, mapped.font_family);
+                if (mapped.font_size) updateContent(`${side}_content_font_size`, mapped.font_size);
+                if (mapped.font_size_mobile) updateContent(`${side}_content_font_size_mobile`, mapped.font_size_mobile);
+                if (mapped.font_weight) updateContent(`${side}_content_font_weight`, mapped.font_weight);
+                if (mapped.line_height) updateContent(`${side}_content_line_height`, mapped.line_height);
+                if (mapped.color) updateContent(`${side}_content_color`, mapped.color);
+              }}
+              filterTypes={['paragraph']}
+              label="Content Typography Style"
+            />
+            <details className="text-xs">
+              <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+              {renderTypographyControls(`${side}_content`, 'Content Typography')}
+            </details>
           </div>
         </div>
       </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ChevronDown, ChevronUp, Upload, X } from "lucide-react";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 const fontFamilies = [
   'Poppins',
@@ -613,111 +614,135 @@ export function IEditQuoteElementEditor({ element, onChange }) {
       <SectionHeader title="Quote Typography" section="quoteTypography" />
       {expandedSections.quoteTypography && (
         <div className="space-y-3 pl-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium mb-1">Font Family</label>
-              <select
-                value={content.quote_font_family || 'Georgia'}
-                onChange={(e) => updateContent('quote_font_family', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontFamilies.map(font => (
-                  <option key={font} value={font}>{font}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Font Weight</label>
-              <select
-                value={content.quote_font_weight || 400}
-                onChange={(e) => updateContent('quote_font_weight', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontWeights.map(w => (
-                  <option key={w.value} value={w.value}>{w.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <TypographyStyleSelector
+            value={content.quote_typography_style_id}
+            onChange={(styleId) => updateContent('quote_typography_style_id', styleId)}
+            onApplyStyle={(style) => {
+              const styleProps = applyTypographyStyle(style);
+              if (styleProps.font_family) updateContent('quote_font_family', styleProps.font_family);
+              if (styleProps.font_size) updateContent('quote_font_size', styleProps.font_size);
+              if (styleProps.font_size_mobile) updateContent('quote_font_size_mobile', styleProps.font_size_mobile);
+              if (styleProps.font_weight) updateContent('quote_font_weight', styleProps.font_weight);
+              if (styleProps.line_height) updateContent('quote_line_height', styleProps.line_height);
+              if (styleProps.letter_spacing) updateContent('quote_letter_spacing', styleProps.letter_spacing);
+              if (styleProps.text_transform) updateContent('quote_text_transform', styleProps.text_transform);
+              if (styleProps.color) updateContent('quote_color', styleProps.color);
+              updateContent('quote_typography_style_id', style.id);
+            }}
+            filterTypes={['paragraph', 'h3', 'h4']}
+            label="Quote Typography Style"
+          />
+          
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+            <div className="space-y-3 mt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Font Family</label>
+                  <select
+                    value={content.quote_font_family || 'Georgia'}
+                    onChange={(e) => updateContent('quote_font_family', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontFamilies.map(font => (
+                      <option key={font} value={font}>{font}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Font Weight</label>
+                  <select
+                    value={content.quote_font_weight || 400}
+                    onChange={(e) => updateContent('quote_font_weight', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontWeights.map(w => (
+                      <option key={w.value} value={w.value}>{w.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium mb-1">Font Size (px)</label>
-              <input
-                type="number"
-                value={content.quote_font_size || 20}
-                onChange={(e) => updateContent('quote_font_size', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-                min="10"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Font Style</label>
-              <select
-                value={content.quote_font_style || 'italic'}
-                onChange={(e) => updateContent('quote_font_style', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                <option value="normal">Normal</option>
-                <option value="italic">Italic</option>
-              </select>
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Font Size (px)</label>
+                  <input
+                    type="number"
+                    value={content.quote_font_size || 20}
+                    onChange={(e) => updateContent('quote_font_size', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                    min="10"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Font Style</label>
+                  <select
+                    value={content.quote_font_style || 'italic'}
+                    onChange={(e) => updateContent('quote_font_style', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    <option value="normal">Normal</option>
+                    <option value="italic">Italic</option>
+                  </select>
+                </div>
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Text Color</label>
-            <div className="flex gap-2 items-center">
-              <input
-                type="color"
-                value={content.quote_color || '#1e293b'}
-                onChange={(e) => updateContent('quote_color', e.target.value)}
-                className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-              />
-              <input
-                type="text"
-                value={content.quote_color || '#1e293b'}
-                onChange={(e) => updateContent('quote_color', e.target.value)}
-                className="flex-1 px-3 py-2 border border-slate-300 rounded-md font-mono text-sm"
-              />
-            </div>
-          </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Text Color</label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="color"
+                    value={content.quote_color || '#1e293b'}
+                    onChange={(e) => updateContent('quote_color', e.target.value)}
+                    className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={content.quote_color || '#1e293b'}
+                    onChange={(e) => updateContent('quote_color', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-md font-mono text-sm"
+                  />
+                </div>
+              </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium mb-1">Letter Spacing (px)</label>
-              <input
-                type="number"
-                value={content.quote_letter_spacing || 0}
-                onChange={(e) => updateContent('quote_letter_spacing', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-                step="0.5"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Line Height</label>
-              <input
-                type="number"
-                value={content.quote_line_height || 1.6}
-                onChange={(e) => updateContent('quote_line_height', parseFloat(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-                step="0.1"
-                min="1"
-              />
-            </div>
-          </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Letter Spacing (px)</label>
+                  <input
+                    type="number"
+                    value={content.quote_letter_spacing || 0}
+                    onChange={(e) => updateContent('quote_letter_spacing', parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                    step="0.5"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Line Height</label>
+                  <input
+                    type="number"
+                    value={content.quote_line_height || 1.6}
+                    onChange={(e) => updateContent('quote_line_height', parseFloat(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                    step="0.1"
+                    min="1"
+                  />
+                </div>
+              </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Text Alignment</label>
-            <select
-              value={content.quote_align || 'center'}
-              onChange={(e) => updateContent('quote_align', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-            >
-              <option value="left">Left</option>
-              <option value="center">Center</option>
-              <option value="right">Right</option>
-            </select>
-          </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Text Alignment</label>
+                <select
+                  value={content.quote_align || 'center'}
+                  onChange={(e) => updateContent('quote_align', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                >
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
+            </div>
+          </details>
         </div>
       )}
 
@@ -725,85 +750,107 @@ export function IEditQuoteElementEditor({ element, onChange }) {
       <SectionHeader title="Name Typography" section="nameTypography" />
       {expandedSections.nameTypography && (
         <div className="space-y-3 pl-2">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-sm font-medium mb-1">Font Family</label>
-              <select
-                value={content.name_font_family || 'Poppins'}
-                onChange={(e) => updateContent('name_font_family', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontFamilies.map(font => (
-                  <option key={font} value={font}>{font}</option>
-                ))}
-              </select>
+          <TypographyStyleSelector
+            value={content.name_typography_style_id}
+            onChange={(styleId) => updateContent('name_typography_style_id', styleId)}
+            onApplyStyle={(style) => {
+              const styleProps = applyTypographyStyle(style);
+              if (styleProps.font_family) updateContent('name_font_family', styleProps.font_family);
+              if (styleProps.font_size) updateContent('name_font_size', styleProps.font_size);
+              if (styleProps.font_size_mobile) updateContent('name_font_size_mobile', styleProps.font_size_mobile);
+              if (styleProps.font_weight) updateContent('name_font_weight', styleProps.font_weight);
+              if (styleProps.letter_spacing) updateContent('name_letter_spacing', styleProps.letter_spacing);
+              if (styleProps.color) updateContent('name_color', styleProps.color);
+              updateContent('name_typography_style_id', style.id);
+            }}
+            filterTypes={['paragraph']}
+            label="Name Typography Style"
+          />
+          
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+            <div className="space-y-3 mt-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Font Family</label>
+                  <select
+                    value={content.name_font_family || 'Poppins'}
+                    onChange={(e) => updateContent('name_font_family', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontFamilies.map(font => (
+                      <option key={font} value={font}>{font}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Font Weight</label>
+                  <select
+                    value={content.name_font_weight || 600}
+                    onChange={(e) => updateContent('name_font_weight', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontWeights.map(w => (
+                      <option key={w.value} value={w.value}>{w.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Font Size (px)</label>
+                <input
+                  type="number"
+                  value={content.name_font_size || 16}
+                  onChange={(e) => updateContent('name_font_size', parseInt(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  min="10"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Text Color</label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="color"
+                    value={content.name_color || '#475569'}
+                    onChange={(e) => updateContent('name_color', e.target.value)}
+                    className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={content.name_color || '#475569'}
+                    onChange={(e) => updateContent('name_color', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-md font-mono text-sm"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Letter Spacing (px)</label>
+                <input
+                  type="number"
+                  value={content.name_letter_spacing || 0}
+                  onChange={(e) => updateContent('name_letter_spacing', parseFloat(e.target.value))}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  step="0.5"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Text Alignment</label>
+                <select
+                  value={content.name_align || 'center'}
+                  onChange={(e) => updateContent('name_align', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                >
+                  <option value="left">Left</option>
+                  <option value="center">Center</option>
+                  <option value="right">Right</option>
+                </select>
+              </div>
             </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Font Weight</label>
-              <select
-                value={content.name_font_weight || 600}
-                onChange={(e) => updateContent('name_font_weight', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontWeights.map(w => (
-                  <option key={w.value} value={w.value}>{w.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Font Size (px)</label>
-            <input
-              type="number"
-              value={content.name_font_size || 16}
-              onChange={(e) => updateContent('name_font_size', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              min="10"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Text Color</label>
-            <div className="flex gap-2 items-center">
-              <input
-                type="color"
-                value={content.name_color || '#475569'}
-                onChange={(e) => updateContent('name_color', e.target.value)}
-                className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-              />
-              <input
-                type="text"
-                value={content.name_color || '#475569'}
-                onChange={(e) => updateContent('name_color', e.target.value)}
-                className="flex-1 px-3 py-2 border border-slate-300 rounded-md font-mono text-sm"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Letter Spacing (px)</label>
-            <input
-              type="number"
-              value={content.name_letter_spacing || 0}
-              onChange={(e) => updateContent('name_letter_spacing', parseFloat(e.target.value))}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              step="0.5"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Text Alignment</label>
-            <select
-              value={content.name_align || 'center'}
-              onChange={(e) => updateContent('name_align', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-            >
-              <option value="left">Left</option>
-              <option value="center">Center</option>
-              <option value="right">Right</option>
-            </select>
-          </div>
+          </details>
         </div>
       )}
 

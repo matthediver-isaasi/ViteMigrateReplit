@@ -2,6 +2,7 @@ import ReactQuill from "react-quill";
 import "react-quill/dist/quill.snow.css";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 export default function IEditTextBlockElement({ content, variant, settings }) {
   const {
@@ -343,76 +344,101 @@ export function IEditTextBlockElementEditor({ element, onChange }) {
               className="mt-1"
             />
           </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs font-medium mb-1">Font</label>
-              <select
-                value={content.heading_font_family || 'Poppins'}
-                onChange={(e) => updateContent('heading_font_family', e.target.value)}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-              >
-                {fontFamilies.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Weight</label>
-              <select
-                value={content.heading_font_weight || 700}
-                onChange={(e) => updateContent('heading_font_weight', parseInt(e.target.value))}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-              >
-                {fontWeights.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Size (px)</label>
-              <input
-                type="number"
-                value={content.heading_font_size || 30}
-                onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value) || 30)}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-                min="10"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Color</label>
-              <div className="flex gap-1">
+
+          <TypographyStyleSelector
+            value={content.heading_typography_style_id}
+            onChange={(styleId) => updateContent('heading_typography_style_id', styleId)}
+            onApplyStyle={(style) => {
+              const styleProps = applyTypographyStyle(style);
+              if (styleProps.font_family) updateContent('heading_font_family', styleProps.font_family);
+              if (styleProps.font_size) updateContent('heading_font_size', styleProps.font_size);
+              if (styleProps.font_size_mobile) updateContent('heading_font_size_mobile', styleProps.font_size_mobile);
+              if (styleProps.font_weight) updateContent('heading_font_weight', styleProps.font_weight);
+              if (styleProps.line_height) updateContent('heading_line_height', styleProps.line_height);
+              if (styleProps.letter_spacing !== undefined) updateContent('heading_letter_spacing', styleProps.letter_spacing);
+              if (styleProps.text_transform) updateContent('heading_text_transform', styleProps.text_transform);
+              if (styleProps.color) updateContent('heading_color', styleProps.color);
+            }}
+            filterTypes={['h1', 'h2', 'h3', 'h4']}
+            label="Heading Style"
+            placeholder="Select a heading style..."
+          />
+
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div>
+                <label className="block text-xs font-medium mb-1">Font</label>
+                <select
+                  value={content.heading_font_family || 'Poppins'}
+                  onChange={(e) => updateContent('heading_font_family', e.target.value)}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                >
+                  {fontFamilies.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Weight</label>
+                <select
+                  value={content.heading_font_weight || 700}
+                  onChange={(e) => updateContent('heading_font_weight', parseInt(e.target.value))}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                >
+                  {fontWeights.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Size (px)</label>
                 <input
-                  type="color"
-                  value={content.heading_color || '#1e293b'}
-                  onChange={(e) => updateContent('heading_color', e.target.value)}
-                  className="w-10 h-8 border border-slate-300 rounded cursor-pointer"
+                  type="number"
+                  value={content.heading_font_size || 30}
+                  onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value) || 30)}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  min="10"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Color</label>
+                <div className="flex gap-1">
+                  <input
+                    type="color"
+                    value={content.heading_color || '#1e293b'}
+                    onChange={(e) => updateContent('heading_color', e.target.value)}
+                    className="w-10 h-8 border border-slate-300 rounded cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={content.heading_color || '#1e293b'}
+                    onChange={(e) => updateContent('heading_color', e.target.value)}
+                    className="flex-1 px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Letter Spacing (px)</label>
                 <input
-                  type="text"
-                  value={content.heading_color || '#1e293b'}
-                  onChange={(e) => updateContent('heading_color', e.target.value)}
-                  className="flex-1 px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  type="number"
+                  value={content.heading_letter_spacing || 0}
+                  onChange={(e) => updateContent('heading_letter_spacing', parseFloat(e.target.value) || 0)}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  step="0.5"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Line Height</label>
+                <input
+                  type="number"
+                  value={content.heading_line_height || 1.3}
+                  onChange={(e) => updateContent('heading_line_height', parseFloat(e.target.value) || 1.3)}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  step="0.1"
+                  min="0.5"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Letter Spacing (px)</label>
-              <input
-                type="number"
-                value={content.heading_letter_spacing || 0}
-                onChange={(e) => updateContent('heading_letter_spacing', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-                step="0.5"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Line Height</label>
-              <input
-                type="number"
-                value={content.heading_line_height || 1.3}
-                onChange={(e) => updateContent('heading_line_height', parseFloat(e.target.value) || 1.3)}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-                step="0.1"
-                min="0.5"
-              />
-            </div>
+          </details>
+
+          <div className="grid grid-cols-2 gap-2">
             <div>
               <label className="block text-xs font-medium mb-1">Alignment</label>
               <select
@@ -461,89 +487,112 @@ export function IEditTextBlockElementEditor({ element, onChange }) {
               Use the toolbar to format your text with headings, lists, links, and more.
             </p>
           </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="block text-xs font-medium mb-1">Font</label>
-              <select
-                value={content.content_font_family || 'Poppins'}
-                onChange={(e) => updateContent('content_font_family', e.target.value)}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-              >
-                {fontFamilies.map(f => <option key={f} value={f}>{f}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Weight</label>
-              <select
-                value={content.content_font_weight || 400}
-                onChange={(e) => updateContent('content_font_weight', parseInt(e.target.value))}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-              >
-                {fontWeights.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Size (px)</label>
-              <input
-                type="number"
-                value={content.content_font_size || 16}
-                onChange={(e) => updateContent('content_font_size', parseInt(e.target.value) || 16)}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-                min="10"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Color</label>
-              <div className="flex gap-1">
+
+          <TypographyStyleSelector
+            value={content.content_typography_style_id}
+            onChange={(styleId) => updateContent('content_typography_style_id', styleId)}
+            onApplyStyle={(style) => {
+              const styleProps = applyTypographyStyle(style);
+              if (styleProps.font_family) updateContent('content_font_family', styleProps.font_family);
+              if (styleProps.font_size) updateContent('content_font_size', styleProps.font_size);
+              if (styleProps.font_size_mobile) updateContent('content_font_size_mobile', styleProps.font_size_mobile);
+              if (styleProps.font_weight) updateContent('content_font_weight', styleProps.font_weight);
+              if (styleProps.line_height) updateContent('content_line_height', styleProps.line_height);
+              if (styleProps.letter_spacing !== undefined) updateContent('content_letter_spacing', styleProps.letter_spacing);
+              if (styleProps.text_transform) updateContent('content_text_transform', styleProps.text_transform);
+              if (styleProps.color) updateContent('content_color', styleProps.color);
+            }}
+            filterTypes={['paragraph']}
+            label="Content Style"
+            placeholder="Select a paragraph style..."
+          />
+
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <div>
+                <label className="block text-xs font-medium mb-1">Font</label>
+                <select
+                  value={content.content_font_family || 'Poppins'}
+                  onChange={(e) => updateContent('content_font_family', e.target.value)}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                >
+                  {fontFamilies.map(f => <option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Weight</label>
+                <select
+                  value={content.content_font_weight || 400}
+                  onChange={(e) => updateContent('content_font_weight', parseInt(e.target.value))}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                >
+                  {fontWeights.map(w => <option key={w.value} value={w.value}>{w.label}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Size (px)</label>
                 <input
-                  type="color"
-                  value={content.content_color || '#475569'}
-                  onChange={(e) => updateContent('content_color', e.target.value)}
-                  className="w-10 h-8 border border-slate-300 rounded cursor-pointer"
+                  type="number"
+                  value={content.content_font_size || 16}
+                  onChange={(e) => updateContent('content_font_size', parseInt(e.target.value) || 16)}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  min="10"
                 />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Color</label>
+                <div className="flex gap-1">
+                  <input
+                    type="color"
+                    value={content.content_color || '#475569'}
+                    onChange={(e) => updateContent('content_color', e.target.value)}
+                    className="w-10 h-8 border border-slate-300 rounded cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={content.content_color || '#475569'}
+                    onChange={(e) => updateContent('content_color', e.target.value)}
+                    className="flex-1 px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Letter Spacing (px)</label>
                 <input
-                  type="text"
-                  value={content.content_color || '#475569'}
-                  onChange={(e) => updateContent('content_color', e.target.value)}
-                  className="flex-1 px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  type="number"
+                  value={content.content_letter_spacing || 0}
+                  onChange={(e) => updateContent('content_letter_spacing', parseFloat(e.target.value) || 0)}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  step="0.5"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Line Height</label>
+                <input
+                  type="number"
+                  value={content.content_line_height || 1.6}
+                  onChange={(e) => updateContent('content_line_height', parseFloat(e.target.value) || 1.6)}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  step="0.1"
+                  min="0.5"
                 />
               </div>
             </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Letter Spacing (px)</label>
-              <input
-                type="number"
-                value={content.content_letter_spacing || 0}
-                onChange={(e) => updateContent('content_letter_spacing', parseFloat(e.target.value) || 0)}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-                step="0.5"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium mb-1">Line Height</label>
-              <input
-                type="number"
-                value={content.content_line_height || 1.6}
-                onChange={(e) => updateContent('content_line_height', parseFloat(e.target.value) || 1.6)}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-                step="0.1"
-                min="0.5"
-              />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs font-medium mb-1">Alignment</label>
-              <select
-                value={content.content_align || 'left'}
-                onChange={(e) => updateContent('content_align', e.target.value)}
-                className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
-              >
-                <option value="left">Left</option>
-                <option value="center">Center</option>
-                <option value="right">Right</option>
-                <option value="justify">Justify</option>
-              </select>
-            </div>
+          </details>
+
+          <div>
+            <label className="block text-xs font-medium mb-1">Alignment</label>
+            <select
+              value={content.content_align || 'left'}
+              onChange={(e) => updateContent('content_align', e.target.value)}
+              className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+            >
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+              <option value="justify">Justify</option>
+            </select>
           </div>
         </div>
       </div>

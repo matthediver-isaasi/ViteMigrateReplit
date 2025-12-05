@@ -1,4 +1,5 @@
 import { useState, useId } from "react";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 export default function IEditPageHeaderHeroElement({ content, variant, settings, isFirst }) {
   const { 
@@ -391,6 +392,23 @@ export function IEditPageHeaderHeroElementEditor({ element, onChange }) {
         />
       </div>
 
+      {/* Typography Style Selector */}
+      <TypographyStyleSelector
+        value={content.header_typography_style_id}
+        onChange={(styleId) => updateContent('header_typography_style_id', styleId)}
+        onApplyStyle={(style) => {
+          const styleProps = applyTypographyStyle(style);
+          if (styleProps.font_family) updateContent('header_font_family', styleProps.font_family);
+          if (styleProps.font_size) updateContent('header_font_size', styleProps.font_size);
+          if (styleProps.font_size_mobile) updateContent('mobile_font_size', styleProps.font_size_mobile);
+          if (styleProps.line_height) updateContent('line_spacing', styleProps.line_height);
+          if (styleProps.color) updateContent('header_color', styleProps.color);
+          updateContent('header_typography_style_id', style.id);
+        }}
+        filterTypes={['h1', 'h2']}
+        label="Header Typography Style"
+      />
+
       {/* Header Position */}
       <div>
         <label className="block text-sm font-medium mb-1">Header Position</label>
@@ -435,44 +453,64 @@ export function IEditPageHeaderHeroElementEditor({ element, onChange }) {
         </div>
       )}
 
-      {/* Typography Settings */}
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm font-medium mb-1">Font Family</label>
-          <select
-            value={content.header_font_family || 'Poppins'}
-            onChange={(e) => updateContent('header_font_family', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-          >
-            <option value="Poppins">Poppins</option>
-            <option value="Degular Medium">Degular Medium</option>
-          </select>
+      {/* Manual Font Settings - Collapsible */}
+      <details className="text-xs">
+        <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+        <div className="mt-3 space-y-4">
+          {/* Typography Settings */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Font Family</label>
+              <select
+                value={content.header_font_family || 'Poppins'}
+                onChange={(e) => updateContent('header_font_family', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              >
+                <option value="Poppins">Poppins</option>
+                <option value="Degular Medium">Degular Medium</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-1">Font Size (px)</label>
+              <input
+                type="number"
+                value={content.header_font_size || 48}
+                onChange={(e) => updateContent('header_font_size', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                min="16"
+                max="96"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1">Font Color</label>
+            <input
+              type="color"
+              value={content.header_color || '#ffffff'}
+              onChange={(e) => updateContent('header_color', e.target.value)}
+              className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+            />
+          </div>
+
+          {/* Line Spacing */}
+          <div>
+            <label className="block text-sm font-medium mb-1">Line Spacing</label>
+            <input
+              type="number"
+              step="0.1"
+              min="0.5"
+              max="3"
+              value={content.line_spacing || 1.2}
+              onChange={(e) => updateContent('line_spacing', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            />
+          </div>
         </div>
+      </details>
 
-        <div>
-          <label className="block text-sm font-medium mb-1">Font Size (px)</label>
-          <input
-            type="number"
-            value={content.header_font_size || 48}
-            onChange={(e) => updateContent('header_font_size', e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            min="16"
-            max="96"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1">Font Color</label>
-        <input
-          type="color"
-          value={content.header_color || '#ffffff'}
-          onChange={(e) => updateContent('header_color', e.target.value)}
-          className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-        />
-      </div>
-
-      {/* Text Alignment */}
+      {/* Text Alignment - Outside collapsible section */}
       <div>
         <label className="block text-sm font-medium mb-1">Text Alignment</label>
         <select
@@ -484,20 +522,6 @@ export function IEditPageHeaderHeroElementEditor({ element, onChange }) {
           <option value="center">Center</option>
           <option value="right">Right</option>
         </select>
-      </div>
-
-      {/* Line Spacing */}
-      <div>
-        <label className="block text-sm font-medium mb-1">Line Spacing</label>
-        <input
-          type="number"
-          step="0.1"
-          min="0.5"
-          max="3"
-          value={content.line_spacing || 1.2}
-          onChange={(e) => updateContent('line_spacing', e.target.value)}
-          className="w-full px-3 py-2 border border-slate-300 rounded-md"
-        />
       </div>
 
       {/* Container Padding */}

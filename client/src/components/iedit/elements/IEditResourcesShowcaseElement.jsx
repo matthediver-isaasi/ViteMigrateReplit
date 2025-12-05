@@ -9,6 +9,7 @@ import { Upload, Loader2, Trash2, FileText, ArrowRight, Lock, LockOpen } from "l
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import AGCASButton from "@/components/ui/AGCASButton";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 export function IEditResourcesShowcaseElementEditor({ element, onChange }) {
   const [isUploadingBg, setIsUploadingBg] = React.useState(false);
@@ -122,59 +123,79 @@ export function IEditResourcesShowcaseElementEditor({ element, onChange }) {
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label htmlFor="heading_font_family">Heading Font</Label>
-          <Select
-            value={content.heading_font_family || 'Poppins'}
-            onValueChange={(value) => updateContent('heading_font_family', value)}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Poppins">Poppins</SelectItem>
-              <SelectItem value="Degular Medium">Degular Medium</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="heading_font_size">Heading Size (px)</Label>
-          <Input
-            id="heading_font_size"
-            type="number"
-            value={content.heading_font_size || 48}
-            onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value) || 48)}
-            min="12"
-            max="200"
-          />
-        </div>
-      </div>
+      <TypographyStyleSelector
+        value={content.heading_typography_style_id}
+        onChange={(styleId) => updateContent('heading_typography_style_id', styleId)}
+        onApplyStyle={(style) => {
+          const mapped = applyTypographyStyle(style);
+          if (mapped.font_family) updateContent('heading_font_family', mapped.font_family);
+          if (mapped.font_size) updateContent('heading_font_size', mapped.font_size);
+          if (mapped.font_size_mobile) updateContent('heading_font_size_mobile', mapped.font_size_mobile);
+          if (mapped.letter_spacing !== undefined) updateContent('heading_letter_spacing', mapped.letter_spacing);
+          if (mapped.color) updateContent('heading_color', mapped.color);
+        }}
+        filterTypes={['h1', 'h2']}
+        label="Heading Typography Style"
+      />
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <Label htmlFor="heading_letter_spacing">Letter Spacing (px)</Label>
-          <Input
-            id="heading_letter_spacing"
-            type="number"
-            step="0.5"
-            value={content.heading_letter_spacing || 0}
-            onChange={(e) => updateContent('heading_letter_spacing', parseFloat(e.target.value) || 0)}
-            min="-5"
-            max="20"
-          />
+      <details className="text-xs">
+        <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+        <div className="mt-2 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="heading_font_family">Heading Font</Label>
+              <Select
+                value={content.heading_font_family || 'Poppins'}
+                onValueChange={(value) => updateContent('heading_font_family', value)}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Poppins">Poppins</SelectItem>
+                  <SelectItem value="Degular Medium">Degular Medium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="heading_font_size">Heading Size (px)</Label>
+              <Input
+                id="heading_font_size"
+                type="number"
+                value={content.heading_font_size || 48}
+                onChange={(e) => updateContent('heading_font_size', parseInt(e.target.value) || 48)}
+                min="12"
+                max="200"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label htmlFor="heading_letter_spacing">Letter Spacing (px)</Label>
+              <Input
+                id="heading_letter_spacing"
+                type="number"
+                step="0.5"
+                value={content.heading_letter_spacing || 0}
+                onChange={(e) => updateContent('heading_letter_spacing', parseFloat(e.target.value) || 0)}
+                min="-5"
+                max="20"
+              />
+            </div>
+            <div>
+              <Label htmlFor="heading_color">Heading Color</Label>
+              <input
+                id="heading_color"
+                type="color"
+                value={content.heading_color || '#0f172a'}
+                onChange={(e) => updateContent('heading_color', e.target.value)}
+                className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <Label htmlFor="heading_color">Heading Color</Label>
-          <input
-            id="heading_color"
-            type="color"
-            value={content.heading_color || '#0f172a'}
-            onChange={(e) => updateContent('heading_color', e.target.value)}
-            className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-          />
-        </div>
-      </div>
+      </details>
 
       <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
         <div className="flex items-center gap-2">
@@ -282,44 +303,63 @@ export function IEditResourcesShowcaseElementEditor({ element, onChange }) {
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
-        <div>
-          <Label htmlFor="subheading_font_family">Subheader Font</Label>
-          <Select
-            value={content.subheading_font_family || 'Poppins'}
-            onValueChange={(value) => updateContent('subheading_font_family', value)}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Poppins">Poppins</SelectItem>
-              <SelectItem value="Degular Medium">Degular Medium</SelectItem>
-            </SelectContent>
-          </Select>
+      <TypographyStyleSelector
+        value={content.subheading_typography_style_id}
+        onChange={(styleId) => updateContent('subheading_typography_style_id', styleId)}
+        onApplyStyle={(style) => {
+          const mapped = applyTypographyStyle(style);
+          if (mapped.font_family) updateContent('subheading_font_family', mapped.font_family);
+          if (mapped.font_size) updateContent('subheading_font_size', mapped.font_size);
+          if (mapped.font_size_mobile) updateContent('subheading_font_size_mobile', mapped.font_size_mobile);
+          if (mapped.color) updateContent('subheading_color', mapped.color);
+        }}
+        filterTypes={['h3', 'h4']}
+        label="Subheading Typography Style"
+      />
+
+      <details className="text-xs">
+        <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+        <div className="mt-2 space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label htmlFor="subheading_font_family">Subheader Font</Label>
+              <Select
+                value={content.subheading_font_family || 'Poppins'}
+                onValueChange={(value) => updateContent('subheading_font_family', value)}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Poppins">Poppins</SelectItem>
+                  <SelectItem value="Degular Medium">Degular Medium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="subheading_font_size">Size (px)</Label>
+              <Input
+                id="subheading_font_size"
+                type="number"
+                value={content.subheading_font_size || 24}
+                onChange={(e) => updateContent('subheading_font_size', parseInt(e.target.value) || 24)}
+                min="12"
+                max="100"
+              />
+            </div>
+            <div>
+              <Label htmlFor="subheading_color">Color</Label>
+              <input
+                id="subheading_color"
+                type="color"
+                value={content.subheading_color || '#475569'}
+                onChange={(e) => updateContent('subheading_color', e.target.value)}
+                className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <Label htmlFor="subheading_font_size">Size (px)</Label>
-          <Input
-            id="subheading_font_size"
-            type="number"
-            value={content.subheading_font_size || 24}
-            onChange={(e) => updateContent('subheading_font_size', parseInt(e.target.value) || 24)}
-            min="12"
-            max="100"
-          />
-        </div>
-        <div>
-          <Label htmlFor="subheading_color">Color</Label>
-          <input
-            id="subheading_color"
-            type="color"
-            value={content.subheading_color || '#475569'}
-            onChange={(e) => updateContent('subheading_color', e.target.value)}
-            className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-          />
-        </div>
-      </div>
+      </details>
 
       <div>
         <Label htmlFor="descriptionText">Description Text</Label>
@@ -332,56 +372,76 @@ export function IEditResourcesShowcaseElementEditor({ element, onChange }) {
         />
       </div>
 
-      <div className="grid grid-cols-4 gap-3">
-        <div>
-          <Label htmlFor="description_font_family">Description Font</Label>
-          <Select
-            value={content.description_font_family || 'Poppins'}
-            onValueChange={(value) => updateContent('description_font_family', value)}
-          >
-            <SelectTrigger className="h-9">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="Poppins">Poppins</SelectItem>
-              <SelectItem value="Degular Medium">Degular Medium</SelectItem>
-            </SelectContent>
-          </Select>
+      <TypographyStyleSelector
+        value={content.description_typography_style_id}
+        onChange={(styleId) => updateContent('description_typography_style_id', styleId)}
+        onApplyStyle={(style) => {
+          const mapped = applyTypographyStyle(style);
+          if (mapped.font_family) updateContent('description_font_family', mapped.font_family);
+          if (mapped.font_size) updateContent('description_font_size', mapped.font_size);
+          if (mapped.font_size_mobile) updateContent('description_font_size_mobile', mapped.font_size_mobile);
+          if (mapped.color) updateContent('description_color', mapped.color);
+          if (mapped.line_height) updateContent('description_line_height', mapped.line_height);
+        }}
+        filterTypes={['paragraph']}
+        label="Description Typography Style"
+      />
+
+      <details className="text-xs">
+        <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+        <div className="mt-2 space-y-3">
+          <div className="grid grid-cols-4 gap-3">
+            <div>
+              <Label htmlFor="description_font_family">Description Font</Label>
+              <Select
+                value={content.description_font_family || 'Poppins'}
+                onValueChange={(value) => updateContent('description_font_family', value)}
+              >
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Poppins">Poppins</SelectItem>
+                  <SelectItem value="Degular Medium">Degular Medium</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="description_font_size">Size (px)</Label>
+              <Input
+                id="description_font_size"
+                type="number"
+                value={content.description_font_size || 16}
+                onChange={(e) => updateContent('description_font_size', parseInt(e.target.value) || 16)}
+                min="12"
+                max="100"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description_line_height">Line Height</Label>
+              <Input
+                id="description_line_height"
+                type="number"
+                step="0.1"
+                value={content.description_line_height || 1.6}
+                onChange={(e) => updateContent('description_line_height', parseFloat(e.target.value) || 1.6)}
+                min="1"
+                max="3"
+              />
+            </div>
+            <div>
+              <Label htmlFor="description_color">Color</Label>
+              <input
+                id="description_color"
+                type="color"
+                value={content.description_color || '#64748b'}
+                onChange={(e) => updateContent('description_color', e.target.value)}
+                className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+              />
+            </div>
+          </div>
         </div>
-        <div>
-          <Label htmlFor="description_font_size">Size (px)</Label>
-          <Input
-            id="description_font_size"
-            type="number"
-            value={content.description_font_size || 16}
-            onChange={(e) => updateContent('description_font_size', parseInt(e.target.value) || 16)}
-            min="12"
-            max="100"
-          />
-        </div>
-        <div>
-          <Label htmlFor="description_line_height">Line Height</Label>
-          <Input
-            id="description_line_height"
-            type="number"
-            step="0.1"
-            value={content.description_line_height || 1.6}
-            onChange={(e) => updateContent('description_line_height', parseFloat(e.target.value) || 1.6)}
-            min="1"
-            max="3"
-          />
-        </div>
-        <div>
-          <Label htmlFor="description_color">Color</Label>
-          <input
-            id="description_color"
-            type="color"
-            value={content.description_color || '#64748b'}
-            onChange={(e) => updateContent('description_color', e.target.value)}
-            className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-          />
-        </div>
-      </div>
+      </details>
 
       <div className="space-y-3 p-3 bg-slate-50 rounded-lg">
         <h4 className="font-medium text-sm">CTA Button</h4>

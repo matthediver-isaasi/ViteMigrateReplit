@@ -1,5 +1,6 @@
 import React from "react";
 import AGCASButton from "../../ui/AGCASButton";
+import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
 
 export default function IEditButtonBlockElement({ content, variant, settings }) {
   const { 
@@ -81,7 +82,9 @@ export function IEditButtonBlockElementEditor({ element, onChange }) {
     background_color: element.content.background_color ?? '#ffffff',
     header_font_family: element.content.header_font_family ?? 'Poppins',
     header_font_size: element.content.header_font_size ?? '32',
+    header_font_size_mobile: element.content.header_font_size_mobile ?? '',
     header_color: element.content.header_color ?? '#000000',
+    header_typography_style_id: element.content.header_typography_style_id ?? null,
     button_gap: element.content.button_gap ?? '16',
     buttons: (element.content.buttons || [defaultButton]).map(btn => ({ ...defaultButton, ...btn }))
   } : {
@@ -90,7 +93,9 @@ export function IEditButtonBlockElementEditor({ element, onChange }) {
     background_color: '#ffffff',
     header_font_family: 'Poppins',
     header_font_size: '32',
+    header_font_size_mobile: '',
     header_color: '#000000',
+    header_typography_style_id: null,
     button_gap: '16',
     buttons: [defaultButton]
   };
@@ -153,56 +158,74 @@ export function IEditButtonBlockElementEditor({ element, onChange }) {
           />
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium mb-1">Alignment</label>
-            <select
-              value={content.header_alignment || 'center'}
-              onChange={(e) => updateContent('header_alignment', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            >
-              <option value="left">Left</option>
-              <option value="center">Center</option>
-              <option value="right">Right</option>
-            </select>
-          </div>
+        <TypographyStyleSelector
+          value={content.header_typography_style_id}
+          onChange={(styleId) => updateContent('header_typography_style_id', styleId)}
+          onApplyStyle={(style) => {
+            const styleProps = applyTypographyStyle(style);
+            if (styleProps.font_family) updateContent('header_font_family', styleProps.font_family);
+            if (styleProps.font_size) updateContent('header_font_size', styleProps.font_size);
+            if (styleProps.font_size_mobile) updateContent('header_font_size_mobile', styleProps.font_size_mobile);
+            if (styleProps.color) updateContent('header_color', styleProps.color);
+            updateContent('header_typography_style_id', style.id);
+          }}
+          filterTypes={['h1', 'h2', 'h3']}
+          label="Typography Style"
+        />
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Font</label>
-            <select
-              value={content.header_font_family || 'Poppins'}
-              onChange={(e) => updateContent('header_font_family', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md"
-            >
-              <option value="Poppins">Poppins</option>
-              <option value="Degular Medium">Degular Medium</option>
-            </select>
-          </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Alignment</label>
+          <select
+            value={content.header_alignment || 'center'}
+            onChange={(e) => updateContent('header_alignment', e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+          >
+            <option value="left">Left</option>
+            <option value="center">Center</option>
+            <option value="right">Right</option>
+          </select>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="block text-sm font-medium mb-1">Font Size (px)</label>
-            <input
-              type="number"
-              value={content.header_font_size || 32}
-              onChange={(e) => updateContent('header_font_size', e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-md"
-              min="12"
-              max="72"
-            />
-          </div>
+        <details className="text-xs">
+          <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+          <div className="mt-3 space-y-3">
+            <div>
+              <label className="block text-sm font-medium mb-1">Font</label>
+              <select
+                value={content.header_font_family || 'Poppins'}
+                onChange={(e) => updateContent('header_font_family', e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              >
+                <option value="Poppins">Poppins</option>
+                <option value="Degular Medium">Degular Medium</option>
+              </select>
+            </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1">Font Color</label>
-            <input
-              type="color"
-              value={content.header_color || '#000000'}
-              onChange={(e) => updateContent('header_color', e.target.value)}
-              className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-            />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Font Size (px)</label>
+                <input
+                  type="number"
+                  value={content.header_font_size || 32}
+                  onChange={(e) => updateContent('header_font_size', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="12"
+                  max="72"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Font Color</label>
+                <input
+                  type="color"
+                  value={content.header_color || '#000000'}
+                  onChange={(e) => updateContent('header_color', e.target.value)}
+                  className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                />
+              </div>
+            </div>
           </div>
-        </div>
+        </details>
 
         <div>
           <label className="block text-sm font-medium mb-1">Background Color</label>

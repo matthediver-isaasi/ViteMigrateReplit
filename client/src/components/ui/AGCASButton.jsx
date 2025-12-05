@@ -13,6 +13,7 @@ export default function AGCASButton({
   openInNewTab = false,
   size = 'medium',
   showArrow = false,
+  useGradientStyle = false,
   children, 
   onClick, 
   className,
@@ -23,7 +24,7 @@ export default function AGCASButton({
   const [buttonStyle, setButtonStyle] = React.useState(null);
 
   React.useEffect(() => {
-    if (buttonStyleId) {
+    if (buttonStyleId && !useGradientStyle) {
       const fetchStyle = async () => {
         try {
           const { base44 } = await import("@/api/base44Client");
@@ -36,7 +37,48 @@ export default function AGCASButton({
       };
       fetchStyle();
     }
-  }, [buttonStyleId]);
+  }, [buttonStyleId, useGradientStyle]);
+
+  // Gradient style overrides everything
+  if (useGradientStyle) {
+    const gradientSizeClasses = {
+      small: 'px-4 py-2 text-xs',
+      medium: 'px-6 py-3 text-sm',
+      large: 'px-8 py-4 text-base',
+      xlarge: 'px-10 py-5 text-lg'
+    };
+
+    const gradientClassName = cn(
+      "inline-flex items-center justify-center gap-2 whitespace-nowrap",
+      gradientSizeClasses[size] || gradientSizeClasses.medium,
+      "font-bold text-white rounded-none",
+      "transition-opacity duration-300 hover:opacity-90",
+      "disabled:opacity-50 disabled:cursor-not-allowed",
+      className
+    );
+
+    const ButtonTag = link ? 'a' : 'button';
+
+    return (
+      <ButtonTag
+        href={link || undefined}
+        target={openInNewTab ? '_blank' : undefined}
+        rel={openInNewTab ? 'noopener noreferrer' : undefined}
+        onClick={onClick}
+        disabled={!link && disabled}
+        className={gradientClassName}
+        style={{ 
+          fontFamily: 'Poppins, sans-serif',
+          background: 'linear-gradient(to top right, #5C0085, #BA0087, #EE00C3, #FF4229, #FFB000)'
+        }}
+        {...props}
+      >
+        {text || children}
+        {showArrow && <ArrowUpRight className="w-5 h-5 ml-0.5" strokeWidth={2.5} />}
+        {Icon && <Icon className="w-5 h-5 ml-0.5" strokeWidth={2.5} />}
+      </ButtonTag>
+    );
+  }
 
   // Custom colors override button style - only if actually set (not empty strings)
   const hasCustomColors = (customBgColor && customBgColor !== '') || 

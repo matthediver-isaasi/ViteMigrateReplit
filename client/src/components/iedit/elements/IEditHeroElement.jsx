@@ -301,6 +301,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
                     openInNewTab={button.open_in_new_tab}
                     size={button.size || 'large'}
                     showArrow={button.show_arrow}
+                    useGradientStyle={button.style_type === 'gradient'}
                   />
                 </div>
               )}
@@ -398,6 +399,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
                 openInNewTab={button.open_in_new_tab}
                 size={button.size || 'large'}
                 showArrow={button.show_arrow}
+                useGradientStyle={button.style_type === 'gradient'}
               />
             </div>
           )}
@@ -1175,79 +1177,113 @@ export function IEditHeroElementEditor({ element, onChange }) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">Button Style</label>
+            <label className="block text-sm font-medium mb-1">Button Style Type</label>
             <select
-              value={button.button_style_id || ''}
-              onChange={(e) => updateButton('button_style_id', e.target.value)}
+              value={button.style_type || 'custom'}
+              onChange={(e) => updateButton('style_type', e.target.value)}
               className="w-full px-3 py-2 border border-slate-300 rounded-md"
             >
-              <option value="">Default Style</option>
-              {buttonStyles.map((style) => (
-                <option key={style.id} value={style.id}>
-                  {style.name}
-                </option>
-              ))}
+              <option value="custom">Custom Style</option>
+              <option value="gradient">Gradient Style (Join Us button)</option>
             </select>
-            <p className="text-xs text-slate-500 mt-1">Or use custom colors below</p>
+            <p className="text-xs text-slate-500 mt-1">
+              {button.style_type === 'gradient' 
+                ? 'Uses the same style as the "Join Us" button in the header' 
+                : 'Configure custom colors below or select a saved button style'}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2 mb-2">
-            <input
-              type="checkbox"
-              id="transparent-bg-hero"
-              checked={button.transparent_bg || false}
-              onChange={(e) => {
-                const isTransparent = e.target.checked;
-                if (isTransparent) {
-                  updateButton({ transparent_bg: true, custom_bg_color: '' });
-                } else {
-                  updateButton('transparent_bg', false);
-                }
+          {/* Gradient style preview */}
+          {button.style_type === 'gradient' && (
+            <div 
+              className="p-4 rounded-md text-center"
+              style={{ 
+                background: 'linear-gradient(to top right, #5C0085, #BA0087, #EE00C3, #FF4229, #FFB000)'
               }}
-              className="w-4 h-4"
-            />
-            <label htmlFor="transparent-bg-hero" className="text-sm cursor-pointer">
-              Transparent background
-            </label>
-          </div>
+            >
+              <span className="text-white font-bold text-sm">Gradient Style Preview</span>
+            </div>
+          )}
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="block text-sm font-medium mb-1">Background</label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="color"
-                  value={button.custom_bg_color || '#000000'}
-                  onChange={(e) => {
-                    updateButton({ custom_bg_color: e.target.value, transparent_bg: false });
-                  }}
-                  className={`w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer ${button.transparent_bg ? 'opacity-50' : ''}`}
-                  disabled={button.transparent_bg}
-                />
+          {/* Custom style options - only show when not using gradient */}
+          {button.style_type !== 'gradient' && (
+            <>
+              <div>
+                <label className="block text-sm font-medium mb-1">Saved Button Style</label>
+                <select
+                  value={button.button_style_id || ''}
+                  onChange={(e) => updateButton('button_style_id', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                >
+                  <option value="">None (use custom colors)</option>
+                  {buttonStyles.map((style) => (
+                    <option key={style.id} value={style.id}>
+                      {style.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-slate-500 mt-1">Or use custom colors below</p>
               </div>
-              {button.transparent_bg && (
-                <p className="text-xs text-slate-500 mt-1">Using transparent</p>
-              )}
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Text</label>
-              <input
-                type="color"
-                value={button.custom_text_color || '#ffffff'}
-                onChange={(e) => updateButton('custom_text_color', e.target.value)}
-                className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Border</label>
-              <input
-                type="color"
-                value={button.custom_border_color || '#000000'}
-                onChange={(e) => updateButton('custom_border_color', e.target.value)}
-                className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-              />
-            </div>
-          </div>
+
+              <div className="flex items-center gap-2 mb-2">
+                <input
+                  type="checkbox"
+                  id="transparent-bg-hero"
+                  checked={button.transparent_bg || false}
+                  onChange={(e) => {
+                    const isTransparent = e.target.checked;
+                    if (isTransparent) {
+                      updateButton({ transparent_bg: true, custom_bg_color: '' });
+                    } else {
+                      updateButton('transparent_bg', false);
+                    }
+                  }}
+                  className="w-4 h-4"
+                />
+                <label htmlFor="transparent-bg-hero" className="text-sm cursor-pointer">
+                  Transparent background
+                </label>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Background</label>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="color"
+                      value={button.custom_bg_color || '#000000'}
+                      onChange={(e) => {
+                        updateButton({ custom_bg_color: e.target.value, transparent_bg: false });
+                      }}
+                      className={`w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer ${button.transparent_bg ? 'opacity-50' : ''}`}
+                      disabled={button.transparent_bg}
+                    />
+                  </div>
+                  {button.transparent_bg && (
+                    <p className="text-xs text-slate-500 mt-1">Using transparent</p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Text</label>
+                  <input
+                    type="color"
+                    value={button.custom_text_color || '#ffffff'}
+                    onChange={(e) => updateButton('custom_text_color', e.target.value)}
+                    className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium mb-1">Border</label>
+                  <input
+                    type="color"
+                    value={button.custom_border_color || '#000000'}
+                    onChange={(e) => updateButton('custom_border_color', e.target.value)}
+                    className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           <div>
             <label className="block text-sm font-medium mb-1">Button Size</label>

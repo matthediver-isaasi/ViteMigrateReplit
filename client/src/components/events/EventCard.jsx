@@ -389,9 +389,9 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
             {event.title}
           </h3>
           
-          {event.description && (
-            <p className="text-sm text-slate-600 line-clamp-2 mt-2">
-              {event.description}
+          {event.summary && (
+            <p className="text-sm text-slate-600 line-clamp-2 mt-2" data-testid="text-event-summary">
+              {event.summary}
             </p>
           )}
         </CardHeader>

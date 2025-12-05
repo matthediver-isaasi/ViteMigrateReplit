@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video, AlertTriangle, PoundSterling, User, Mic, ChevronRight, X } from "lucide-react";
 import { format } from "date-fns";
+import DOMPurify from "dompurify";
 import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
@@ -845,27 +846,31 @@ export default function EventDetailsPage() {
                 </div>
               </CardHeader>
 
-              {/* Description Preview Section */}
-              {event.description && (
+              {/* Description Preview Section - Shows summary, with link to full description */}
+              {(event.summary || event.description) && (
                 <CardContent className="pt-6 border-t border-slate-200">
                   <h3 className="font-semibold text-slate-900 mb-3">About this event</h3>
                   <div className="space-y-3">
-                    <p 
-                      className="text-slate-600 whitespace-pre-wrap line-clamp-2"
-                      data-testid="text-description-preview"
-                    >
-                      {event.description}
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-0 h-auto py-1"
-                      onClick={() => setShowDescriptionModal(true)}
-                      data-testid="button-more-information"
-                    >
-                      More information
-                      <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
+                    {event.summary && (
+                      <p 
+                        className="text-slate-600"
+                        data-testid="text-event-summary"
+                      >
+                        {event.summary}
+                      </p>
+                    )}
+                    {event.description && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-0 h-auto py-1"
+                        onClick={() => setShowDescriptionModal(true)}
+                        data-testid="button-more-information"
+                      >
+                        More information
+                        <ChevronRight className="w-4 h-4 ml-1" />
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               )}
@@ -1259,16 +1264,18 @@ export default function EventDetailsPage() {
         </div>
       </div>
 
-      {/* Description Modal */}
+      {/* Description Modal - Renders sanitized rich text HTML */}
       <Dialog open={showDescriptionModal} onOpenChange={setShowDescriptionModal}>
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-xl font-semibold">About this event</DialogTitle>
           </DialogHeader>
           <div className="mt-4">
-            <p className="text-slate-600 whitespace-pre-wrap leading-relaxed" data-testid="text-description-full">
-              {event?.description}
-            </p>
+            <div 
+              className="text-slate-600 leading-relaxed prose prose-slate max-w-none prose-headings:text-slate-900 prose-p:text-slate-600 prose-a:text-blue-600 prose-li:text-slate-600"
+              data-testid="text-description-full"
+              dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(event?.description || '') }}
+            />
           </div>
         </DialogContent>
       </Dialog>

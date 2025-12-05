@@ -75,6 +75,7 @@ export default function EditEvent() {
 
   const [formData, setFormData] = useState({
     title: "",
+    summary: "",
     description: "",
     internal_reference: "",
     program_tag: "",
@@ -258,6 +259,7 @@ export default function EditEvent() {
     if (event) {
       setFormData({
         title: event.title || "",
+        summary: event.summary || "",
         description: event.description || "",
         internal_reference: event.internal_reference || "",
         program_tag: event.program_tag || "",
@@ -444,6 +446,7 @@ export default function EditEvent() {
     const parsedSeats = formData.available_seats ? parseInt(formData.available_seats, 10) : null;
     const eventData = {
       title: formData.title,
+      summary: formData.summary || null,
       description: formData.description || null,
       internal_reference: formData.internal_reference || null,
       // For one-off events, program_tag should be empty string; for program events, use the selected program
@@ -671,7 +674,31 @@ export default function EditEvent() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="summary">Summary</Label>
+                <Textarea
+                  id="summary"
+                  value={formData.summary}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= 150) {
+                      handleInputChange('summary', value);
+                    }
+                  }}
+                  placeholder="Brief summary for event cards (max 150 characters)"
+                  className="resize-none"
+                  rows={2}
+                  data-testid="input-summary"
+                />
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>Displayed on event cards and listings</span>
+                  <span className={formData.summary.length >= 140 ? 'text-amber-600' : ''}>
+                    {formData.summary.length}/150
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Full Description</Label>
                 <div className="border rounded-md overflow-hidden" data-testid="input-description">
                   <ReactQuill
                     theme="snow"

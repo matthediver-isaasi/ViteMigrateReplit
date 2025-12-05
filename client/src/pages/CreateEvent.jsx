@@ -41,6 +41,8 @@ import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import EventImageUpload from "@/components/events/EventImageUpload";
 import { SpeakerSelectionModal } from "@/components/SpeakerSelectionModal";
+import ReactQuill from 'react-quill';
+import 'react-quill/dist/quill.snow.css';
 
 async function apiRequest(url, options = {}) {
   const response = await fetch(url, {
@@ -92,6 +94,7 @@ export default function CreateEvent() {
   
   const [formData, setFormData] = useState({
     title: "",
+    summary: "",
     description: "",
     internal_reference: "",
     program_tag: "",
@@ -104,6 +107,31 @@ export default function CreateEvent() {
     zoom_webinar_id: null,
     online_url: ""
   });
+
+  // Rich text editor modules configuration
+  const quillModules = {
+    toolbar: {
+      container: [
+        [{ 'header': [1, 2, 3, false] }],
+        ['bold', 'italic', 'underline', 'strike'],
+        [{ 'color': [] }, { 'background': [] }],
+        [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+        [{ 'indent': '-1'}, { 'indent': '+1' }],
+        [{ 'align': [] }],
+        ['link'],
+        ['clean']
+      ]
+    },
+  };
+
+  const quillFormats = [
+    'header',
+    'bold', 'italic', 'underline', 'strike',
+    'color', 'background',
+    'list', 'bullet', 'indent',
+    'align',
+    'link'
+  ];
 
   const { data: programs = [], isLoading: loadingPrograms } = useQuery({
     queryKey: ['/api/entities/Program'],
@@ -374,6 +402,7 @@ export default function CreateEvent() {
 
     const eventData = {
       title: formData.title,
+      summary: formData.summary || null,
       description: formData.description || null,
       internal_reference: formData.internal_reference || null,
       // Visibility is determined by program_tag: empty = one-off event, non-empty = program event
@@ -672,17 +701,43 @@ export default function CreateEvent() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="summary">Summary</Label>
                 <Textarea
-                  id="description"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  placeholder="Describe the event..."
-                  rows={4}
-                  readOnly={isOnline && selectedWebinar}
-                  className={isOnline && selectedWebinar ? "bg-slate-100" : ""}
-                  data-testid="input-description"
+                  id="summary"
+                  value={formData.summary}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value.length <= 150) {
+                      handleInputChange('summary', value);
+                    }
+                  }}
+                  placeholder="Brief summary for event cards (max 150 characters)"
+                  className="resize-none"
+                  rows={2}
+                  data-testid="input-summary"
                 />
+                <div className="flex justify-between text-xs text-slate-500">
+                  <span>Displayed on event cards and listings</span>
+                  <span className={formData.summary.length >= 140 ? 'text-amber-600' : ''}>
+                    {formData.summary.length}/150
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="description">Full Description</Label>
+                <div className={`border rounded-md overflow-hidden ${isOnline && selectedWebinar ? "bg-slate-100" : ""}`} data-testid="input-description">
+                  <ReactQuill
+                    theme="snow"
+                    value={formData.description || ''}
+                    onChange={(value) => handleInputChange('description', value)}
+                    modules={quillModules}
+                    formats={quillFormats}
+                    placeholder="Describe the event..."
+                    style={{ minHeight: '150px' }}
+                    readOnly={isOnline && selectedWebinar}
+                  />
+                </div>
               </div>
 
               {/* Speakers Selection */}

@@ -238,6 +238,7 @@ class EntitiesProxy {
   get MemberPreferenceValue() { return this._getEntity('MemberPreferenceValue'); }
   get OrganizationPreferenceValue() { return this._getEntity('OrganizationPreferenceValue'); }
   get Speaker() { return this._getEntity('Speaker'); }
+  get TypographyStyle() { return this._getEntity('TypographyStyle'); }
 }
 
 class CoreIntegration {

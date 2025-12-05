@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Calendar, MapPin, Users, Clock, Ticket, AlertCircle, ShoppingCart, Pencil, Trash2, Video, Globe, UsersRound, Download, Search } from "lucide-react";
+import { Calendar, MapPin, Users, Clock, Ticket, AlertCircle, ShoppingCart, Pencil, Trash2, Video, Globe, UsersRound, Download, Search, ChevronLeft, ChevronRight } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { formatInTimeZone, toZonedTime } from "date-fns-tz";
 import { createPageUrl } from "@/utils";
@@ -100,6 +100,8 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
   const [showAttendeesModal, setShowAttendeesModal] = useState(false);
   const [organizationFilter, setOrganizationFilter] = useState("all");
   const [searchFilter, setSearchFilter] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 25;
 
   // Fetch bookings for this event when attendees modal is open
   const { data: bookingsData, isLoading: bookingsLoading } = useQuery({
@@ -165,6 +167,46 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
         return nameA.localeCompare(nameB);
       });
   }, [bookingsData, organizationFilter, searchFilter, organizationMap]);
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredAttendees.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedAttendees = filteredAttendees.slice(startIndex, endIndex);
+
+  // Generate page numbers for pagination controls
+  const getPageNumbers = () => {
+    const pages = [];
+    const maxVisible = 5;
+    
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push('...');
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push('...');
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push('...');
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  };
+
+  // Reset to page 1 when filters change
+  useMemo(() => {
+    setCurrentPage(1);
+  }, [organizationFilter, searchFilter]);
 
   // Export to CSV function
   const exportToCSV = () => {
@@ -536,6 +578,7 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
           if (!open) {
             setOrganizationFilter("all");
             setSearchFilter("");
+            setCurrentPage(1);
           }
         }}>
           <DialogContent className="sm:max-w-3xl max-h-[80vh] flex flex-col">
@@ -607,7 +650,7 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {filteredAttendees.map((booking, index) => (
+                    {paginatedAttendees.map((booking, index) => (
                       <TableRow key={booking.id || index} data-testid={`row-attendee-${booking.id || index}`}>
                         <TableCell className="font-medium">
                           {`${booking.attendee_first_name || ''} ${booking.attendee_last_name || ''}`.trim() || '-'}
@@ -630,10 +673,55 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
               )}
             </div>
 
-            {/* Footer with count */}
+            {/* Footer with pagination */}
             {filteredAttendees.length > 0 && (
-              <div className="pt-3 border-t text-sm text-slate-500">
-                Showing {filteredAttendees.length} of {bookingsData?.length || 0} attendee{bookingsData?.length !== 1 ? 's' : ''}
+              <div className="pt-3 border-t flex flex-col sm:flex-row items-center justify-between gap-3">
+                <div className="text-sm text-slate-500">
+                  Showing {startIndex + 1}-{Math.min(endIndex, filteredAttendees.length)} of {filteredAttendees.length} attendee{filteredAttendees.length !== 1 ? 's' : ''}
+                  {organizationFilter !== "all" || searchFilter ? ` (filtered from ${bookingsData?.length || 0})` : ''}
+                </div>
+                
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={currentPage === 1}
+                      data-testid="button-prev-page"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </Button>
+                    
+                    {getPageNumbers().map((page, idx) => (
+                      page === '...' ? (
+                        <span key={`ellipsis-${idx}`} className="px-2 text-slate-400">...</span>
+                      ) : (
+                        <Button
+                          key={page}
+                          variant={currentPage === page ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => setCurrentPage(page)}
+                          className="min-w-[36px]"
+                          data-testid={`button-page-${page}`}
+                        >
+                          {page}
+                        </Button>
+                      )
+                    ))}
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                      disabled={currentPage === totalPages}
+                      data-testid="button-next-page"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Button>
+                  </div>
+                )}
               </div>
             )}
           </DialogContent>

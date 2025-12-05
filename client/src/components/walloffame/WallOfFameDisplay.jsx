@@ -8,6 +8,7 @@ import { User, Mail, Linkedin, Loader2 } from "lucide-react";
 
 export default function WallOfFameDisplay({ 
   sectionId,
+  showCategoryName = true,
   customTitle,
   titleFontFamily = 'Poppins',
   titleFontWeight = 700,
@@ -229,29 +230,35 @@ export default function WallOfFameDisplay({
           </div>
         ) : (
           <div>
-            <div className="mb-8" style={{ textAlign: titleAlign }}>
-              {showBackButton && (
-                <div className="mb-4" style={{ textAlign: titleAlign }}>
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedCategory(null);
-                      setFlippedPerson(null);
-                    }}
-                  >
-                    ← Back to Categories
-                  </Button>
-                </div>
-              )}
-              <h3 style={titleStyle} className="mb-2">
-                {getDisplayTitle()}
-              </h3>
-              {selectedCategory.description && (
-                <p className="text-slate-600" style={{ textAlign: titleAlign }}>
-                  {selectedCategory.description}
-                </p>
-              )}
-            </div>
+            {(showBackButton || showCategoryName) && (
+              <div className="mb-8" style={{ textAlign: titleAlign }}>
+                {showBackButton && (
+                  <div className="mb-4" style={{ textAlign: titleAlign }}>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedCategory(null);
+                        setFlippedPerson(null);
+                      }}
+                    >
+                      ← Back to Categories
+                    </Button>
+                  </div>
+                )}
+                {showCategoryName && (
+                  <>
+                    <h3 style={titleStyle} className="mb-2">
+                      {getDisplayTitle()}
+                    </h3>
+                    {selectedCategory.description && (
+                      <p className="text-slate-600" style={{ textAlign: titleAlign }}>
+                        {selectedCategory.description}
+                      </p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
 
             {peopleLoading ? (
               <div className="flex items-center justify-center py-12">

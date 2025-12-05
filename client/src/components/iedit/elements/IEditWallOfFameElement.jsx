@@ -302,12 +302,29 @@ export function IEditWallOfFameElementEditor({ element, onChange }) {
         <h4 className="font-semibold text-sm mb-3">Title Settings</h4>
         
         <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="show_category_name"
+              checked={content.show_category_name !== false}
+              onChange={(e) => updateContent('show_category_name', e.target.checked)}
+              className="w-4 h-4 rounded"
+            />
+            <label htmlFor="show_category_name" className="text-sm font-medium cursor-pointer">
+              Show category name
+            </label>
+          </div>
+          <p className="text-xs text-slate-500">
+            When enabled, displays the category name (or custom title) above the people cards
+          </p>
+
           <div>
             <Label>Custom Title (Optional)</Label>
             <Input
               value={content.custom_title || ''}
               onChange={(e) => updateContent('custom_title', e.target.value)}
               placeholder="Leave empty to use category name"
+              disabled={content.show_category_name === false}
             />
             <p className="text-xs text-slate-500 mt-1">
               If set, this title will be used instead of the category name
@@ -446,6 +463,7 @@ export function IEditWallOfFameElementRenderer({ element, content }) {
   return (
     <WallOfFameDisplay 
       sectionId={sectionId} 
+      showCategoryName={displaySettings.show_category_name !== false}
       customTitle={displaySettings.custom_title}
       titleFontFamily={displaySettings.title_font_family}
       titleFontWeight={displaySettings.title_font_weight}

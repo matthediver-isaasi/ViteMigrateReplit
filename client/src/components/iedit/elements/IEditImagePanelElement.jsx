@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import AGCASButton from "../../ui/AGCASButton";
 import TypographyStyleSelector, { applyTypographyStyle } from "../TypographyStyleSelector";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function IEditImagePanelElement({ content, variant, settings }) {
   const {
@@ -25,6 +26,9 @@ export default function IEditImagePanelElement({ content, variant, settings }) {
   // Use all configured panels (up to 5) without filtering empty ones
   // This ensures dividers appear correctly even for blank panels
   const displayPanels = panels.length > 0 ? panels.slice(0, 5) : [{}];
+
+  // Detect mobile for responsive font sizing
+  const isMobile = useIsMobile();
 
   // When height_type is 'image' and we have an image, use CSS Grid to size based on image
   const isImageSized = height_type === 'image' && background_type === 'image' && image_url;
@@ -72,11 +76,12 @@ export default function IEditImagePanelElement({ content, variant, settings }) {
               <h3 
                 style={{ 
                   fontFamily: panel.header_font_family || 'Poppins',
-                  fontSize: `${panel.header_font_size || 24}px`,
+                  fontSize: `${(isMobile && panel.header_font_size_mobile) ? panel.header_font_size_mobile : (panel.header_font_size || 24)}px`,
                   fontWeight: panel.header_font_weight || 600,
                   color: panel.header_color || '#ffffff',
                   letterSpacing: `${panel.header_letter_spacing || 0}px`,
                   lineHeight: panel.header_line_height || 1.3,
+                  textTransform: panel.header_text_transform || 'none',
                   margin: 0,
                   whiteSpace: 'pre-line'
                 }}
@@ -96,11 +101,12 @@ export default function IEditImagePanelElement({ content, variant, settings }) {
               <p 
                 style={{ 
                   fontFamily: panel.bottom_font_family || 'Poppins',
-                  fontSize: `${panel.bottom_font_size || 16}px`,
+                  fontSize: `${(isMobile && panel.bottom_font_size_mobile) ? panel.bottom_font_size_mobile : (panel.bottom_font_size || 16)}px`,
                   fontWeight: panel.bottom_font_weight || 400,
                   color: panel.bottom_color || '#ffffff',
                   letterSpacing: `${panel.bottom_letter_spacing || 0}px`,
                   lineHeight: panel.bottom_line_height || 1.5,
+                  textTransform: panel.bottom_text_transform || 'none',
                   margin: 0,
                   marginBottom: panel.button?.text ? '16px' : 0,
                   whiteSpace: 'pre-line'
@@ -762,9 +768,11 @@ export function IEditImagePanelElementEditor({ element, onChange }) {
                           const updates = {};
                           if (styleProps.font_family) updates.header_font_family = styleProps.font_family;
                           if (styleProps.font_size) updates.header_font_size = styleProps.font_size;
+                          if (styleProps.font_size_mobile) updates.header_font_size_mobile = styleProps.font_size_mobile;
                           if (styleProps.font_weight) updates.header_font_weight = styleProps.font_weight;
                           if (styleProps.line_height) updates.header_line_height = styleProps.line_height;
                           if (styleProps.letter_spacing !== undefined) updates.header_letter_spacing = styleProps.letter_spacing;
+                          if (styleProps.text_transform) updates.header_text_transform = styleProps.text_transform;
                           if (styleProps.color) updates.header_color = styleProps.color;
                           
                           const newPanels = [...panels];
@@ -882,9 +890,11 @@ export function IEditImagePanelElementEditor({ element, onChange }) {
                           const updates = {};
                           if (styleProps.font_family) updates.bottom_font_family = styleProps.font_family;
                           if (styleProps.font_size) updates.bottom_font_size = styleProps.font_size;
+                          if (styleProps.font_size_mobile) updates.bottom_font_size_mobile = styleProps.font_size_mobile;
                           if (styleProps.font_weight) updates.bottom_font_weight = styleProps.font_weight;
                           if (styleProps.line_height) updates.bottom_line_height = styleProps.line_height;
                           if (styleProps.letter_spacing !== undefined) updates.bottom_letter_spacing = styleProps.letter_spacing;
+                          if (styleProps.text_transform) updates.bottom_text_transform = styleProps.text_transform;
                           if (styleProps.color) updates.bottom_color = styleProps.color;
                           
                           const newPanels = [...panels];

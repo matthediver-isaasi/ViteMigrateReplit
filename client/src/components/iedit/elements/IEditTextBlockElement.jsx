@@ -21,7 +21,17 @@ export default function IEditTextBlockElement({ content, variant, settings }) {
     content_color = '#475569',
     content_letter_spacing = 0,
     content_line_height = 1.6,
-    content_align = 'left'
+    content_align = 'left',
+    background_type = 'none',
+    background_color = '#ffffff',
+    gradient_start_color = '#3b82f6',
+    gradient_end_color = '#8b5cf6',
+    gradient_angle = 135,
+    padding_top = 0,
+    padding_bottom = 0,
+    padding_left = 0,
+    padding_right = 0,
+    border_radius = 0
   } = content || {};
 
   const variants = {
@@ -32,8 +42,29 @@ export default function IEditTextBlockElement({ content, variant, settings }) {
 
   const variantClass = variants[variant] || variants.default;
 
+  const getBackgroundStyle = () => {
+    if (background_type === 'color') {
+      return { backgroundColor: background_color };
+    }
+    if (background_type === 'gradient') {
+      return { 
+        background: `linear-gradient(${gradient_angle}deg, ${gradient_start_color}, ${gradient_end_color})` 
+      };
+    }
+    return {};
+  };
+
+  const containerStyle = {
+    ...getBackgroundStyle(),
+    paddingTop: padding_top ? `${padding_top}px` : undefined,
+    paddingBottom: padding_bottom ? `${padding_bottom}px` : undefined,
+    paddingLeft: padding_left ? `${padding_left}px` : undefined,
+    paddingRight: padding_right ? `${padding_right}px` : undefined,
+    borderRadius: border_radius ? `${border_radius}px` : undefined
+  };
+
   return (
-    <div className={variantClass}>
+    <div className={variantClass} style={containerStyle}>
       {heading && (
         <h2 
           style={{ 
@@ -109,6 +140,7 @@ const fontWeights = [
 
 export function IEditTextBlockElementEditor({ element, onChange }) {
   const content = element.content || { heading: '', text: '' };
+  const backgroundType = content.background_type || 'none';
 
   const updateContent = (key, value) => {
     onChange({ 
@@ -138,8 +170,165 @@ export function IEditTextBlockElementEditor({ element, onChange }) {
     'link'
   ];
 
+  const gradientPreview = `linear-gradient(${content.gradient_angle || 135}deg, ${content.gradient_start_color || '#3b82f6'}, ${content.gradient_end_color || '#8b5cf6'})`;
+
   return (
     <div className="space-y-4">
+      {/* Background Section */}
+      <div className="border-b pb-4">
+        <h4 className="font-semibold text-slate-900 mb-3">Background</h4>
+        
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium mb-1">Background Type</label>
+            <select
+              value={backgroundType}
+              onChange={(e) => updateContent('background_type', e.target.value)}
+              className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+            >
+              <option value="none">None (Transparent)</option>
+              <option value="color">Solid Color</option>
+              <option value="gradient">Gradient</option>
+            </select>
+          </div>
+
+          {backgroundType === 'color' && (
+            <div>
+              <label className="block text-xs font-medium mb-1">Background Color</label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  value={content.background_color || '#ffffff'}
+                  onChange={(e) => updateContent('background_color', e.target.value)}
+                  className="w-12 h-8 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={content.background_color || '#ffffff'}
+                  onChange={(e) => updateContent('background_color', e.target.value)}
+                  className="flex-1 px-2 py-1.5 border border-slate-300 rounded-md font-mono text-sm"
+                />
+              </div>
+            </div>
+          )}
+
+          {backgroundType === 'gradient' && (
+            <div className="space-y-3 p-3 bg-slate-50 rounded-md">
+              <div 
+                className="w-full h-12 rounded-md border border-slate-300"
+                style={{ background: gradientPreview }}
+              />
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium mb-1">Start Color</label>
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="color"
+                      value={content.gradient_start_color || '#3b82f6'}
+                      onChange={(e) => updateContent('gradient_start_color', e.target.value)}
+                      className="w-10 h-8 border border-slate-300 rounded cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={content.gradient_start_color || '#3b82f6'}
+                      onChange={(e) => updateContent('gradient_start_color', e.target.value)}
+                      className="flex-1 px-2 py-1 border border-slate-300 rounded-md font-mono text-xs"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">End Color</label>
+                  <div className="flex gap-1 items-center">
+                    <input
+                      type="color"
+                      value={content.gradient_end_color || '#8b5cf6'}
+                      onChange={(e) => updateContent('gradient_end_color', e.target.value)}
+                      className="w-10 h-8 border border-slate-300 rounded cursor-pointer"
+                    />
+                    <input
+                      type="text"
+                      value={content.gradient_end_color || '#8b5cf6'}
+                      onChange={(e) => updateContent('gradient_end_color', e.target.value)}
+                      className="flex-1 px-2 py-1 border border-slate-300 rounded-md font-mono text-xs"
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              <div>
+                <label className="block text-xs font-medium mb-1">Angle: {content.gradient_angle || 135}°</label>
+                <input
+                  type="range"
+                  min="0"
+                  max="360"
+                  value={content.gradient_angle || 135}
+                  onChange={(e) => updateContent('gradient_angle', parseInt(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+            </div>
+          )}
+
+          {backgroundType !== 'none' && (
+            <>
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <label className="block text-xs font-medium mb-1">Pad Top</label>
+                  <input
+                    type="number"
+                    value={content.padding_top || 0}
+                    onChange={(e) => updateContent('padding_top', parseInt(e.target.value) || 0)}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Pad Bottom</label>
+                  <input
+                    type="number"
+                    value={content.padding_bottom || 0}
+                    onChange={(e) => updateContent('padding_bottom', parseInt(e.target.value) || 0)}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Pad Left</label>
+                  <input
+                    type="number"
+                    value={content.padding_left || 0}
+                    onChange={(e) => updateContent('padding_left', parseInt(e.target.value) || 0)}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                    min="0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1">Pad Right</label>
+                  <input
+                    type="number"
+                    value={content.padding_right || 0}
+                    onChange={(e) => updateContent('padding_right', parseInt(e.target.value) || 0)}
+                    className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                    min="0"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1">Border Radius (px)</label>
+                <input
+                  type="number"
+                  value={content.border_radius || 0}
+                  onChange={(e) => updateContent('border_radius', parseInt(e.target.value) || 0)}
+                  className="w-full px-2 py-1.5 border border-slate-300 rounded-md text-sm"
+                  min="0"
+                />
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
       {/* Heading Section */}
       <div className="border-b pb-4">
         <h4 className="font-semibold text-slate-900 mb-3">Heading</h4>

@@ -83,6 +83,7 @@ const entityToTable: Record<string, string> = {
   'MemberPreferenceValue': 'member_preference_value',
   'OrganizationPreferenceValue': 'organization_preference_value',
   'Speaker': 'speaker',
+  'TypographyStyle': 'typography_style',
 };
 
 // Extend session type

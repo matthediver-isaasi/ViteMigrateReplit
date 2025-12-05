@@ -53,6 +53,8 @@ Preferred communication style: Simple, everyday language.
 
 **One-Off Events:** Events can be created as "one-off" events (program_tag="" empty string) with direct pricing instead of program ticket deduction. Visibility is determined solely by `program_tag`: empty/null = one-off event, non-empty = program event. Pricing configuration stored in `pricing_config` JSONB column.
 
+**Event Summary & Description:** Events have a `summary` field (150 character limit) for brief previews displayed on event cards and the EventDetails page preview section. The full `description` field supports rich text HTML (via ReactQuill editor) and is only shown in a "More information" modal. Descriptions are sanitized with DOMPurify before rendering to prevent XSS attacks.
+
 **Role-Based Ticket Classes:** One-off events support multiple ticket classes with role-based access control. The `pricing_config` contains:
 - `ticket_classes`: Array of ticket class objects, each with:
   - `id`: Unique identifier for the ticket class

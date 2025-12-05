@@ -103,6 +103,14 @@ Preferred communication style: Simple, everyday language.
 
 **Content Management:** BlogPost, Resource, NewsPost, IEditPage/IEditPageElement (dynamic page builder).
 
+**Typography System (Page Builder):** Pre-defined typography styles can be applied to text elements in the page builder via `TypographyStyle` entity and `TypographyStyleSelector` component.
+- Styles define: font_family, font_size, font_size_mobile, font_weight, line_height, letter_spacing, color, text_transform
+- Architecture: "Apply once" pattern - style values are copied to element fields when applied (not dynamically looked up)
+- All IEdit elements have TypographyStyleSelector integrated with collapsible "Manual Font Settings" for direct font control
+- Mobile responsive sizing implemented via font_size_mobile field and useIsMobile hook
+- Elements store applied style ID in `*_typography_style_id` fields for reference
+- Managed via `/InstalledFonts` admin page for style definitions
+
 **Speakers:** Speaker profiles for event assignments. Similar to GuestWriter but email is optional. Managed via `/SpeakerManagement` admin page. Events can have multiple speakers assigned (stored in `speaker_ids` array on Event).
 
 **Configuration:** NavigationItem, PortalMenu, PageBanner, TourGroup/TourStep, SystemSettings.

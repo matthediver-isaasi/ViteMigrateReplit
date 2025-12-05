@@ -101,14 +101,23 @@ export default function EventCard({ event, organizationInfo, isFeatureExcluded, 
   const [organizationFilter, setOrganizationFilter] = useState("all");
   const [searchFilter, setSearchFilter] = useState("");
 
-  // Fetch bookings and organizations when attendees modal is open
+  // Fetch bookings for this event when attendees modal is open
   const { data: bookingsData, isLoading: bookingsLoading } = useQuery({
-    queryKey: ['/api/entities/Booking', { event_id: event.id }],
+    queryKey: ['event-bookings', event.id],
+    queryFn: async () => {
+      // Use the filter method to get only bookings for this event
+      const bookings = await base44.entities.Booking.filter({ event_id: event.id });
+      return bookings;
+    },
     enabled: showAttendeesModal && isAdmin,
   });
 
+  // Fetch organizations when attendees modal is open
   const { data: organizationsData } = useQuery({
-    queryKey: ['/api/entities/Organization'],
+    queryKey: ['organizations-for-attendees'],
+    queryFn: async () => {
+      return await base44.entities.Organization.listAll();
+    },
     enabled: showAttendeesModal && isAdmin,
   });
 

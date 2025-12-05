@@ -319,6 +319,47 @@ const templates = [
     content_schema: {},
     is_active: true,
     display_order: 103
+  },
+  {
+    id: 'fifty_fifty_template',
+    name: '50/50',
+    element_type: 'fifty_fifty',
+    description: 'Two-column layout with image or text on each side, background options, and optional CTA button',
+    icon: 'Columns',
+    category: 'layout',
+    default_content: {
+      background_type: 'none',
+      background_color: '#ffffff',
+      left_content_type: 'text',
+      right_content_type: 'image',
+      left_heading: 'Your Heading',
+      left_subheading: 'Your Subheading',
+      left_content: 'Add your content here. Markdown is supported.',
+      left_heading_font_family: 'Poppins',
+      left_heading_font_weight: 700,
+      left_heading_font_size: 32,
+      left_heading_color: '#1e293b',
+      left_subheading_font_family: 'Poppins',
+      left_subheading_font_weight: 500,
+      left_subheading_font_size: 20,
+      left_subheading_color: '#475569',
+      left_content_font_family: 'Poppins',
+      left_content_font_weight: 400,
+      left_content_font_size: 16,
+      left_content_color: '#475569',
+      left_text_alignment: 'left',
+      right_image_url: '',
+      right_image_fit: 'cover',
+      button_position: 'bottom-right',
+      vertical_alignment: 'center',
+      column_gap: 32,
+      vertical_padding: 48,
+      reverse_on_mobile: false
+    },
+    available_variants: ["default"],
+    content_schema: {},
+    is_active: true,
+    display_order: 104
   }
 ];
 

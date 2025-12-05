@@ -24,6 +24,7 @@ import { IEditImagePanelElementEditor } from "./elements/IEditImagePanelElement"
 import { IEditAccordionElementEditor } from "./elements/IEditAccordionElement";
 import { IEditTwoColumnElementEditor } from "./elements/IEditTwoColumnElement";
 import { IEditQuoteElementEditor } from "./elements/IEditQuoteElement";
+import { IEditFiftyFiftyElementEditor } from "./elements/IEditFiftyFiftyElement";
 
 export default function IEditElementEditor({ element, onClose, onSave }) {
   const [editedContent, setEditedContent] = useState(element.content || {});
@@ -149,6 +150,9 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
 
   // Check if this is a Quote element (custom editor)
   const isQuote = element.element_type === 'quote';
+
+  // Check if this is a Fifty Fifty element (custom editor)
+  const isFiftyFifty = element.element_type === 'fifty_fifty';
 
   // Check if this is a Form element (needs form selector)
   const isFormElement = element.element_type === 'form';
@@ -488,6 +492,11 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
             />
           ) : isQuote ? (
             <IEditQuoteElementEditor 
+              element={{ ...element, content: editedContent }}
+              onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
+            />
+          ) : isFiftyFifty ? (
+            <IEditFiftyFiftyElementEditor 
               element={{ ...element, content: editedContent }}
               onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
             />

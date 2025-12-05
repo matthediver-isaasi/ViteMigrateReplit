@@ -26,6 +26,14 @@ export default function IEditHeroElement({ content, variant, settings }) {
     subheading_font_family = 'Poppins',
     subheading_font_size = 20,
     subheading_line_height = 1.5,
+    subheading_letter_spacing = 0,
+    content_text = '',
+    content_font_family = 'Poppins',
+    content_font_size = 16,
+    content_line_height = 1.6,
+    content_letter_spacing = 0,
+    content_color,
+    content_top_margin = 24,
     text_align = 'center',
     padding_left = 16,
     padding_right = 16,
@@ -39,6 +47,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
     // Mobile-specific settings
     mobile_heading_font_size,
     mobile_subheading_font_size,
+    mobile_content_font_size,
     mobile_padding_top,
     mobile_padding_bottom,
     mobile_padding_left,
@@ -56,6 +65,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
   // Calculate mobile values with fallbacks
   const mobileHeadingFontSize = mobile_heading_font_size || Math.max(28, Math.round(heading_font_size * 0.6));
   const mobileSubheadingFontSize = mobile_subheading_font_size || Math.max(16, Math.round(subheading_font_size * 0.8));
+  const mobileContentFontSize = mobile_content_font_size || Math.max(14, Math.round(content_font_size * 0.9));
   const mobilePaddingTop = mobile_padding_top !== undefined ? mobile_padding_top : Math.max(40, Math.round(padding_top * 0.5));
   const mobilePaddingBottom = mobile_padding_bottom !== undefined ? mobile_padding_bottom : Math.max(40, Math.round(padding_bottom * 0.5));
   const mobilePaddingLeft = mobile_padding_left !== undefined ? mobile_padding_left : Math.max(16, padding_left);
@@ -130,7 +140,17 @@ export default function IEditHeroElement({ content, variant, settings }) {
       font-family: ${subheading_font_family};
       font-size: ${subheading_font_size}px;
       line-height: ${subheading_line_height};
+      letter-spacing: ${subheading_letter_spacing}px;
       color: ${text_color};
+    }
+    
+    .${instanceId} .hero-content-text {
+      font-family: ${content_font_family};
+      font-size: ${content_font_size}px;
+      line-height: ${content_line_height};
+      letter-spacing: ${content_letter_spacing}px;
+      color: ${content_color || text_color};
+      margin-top: ${content_top_margin}px;
     }
     
     .${instanceId} .hero-button-wrapper {
@@ -164,6 +184,10 @@ export default function IEditHeroElement({ content, variant, settings }) {
       
       .${instanceId} .hero-subheading {
         font-size: ${mobileSubheadingFontSize}px;
+      }
+      
+      .${instanceId} .hero-content-text {
+        font-size: ${mobileContentFontSize}px;
       }
       
       .${instanceId} .hero-button-wrapper {
@@ -248,10 +272,20 @@ export default function IEditHeroElement({ content, variant, settings }) {
                   className="hero-subheading opacity-90"
                   style={{ 
                     whiteSpace: 'pre-line',
-                    marginBottom: (button && button.text) ? '24px' : '0'
+                    marginBottom: content_text ? '0' : (button && button.text) ? '24px' : '0'
                   }}
                 >
                   {content.subheading}
+                </p>
+              )}
+              {content_text && (
+                <p 
+                  className="hero-content-text opacity-90"
+                  style={{ 
+                    whiteSpace: 'pre-line'
+                  }}
+                >
+                  {content_text}
                 </p>
               )}
               {button && button.text && (
@@ -312,7 +346,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
                 style={{ 
                   marginBottom: heading_underline_enabled 
                     ? `${heading_underline_spacing}px` 
-                    : (content.subheading || (button && button.text)) ? '24px' : '0'
+                    : (content.subheading || content_text || (button && button.text)) ? '24px' : '0'
                 }}
               >
                 {content.heading}
@@ -324,7 +358,7 @@ export default function IEditHeroElement({ content, variant, settings }) {
                     height: `${heading_underline_weight}px`,
                     backgroundColor: heading_underline_color,
                     margin: text_align === 'center' ? '0 auto' : text_align === 'right' ? '0 0 0 auto' : '0',
-                    marginBottom: (content.subheading || (button && button.text)) ? `${heading_underline_to_content_spacing}px` : '0'
+                    marginBottom: (content.subheading || content_text || (button && button.text)) ? `${heading_underline_to_content_spacing}px` : '0'
                   }}
                 />
               )}
@@ -335,10 +369,20 @@ export default function IEditHeroElement({ content, variant, settings }) {
               className="hero-subheading opacity-90"
               style={{ 
                 whiteSpace: 'pre-line',
-                marginBottom: (button && button.text) ? '24px' : '0'
+                marginBottom: content_text ? '0' : (button && button.text) ? '24px' : '0'
               }}
             >
               {content.subheading}
+            </p>
+          )}
+          {content_text && (
+            <p 
+              className="hero-content-text opacity-90"
+              style={{ 
+                whiteSpace: 'pre-line'
+              }}
+            >
+              {content_text}
             </p>
           )}
           {button && button.text && (
@@ -445,6 +489,7 @@ export function IEditHeroElementEditor({ element, onChange }) {
   // Calculate default mobile values for display
   const defaultMobileHeadingSize = Math.max(28, Math.round((content.heading_font_size || 48) * 0.6));
   const defaultMobileSubheadingSize = Math.max(16, Math.round((content.subheading_font_size || 20) * 0.8));
+  const defaultMobileContentSize = Math.max(14, Math.round((content.content_font_size || 16) * 0.9));
   const defaultMobilePaddingTop = Math.max(40, Math.round((content.padding_top || 80) * 0.5));
   const defaultMobilePaddingBottom = Math.max(40, Math.round((content.padding_bottom || 80) * 0.5));
   const defaultMobileButtonMargin = Math.max(16, Math.round((content.button_top_margin || 32) * 0.75));
@@ -867,7 +912,7 @@ export function IEditHeroElementEditor({ element, onChange }) {
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-sm font-medium mb-1">Subheading Font</label>
           <select
@@ -901,6 +946,132 @@ export function IEditHeroElementEditor({ element, onChange }) {
             min="1"
             max="3"
           />
+        </div>
+        <div>
+          <label className="block text-sm font-medium mb-1">Letter Spacing (px)</label>
+          <input
+            type="number"
+            step="0.5"
+            value={content.subheading_letter_spacing || 0}
+            onChange={(e) => updateContent('subheading_letter_spacing', parseFloat(e.target.value) || 0)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            min="-5"
+            max="20"
+          />
+        </div>
+      </div>
+
+      {/* Content Section */}
+      <div className="border-t pt-4 mt-4">
+        <h4 className="text-sm font-semibold mb-3">Content Text</h4>
+        
+        <div>
+          <label className="block text-sm font-medium mb-1">Content</label>
+          <textarea
+            value={content.content_text || ''}
+            onChange={(e) => updateContent('content_text', e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            rows="4"
+            placeholder="Enter content text (optional)..."
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-3 mt-3">
+          <div>
+            <label className="block text-sm font-medium mb-1">Content Font</label>
+            <select
+              value={content.content_font_family || 'Poppins'}
+              onChange={(e) => updateContent('content_font_family', e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+            >
+              <option value="Poppins">Poppins</option>
+              <option value="Degular Medium">Degular Medium</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Size (px)</label>
+            <input
+              type="number"
+              value={content.content_font_size || 16}
+              onChange={(e) => updateContent('content_font_size', parseInt(e.target.value) || 16)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              min="12"
+              max="100"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Line Height</label>
+            <input
+              type="number"
+              step="0.1"
+              value={content.content_line_height || 1.6}
+              onChange={(e) => updateContent('content_line_height', parseFloat(e.target.value) || 1.6)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              min="1"
+              max="3"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Letter Spacing (px)</label>
+            <input
+              type="number"
+              step="0.5"
+              value={content.content_letter_spacing || 0}
+              onChange={(e) => updateContent('content_letter_spacing', parseFloat(e.target.value) || 0)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              min="-5"
+              max="20"
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Top Margin (px)</label>
+            <input
+              type="number"
+              value={content.content_top_margin || 24}
+              onChange={(e) => updateContent('content_top_margin', parseInt(e.target.value) || 24)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-md"
+              min="0"
+              max="200"
+            />
+            <p className="text-xs text-slate-500 mt-1">Space above content</p>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Content Color</label>
+            <div className="flex items-center gap-2 mb-1">
+              <input
+                type="checkbox"
+                id="content-use-text-color"
+                checked={!content.content_color}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    updateContent('content_color', '');
+                  } else {
+                    updateContent('content_color', content.text_color || '#ffffff');
+                  }
+                }}
+                className="w-4 h-4"
+              />
+              <label htmlFor="content-use-text-color" className="text-xs cursor-pointer">
+                Use main text color
+              </label>
+            </div>
+            {content.content_color && (
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  value={content.content_color}
+                  onChange={(e) => updateContent('content_color', e.target.value)}
+                  className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                />
+                <input
+                  type="text"
+                  value={content.content_color}
+                  onChange={(e) => updateContent('content_color', e.target.value)}
+                  className="flex-1 px-2 py-1.5 border border-slate-300 rounded-md font-mono text-sm"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1146,7 +1317,7 @@ export function IEditHeroElementEditor({ element, onChange }) {
             </p>
 
             {/* Mobile Font Sizes */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-sm font-medium mb-1">
                   Mobile Heading Size
@@ -1175,6 +1346,21 @@ export function IEditHeroElementEditor({ element, onChange }) {
                   className="w-full px-3 py-2 border border-slate-300 rounded-md"
                   min="12"
                   max="48"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  Mobile Content Size
+                  <span className="text-xs text-slate-500 block">Default: {defaultMobileContentSize}px</span>
+                </label>
+                <input
+                  type="number"
+                  value={content.mobile_content_font_size || ''}
+                  onChange={(e) => updateContent('mobile_content_font_size', e.target.value ? parseInt(e.target.value) : '')}
+                  placeholder={defaultMobileContentSize}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                  min="10"
+                  max="36"
                 />
               </div>
             </div>

@@ -315,7 +315,10 @@ export default function EditEvent() {
             let visibilityMode = tc.visibility_mode;
             if (!visibilityMode) {
               // Legacy tickets: if is_public was true, treat as 'members_and_public', otherwise 'members_only'
-              visibilityMode = tc.is_public ? 'members_and_public' : 'members_only';
+              // Handle various truthy/falsy representations of is_public (string "true"/"false", number 1/0, boolean)
+              const isPublicValue = tc.is_public;
+              const isPublicBool = isPublicValue === true || isPublicValue === 1 || isPublicValue === 'true' || isPublicValue === '1';
+              visibilityMode = isPublicBool ? 'members_and_public' : 'members_only';
             }
             return {
               id: tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,

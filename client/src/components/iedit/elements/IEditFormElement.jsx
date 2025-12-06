@@ -213,16 +213,100 @@ export default function IEditFormElement({ element, memberInfo, organizationInfo
             </CardHeader>
           )}
           <CardContent className="space-y-6">
-            {form.fields && form.fields.map(field => (
-              <FormRenderer
-                key={field.id}
-                field={field}
-                value={formValues[field.id]}
-                onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
-                memberInfo={memberInfo}
-                organizationInfo={organizationInfo}
-              />
-            ))}
+            {/* Render fields with column support for standard forms */}
+            {(() => {
+              const pages = form.pages || [];
+              const hasPages = pages.length > 0 && form.layout_type === 'standard';
+              
+              // For embedded forms without pages, just render all fields
+              if (!hasPages) {
+                return form.fields && form.fields.map(field => (
+                  <FormRenderer
+                    key={field.id}
+                    field={field}
+                    value={formValues[field.id]}
+                    onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
+                    memberInfo={memberInfo}
+                    organizationInfo={organizationInfo}
+                  />
+                ));
+              }
+              
+              // Get unassigned fields for backwards compatibility
+              const unassignedFields = form.fields.filter(f => !f.page_id);
+              
+              // For forms with pages, render each page with its columns
+              return (
+                <>
+                  {/* Render unassigned fields first (backwards compat) */}
+                  {unassignedFields.length > 0 && (
+                    <div className="space-y-4 mb-4">
+                      {unassignedFields.map(field => (
+                        <FormRenderer
+                          key={field.id}
+                          field={field}
+                          value={formValues[field.id]}
+                          onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
+                          memberInfo={memberInfo}
+                          organizationInfo={organizationInfo}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {/* Render page-assigned fields */}
+                  {pages.map((page, pageIndex) => {
+                    const pageFields = form.fields.filter(f => f.page_id === page.id);
+                    const columnCount = page.column_count || 1;
+                    
+                    return (
+                      <div key={page.id} className="space-y-4">
+                        {pages.length > 1 && (
+                          <h4 className="font-medium text-slate-700 border-b pb-2">
+                            {page.title || `Section ${pageIndex + 1}`}
+                          </h4>
+                        )}
+                        {columnCount === 1 ? (
+                          <div className="space-y-4">
+                            {pageFields.map(field => (
+                              <FormRenderer
+                                key={field.id}
+                                field={field}
+                                value={formValues[field.id]}
+                                onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
+                                memberInfo={memberInfo}
+                                organizationInfo={organizationInfo}
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className={`grid gap-4 ${
+                            columnCount === 2 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
+                          }`}>
+                            {Array.from({ length: columnCount }).map((_, colIndex) => {
+                              const columnFields = pageFields.filter(f => (f.column_index || 0) === colIndex);
+                              return (
+                                <div key={colIndex} className="space-y-4">
+                                  {columnFields.map(field => (
+                                    <FormRenderer
+                                      key={field.id}
+                                      field={field}
+                                      value={formValues[field.id]}
+                                      onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
+                                      memberInfo={memberInfo}
+                                      organizationInfo={organizationInfo}
+                                    />
+                                  ))}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </>
+              );
+            })()}
             <div className="flex justify-end pt-4">
               <Button className="bg-blue-600 hover:bg-blue-700" disabled>
                 {form.submit_button_text || 'Submit'}

@@ -257,11 +257,16 @@ export default function FormViewPage() {
   const hasPages = pages.length > 0;
   
   // Get fields for current page (or all fields if no pages)
+  // Unassigned fields (page_id === null) are shown on the first page for backwards compatibility
   const getCurrentPageFields = () => {
     if (!hasPages) {
       return form.fields;
     }
     const currentPage = pages[currentPageIndex];
+    if (currentPageIndex === 0) {
+      // Include unassigned fields on the first page
+      return form.fields.filter(f => f.page_id === currentPage?.id || !f.page_id);
+    }
     return form.fields.filter(f => f.page_id === currentPage?.id);
   };
   
@@ -330,8 +335,16 @@ export default function FormViewPage() {
             {(() => {
               const columnCount = currentPage?.column_count || 1;
               
+              // Separate unassigned fields (shown on first page for backwards compatibility)
+              const unassignedFields = currentPageIndex === 0 
+                ? displayFields.filter(f => !f.page_id) 
+                : [];
+              const pageAssignedFields = displayFields.filter(f => 
+                f.page_id === currentPage?.id
+              );
+              
               if (columnCount === 1) {
-                // Single column - render fields in order
+                // Single column - render all fields in order
                 return displayFields.map(field => (
                   <FormRenderer
                     key={field.id}
@@ -344,34 +357,52 @@ export default function FormViewPage() {
                 ));
               }
               
-              // Multi-column layout - group fields by column and render in grid
+              // Multi-column layout
               const gridClass = columnCount === 2 
                 ? 'grid grid-cols-1 md:grid-cols-2 gap-4' 
                 : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
               
               return (
-                <div className={gridClass}>
-                  {Array.from({ length: columnCount }).map((_, colIndex) => {
-                    const columnFields = displayFields.filter(f => 
-                      (f.column_index || 0) === colIndex
-                    );
-                    
-                    return (
-                      <div key={colIndex} className="space-y-4">
-                        {columnFields.map(field => (
-                          <FormRenderer
-                            key={field.id}
-                            field={field}
-                            value={formValues[field.id]}
-                            onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
-                            memberInfo={memberData}
-                            organizationInfo={organizationInfo}
-                          />
-                        ))}
-                      </div>
-                    );
-                  })}
-                </div>
+                <>
+                  {/* Render unassigned fields in full-width first (backwards compat) */}
+                  {unassignedFields.length > 0 && (
+                    <div className="space-y-4 mb-4">
+                      {unassignedFields.map(field => (
+                        <FormRenderer
+                          key={field.id}
+                          field={field}
+                          value={formValues[field.id]}
+                          onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
+                          memberInfo={memberData}
+                          organizationInfo={organizationInfo}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  {/* Render page-assigned fields in columns */}
+                  <div className={gridClass}>
+                    {Array.from({ length: columnCount }).map((_, colIndex) => {
+                      const columnFields = pageAssignedFields.filter(f => 
+                        (f.column_index || 0) === colIndex
+                      );
+                      
+                      return (
+                        <div key={colIndex} className="space-y-4">
+                          {columnFields.map(field => (
+                            <FormRenderer
+                              key={field.id}
+                              field={field}
+                              value={formValues[field.id]}
+                              onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
+                              memberInfo={memberData}
+                              organizationInfo={organizationInfo}
+                            />
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
               );
             })()}
             <div className="flex justify-between pt-4">

@@ -4,7 +4,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Ticket, Plus, History, Tag, X } from "lucide-react";
+import { Search, Calendar, Ticket, Plus, History, Tag, X, Check, ChevronDown } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { parseISO } from "date-fns";
@@ -386,40 +388,89 @@ export default function EventsPage({
             
             {/* Filter Tags */}
             {filterTagOptions.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-slate-200">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <Tag className="w-4 h-4 text-slate-500" />
-                  <span className="text-sm text-slate-600 mr-2">Filter by:</span>
-                  <Badge
-                    variant={selectedFilterTag === "all" ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => setSelectedFilterTag("all")}
-                    data-testid="filter-tag-all"
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    className="mt-4 w-full md:w-auto justify-between gap-2"
+                    data-testid="filter-tags-trigger"
                   >
-                    All
-                  </Badge>
-                  {filterTagOptions.map((tag) => (
-                    <Badge
-                      key={tag}
-                      variant={selectedFilterTag === tag ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => setSelectedFilterTag(tag)}
-                      data-testid={`filter-tag-${tag}`}
-                    >
-                      {tag}
-                      {selectedFilterTag === tag && (
-                        <X 
-                          className="w-3 h-3 ml-1" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setSelectedFilterTag("all");
-                          }}
-                        />
+                    <div className="flex items-center gap-2">
+                      <Tag className="w-4 h-4" />
+                      {selectedFilterTag === "all" ? (
+                        <span>Filter by category</span>
+                      ) : (
+                        <span className="truncate max-w-[200px]">{selectedFilterTag}</span>
                       )}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {selectedFilterTag !== "all" && (
+                        <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                          1
+                        </Badge>
+                      )}
+                      <ChevronDown className="w-4 h-4 opacity-50" />
+                    </div>
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-64 p-0" align="start">
+                  <div className="p-2 border-b border-slate-100">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-700">Filter by category</span>
+                      {selectedFilterTag !== "all" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 text-xs text-slate-500 hover:text-slate-700"
+                          onClick={() => setSelectedFilterTag("all")}
+                          data-testid="filter-tags-clear"
+                        >
+                          Clear
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                  <ScrollArea className="max-h-[280px]">
+                    <div className="p-1">
+                      <button
+                        className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
+                          selectedFilterTag === "all" 
+                            ? "bg-slate-100 text-slate-900 font-medium" 
+                            : "text-slate-600 hover:bg-slate-50"
+                        }`}
+                        onClick={() => setSelectedFilterTag("all")}
+                        data-testid="filter-tag-all"
+                      >
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                          selectedFilterTag === "all" ? "bg-primary border-primary" : "border-slate-300"
+                        }`}>
+                          {selectedFilterTag === "all" && <Check className="w-3 h-3 text-white" />}
+                        </div>
+                        All categories
+                      </button>
+                      {filterTagOptions.map((tag) => (
+                        <button
+                          key={tag}
+                          className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
+                            selectedFilterTag === tag 
+                              ? "bg-slate-100 text-slate-900 font-medium" 
+                              : "text-slate-600 hover:bg-slate-50"
+                          }`}
+                          onClick={() => setSelectedFilterTag(tag)}
+                          data-testid={`filter-tag-${tag}`}
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            selectedFilterTag === tag ? "bg-primary border-primary" : "border-slate-300"
+                          }`}>
+                            {selectedFilterTag === tag && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          <span className="truncate">{tag}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </PopoverContent>
+              </Popover>
             )}
             
             {/* Show Past Events Toggle */}

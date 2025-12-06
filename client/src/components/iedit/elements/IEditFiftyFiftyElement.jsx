@@ -229,7 +229,7 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
             <div className={`flex-1 flex flex-col ${leftAlignmentClass}`}>
               {renderColumn('left')}
             </div>
-            {button?.text && button_column === 'left' && left_content_type === 'text' && (
+            {(button?.text || button?.show_arrow) && button_column === 'left' && left_content_type === 'text' && (
               <div 
                 className="flex justify-end"
                 style={{
@@ -264,7 +264,7 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
             <div className={`flex-1 flex flex-col ${rightAlignmentClass}`}>
               {renderColumn('right')}
             </div>
-            {button?.text && button_column === 'right' && right_content_type === 'text' && (
+            {(button?.text || button?.show_arrow) && button_column === 'right' && right_content_type === 'text' && (
               <div 
                 className="flex justify-end"
                 style={{

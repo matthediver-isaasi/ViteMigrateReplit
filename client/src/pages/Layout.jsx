@@ -1434,8 +1434,9 @@ useEffect(() => {
         `}
       </style>
 
-      <SidebarProvider key="main-sidebar-provider" style={{ height: '100vh', overflow: 'hidden' }}>
-        <Sidebar className="border-r border-slate-200 bg-white" style={{ height: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <SidebarProvider key="main-sidebar-provider">
+        <div className="flex h-screen w-full overflow-hidden">
+        <Sidebar className="border-r border-slate-200 bg-white flex-shrink-0">
             <SidebarHeader className="border-b border-slate-200 p-6">
               <Link to={createPageUrl('Events')} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
                 <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md border border-slate-200 overflow-hidden">
@@ -1689,7 +1690,7 @@ useEffect(() => {
             </SidebarFooter>
           </Sidebar>
 
-          <div className="flex-1 flex flex-col h-screen overflow-hidden">
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             {/* Mobile Header - only visible on small screens */}
             <header className="md:hidden flex-shrink-0 flex items-center justify-between p-4 border-b border-slate-200 bg-white z-50">
               <Link to={createPageUrl('Events')} className="flex items-center gap-2">
@@ -1976,6 +1977,7 @@ useEffect(() => {
           {!isFeatureExcluded('element_FloatersDisplay') && (
             <FloaterDisplay location="portal" memberInfo={memberInfo} organizationInfo={organizationInfo} />
           )}
+        </div>
       </SidebarProvider>
     </div>
   );

@@ -788,15 +788,16 @@ export function IEditAccordionElementEditor({ element, onChange }) {
   );
 }
 
-export function IEditAccordionElementRenderer({ element, content }) {
+export function IEditAccordionElementRenderer({ element, content: contentProp, variant, settings }) {
   const [openItems, setOpenItems] = useState([]);
   const rawId = useId();
   const uniqueId = rawId.replace(/:/g, '');
   const isMobile = useIsMobile();
   
-  const displayContent = element?.content || content || {};
-  const items = displayContent.items || [];
-  const backgroundType = displayContent.background_type || 'none';
+  // Use element.content as the source of truth (same pattern as IEditFiftyFiftyElement)
+  const content = element?.content || contentProp || {};
+  const items = content.items || [];
+  const backgroundType = content.background_type || 'none';
 
   const toggleItem = (index) => {
     setOpenItems(prev => 
@@ -815,45 +816,45 @@ export function IEditAccordionElementRenderer({ element, content }) {
 
   // Section header styles
   const headerStyle = {
-    fontFamily: displayContent.header_font_family || 'Poppins',
-    fontWeight: displayContent.header_font_weight || 700,
-    fontSize: `${getFontSize(displayContent.header_font_size, displayContent.header_font_size_mobile, 32)}px`,
-    color: displayContent.header_color || '#1e293b',
-    textAlign: displayContent.header_align || 'center',
-    lineHeight: displayContent.header_line_height || 1.2,
-    letterSpacing: displayContent.header_letter_spacing ? `${displayContent.header_letter_spacing}px` : undefined
+    fontFamily: content.header_font_family || 'Poppins',
+    fontWeight: content.header_font_weight || 700,
+    fontSize: `${getFontSize(content.header_font_size, content.header_font_size_mobile, 32)}px`,
+    color: content.header_color || '#1e293b',
+    textAlign: content.header_align || 'center',
+    lineHeight: content.header_line_height || 1.2,
+    letterSpacing: content.header_letter_spacing ? `${content.header_letter_spacing}px` : undefined
   };
 
   // Accordion item header styles
   const itemHeaderStyle = {
-    fontFamily: displayContent.item_header_font_family || 'Poppins',
-    fontWeight: displayContent.item_header_font_weight || 600,
-    fontSize: `${getFontSize(displayContent.item_header_font_size, displayContent.item_header_font_size_mobile, 18)}px`,
-    color: displayContent.item_header_color || '#1e293b',
-    backgroundColor: displayContent.item_header_bg || '#ffffff',
-    lineHeight: displayContent.item_header_line_height || 1.4,
-    letterSpacing: displayContent.item_header_letter_spacing ? `${displayContent.item_header_letter_spacing}px` : undefined
+    fontFamily: content.item_header_font_family || 'Poppins',
+    fontWeight: content.item_header_font_weight || 600,
+    fontSize: `${getFontSize(content.item_header_font_size, content.item_header_font_size_mobile, 18)}px`,
+    color: content.item_header_color || '#1e293b',
+    backgroundColor: content.item_header_bg || '#ffffff',
+    lineHeight: content.item_header_line_height || 1.4,
+    letterSpacing: content.item_header_letter_spacing ? `${content.item_header_letter_spacing}px` : undefined
   };
 
   // Accordion item content styles
   const itemContentStyle = {
-    fontFamily: displayContent.item_content_font_family || 'Poppins',
-    fontWeight: displayContent.item_content_font_weight || 400,
-    fontSize: `${getFontSize(displayContent.item_content_font_size, displayContent.item_content_font_size_mobile, 16)}px`,
-    color: displayContent.item_content_color || '#475569',
-    lineHeight: displayContent.item_content_line_height || 1.6,
-    letterSpacing: displayContent.item_content_letter_spacing ? `${displayContent.item_content_letter_spacing}px` : undefined,
-    backgroundColor: displayContent.item_content_bg || '#f8fafc'
+    fontFamily: content.item_content_font_family || 'Poppins',
+    fontWeight: content.item_content_font_weight || 400,
+    fontSize: `${getFontSize(content.item_content_font_size, content.item_content_font_size_mobile, 16)}px`,
+    color: content.item_content_color || '#475569',
+    lineHeight: content.item_content_line_height || 1.6,
+    letterSpacing: content.item_content_letter_spacing ? `${content.item_content_letter_spacing}px` : undefined,
+    backgroundColor: content.item_content_bg || '#f8fafc'
   };
 
   // Background style
   const getBackgroundStyle = () => {
     if (backgroundType === 'color') {
-      return { backgroundColor: displayContent.background_color || '#f8fafc' };
+      return { backgroundColor: content.background_color || '#f8fafc' };
     }
     if (backgroundType === 'gradient') {
       return { 
-        background: `linear-gradient(${displayContent.gradient_angle || 135}deg, ${displayContent.gradient_start_color || '#3b82f6'}, ${displayContent.gradient_end_color || '#8b5cf6'})` 
+        background: `linear-gradient(${content.gradient_angle || 135}deg, ${content.gradient_start_color || '#3b82f6'}, ${content.gradient_end_color || '#8b5cf6'})` 
       };
     }
     return {};
@@ -894,20 +895,20 @@ export function IEditAccordionElementRenderer({ element, content }) {
         style={hasBackground && backgroundType !== 'image' ? getBackgroundStyle() : {}}
       >
         {/* Background image layer */}
-        {backgroundType === 'image' && displayContent.background_image_url && (
+        {backgroundType === 'image' && content.background_image_url && (
           <>
             <img 
-              src={displayContent.background_image_url} 
+              src={content.background_image_url} 
               alt="Background" 
               className="absolute inset-0 w-full h-full"
-              style={{ objectFit: displayContent.background_image_fit || 'cover' }}
+              style={{ objectFit: content.background_image_fit || 'cover' }}
             />
-            {displayContent.overlay_enabled && (
+            {content.overlay_enabled && (
               <div 
                 className="absolute inset-0" 
                 style={{ 
-                  backgroundColor: displayContent.overlay_color || '#000000', 
-                  opacity: parseInt(displayContent.overlay_opacity || 50) / 100 
+                  backgroundColor: content.overlay_color || '#000000', 
+                  opacity: parseInt(content.overlay_opacity || 50) / 100 
                 }} 
               />
             )}
@@ -917,19 +918,19 @@ export function IEditAccordionElementRenderer({ element, content }) {
         {/* Content */}
         <div className="relative max-w-4xl mx-auto px-4">
           {/* Section Header */}
-          {(displayContent.header_title || displayContent.header_subtitle) && (
+          {(content.header_title || content.header_subtitle) && (
             <div className="mb-8">
-              {displayContent.header_title && (
+              {content.header_title && (
                 <h2 style={headerStyle} className="mb-2">
-                  {displayContent.header_title}
+                  {content.header_title}
                 </h2>
               )}
-              {displayContent.header_subtitle && (
+              {content.header_subtitle && (
                 <p 
                   className="text-slate-600"
-                  style={{ textAlign: displayContent.header_align || 'center' }}
+                  style={{ textAlign: content.header_align || 'center' }}
                 >
-                  {displayContent.header_subtitle}
+                  {content.header_subtitle}
                 </p>
               )}
             </div>

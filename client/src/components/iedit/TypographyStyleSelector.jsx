@@ -35,7 +35,6 @@ async function fetchTypographyStyles() {
 export default function TypographyStyleSelector({ 
   value, 
   onChange, 
-  onApplyStyle,
   filterTypes = null,
   label = "Typography Style",
   placeholder = "Select a style to apply..."
@@ -71,14 +70,8 @@ export default function TypographyStyleSelector({
   }, [allStyles, filterTypes]);
 
   const handleChange = (styleId) => {
-    onChange(styleId);
-    
-    if (styleId && onApplyStyle) {
-      const selectedStyle = styles.find(s => s.id === styleId);
-      if (selectedStyle) {
-        onApplyStyle(selectedStyle);
-      }
-    }
+    const selectedStyle = styleId ? styles.find(s => s.id === styleId) : null;
+    onChange(styleId || null, selectedStyle || null);
   };
 
   const selectedStyle = value ? styles.find(s => s.id === value) : null;
@@ -119,7 +112,7 @@ export default function TypographyStyleSelector({
           </span>
           <button
             type="button"
-            onClick={() => handleChange(null)}
+            onClick={() => onChange(null, null)}
             className="text-red-500 hover:text-red-700 text-xs"
             data-testid="button-clear-typography-style"
           >

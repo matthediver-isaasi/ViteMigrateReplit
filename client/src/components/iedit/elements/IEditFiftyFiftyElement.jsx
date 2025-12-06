@@ -215,7 +215,7 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
           style={{ gap: `${column_gap}px` }}
         >
           <div 
-            className={`${reverse_on_mobile ? 'order-2 md:order-1' : ''} ${left_content_type === 'text' ? `flex flex-col ${leftAlignmentClass}` : ''}`}
+            className={`${reverse_on_mobile ? 'order-2 md:order-1' : ''} ${left_content_type === 'text' ? 'flex flex-col' : ''}`}
             style={{
               ...(left_content_type === 'text' && left_column_bg_color ? { 
                 backgroundColor: left_column_bg_color,
@@ -224,9 +224,11 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
               } : {})
             }}
           >
-            {renderColumn('left')}
+            <div className={`flex-1 flex flex-col ${leftAlignmentClass}`}>
+              {renderColumn('left')}
+            </div>
             {button?.text && button_column === 'left' && left_content_type === 'text' && (
-              <div className="flex justify-end mt-6">
+              <div className="flex justify-end mt-6 pt-4">
                 <AGCASButton
                   text={button.text}
                   link={button.link}
@@ -242,7 +244,7 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
             )}
           </div>
           <div 
-            className={`${reverse_on_mobile ? 'order-1 md:order-2' : ''} ${right_content_type === 'text' ? `flex flex-col ${rightAlignmentClass}` : ''}`}
+            className={`${reverse_on_mobile ? 'order-1 md:order-2' : ''} ${right_content_type === 'text' ? 'flex flex-col' : ''}`}
             style={{
               ...(right_content_type === 'text' && right_column_bg_color ? { 
                 backgroundColor: right_column_bg_color,
@@ -251,9 +253,11 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
               } : {})
             }}
           >
-            {renderColumn('right')}
+            <div className={`flex-1 flex flex-col ${rightAlignmentClass}`}>
+              {renderColumn('right')}
+            </div>
             {button?.text && button_column === 'right' && right_content_type === 'text' && (
-              <div className="flex justify-end mt-6">
+              <div className="flex justify-end mt-6 pt-4">
                 <AGCASButton
                   text={button.text}
                   link={button.link}
@@ -479,20 +483,18 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
             </div>
             <TypographyStyleSelector
               value={content[`${side}_heading_typography_style_id`] || null}
-              onChange={(styleId) => {
+              onChange={(styleId, style) => {
                 const updates = { [`${side}_heading_typography_style_id`]: styleId };
-                updateMultipleContent(updates);
-              }}
-              onApplyStyle={(style) => {
-                const mapped = applyTypographyStyle(style);
-                const updates = {};
-                if (mapped.font_family) updates[`${side}_heading_font_family`] = mapped.font_family;
-                if (mapped.font_size) updates[`${side}_heading_font_size`] = mapped.font_size;
-                if (mapped.font_size_mobile) updates[`${side}_heading_font_size_mobile`] = mapped.font_size_mobile;
-                if (mapped.font_weight) updates[`${side}_heading_font_weight`] = mapped.font_weight;
-                if (mapped.line_height) updates[`${side}_heading_line_height`] = mapped.line_height;
-                if (mapped.letter_spacing !== undefined) updates[`${side}_heading_letter_spacing`] = mapped.letter_spacing;
-                if (mapped.color) updates[`${side}_heading_color`] = mapped.color;
+                if (style) {
+                  const mapped = applyTypographyStyle(style);
+                  if (mapped.font_family) updates[`${side}_heading_font_family`] = mapped.font_family;
+                  if (mapped.font_size) updates[`${side}_heading_font_size`] = mapped.font_size;
+                  if (mapped.font_size_mobile) updates[`${side}_heading_font_size_mobile`] = mapped.font_size_mobile;
+                  if (mapped.font_weight) updates[`${side}_heading_font_weight`] = mapped.font_weight;
+                  if (mapped.line_height) updates[`${side}_heading_line_height`] = mapped.line_height;
+                  if (mapped.letter_spacing !== undefined) updates[`${side}_heading_letter_spacing`] = mapped.letter_spacing;
+                  if (mapped.color) updates[`${side}_heading_color`] = mapped.color;
+                }
                 updateMultipleContent(updates);
               }}
               filterTypes={['h1', 'h2']}
@@ -518,20 +520,18 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
             </div>
             <TypographyStyleSelector
               value={content[`${side}_subheading_typography_style_id`] || null}
-              onChange={(styleId) => {
+              onChange={(styleId, style) => {
                 const updates = { [`${side}_subheading_typography_style_id`]: styleId };
-                updateMultipleContent(updates);
-              }}
-              onApplyStyle={(style) => {
-                const mapped = applyTypographyStyle(style);
-                const updates = {};
-                if (mapped.font_family) updates[`${side}_subheading_font_family`] = mapped.font_family;
-                if (mapped.font_size) updates[`${side}_subheading_font_size`] = mapped.font_size;
-                if (mapped.font_size_mobile) updates[`${side}_subheading_font_size_mobile`] = mapped.font_size_mobile;
-                if (mapped.font_weight) updates[`${side}_subheading_font_weight`] = mapped.font_weight;
-                if (mapped.line_height) updates[`${side}_subheading_line_height`] = mapped.line_height;
-                if (mapped.letter_spacing !== undefined) updates[`${side}_subheading_letter_spacing`] = mapped.letter_spacing;
-                if (mapped.color) updates[`${side}_subheading_color`] = mapped.color;
+                if (style) {
+                  const mapped = applyTypographyStyle(style);
+                  if (mapped.font_family) updates[`${side}_subheading_font_family`] = mapped.font_family;
+                  if (mapped.font_size) updates[`${side}_subheading_font_size`] = mapped.font_size;
+                  if (mapped.font_size_mobile) updates[`${side}_subheading_font_size_mobile`] = mapped.font_size_mobile;
+                  if (mapped.font_weight) updates[`${side}_subheading_font_weight`] = mapped.font_weight;
+                  if (mapped.line_height) updates[`${side}_subheading_line_height`] = mapped.line_height;
+                  if (mapped.letter_spacing !== undefined) updates[`${side}_subheading_letter_spacing`] = mapped.letter_spacing;
+                  if (mapped.color) updates[`${side}_subheading_color`] = mapped.color;
+                }
                 updateMultipleContent(updates);
               }}
               filterTypes={['h3', 'h4']}
@@ -558,19 +558,17 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
             </div>
             <TypographyStyleSelector
               value={content[`${side}_content_typography_style_id`] || null}
-              onChange={(styleId) => {
+              onChange={(styleId, style) => {
                 const updates = { [`${side}_content_typography_style_id`]: styleId };
-                updateMultipleContent(updates);
-              }}
-              onApplyStyle={(style) => {
-                const mapped = applyTypographyStyle(style);
-                const updates = {};
-                if (mapped.font_family) updates[`${side}_content_font_family`] = mapped.font_family;
-                if (mapped.font_size) updates[`${side}_content_font_size`] = mapped.font_size;
-                if (mapped.font_size_mobile) updates[`${side}_content_font_size_mobile`] = mapped.font_size_mobile;
-                if (mapped.font_weight) updates[`${side}_content_font_weight`] = mapped.font_weight;
-                if (mapped.line_height) updates[`${side}_content_line_height`] = mapped.line_height;
-                if (mapped.color) updates[`${side}_content_color`] = mapped.color;
+                if (style) {
+                  const mapped = applyTypographyStyle(style);
+                  if (mapped.font_family) updates[`${side}_content_font_family`] = mapped.font_family;
+                  if (mapped.font_size) updates[`${side}_content_font_size`] = mapped.font_size;
+                  if (mapped.font_size_mobile) updates[`${side}_content_font_size_mobile`] = mapped.font_size_mobile;
+                  if (mapped.font_weight) updates[`${side}_content_font_weight`] = mapped.font_weight;
+                  if (mapped.line_height) updates[`${side}_content_line_height`] = mapped.line_height;
+                  if (mapped.color) updates[`${side}_content_color`] = mapped.color;
+                }
                 updateMultipleContent(updates);
               }}
               filterTypes={['paragraph']}

@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Ticket, Plus, History } from "lucide-react";
+import { Search, Calendar, Ticket, Plus, History, Tag, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { parseISO } from "date-fns";
@@ -41,6 +41,7 @@ export default function EventsPage({
   const { isAdmin } = useMemberAccess();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
+  const [selectedFilterTag, setSelectedFilterTag] = useState("all");
   const [showPastEvents, setShowPastEvents] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourAutoShow, setTourAutoShow] = useState(false);
@@ -112,6 +113,33 @@ export default function EventsPage({
         if (!response.ok) return [];
         return await response.json();
       } catch {
+        return [];
+      }
+    }
+  });
+
+  // Query for event filter category setting and its subcategories
+  const { data: filterTagOptions = [] } = useQuery({
+    queryKey: ['event-filter-tags'],
+    queryFn: async () => {
+      try {
+        // Get the system setting for which category to use
+        const allSettings = await base44.entities.SystemSettings.list();
+        const setting = allSettings.find(s => s.setting_key === 'event_filter_category_id');
+        if (!setting || !setting.setting_value) {
+          return [];
+        }
+        const categoryId = setting.setting_value;
+        
+        // Get the resource category to get its subcategories
+        const categories = await base44.entities.ResourceCategory.list();
+        const category = categories.find(c => String(c.id) === categoryId);
+        if (!category || !category.subcategories || !Array.isArray(category.subcategories)) {
+          return [];
+        }
+        return category.subcategories;
+      } catch (error) {
+        console.error('[Events] Error loading filter tag options:', error);
         return [];
       }
     }
@@ -191,16 +219,23 @@ export default function EventsPage({
       matchesProgram = event.program_tag === selectedProgram;
     }
     
+    // Handle filter tag filtering
+    let matchesFilterTag = true;
+    if (selectedFilterTag !== "all") {
+      const eventFilterTags = event.filter_tags || [];
+      matchesFilterTag = eventFilterTags.includes(selectedFilterTag);
+    }
+    
     // Filter out past events unless showPastEvents is enabled
     const isPast = isEventPast(event);
     const matchesTimeFilter = showPastEvents || !isPast;
     
     // Debug log for each event
-    if (!matchesTimeFilter || !matchesSearch || !matchesProgram) {
-      console.log(`[Events] Filtered out: "${event.title}" - search:${matchesSearch}, program:${matchesProgram}, time:${matchesTimeFilter}, isPast:${isPast}, start_date:${event.start_date}`);
+    if (!matchesTimeFilter || !matchesSearch || !matchesProgram || !matchesFilterTag) {
+      console.log(`[Events] Filtered out: "${event.title}" - search:${matchesSearch}, program:${matchesProgram}, filterTag:${matchesFilterTag}, time:${matchesTimeFilter}, isPast:${isPast}, start_date:${event.start_date}`);
     }
     
-    return matchesSearch && matchesProgram && matchesTimeFilter;
+    return matchesSearch && matchesProgram && matchesFilterTag && matchesTimeFilter;
   });
   
   console.log('[Events] Debug - filteredEvents count:', filteredEvents.length);
@@ -227,7 +262,14 @@ export default function EventsPage({
       matchesProgram = event.program_tag === selectedProgram;
     }
     
-    return matchesSearch && matchesProgram && isEventPast(event);
+    // Use same filter tag matching logic
+    let matchesFilterTag = true;
+    if (selectedFilterTag !== "all") {
+      const eventFilterTags = event.filter_tags || [];
+      matchesFilterTag = eventFilterTags.includes(selectedFilterTag);
+    }
+    
+    return matchesSearch && matchesProgram && matchesFilterTag && isEventPast(event);
   }).length;
 
   // Update member tour status via base44 client
@@ -341,6 +383,44 @@ export default function EventsPage({
                 onProgramChange={setSelectedProgram}
               />
             </div>
+            
+            {/* Filter Tags */}
+            {filterTagOptions.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-slate-200">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Tag className="w-4 h-4 text-slate-500" />
+                  <span className="text-sm text-slate-600 mr-2">Filter by:</span>
+                  <Badge
+                    variant={selectedFilterTag === "all" ? "default" : "outline"}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedFilterTag("all")}
+                    data-testid="filter-tag-all"
+                  >
+                    All
+                  </Badge>
+                  {filterTagOptions.map((tag) => (
+                    <Badge
+                      key={tag}
+                      variant={selectedFilterTag === tag ? "default" : "outline"}
+                      className="cursor-pointer"
+                      onClick={() => setSelectedFilterTag(tag)}
+                      data-testid={`filter-tag-${tag}`}
+                    >
+                      {tag}
+                      {selectedFilterTag === tag && (
+                        <X 
+                          className="w-3 h-3 ml-1" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFilterTag("all");
+                          }}
+                        />
+                      )}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {/* Show Past Events Toggle */}
             {pastEventsCount > 0 && (

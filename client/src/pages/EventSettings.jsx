@@ -740,18 +740,18 @@ export default function EventSettingsPage() {
                 </Label>
                 <div className="flex items-center gap-4">
                   <Select 
-                    value={eventFilterCategoryId} 
-                    onValueChange={setEventFilterCategoryId}
+                    value={eventFilterCategoryId || "_none"} 
+                    onValueChange={(val) => setEventFilterCategoryId(val === "_none" ? "" : val)}
                   >
                     <SelectTrigger className="w-64" data-testid="select-event-filter-category">
                       <SelectValue placeholder="Select a category..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="_none">None</SelectItem>
                       {resourceCategories
                         .filter(cat => cat.is_active)
                         .map((category) => (
-                          <SelectItem key={category.id} value={category.id}>
+                          <SelectItem key={category.id} value={String(category.id)}>
                             {category.name} ({(category.subcategories || []).length} subcategories)
                           </SelectItem>
                         ))
@@ -770,14 +770,14 @@ export default function EventSettingsPage() {
                   Choose which category's subcategories will be available as filter options when creating or editing events.
                   This allows you to tag events with specific filter values for easier searching and filtering.
                 </p>
-                {eventFilterCategoryId && resourceCategories.find(c => c.id === eventFilterCategoryId) && (
+                {eventFilterCategoryId && resourceCategories.find(c => String(c.id) === eventFilterCategoryId) && (
                   <div className="mt-4 p-3 bg-slate-50 rounded-lg">
                     <Label className="text-sm font-medium text-slate-700">Available Filter Values:</Label>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {(resourceCategories.find(c => c.id === eventFilterCategoryId)?.subcategories || []).map((sub, idx) => (
+                      {(resourceCategories.find(c => String(c.id) === eventFilterCategoryId)?.subcategories || []).map((sub, idx) => (
                         <Badge key={idx} variant="secondary">{sub}</Badge>
                       ))}
-                      {(resourceCategories.find(c => c.id === eventFilterCategoryId)?.subcategories || []).length === 0 && (
+                      {(resourceCategories.find(c => String(c.id) === eventFilterCategoryId)?.subcategories || []).length === 0 && (
                         <span className="text-sm text-slate-500">No subcategories defined for this category</span>
                       )}
                     </div>

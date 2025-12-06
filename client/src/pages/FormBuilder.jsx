@@ -331,18 +331,34 @@ export default function FormBuilderPage() {
     setFormData({ ...formData, fields: newFields });
   };
 
+  // Parse droppable ID to extract page ID and column index
+  // Format: "fields-unassigned" or "pageId::columnIndex"
+  const parseDroppableId = (droppableId) => {
+    if (droppableId === 'fields-unassigned') {
+      return { pageId: null, columnIndex: 0 };
+    }
+    const parts = droppableId.split('::');
+    return {
+      pageId: parts[0],
+      columnIndex: parseInt(parts[1] || '0', 10)
+    };
+  };
+
   const handleDragEnd = (result) => {
     if (!result.destination) return;
 
     const { source, destination } = result;
     
-    // For standard layout with pages, handle cross-page drops
+    // For standard layout with pages, handle cross-page and cross-column drops
     if (formData.layout_type === 'standard' && formData.pages.length > 0) {
-      const sourcePageId = source.droppableId === 'fields-unassigned' ? null : source.droppableId;
-      const destPageId = destination.droppableId === 'fields-unassigned' ? null : destination.droppableId;
+      const sourceParsed = parseDroppableId(source.droppableId);
+      const destParsed = parseDroppableId(destination.droppableId);
       
-      // Get fields for source page to find the moved field
-      const sourceFields = formData.fields.filter(f => f.page_id === sourcePageId);
+      // Get fields for source page+column to find the moved field
+      const sourceFields = formData.fields.filter(f => 
+        f.page_id === sourceParsed.pageId && 
+        (f.column_index || 0) === sourceParsed.columnIndex
+      );
       const movedField = sourceFields[source.index];
       if (!movedField) return;
       
@@ -355,31 +371,34 @@ export default function FormBuilderPage() {
       // Remove from original position
       newFields.splice(movedFieldAbsoluteIndex, 1);
       
-      // Update the field's page_id
-      const updatedField = { ...movedField, page_id: destPageId };
+      // Update the field's page_id and column_index
+      const updatedField = { 
+        ...movedField, 
+        page_id: destParsed.pageId,
+        column_index: destParsed.columnIndex
+      };
       
       // Find where to insert in the new array
-      // Get destination page fields (after removal)
-      const destFieldsAfterRemoval = newFields.filter(f => f.page_id === destPageId);
+      // Get destination page+column fields (after removal)
+      const destFieldsAfterRemoval = newFields.filter(f => 
+        f.page_id === destParsed.pageId && 
+        (f.column_index || 0) === destParsed.columnIndex
+      );
       
       if (destFieldsAfterRemoval.length === 0) {
-        // No fields in destination page - find the correct position based on page order
-        // We want to insert at a position that maintains logical grouping
-        
-        const destPageIndex = destPageId === null 
-          ? -1 // Unassigned comes first
-          : formData.pages.findIndex(p => p.id === destPageId);
+        // No fields in destination - find the correct position
+        const destPageIndex = destParsed.pageId === null 
+          ? -1 
+          : formData.pages.findIndex(p => p.id === destParsed.pageId);
         
         let insertIndex = -1;
         
-        if (destPageId === null) {
-          // Unassigned fields go at the start (before any page fields)
-          // Find the first field that belongs to any page
+        if (destParsed.pageId === null) {
+          // Unassigned fields
           const firstPageFieldIndex = newFields.findIndex(f => f.page_id !== null);
           insertIndex = firstPageFieldIndex === -1 ? 0 : firstPageFieldIndex;
         } else {
           // Find position based on page order
-          // Look for fields from later pages first
           for (let i = destPageIndex + 1; i < formData.pages.length; i++) {
             const laterPageId = formData.pages[i].id;
             const firstFieldOfLaterPage = newFields.findIndex(f => f.page_id === laterPageId);
@@ -389,7 +408,6 @@ export default function FormBuilderPage() {
             }
           }
           
-          // If no later pages have fields, look for fields from earlier pages
           if (insertIndex === -1) {
             for (let i = destPageIndex - 1; i >= 0; i--) {
               const earlierPageId = formData.pages[i].id;
@@ -403,15 +421,12 @@ export default function FormBuilderPage() {
             }
           }
           
-          // If still no fields from other pages, look for unassigned fields
           if (insertIndex === -1) {
             const unassignedFields = newFields.map((f, idx) => ({ f, idx }))
               .filter(({ f }) => f.page_id === null);
             if (unassignedFields.length > 0) {
-              // Insert after the last unassigned field
               insertIndex = unassignedFields[unassignedFields.length - 1].idx + 1;
             } else {
-              // No fields at all, insert at start
               insertIndex = 0;
             }
           }
@@ -419,12 +434,10 @@ export default function FormBuilderPage() {
         
         newFields.splice(insertIndex, 0, updatedField);
       } else if (destination.index >= destFieldsAfterRemoval.length) {
-        // Insert after the last field in destination page
         const lastDestField = destFieldsAfterRemoval[destFieldsAfterRemoval.length - 1];
         const lastDestFieldAbsoluteIndex = newFields.findIndex(f => f.id === lastDestField.id);
         newFields.splice(lastDestFieldAbsoluteIndex + 1, 0, updatedField);
       } else {
-        // Insert before the field at destination.index
         const targetField = destFieldsAfterRemoval[destination.index];
         const targetAbsoluteIndex = newFields.findIndex(f => f.id === targetField.id);
         newFields.splice(targetAbsoluteIndex, 0, updatedField);
@@ -770,11 +783,9 @@ export default function FormBuilderPage() {
                         </div>
                       )}
 
-                      {/* Fields grouped by page */}
+                      {/* Fields grouped by page with columns */}
                       {formData.pages.map((page, pageIndex) => {
-                        const pageFields = formData.fields
-                          .map((field, originalIndex) => ({ field, originalIndex }))
-                          .filter(({ field }) => field.page_id === page.id);
+                        const columnCount = page.column_count || 1;
                         
                         return (
                           <div key={page.id} className="border border-slate-200 rounded-lg overflow-hidden">
@@ -784,9 +795,14 @@ export default function FormBuilderPage() {
                                   Page {pageIndex + 1}
                                 </span>
                                 {page.title}
+                                {columnCount > 1 && (
+                                  <span className="text-xs text-slate-500">
+                                    ({columnCount} columns)
+                                  </span>
+                                )}
                               </h4>
                               <Button 
-                                onClick={() => addField(page.id)} 
+                                onClick={() => addField(page.id, 0)} 
                                 size="sm" 
                                 variant="ghost"
                                 className="h-7 text-xs"
@@ -795,34 +811,65 @@ export default function FormBuilderPage() {
                                 Add Field
                               </Button>
                             </div>
-                            <Droppable droppableId={page.id}>
-                              {(provided, snapshot) => (
-                                <div 
-                                  {...provided.droppableProps} 
-                                  ref={provided.innerRef} 
-                                  className={`p-4 space-y-3 min-h-[80px] ${snapshot.isDraggingOver ? 'bg-blue-50' : ''}`}
-                                >
-                                  {pageFields.length === 0 ? (
-                                    <div className="text-center py-4 text-slate-400 text-sm">
-                                      Drag fields here or click "Add Field"
-                                    </div>
-                                  ) : (
-                                    pageFields.map(({ field, originalIndex }, index) => (
-                                      <FieldCard
-                                        key={field.id}
-                                        field={field}
-                                        index={index}
-                                        originalIndex={originalIndex}
-                                        updateField={updateField}
-                                        removeField={removeField}
-                                        FIELD_TYPES={FIELD_TYPES}
-                                      />
-                                    ))
-                                  )}
-                                  {provided.placeholder}
-                                </div>
-                              )}
-                            </Droppable>
+                            
+                            {/* Column grid */}
+                            <div className={`grid gap-2 p-4 ${
+                              columnCount === 1 ? 'grid-cols-1' : 
+                              columnCount === 2 ? 'grid-cols-2' : 
+                              'grid-cols-3'
+                            }`}>
+                              {Array.from({ length: columnCount }).map((_, colIndex) => {
+                                const columnFields = formData.fields
+                                  .map((field, originalIndex) => ({ field, originalIndex }))
+                                  .filter(({ field }) => 
+                                    field.page_id === page.id && 
+                                    (field.column_index || 0) === colIndex
+                                  );
+                                
+                                return (
+                                  <Droppable 
+                                    key={`${page.id}::${colIndex}`} 
+                                    droppableId={`${page.id}::${colIndex}`}
+                                  >
+                                    {(provided, snapshot) => (
+                                      <div 
+                                        {...provided.droppableProps} 
+                                        ref={provided.innerRef} 
+                                        className={`space-y-3 min-h-[80px] p-2 rounded border-2 border-dashed ${
+                                          snapshot.isDraggingOver 
+                                            ? 'bg-blue-50 border-blue-300' 
+                                            : 'border-slate-200 bg-slate-50/50'
+                                        }`}
+                                      >
+                                        {columnCount > 1 && (
+                                          <div className="text-xs text-slate-400 text-center mb-2">
+                                            Column {colIndex + 1}
+                                          </div>
+                                        )}
+                                        {columnFields.length === 0 ? (
+                                          <div className="text-center py-4 text-slate-400 text-xs">
+                                            Drag fields here
+                                          </div>
+                                        ) : (
+                                          columnFields.map(({ field, originalIndex }, index) => (
+                                            <FieldCard
+                                              key={field.id}
+                                              field={field}
+                                              index={index}
+                                              originalIndex={originalIndex}
+                                              updateField={updateField}
+                                              removeField={removeField}
+                                              FIELD_TYPES={FIELD_TYPES}
+                                            />
+                                          ))
+                                        )}
+                                        {provided.placeholder}
+                                      </div>
+                                    )}
+                                  </Droppable>
+                                );
+                              })}
+                            </div>
                           </div>
                         );
                       })}

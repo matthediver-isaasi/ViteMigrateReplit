@@ -65,6 +65,8 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
     column_border_radius = 0,
     button,
     button_column = 'left',
+    button_inset_right = 0,
+    button_inset_bottom = 0,
     left_vertical_alignment = 'center',
     right_vertical_alignment = 'center',
     reverse_on_mobile = false,
@@ -228,7 +230,13 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
               {renderColumn('left')}
             </div>
             {button?.text && button_column === 'left' && left_content_type === 'text' && (
-              <div className="flex justify-end">
+              <div 
+                className="flex justify-end"
+                style={{
+                  marginRight: left_column_bg_color ? `${-left_column_padding + button_inset_right}px` : `${button_inset_right}px`,
+                  marginBottom: left_column_bg_color ? `${-left_column_padding + button_inset_bottom}px` : `${button_inset_bottom}px`
+                }}
+              >
                 <AGCASButton
                   text={button.text}
                   link={button.link}
@@ -257,7 +265,13 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
               {renderColumn('right')}
             </div>
             {button?.text && button_column === 'right' && right_content_type === 'text' && (
-              <div className="flex justify-end">
+              <div 
+                className="flex justify-end"
+                style={{
+                  marginRight: right_column_bg_color ? `${-right_column_padding + button_inset_right}px` : `${button_inset_right}px`,
+                  marginBottom: right_column_bg_color ? `${-right_column_padding + button_inset_bottom}px` : `${button_inset_bottom}px`
+                }}
+              >
                 <AGCASButton
                   text={button.text}
                   link={button.link}
@@ -981,6 +995,31 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
                 <option value="right">Right Column</option>
               </select>
               <p className="text-xs text-slate-500 mt-1">Button appears at bottom-right of the selected text column</p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-xs">Inset from Right: {content.button_inset_right || 0}px</Label>
+                <input
+                  type="range"
+                  min="0"
+                  max="48"
+                  value={content.button_inset_right || 0}
+                  onChange={(e) => updateContent('button_inset_right', parseInt(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+              <div>
+                <Label className="text-xs">Inset from Bottom: {content.button_inset_bottom || 0}px</Label>
+                <input
+                  type="range"
+                  min="0"
+                  max="48"
+                  value={content.button_inset_bottom || 0}
+                  onChange={(e) => updateContent('button_inset_bottom', parseInt(e.target.value))}
+                  className="w-full"
+                />
+              </div>
             </div>
 
             <div>

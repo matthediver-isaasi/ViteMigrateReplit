@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video, AlertTriangle, PoundSterling, User, Mic, ChevronRight, X, Lock, Eye } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video, AlertTriangle, PoundSterling, User, Mic, ChevronRight, X, Lock } from "lucide-react";
 import { format } from "date-fns";
 import DOMPurify from "dompurify";
 import { createPageUrl } from "@/utils";
@@ -39,7 +39,6 @@ export default function EventDetailsPage() {
   const [showColleagueSelector, setShowColleagueSelector] = useState(false);
   const [selectedTicketClassId, setSelectedTicketClassId] = useState(null);
   const [paymentCanProceed, setPaymentCanProceed] = useState(false);
-  const [showAllTickets, setShowAllTickets] = useState(false); // Toggle to show all tickets for non-logged-in users
 
   // Modal states for description and speaker profiles
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
@@ -361,9 +360,11 @@ export default function EventDetailsPage() {
     return userRoleId && ticket.role_ids.includes(userRoleId);
   };
   
+  // Check if admin has enabled showing all tickets to guests
+  const allowGuestsToViewAllTickets = pricingConfig?.allowGuestsToViewAllTickets || false;
+  
   // Get ticket classes that should be displayed
-  // For non-logged-in users with showAllTickets=false: only public tickets
-  // For non-logged-in users with showAllTickets=true: ALL tickets (some disabled)
+  // For non-logged-in users: show based on admin setting allowGuestsToViewAllTickets
   // For logged-in users: tickets they have access to based on visibility and role
   const availableTicketClasses = useMemo(() => {
     if (!isOneOffEvent || !pricingConfig) return [];
@@ -386,21 +387,16 @@ export default function EventDetailsPage() {
       });
     }
     
-    // For non-logged-in users with showAllTickets toggle ON: show ALL tickets
-    if (showAllTickets) {
+    // For non-logged-in users: if admin enabled allowGuestsToViewAllTickets, show ALL tickets
+    if (allowGuestsToViewAllTickets) {
       return allNormalizedTickets;
     }
     
-    // For non-logged-in users without toggle: only show tickets that include public visibility
+    // Otherwise only show tickets that include public visibility
     return allNormalizedTickets.filter(tc => 
       tc.visibility_mode === 'members_and_public' || tc.visibility_mode === 'public_only'
     );
-  }, [isOneOffEvent, pricingConfig, currentMemberInfo, userRoleId, allNormalizedTickets, showAllTickets]);
-  
-  // Check if there are any member-only tickets to show the toggle
-  const hasMemberOnlyTickets = useMemo(() => {
-    return allNormalizedTickets.some(tc => tc.visibility_mode === 'members_only');
-  }, [allNormalizedTickets]);
+  }, [isOneOffEvent, pricingConfig, currentMemberInfo, userRoleId, allNormalizedTickets, allowGuestsToViewAllTickets]);
   
   // Auto-select first available PURCHASABLE ticket class
   // Also reset selection if currently selected ticket becomes non-purchasable
@@ -424,7 +420,7 @@ export default function EventDetailsPage() {
         }
       }
     }
-  }, [availableTicketClasses, selectedTicketClassId, showAllTickets, currentMemberInfo, userRoleId]);
+  }, [availableTicketClasses, selectedTicketClassId, allowGuestsToViewAllTickets, currentMemberInfo, userRoleId]);
   
   // Get selected ticket class
   const selectedTicketClass = useMemo(() => {
@@ -1296,24 +1292,7 @@ export default function EventDetailsPage() {
                     })}
                   </RadioGroup>
                   
-                  {/* Toggle to show all tickets for non-logged-in users */}
-                  {isGuestCheckout && hasMemberOnlyTickets && (
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
-                      <div className="flex items-center gap-2">
-                        <Eye className="h-4 w-4 text-slate-500" />
-                        <Label htmlFor="show-all-tickets" className="text-sm text-slate-600 cursor-pointer">
-                          Show member-only tickets
-                        </Label>
-                      </div>
-                      <Switch
-                        id="show-all-tickets"
-                        checked={showAllTickets}
-                        onCheckedChange={setShowAllTickets}
-                        data-testid="switch-show-all-tickets"
-                      />
-                    </div>
-                  )}
-                </CardContent>
+                  </CardContent>
               </Card>
             )}
 
@@ -1359,24 +1338,7 @@ export default function EventDetailsPage() {
                     );
                   })()}
                   
-                  {/* Toggle to show all tickets for non-logged-in users */}
-                  {isGuestCheckout && hasMemberOnlyTickets && (
-                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
-                      <div className="flex items-center gap-2">
-                        <Eye className="h-4 w-4 text-slate-500" />
-                        <Label htmlFor="show-all-tickets-single" className="text-sm text-slate-600 cursor-pointer">
-                          Show member-only tickets
-                        </Label>
-                      </div>
-                      <Switch
-                        id="show-all-tickets-single"
-                        checked={showAllTickets}
-                        onCheckedChange={setShowAllTickets}
-                        data-testid="switch-show-all-tickets-single"
-                      />
-                    </div>
-                  )}
-                </CardContent>
+                  </CardContent>
               </Card>
             )}
 

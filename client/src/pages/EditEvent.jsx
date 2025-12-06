@@ -29,7 +29,8 @@ import {
   Check,
   Mic,
   X,
-  Tag
+  Tag,
+  Eye
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -74,6 +75,7 @@ export default function EditEvent() {
   // Ticket classes state for one-off events
   const [ticketClasses, setTicketClasses] = useState([createEmptyTicketClass(true)]);
   const [expandedTickets, setExpandedTickets] = useState({});
+  const [allowGuestsToViewAllTickets, setAllowGuestsToViewAllTickets] = useState(false);
 
   const [formData, setFormData] = useState({
     title: "",
@@ -368,6 +370,9 @@ export default function EditEvent() {
           setTicketClasses([legacyTicket]);
           setExpandedTickets({ [legacyTicket.id]: true });
         }
+        
+        // Load allowGuestsToViewAllTickets setting
+        setAllowGuestsToViewAllTickets(config.allowGuestsToViewAllTickets || false);
       }
 
       // Load speaker_ids from event
@@ -524,7 +529,8 @@ export default function EditEvent() {
       eventData.pricing_config = {
         ticket_price: defaultTicket.price,
         offer_type: defaultTicket.offer_type,
-        ticket_classes: formattedTicketClasses
+        ticket_classes: formattedTicketClasses,
+        allowGuestsToViewAllTickets: allowGuestsToViewAllTickets
       };
     }
 
@@ -1491,6 +1497,31 @@ export default function EditEvent() {
                       <Plus className="h-4 w-4 mr-1" />
                       Add Your First Ticket
                     </Button>
+                  </div>
+                )}
+
+                {/* Allow Guests to View All Tickets Toggle */}
+                {ticketClasses.length > 0 && ticketClasses.some(tc => tc.visibility_mode === 'members_only') && (
+                  <div className="mt-6 pt-4 border-t border-slate-200">
+                    <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <Eye className="h-5 w-5 text-slate-600 mt-0.5" />
+                        <div>
+                          <Label htmlFor="edit-allow-guests-view-all" className="text-sm font-medium text-slate-900 cursor-pointer">
+                            Show all ticket types to public visitors
+                          </Label>
+                          <p className="text-xs text-slate-500 mt-1">
+                            When enabled, non-logged-in visitors can see member-only ticket prices (but cannot purchase them)
+                          </p>
+                        </div>
+                      </div>
+                      <Switch
+                        id="edit-allow-guests-view-all"
+                        checked={allowGuestsToViewAllTickets}
+                        onCheckedChange={setAllowGuestsToViewAllTickets}
+                        data-testid="switch-allow-guests-view-all"
+                      />
+                    </div>
                   </div>
                 )}
               </CardContent>

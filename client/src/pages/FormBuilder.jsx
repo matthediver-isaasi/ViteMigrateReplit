@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Plus, Trash2, GripVertical, Save, ArrowLeft, FileText, ChevronDown, ChevronUp, Edit2 } from "lucide-react";
+import { Loader2, Plus, Trash2, GripVertical, Save, ArrowLeft, FileText, ChevronDown, ChevronUp, Edit2, X } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -95,21 +95,49 @@ function FieldCard({ field, index, originalIndex, updateField, removeField, FIEL
               </div>
 
               {['select', 'radio', 'checkbox'].includes(field.type) && (
-                <div className="space-y-1">
-                  <Label className="text-xs">Options (one per line)</Label>
-                  <Textarea
-                    value={(field.options || []).join('\n')}
-                    onChange={(e) => updateField(originalIndex, {
-                      options: e.target.value.split('\n').filter(o => o.trim())
-                    })}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.stopPropagation();
-                      }
+                <div className="space-y-2">
+                  <Label className="text-xs">Options</Label>
+                  <div className="space-y-1">
+                    {(field.options || []).map((option, optIndex) => (
+                      <div key={optIndex} className="flex items-center gap-1">
+                        <Input
+                          value={option}
+                          onChange={(e) => {
+                            const newOptions = [...(field.options || [])];
+                            newOptions[optIndex] = e.target.value;
+                            updateField(originalIndex, { options: newOptions });
+                          }}
+                          className="h-7 text-sm flex-1"
+                          placeholder={`Option ${optIndex + 1}`}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                          onClick={() => {
+                            const newOptions = (field.options || []).filter((_, i) => i !== optIndex);
+                            updateField(originalIndex, { options: newOptions });
+                          }}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs w-full"
+                    onClick={() => {
+                      const newOptions = [...(field.options || []), ''];
+                      updateField(originalIndex, { options: newOptions });
                     }}
-                    className="h-20 text-sm"
-                    placeholder="Option 1&#10;Option 2&#10;Option 3"
-                  />
+                  >
+                    <Plus className="w-3 h-3 mr-1" />
+                    Add Option
+                  </Button>
                 </div>
               )}
 

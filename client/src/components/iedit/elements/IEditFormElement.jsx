@@ -306,14 +306,20 @@ export function IEditFormElementEditor({ element, onChange }) {
       <Label className="text-sm font-medium">{label} Typography</Label>
       
       <TypographyStyleSelector
-        value={content[`${prefix}_typography_style_id`]}
-        onApplyStyle={(styleId, styleUpdates) => {
-          const prefixedUpdates = {};
-          prefixedUpdates[`${prefix}_typography_style_id`] = styleId;
-          Object.entries(styleUpdates).forEach(([key, val]) => {
-            prefixedUpdates[`${prefix}_${key}`] = val;
-          });
-          updateMultipleContent(prefixedUpdates);
+        value={content[`${prefix}_typography_style_id`] || null}
+        onChange={(styleId, style) => {
+          const updates = { [`${prefix}_typography_style_id`]: styleId };
+          if (style) {
+            const mapped = applyTypographyStyle(style);
+            if (mapped.font_family) updates[`${prefix}_font_family`] = mapped.font_family;
+            if (mapped.font_size) updates[`${prefix}_font_size`] = mapped.font_size;
+            if (mapped.font_size_mobile) updates[`${prefix}_font_size_mobile`] = mapped.font_size_mobile;
+            if (mapped.font_weight) updates[`${prefix}_font_weight`] = mapped.font_weight;
+            if (mapped.line_height) updates[`${prefix}_line_height`] = mapped.line_height;
+            if (mapped.letter_spacing) updates[`${prefix}_letter_spacing`] = mapped.letter_spacing;
+            if (mapped.color) updates[`${prefix}_color`] = mapped.color;
+          }
+          updateMultipleContent(updates);
         }}
       />
       

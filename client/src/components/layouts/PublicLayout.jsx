@@ -172,7 +172,7 @@ export default function PublicLayout({ children, currentPageName }) {
         </main>
 
         {/* Public Footer */}
-        <footer className="bg-slate-900 text-white">
+        <footer className="bg-black text-white">
           {/* Gradient Bar */}
           <div 
             className="w-full"

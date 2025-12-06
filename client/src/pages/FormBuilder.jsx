@@ -513,115 +513,122 @@ export default function FormBuilderPage() {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Form Settings */}
-          <div className="lg:col-span-1">
-            <Card className="border-slate-200 sticky top-4">
-              <CardHeader>
-                <CardTitle className="text-lg">Form Settings</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Form Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Contact Form"
-                  />
-                </div>
+        {/* Form Settings - Full Width at Top */}
+        <Card className="border-slate-200 mb-6">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg">Form Settings</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* Row 1: Core Settings */}
+              <div className="space-y-2">
+                <Label htmlFor="name">Form Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  placeholder="Contact Form"
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="slug">Slug *</Label>
-                  <Input
-                    id="slug"
-                    value={formData.slug}
-                    onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
-                    placeholder="contact-form"
-                  />
-                  <p className="text-xs text-slate-500">URL: /FormView?slug={formData.slug || 'your-slug'}</p>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="slug">Slug *</Label>
+                <Input
+                  id="slug"
+                  value={formData.slug}
+                  onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') })}
+                  placeholder="contact-form"
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    placeholder="Form description..."
-                    rows={3}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="layout_type">Layout Type *</Label>
+                <Select
+                  value={formData.layout_type}
+                  onValueChange={(value) => setFormData({ ...formData, layout_type: value })}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="standard">Standard (All Fields)</SelectItem>
+                    <SelectItem value="card_swipe">Card Swipe (One at a Time)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="layout_type">Layout Type *</Label>
-                  <Select
-                    value={formData.layout_type}
-                    onValueChange={(value) => setFormData({ ...formData, layout_type: value })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="standard">Standard (All Fields)</SelectItem>
-                      <SelectItem value="card_swipe">Card Swipe (One at a Time)</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="submit_button_text">Submit Button Text</Label>
+                <Input
+                  id="submit_button_text"
+                  value={formData.submit_button_text}
+                  onChange={(e) => setFormData({ ...formData, submit_button_text: e.target.value })}
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="submit_button_text">Submit Button Text</Label>
-                  <Input
-                    id="submit_button_text"
-                    value={formData.submit_button_text}
-                    onChange={(e) => setFormData({ ...formData, submit_button_text: e.target.value })}
-                  />
-                </div>
+              {/* Row 2: Description and Messages */}
+              <div className="space-y-2 md:col-span-2">
+                <Label htmlFor="description">Description</Label>
+                <Textarea
+                  id="description"
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                  placeholder="Form description..."
+                  rows={2}
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="success_message">Success Message</Label>
-                  <Textarea
-                    id="success_message"
-                    value={formData.success_message}
-                    onChange={(e) => setFormData({ ...formData, success_message: e.target.value })}
-                    rows={2}
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="success_message">Success Message</Label>
+                <Textarea
+                  id="success_message"
+                  value={formData.success_message}
+                  onChange={(e) => setFormData({ ...formData, success_message: e.target.value })}
+                  rows={2}
+                />
+              </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="redirect_url">Redirect URL (Optional)</Label>
-                  <Input
-                    id="redirect_url"
-                    type="url"
-                    value={formData.redirect_url}
-                    onChange={(e) => setFormData({ ...formData, redirect_url: e.target.value })}
-                    placeholder="https://example.com/thanks"
-                  />
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="redirect_url">Redirect URL</Label>
+                <Input
+                  id="redirect_url"
+                  type="url"
+                  value={formData.redirect_url}
+                  onChange={(e) => setFormData({ ...formData, redirect_url: e.target.value })}
+                  placeholder="https://example.com/thanks"
+                />
+              </div>
+            </div>
 
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="require_authentication">Require Login</Label>
-                  <Switch
-                    id="require_authentication"
-                    checked={formData.require_authentication}
-                    onCheckedChange={(checked) => setFormData({ ...formData, require_authentication: checked })}
-                  />
-                </div>
+            {/* Toggles Row */}
+            <div className="flex items-center gap-6 mt-4 pt-4 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="require_authentication"
+                  checked={formData.require_authentication}
+                  onCheckedChange={(checked) => setFormData({ ...formData, require_authentication: checked })}
+                />
+                <Label htmlFor="require_authentication" className="text-sm">Require Login</Label>
+              </div>
 
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="is_active">Active</Label>
-                  <Switch
-                    id="is_active"
-                    checked={formData.is_active}
-                    onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="is_active"
+                  checked={formData.is_active}
+                  onCheckedChange={(checked) => setFormData({ ...formData, is_active: checked })}
+                />
+                <Label htmlFor="is_active" className="text-sm">Active</Label>
+              </div>
 
-          {/* Form Fields */}
-          <div className="lg:col-span-2 space-y-6">
+              <div className="text-xs text-slate-500 ml-auto">
+                URL: /FormView?slug={formData.slug || 'your-slug'}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Form Pages and Fields - Full Width Below */}
+        <div className="space-y-6">
             {/* Pages Management - Only for Standard layout */}
             {formData.layout_type === 'standard' && (
               <Card className="border-slate-200">
@@ -900,7 +907,6 @@ export default function FormBuilderPage() {
                 )}
               </CardContent>
             </Card>
-          </div>
         </div>
       </div>
     </div>

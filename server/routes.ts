@@ -353,6 +353,32 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // ============ Public Data Routes (no auth required) ============
+  
+  // Public endpoint for organisation list (used by forms)
+  app.get('/api/public/organisations', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('organization')
+        .select('id, name')
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching organisations:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.json(data || []);
+    } catch (error) {
+      console.error('Public organisations fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch organisations' });
+    }
+  });
+
   // ============ Auth Routes ============
   
   app.get('/api/auth/me', async (req: Request, res: Response) => {

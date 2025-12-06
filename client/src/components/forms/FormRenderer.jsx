@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Loader2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -15,6 +17,20 @@ import {
 export default function FormRenderer({ field, value, onChange, memberInfo, organizationInfo }) {
   const [showOtherInput, setShowOtherInput] = useState(false);
   const [otherValue, setOtherValue] = useState('');
+
+  // Fetch organisations for organisation_dropdown field type (uses public endpoint)
+  const { data: organisations = [], isLoading: orgsLoading } = useQuery({
+    queryKey: ['public-organisations-for-form'],
+    queryFn: async () => {
+      const response = await fetch('/api/public/organisations');
+      if (!response.ok) {
+        throw new Error('Failed to fetch organisations');
+      }
+      return response.json();
+    },
+    enabled: field.type === 'organisation_dropdown',
+    staleTime: 5 * 60 * 1000 // Cache for 5 minutes
+  });
 
   // Auto-populate user fields
   useEffect(() => {
@@ -199,6 +215,34 @@ export default function FormRenderer({ field, value, onChange, memberInfo, organ
             }}
             required={field.required}
           />
+        );
+
+      case 'organisation_dropdown':
+        if (orgsLoading) {
+          return (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading organisations...
+            </div>
+          );
+        }
+        // Find current org name for display (value stores ID)
+        const selectedOrg = organisations.find(org => org.id === value);
+        return (
+          <Select value={value || ''} onValueChange={onChange}>
+            <SelectTrigger data-testid={`select-organisation-${field.id}`}>
+              <SelectValue placeholder={field.placeholder || 'Select an organisation'}>
+                {selectedOrg?.name}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {organisations.map((org) => (
+                <SelectItem key={org.id} value={org.id} data-testid={`option-organisation-${org.id}`}>
+                  {org.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         );
 
       default:

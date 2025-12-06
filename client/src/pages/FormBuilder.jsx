@@ -29,6 +29,7 @@ const FIELD_TYPES = [
   { value: 'tel', label: 'Phone' },
   { value: 'textarea', label: 'Text Area' },
   { value: 'select', label: 'Dropdown' },
+  { value: 'organisation_dropdown', label: 'Organisation Dropdown' },
   { value: 'radio', label: 'Radio Buttons' },
   { value: 'checkbox', label: 'Checkboxes' },
   { value: 'date', label: 'Date' },

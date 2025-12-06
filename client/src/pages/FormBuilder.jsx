@@ -21,6 +21,7 @@ import { createPageUrl } from "@/utils";
 import { Link } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { Columns2, Columns3 } from "lucide-react";
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text Input' },
@@ -201,9 +202,13 @@ export default function FormBuilderPage() {
         fields: existingForm.fields ? existingForm.fields.map(field => ({
           ...field,
           allow_other: field.allow_other ?? false,
-          page_id: field.page_id || null
+          page_id: field.page_id || null,
+          column_index: field.column_index ?? 0 // Default to first column
         })) : [],
-        pages: existingForm.pages || [],
+        pages: existingForm.pages ? existingForm.pages.map(page => ({
+          ...page,
+          column_count: page.column_count ?? 1 // Default to single column
+        })) : [],
         submit_button_text: existingForm.submit_button_text || "Submit",
         success_message: existingForm.success_message || "Thank you for your submission!",
         redirect_url: existingForm.redirect_url || "",
@@ -240,7 +245,7 @@ export default function FormBuilderPage() {
     }
   });
 
-  const addField = (pageId = null) => {
+  const addField = (pageId = null, columnIndex = 0) => {
     const newField = {
       id: `field_${Date.now()}`,
       type: 'text',
@@ -249,7 +254,8 @@ export default function FormBuilderPage() {
       required: false,
       options: [],
       allow_other: false,
-      page_id: pageId
+      page_id: pageId,
+      column_index: columnIndex // 0, 1, or 2 (for 1, 2, or 3 columns)
     };
     setFormData({ ...formData, fields: [...formData.fields, newField] });
   };
@@ -259,7 +265,8 @@ export default function FormBuilderPage() {
     const pageNumber = formData.pages.length + 1;
     const newPage = {
       id: `page_${Date.now()}`,
-      title: `Page ${pageNumber}`
+      title: `Page ${pageNumber}`,
+      column_count: 1 // 1, 2, or 3 columns
     };
     setFormData({ ...formData, pages: [...formData.pages, newPage] });
   };
@@ -268,7 +275,26 @@ export default function FormBuilderPage() {
     const newPages = formData.pages.map(p => 
       p.id === pageId ? { ...p, ...updates } : p
     );
-    setFormData({ ...formData, pages: newPages });
+    
+    // If reducing column count, reassign fields from removed columns
+    let newFields = formData.fields;
+    if (updates.column_count !== undefined) {
+      const currentPage = formData.pages.find(p => p.id === pageId);
+      const oldColumnCount = currentPage?.column_count || 1;
+      const newColumnCount = updates.column_count;
+      
+      if (newColumnCount < oldColumnCount) {
+        // Move fields from columns that no longer exist to the last column
+        newFields = formData.fields.map(f => {
+          if (f.page_id === pageId && (f.column_index || 0) >= newColumnCount) {
+            return { ...f, column_index: newColumnCount - 1 };
+          }
+          return f;
+        });
+      }
+    }
+    
+    setFormData({ ...formData, pages: newPages, fields: newFields });
   };
 
   const removePage = (pageId) => {

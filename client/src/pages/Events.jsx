@@ -4,9 +4,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Ticket, Plus, History, Tag, X, Check, ChevronDown } from "lucide-react";
+import { Search, Calendar, Ticket, Plus, History, Tag, Check, ChevronDown } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { parseISO } from "date-fns";
@@ -430,45 +429,43 @@ export default function EventsPage({
                       )}
                     </div>
                   </div>
-                  <ScrollArea className="max-h-[280px]">
-                    <div className="p-1">
+                  <div className="max-h-[280px] overflow-y-auto p-1">
+                    <button
+                      className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
+                        selectedFilterTag === "all" 
+                          ? "bg-slate-100 text-slate-900 font-medium" 
+                          : "text-slate-600 hover:bg-slate-50"
+                      }`}
+                      onClick={() => setSelectedFilterTag("all")}
+                      data-testid="filter-tag-all"
+                    >
+                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                        selectedFilterTag === "all" ? "bg-primary border-primary" : "border-slate-300"
+                      }`}>
+                        {selectedFilterTag === "all" && <Check className="w-3 h-3 text-white" />}
+                      </div>
+                      All categories
+                    </button>
+                    {filterTagOptions.map((tag) => (
                       <button
+                        key={tag}
                         className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
-                          selectedFilterTag === "all" 
+                          selectedFilterTag === tag 
                             ? "bg-slate-100 text-slate-900 font-medium" 
                             : "text-slate-600 hover:bg-slate-50"
                         }`}
-                        onClick={() => setSelectedFilterTag("all")}
-                        data-testid="filter-tag-all"
+                        onClick={() => setSelectedFilterTag(tag)}
+                        data-testid={`filter-tag-${tag}`}
                       >
                         <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                          selectedFilterTag === "all" ? "bg-primary border-primary" : "border-slate-300"
+                          selectedFilterTag === tag ? "bg-primary border-primary" : "border-slate-300"
                         }`}>
-                          {selectedFilterTag === "all" && <Check className="w-3 h-3 text-white" />}
+                          {selectedFilterTag === tag && <Check className="w-3 h-3 text-white" />}
                         </div>
-                        All categories
+                        <span className="truncate">{tag}</span>
                       </button>
-                      {filterTagOptions.map((tag) => (
-                        <button
-                          key={tag}
-                          className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
-                            selectedFilterTag === tag 
-                              ? "bg-slate-100 text-slate-900 font-medium" 
-                              : "text-slate-600 hover:bg-slate-50"
-                          }`}
-                          onClick={() => setSelectedFilterTag(tag)}
-                          data-testid={`filter-tag-${tag}`}
-                        >
-                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                            selectedFilterTag === tag ? "bg-primary border-primary" : "border-slate-300"
-                          }`}>
-                            {selectedFilterTag === tag && <Check className="w-3 h-3 text-white" />}
-                          </div>
-                          <span className="truncate">{tag}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </ScrollArea>
+                    ))}
+                  </div>
                 </PopoverContent>
               </Popover>
             )}

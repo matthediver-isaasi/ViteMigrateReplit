@@ -1,12 +1,12 @@
 import { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Plus, Edit, Trash2, User, Mail, Briefcase, Building, Upload, X, Mic } from "lucide-react";
+import { Plus, Edit, Trash2, User, Mail, Briefcase, Building, Upload, X, Mic, Settings, Save } from "lucide-react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -47,6 +47,9 @@ export default function SpeakerManagementPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [speakerToDelete, setSpeakerToDelete] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
+  const [moduleNameSingular, setModuleNameSingular] = useState("Speaker");
+  const [moduleNamePlural, setModuleNamePlural] = useState("Speakers");
 
   const [formData, setFormData] = useState({
     full_name: "",
@@ -68,6 +71,67 @@ export default function SpeakerManagementPage() {
     },
   });
 
+  // Query for module name setting
+  const { data: moduleNameSetting } = useQuery({
+    queryKey: ['speaker-module-name'],
+    queryFn: async () => {
+      const allSettings = await base44.entities.SystemSettings.list();
+      return allSettings.find(s => s.setting_key === 'speaker_module_name');
+    },
+  });
+
+  // Load module names from setting when data is available
+  useEffect(() => {
+    if (moduleNameSetting?.setting_value) {
+      try {
+        const names = JSON.parse(moduleNameSetting.setting_value);
+        setModuleNameSingular(names.singular || "Speaker");
+        setModuleNamePlural(names.plural || "Speakers");
+      } catch {
+        // If not valid JSON, treat as plain string for singular
+        setModuleNameSingular(moduleNameSetting.setting_value);
+        setModuleNamePlural(moduleNameSetting.setting_value + "s");
+      }
+    }
+  }, [moduleNameSetting]);
+
+  // Mutation to save module name setting
+  const saveModuleNameMutation = useMutation({
+    mutationFn: async ({ singular, plural }) => {
+      const settingValue = JSON.stringify({ singular, plural });
+      if (moduleNameSetting?.id) {
+        return await base44.entities.SystemSettings.update(moduleNameSetting.id, {
+          setting_value: settingValue
+        });
+      } else {
+        return await base44.entities.SystemSettings.create({
+          setting_key: 'speaker_module_name',
+          setting_value: settingValue,
+          setting_type: 'json'
+        });
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['speaker-module-name'] });
+      toast.success('Module name updated');
+      setShowSettings(false);
+    },
+    onError: (error) => {
+      toast.error('Failed to save module name: ' + error.message);
+    }
+  });
+
+  const handleSaveModuleName = () => {
+    if (!moduleNameSingular.trim() || !moduleNamePlural.trim()) {
+      toast.error('Please enter both singular and plural names');
+      return;
+    }
+    saveModuleNameMutation.mutate({ 
+      singular: moduleNameSingular.trim(), 
+      plural: moduleNamePlural.trim() 
+    });
+  };
+
   const saveMutation = useMutation({
     mutationFn: async (data) => {
       if (editingSpeaker) {
@@ -78,11 +142,11 @@ export default function SpeakerManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['speakers'] });
-      toast.success(editingSpeaker ? 'Speaker updated' : 'Speaker created');
+      toast.success(editingSpeaker ? `${moduleNameSingular} updated` : `${moduleNameSingular} created`);
       handleCloseEditor();
     },
     onError: (error) => {
-      toast.error('Failed to save speaker: ' + error.message);
+      toast.error(`Failed to save ${moduleNameSingular.toLowerCase()}: ` + error.message);
     },
   });
 
@@ -92,12 +156,12 @@ export default function SpeakerManagementPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['speakers'] });
-      toast.success('Speaker deleted');
+      toast.success(`${moduleNameSingular} deleted`);
       setDeleteDialogOpen(false);
       setSpeakerToDelete(null);
     },
     onError: (error) => {
-      toast.error('Failed to delete speaker: ' + error.message);
+      toast.error(`Failed to delete ${moduleNameSingular.toLowerCase()}: ` + error.message);
     },
   });
 
@@ -196,20 +260,96 @@ export default function SpeakerManagementPage() {
       <div className="max-w-6xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-2">Speakers</h1>
+            <h1 className="text-3xl font-bold text-slate-900 mb-2">{moduleNamePlural}</h1>
             <p className="text-slate-600">
-              Manage speaker profiles for event assignments
+              Manage {moduleNameSingular.toLowerCase()} profiles for event assignments
             </p>
           </div>
-          <Button
-            onClick={() => handleOpenEditor()}
-            className="bg-blue-600 hover:bg-blue-700 gap-2"
-            data-testid="button-add-speaker"
-          >
-            <Plus className="w-4 h-4" />
-            Add Speaker
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowSettings(!showSettings)}
+              className="gap-2"
+              data-testid="button-toggle-settings"
+            >
+              <Settings className="w-4 h-4" />
+              Settings
+            </Button>
+            <Button
+              onClick={() => handleOpenEditor()}
+              className="bg-blue-600 hover:bg-blue-700 gap-2"
+              data-testid="button-add-speaker"
+            >
+              <Plus className="w-4 h-4" />
+              Add {moduleNameSingular}
+            </Button>
+          </div>
         </div>
+
+        {/* Module Name Settings Panel */}
+        {showSettings && (
+          <Card className="border-slate-200 shadow-sm mb-6">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Settings className="h-5 w-5 text-blue-600" />
+                Module Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-slate-600 mb-4">
+                Customize how this module is named throughout the application. For example, you can rename "Speakers" to "Trainers" or "Presenters".
+              </p>
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <div className="space-y-2">
+                  <Label htmlFor="module-name-singular">Singular Name</Label>
+                  <Input
+                    id="module-name-singular"
+                    value={moduleNameSingular}
+                    onChange={(e) => setModuleNameSingular(e.target.value)}
+                    placeholder="Speaker"
+                    data-testid="input-module-name-singular"
+                  />
+                  <p className="text-xs text-slate-500">Used when referring to one person (e.g., "Add Speaker")</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="module-name-plural">Plural Name</Label>
+                  <Input
+                    id="module-name-plural"
+                    value={moduleNamePlural}
+                    onChange={(e) => setModuleNamePlural(e.target.value)}
+                    placeholder="Speakers"
+                    data-testid="input-module-name-plural"
+                  />
+                  <p className="text-xs text-slate-500">Used when referring to multiple people (e.g., "All Speakers")</p>
+                </div>
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowSettings(false)}
+                  data-testid="button-cancel-settings"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveModuleName}
+                  disabled={saveModuleNameMutation.isPending}
+                  className="bg-blue-600 hover:bg-blue-700 gap-2"
+                  data-testid="button-save-module-name"
+                >
+                  {saveModuleNameMutation.isPending ? (
+                    'Saving...'
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" />
+                      Save
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {isLoading ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -228,10 +368,10 @@ export default function SpeakerManagementPage() {
             <CardContent className="p-12 text-center">
               <Mic className="w-16 h-16 text-slate-300 mx-auto mb-4" />
               <h3 className="text-xl font-semibold text-slate-900 mb-2">
-                No speakers yet
+                No {moduleNamePlural.toLowerCase()} yet
               </h3>
               <p className="text-slate-600 mb-4">
-                Create speaker profiles to assign to events
+                Create {moduleNameSingular.toLowerCase()} profiles to assign to events
               </p>
               <Button
                 onClick={() => handleOpenEditor()}
@@ -239,7 +379,7 @@ export default function SpeakerManagementPage() {
                 data-testid="button-add-first-speaker"
               >
                 <Plus className="w-4 h-4" />
-                Add First Speaker
+                Add First {moduleNameSingular}
               </Button>
             </CardContent>
           </Card>
@@ -331,7 +471,7 @@ export default function SpeakerManagementPage() {
           <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>
-                {editingSpeaker ? 'Edit Speaker' : 'Add Speaker'}
+                {editingSpeaker ? `Edit ${moduleNameSingular}` : `Add ${moduleNameSingular}`}
               </DialogTitle>
             </DialogHeader>
 
@@ -497,10 +637,10 @@ export default function SpeakerManagementPage() {
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Delete Speaker</AlertDialogTitle>
+              <AlertDialogTitle>Delete {moduleNameSingular}</AlertDialogTitle>
               <AlertDialogDescription>
                 Are you sure you want to delete {speakerToDelete?.full_name}? This action cannot be undone.
-                Events with this speaker assigned will need to be updated.
+                Events with this {moduleNameSingular.toLowerCase()} assigned will need to be updated.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

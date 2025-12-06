@@ -24,9 +24,11 @@ import ColleagueSelector from "../components/booking/ColleagueSelector";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
+import { useSpeakerModuleName } from "@/hooks/useSpeakerModuleName";
 
 export default function EventDetailsPage() {
   const { memberInfo, organizationInfo, memberRole, isFeatureExcluded, reloadMemberInfo, refreshOrganizationInfo } = useMemberAccess();
+  const { singular: speakerSingular, plural: speakerPlural } = useSpeakerModuleName();
   const [memberInfoState, setMemberInfoState] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const [tourAutoShow, setTourAutoShow] = useState(false);
@@ -949,7 +951,7 @@ export default function EventDetailsPage() {
                 <CardContent className="pt-6 border-t border-slate-200">
                   <h3 className="font-semibold text-slate-900 mb-4 flex items-center gap-2">
                     <Mic className="w-5 h-5 text-purple-600" />
-                    Speakers
+                    {speakerPlural}
                   </h3>
                   <div className="flex flex-wrap gap-4">
                     {eventSpeakers.map((speaker) => (
@@ -1420,7 +1422,7 @@ export default function EventDetailsPage() {
       <Dialog open={showSpeakerModal} onOpenChange={setShowSpeakerModal}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl font-semibold">Speaker Profile</DialogTitle>
+            <DialogTitle className="text-xl font-semibold">{speakerSingular} Profile</DialogTitle>
           </DialogHeader>
           {selectedSpeaker && (
             <div className="mt-4 space-y-6">

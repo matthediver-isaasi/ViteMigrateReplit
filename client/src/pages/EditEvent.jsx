@@ -39,6 +39,7 @@ import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
 import EventImageUpload from "@/components/events/EventImageUpload";
 import { SpeakerSelectionModal } from "@/components/SpeakerSelectionModal";
+import { useSpeakerModuleName } from "@/hooks/useSpeakerModuleName";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -66,6 +67,7 @@ const createEmptyTicketClass = (isDefault = false) => ({
 
 export default function EditEvent() {
   const queryClient = useQueryClient();
+  const { singular: speakerSingular, plural: speakerPlural } = useSpeakerModuleName();
   const urlParams = new URLSearchParams(window.location.search);
   const eventId = urlParams.get('id');
 
@@ -756,17 +758,17 @@ export default function EditEvent() {
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Mic className="h-4 w-4 text-slate-500" />
-                  Speakers
+                  {speakerPlural}
                 </Label>
                 <p className="text-xs text-slate-500 mb-2">
-                  Select speakers for this event.
+                  Select {speakerPlural.toLowerCase()} for this event.
                 </p>
                 
                 {loadingSpeakers ? (
-                  <div className="text-sm text-slate-500">Loading speakers...</div>
+                  <div className="text-sm text-slate-500">Loading {speakerPlural.toLowerCase()}...</div>
                 ) : speakers.length === 0 ? (
                   <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600">
-                    No speakers available. <a href="/SpeakerManagement" className="text-blue-600 hover:underline" data-testid="link-add-speaker">Add speakers</a> first.
+                    No {speakerPlural.toLowerCase()} available. <a href="/SpeakerManagement" className="text-blue-600 hover:underline" data-testid="link-add-speaker">Add {speakerPlural.toLowerCase()}</a> first.
                   </div>
                 ) : (
                   <>
@@ -779,8 +781,8 @@ export default function EditEvent() {
                     >
                       <Mic className="h-4 w-4 mr-2 text-purple-600" />
                       {selectedSpeakers.length === 0 
-                        ? "Click to select speakers..." 
-                        : `${selectedSpeakers.length} speaker${selectedSpeakers.length !== 1 ? 's' : ''} selected`
+                        ? `Click to select ${speakerPlural.toLowerCase()}...` 
+                        : `${selectedSpeakers.length} ${selectedSpeakers.length !== 1 ? speakerPlural.toLowerCase() : speakerSingular.toLowerCase()} selected`
                       }
                     </Button>
                     

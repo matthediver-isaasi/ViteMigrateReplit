@@ -313,7 +313,6 @@ export default function EditEvent() {
             const priceValue = tc.price !== null && tc.price !== undefined ? Number(tc.price) : null;
             // Handle backwards compatibility: convert is_public to visibility_mode
             let visibilityMode = tc.visibility_mode;
-            console.log('[EditEvent] Loading ticket:', tc.name, 'raw visibility_mode:', tc.visibility_mode, 'raw is_public:', tc.is_public);
             if (!visibilityMode) {
               // Legacy tickets: if is_public was true, treat as 'members_and_public', otherwise 'members_only'
               // Handle various truthy/falsy representations of is_public (string "true"/"false", number 1/0, boolean)
@@ -321,7 +320,6 @@ export default function EditEvent() {
               const isPublicBool = isPublicValue === true || isPublicValue === 1 || isPublicValue === 'true' || isPublicValue === '1';
               visibilityMode = isPublicBool ? 'members_and_public' : 'members_only';
             }
-            console.log('[EditEvent] Resolved visibility_mode for', tc.name, ':', visibilityMode);
             return {
               id: tc.id || `ticket-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
               name: tc.name || "Standard Ticket",
@@ -504,7 +502,6 @@ export default function EditEvent() {
 
     // Add ticket classes for one-off events
     if (isOneOffEvent) {
-      console.log('[EditEvent] Saving ticket classes, current state:', ticketClasses.map(t => ({ id: t.id, name: t.name, visibility_mode: t.visibility_mode })));
       const formattedTicketClasses = ticketClasses.map(ticket => {
         const ticketData = {
           id: ticket.id,
@@ -516,7 +513,6 @@ export default function EditEvent() {
           role_match_only: ticket.role_match_only || false,
           offer_type: ticket.offer_type
         };
-        console.log('[EditEvent] Formatted ticket:', ticket.name, 'visibility_mode:', ticketData.visibility_mode);
 
         if (ticket.offer_type === "bogo") {
           ticketData.bogo_buy_quantity = parseInt(ticket.bogo_buy_quantity);

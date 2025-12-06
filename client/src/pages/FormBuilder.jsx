@@ -662,6 +662,36 @@ export default function FormBuilderPage() {
                               placeholder="Page title..."
                             />
                           </div>
+                          {/* Column count selector */}
+                          <div className="flex items-center gap-1 border border-slate-200 rounded bg-white p-0.5">
+                            <Button
+                              variant={page.column_count === 1 ? "default" : "ghost"}
+                              size="sm"
+                              className="h-6 w-6 p-0 text-xs"
+                              onClick={() => updatePage(page.id, { column_count: 1 })}
+                              title="1 Column"
+                            >
+                              1
+                            </Button>
+                            <Button
+                              variant={page.column_count === 2 ? "default" : "ghost"}
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => updatePage(page.id, { column_count: 2 })}
+                              title="2 Columns"
+                            >
+                              <Columns2 className="w-3 h-3" />
+                            </Button>
+                            <Button
+                              variant={page.column_count === 3 ? "default" : "ghost"}
+                              size="sm"
+                              className="h-6 w-6 p-0"
+                              onClick={() => updatePage(page.id, { column_count: 3 })}
+                              title="3 Columns"
+                            >
+                              <Columns3 className="w-3 h-3" />
+                            </Button>
+                          </div>
                           <span className="text-xs text-slate-400 px-2">
                             {formData.fields.filter(f => f.page_id === page.id).length} fields
                           </span>

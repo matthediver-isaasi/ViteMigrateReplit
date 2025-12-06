@@ -437,8 +437,8 @@ export default function CreateEvent() {
       image_url: formData.image_url || null,
       available_seats: isOnline ? null : (formData.available_seats ? parseInt(formData.available_seats) : null),
       zoom_webinar_id: isOnline && selectedWebinarId ? selectedWebinarId : null,
-      speaker_ids: selectedSpeakers.length > 0 ? selectedSpeakers : [],
-      filter_tags: selectedFilterTags.length > 0 ? selectedFilterTags : []
+      speaker_ids: selectedSpeakers.length > 0 ? selectedSpeakers : []
+      // Note: filter_tags column does not exist in Supabase event table
     };
 
     // Add ticket classes for one-off events as JSON in pricing_config field

@@ -498,8 +498,8 @@ export default function EditEvent() {
       image_url: formData.image_url || null,
       available_seats: isNaN(parsedSeats) ? null : parsedSeats,
       zoom_webinar_id: formData.zoom_webinar_id || null,
-      speaker_ids: selectedSpeakers.length > 0 ? selectedSpeakers : [],
-      filter_tags: selectedFilterTags.length > 0 ? selectedFilterTags : []
+      speaker_ids: selectedSpeakers.length > 0 ? selectedSpeakers : []
+      // Note: filter_tags column does not exist in Supabase event table
     };
 
     // Add ticket classes for one-off events

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ export default function FormViewPage() {
   const { memberInfo, organizationInfo } = useMemberAccess();
 
   const [currentStep, setCurrentStep] = useState(0);
+  const [currentPageIndex, setCurrentPageIndex] = useState(0);
   const [formValues, setFormValues] = useState({});
   const [submitted, setSubmitted] = useState(false);
 
@@ -63,6 +64,14 @@ export default function FormViewPage() {
     }
   });
 
+  // Reset page navigation state when form changes
+  useEffect(() => {
+    setCurrentPageIndex(0);
+    setCurrentStep(0);
+    setFormValues({});
+    setSubmitted(false);
+  }, [form?.id]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
@@ -96,14 +105,45 @@ export default function FormViewPage() {
   }
 
   const handleSubmit = async () => {
-    // Validate required fields
-    const missingFields = form.fields.filter(field => 
-      field.required && (!formValues[field.id] || formValues[field.id].length === 0)
-    );
+    // For paginated forms, validate all pages before submission
+    const pages = form.pages || [];
+    const hasPages = pages.length > 0 && form.layout_type === 'standard';
+    
+    if (hasPages) {
+      // Check each page's required fields
+      for (let i = 0; i < pages.length; i++) {
+        const page = pages[i];
+        const pageFields = form.fields.filter(f => f.page_id === page.id);
+        const missingFields = pageFields.filter(field => 
+          field.required && (!formValues[field.id] || formValues[field.id].length === 0)
+        );
+        
+        if (missingFields.length > 0) {
+          toast.error(`Please fill in required fields on "${page.title}": ${missingFields.map(f => f.label).join(', ')}`);
+          return;
+        }
+      }
+      
+      // Also check unassigned fields (page_id is null)
+      const unassignedFields = form.fields.filter(f => !f.page_id);
+      const missingUnassigned = unassignedFields.filter(field => 
+        field.required && (!formValues[field.id] || formValues[field.id].length === 0)
+      );
+      
+      if (missingUnassigned.length > 0) {
+        toast.error(`Please fill in required fields: ${missingUnassigned.map(f => f.label).join(', ')}`);
+        return;
+      }
+    } else {
+      // Standard validation for non-paginated forms
+      const missingFields = form.fields.filter(field => 
+        field.required && (!formValues[field.id] || formValues[field.id].length === 0)
+      );
 
-    if (missingFields.length > 0) {
-      toast.error(`Please fill in all required fields: ${missingFields.map(f => f.label).join(', ')}`);
-      return;
+      if (missingFields.length > 0) {
+        toast.error(`Please fill in all required fields: ${missingFields.map(f => f.label).join(', ')}`);
+        return;
+      }
     }
 
     const submissionData = {
@@ -212,7 +252,48 @@ export default function FormViewPage() {
     );
   }
 
-  // Standard layout
+  // Standard layout with optional pages
+  const pages = form.pages || [];
+  const hasPages = pages.length > 0;
+  
+  // Get fields for current page (or all fields if no pages)
+  const getCurrentPageFields = () => {
+    if (!hasPages) {
+      return form.fields;
+    }
+    const currentPage = pages[currentPageIndex];
+    return form.fields.filter(f => f.page_id === currentPage?.id);
+  };
+  
+  // Validate current page fields before proceeding
+  const validateCurrentPage = () => {
+    const pageFields = getCurrentPageFields();
+    const missingFields = pageFields.filter(field => 
+      field.required && (!formValues[field.id] || formValues[field.id].length === 0)
+    );
+    
+    if (missingFields.length > 0) {
+      toast.error(`Please fill in required fields: ${missingFields.map(f => f.label).join(', ')}`);
+      return false;
+    }
+    return true;
+  };
+  
+  const goToNextPage = () => {
+    if (validateCurrentPage()) {
+      setCurrentPageIndex(prev => Math.min(prev + 1, pages.length - 1));
+    }
+  };
+  
+  const goToPreviousPage = () => {
+    setCurrentPageIndex(prev => Math.max(prev - 1, 0));
+  };
+  
+  const isFirstPage = currentPageIndex === 0;
+  const isLastPage = !hasPages || currentPageIndex === pages.length - 1;
+  const currentPage = hasPages ? pages[currentPageIndex] : null;
+  const displayFields = getCurrentPageFields();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       <div className="max-w-3xl mx-auto">
@@ -220,9 +301,32 @@ export default function FormViewPage() {
           <CardHeader>
             <CardTitle>{form.name}</CardTitle>
             {form.description && <CardDescription className="whitespace-pre-line">{form.description}</CardDescription>}
+            {/* Page progress indicator */}
+            {hasPages && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-slate-600">
+                    {currentPage?.title || `Page ${currentPageIndex + 1}`}
+                  </span>
+                  <span className="text-sm text-slate-500">
+                    {currentPageIndex + 1} of {pages.length}
+                  </span>
+                </div>
+                <div className="flex gap-1">
+                  {pages.map((_, index) => (
+                    <div
+                      key={index}
+                      className={`h-1.5 flex-1 rounded-full transition-colors ${
+                        index <= currentPageIndex ? 'bg-blue-600' : 'bg-slate-200'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </CardHeader>
           <CardContent className="space-y-6">
-            {form.fields.map(field => (
+            {displayFields.map(field => (
               <FormRenderer
                 key={field.id}
                 field={field}
@@ -232,21 +336,45 @@ export default function FormViewPage() {
                 organizationInfo={organizationInfo}
               />
             ))}
-            <div className="flex justify-end pt-4">
-              <Button
-                onClick={handleSubmit}
-                disabled={submitFormMutation.isPending}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {submitFormMutation.isPending ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  form.submit_button_text
-                )}
-              </Button>
+            <div className="flex justify-between pt-4">
+              {/* Previous button (only show if we have pages and not on first page) */}
+              {hasPages && !isFirstPage ? (
+                <Button
+                  variant="outline"
+                  onClick={goToPreviousPage}
+                >
+                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  Previous
+                </Button>
+              ) : (
+                <div />
+              )}
+              
+              {/* Next/Submit button */}
+              {hasPages && !isLastPage ? (
+                <Button
+                  onClick={goToNextPage}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  Next
+                  <ChevronRight className="w-4 h-4 ml-2" />
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleSubmit}
+                  disabled={submitFormMutation.isPending}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {submitFormMutation.isPending ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    form.submit_button_text
+                  )}
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>

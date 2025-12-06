@@ -101,6 +101,11 @@ function FieldCard({ field, index, originalIndex, updateField, removeField, FIEL
                     onChange={(e) => updateField(originalIndex, {
                       options: e.target.value.split('\n').filter(o => o.trim())
                     })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.stopPropagation();
+                      }
+                    }}
                     className="h-20 text-sm"
                     placeholder="Option 1&#10;Option 2&#10;Option 3"
                   />

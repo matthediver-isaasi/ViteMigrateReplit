@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 
 const STYLE_TYPE_LABELS = {
   'h1': 'H1 - Main Heading',
@@ -8,6 +8,30 @@ const STYLE_TYPE_LABELS = {
   'paragraph': 'Paragraph'
 };
 
+let cachedStyles = null;
+let cachePromise = null;
+
+async function fetchTypographyStyles() {
+  if (cachedStyles) return cachedStyles;
+  if (cachePromise) return cachePromise;
+  
+  cachePromise = (async () => {
+    try {
+      const { base44 } = await import("@/api/base44Client");
+      const allStyles = await base44.entities.TypographyStyle.list();
+      cachedStyles = allStyles.filter(s => s.is_active);
+      return cachedStyles;
+    } catch (error) {
+      console.error('Failed to fetch typography styles:', error);
+      return [];
+    } finally {
+      cachePromise = null;
+    }
+  })();
+  
+  return cachePromise;
+}
+
 export default function TypographyStyleSelector({ 
   value, 
   onChange, 
@@ -16,37 +40,35 @@ export default function TypographyStyleSelector({
   label = "Typography Style",
   placeholder = "Select a style to apply..."
 }) {
-  const [styles, setStyles] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [allStyles, setAllStyles] = useState(cachedStyles || []);
+  const [isLoading, setIsLoading] = useState(!cachedStyles);
 
   useEffect(() => {
-    const fetchStyles = async () => {
-      try {
-        const { base44 } = await import("@/api/base44Client");
-        const allStyles = await base44.entities.TypographyStyle.list();
-        let activeStyles = allStyles.filter(s => s.is_active);
-        
-        if (filterTypes && filterTypes.length > 0) {
-          activeStyles = activeStyles.filter(s => filterTypes.includes(s.style_type));
-        }
-        
-        activeStyles.sort((a, b) => {
-          const typeOrder = ['h1', 'h2', 'h3', 'h4', 'paragraph'];
-          const aOrder = typeOrder.indexOf(a.style_type);
-          const bOrder = typeOrder.indexOf(b.style_type);
-          if (aOrder !== bOrder) return aOrder - bOrder;
-          return a.name.localeCompare(b.name);
-        });
-        
-        setStyles(activeStyles);
-      } catch (error) {
-        console.error('Failed to fetch typography styles:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchStyles();
-  }, [filterTypes]);
+    if (cachedStyles) {
+      setAllStyles(cachedStyles);
+      setIsLoading(false);
+      return;
+    }
+    
+    fetchTypographyStyles().then(styles => {
+      setAllStyles(styles);
+      setIsLoading(false);
+    });
+  }, []);
+
+  const styles = useMemo(() => {
+    let filtered = filterTypes && filterTypes.length > 0
+      ? allStyles.filter(s => filterTypes.includes(s.style_type))
+      : [...allStyles];
+    
+    return filtered.sort((a, b) => {
+      const typeOrder = ['h1', 'h2', 'h3', 'h4', 'paragraph'];
+      const aOrder = typeOrder.indexOf(a.style_type);
+      const bOrder = typeOrder.indexOf(b.style_type);
+      if (aOrder !== bOrder) return aOrder - bOrder;
+      return a.name.localeCompare(b.name);
+    });
+  }, [allStyles, filterTypes]);
 
   const handleChange = (styleId) => {
     onChange(styleId);

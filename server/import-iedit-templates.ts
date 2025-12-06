@@ -353,8 +353,9 @@ const templates = [
       right_image_fit: 'cover',
       right_column_padding: 24,
       column_border_radius: 0,
-      button_position: 'bottom-right',
-      vertical_alignment: 'center',
+      button_column: 'left',
+      left_vertical_alignment: 'center',
+      right_vertical_alignment: 'center',
       column_gap: 32,
       vertical_padding: 48,
       reverse_on_mobile: false

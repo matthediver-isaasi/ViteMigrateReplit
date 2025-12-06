@@ -293,6 +293,10 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
     onChange({ ...element, content: { ...content, [key]: value } });
   };
 
+  const updateMultipleContent = (updates) => {
+    onChange({ ...element, content: { ...content, ...updates } });
+  };
+
   const updateButton = (key, value) => {
     const currentButton = content.button || {};
     updateContent('button', { ...currentButton, [key]: value });
@@ -465,16 +469,21 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
             </div>
             <TypographyStyleSelector
               value={content[`${side}_heading_typography_style_id`] || null}
-              onChange={(styleId) => updateContent(`${side}_heading_typography_style_id`, styleId)}
+              onChange={(styleId) => {
+                const updates = { [`${side}_heading_typography_style_id`]: styleId };
+                updateMultipleContent(updates);
+              }}
               onApplyStyle={(style) => {
                 const mapped = applyTypographyStyle(style);
-                if (mapped.font_family) updateContent(`${side}_heading_font_family`, mapped.font_family);
-                if (mapped.font_size) updateContent(`${side}_heading_font_size`, mapped.font_size);
-                if (mapped.font_size_mobile) updateContent(`${side}_heading_font_size_mobile`, mapped.font_size_mobile);
-                if (mapped.font_weight) updateContent(`${side}_heading_font_weight`, mapped.font_weight);
-                if (mapped.line_height) updateContent(`${side}_heading_line_height`, mapped.line_height);
-                if (mapped.letter_spacing !== undefined) updateContent(`${side}_heading_letter_spacing`, mapped.letter_spacing);
-                if (mapped.color) updateContent(`${side}_heading_color`, mapped.color);
+                const updates = {};
+                if (mapped.font_family) updates[`${side}_heading_font_family`] = mapped.font_family;
+                if (mapped.font_size) updates[`${side}_heading_font_size`] = mapped.font_size;
+                if (mapped.font_size_mobile) updates[`${side}_heading_font_size_mobile`] = mapped.font_size_mobile;
+                if (mapped.font_weight) updates[`${side}_heading_font_weight`] = mapped.font_weight;
+                if (mapped.line_height) updates[`${side}_heading_line_height`] = mapped.line_height;
+                if (mapped.letter_spacing !== undefined) updates[`${side}_heading_letter_spacing`] = mapped.letter_spacing;
+                if (mapped.color) updates[`${side}_heading_color`] = mapped.color;
+                updateMultipleContent(updates);
               }}
               filterTypes={['h1', 'h2']}
               label="Heading Typography Style"
@@ -499,16 +508,21 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
             </div>
             <TypographyStyleSelector
               value={content[`${side}_subheading_typography_style_id`] || null}
-              onChange={(styleId) => updateContent(`${side}_subheading_typography_style_id`, styleId)}
+              onChange={(styleId) => {
+                const updates = { [`${side}_subheading_typography_style_id`]: styleId };
+                updateMultipleContent(updates);
+              }}
               onApplyStyle={(style) => {
                 const mapped = applyTypographyStyle(style);
-                if (mapped.font_family) updateContent(`${side}_subheading_font_family`, mapped.font_family);
-                if (mapped.font_size) updateContent(`${side}_subheading_font_size`, mapped.font_size);
-                if (mapped.font_size_mobile) updateContent(`${side}_subheading_font_size_mobile`, mapped.font_size_mobile);
-                if (mapped.font_weight) updateContent(`${side}_subheading_font_weight`, mapped.font_weight);
-                if (mapped.line_height) updateContent(`${side}_subheading_line_height`, mapped.line_height);
-                if (mapped.letter_spacing !== undefined) updateContent(`${side}_subheading_letter_spacing`, mapped.letter_spacing);
-                if (mapped.color) updateContent(`${side}_subheading_color`, mapped.color);
+                const updates = {};
+                if (mapped.font_family) updates[`${side}_subheading_font_family`] = mapped.font_family;
+                if (mapped.font_size) updates[`${side}_subheading_font_size`] = mapped.font_size;
+                if (mapped.font_size_mobile) updates[`${side}_subheading_font_size_mobile`] = mapped.font_size_mobile;
+                if (mapped.font_weight) updates[`${side}_subheading_font_weight`] = mapped.font_weight;
+                if (mapped.line_height) updates[`${side}_subheading_line_height`] = mapped.line_height;
+                if (mapped.letter_spacing !== undefined) updates[`${side}_subheading_letter_spacing`] = mapped.letter_spacing;
+                if (mapped.color) updates[`${side}_subheading_color`] = mapped.color;
+                updateMultipleContent(updates);
               }}
               filterTypes={['h3', 'h4']}
               label="Subheading Typography Style"
@@ -534,15 +548,20 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
             </div>
             <TypographyStyleSelector
               value={content[`${side}_content_typography_style_id`] || null}
-              onChange={(styleId) => updateContent(`${side}_content_typography_style_id`, styleId)}
+              onChange={(styleId) => {
+                const updates = { [`${side}_content_typography_style_id`]: styleId };
+                updateMultipleContent(updates);
+              }}
               onApplyStyle={(style) => {
                 const mapped = applyTypographyStyle(style);
-                if (mapped.font_family) updateContent(`${side}_content_font_family`, mapped.font_family);
-                if (mapped.font_size) updateContent(`${side}_content_font_size`, mapped.font_size);
-                if (mapped.font_size_mobile) updateContent(`${side}_content_font_size_mobile`, mapped.font_size_mobile);
-                if (mapped.font_weight) updateContent(`${side}_content_font_weight`, mapped.font_weight);
-                if (mapped.line_height) updateContent(`${side}_content_line_height`, mapped.line_height);
-                if (mapped.color) updateContent(`${side}_content_color`, mapped.color);
+                const updates = {};
+                if (mapped.font_family) updates[`${side}_content_font_family`] = mapped.font_family;
+                if (mapped.font_size) updates[`${side}_content_font_size`] = mapped.font_size;
+                if (mapped.font_size_mobile) updates[`${side}_content_font_size_mobile`] = mapped.font_size_mobile;
+                if (mapped.font_weight) updates[`${side}_content_font_weight`] = mapped.font_weight;
+                if (mapped.line_height) updates[`${side}_content_line_height`] = mapped.line_height;
+                if (mapped.color) updates[`${side}_content_color`] = mapped.color;
+                updateMultipleContent(updates);
               }}
               filterTypes={['paragraph']}
               label="Content Typography Style"

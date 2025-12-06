@@ -112,6 +112,9 @@ export default function AGCASButton({
     '--hover-text': buttonStyle.hover_text_color || buttonStyles.color
   } : {};
 
+  // Detect icon-only mode (arrow shown but no text)
+  const isIconOnly = showArrow && !text && !children;
+
   const sizeClasses = {
     small: 'px-4 py-2 text-xs',
     medium: 'px-6 py-3 text-sm',
@@ -119,10 +122,20 @@ export default function AGCASButton({
     xlarge: 'px-10 py-5 text-lg'
   };
 
+  // Square sizing for icon-only buttons
+  const iconOnlySizeClasses = {
+    small: 'w-8 h-8',
+    medium: 'w-10 h-10',
+    large: 'w-12 h-12',
+    xlarge: 'w-14 h-14'
+  };
+
   const combinedClassName = cn(
     "inline-flex items-center justify-center gap-2 whitespace-nowrap",
     (buttonStyle || hasCustomColors) ? "" : "rounded-none bg-transparent",
-    sizeClasses[size] || sizeClasses.medium,
+    isIconOnly 
+      ? iconOnlySizeClasses[size] || iconOnlySizeClasses.medium
+      : sizeClasses[size] || sizeClasses.medium,
     "font-bold",
     (buttonStyle || hasCustomColors) ? "" : "text-black",
     "transition-all duration-300",

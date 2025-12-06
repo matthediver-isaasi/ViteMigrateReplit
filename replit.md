@@ -111,6 +111,17 @@ Preferred communication style: Simple, everyday language.
 - Elements store applied style ID in `*_typography_style_id` fields for reference
 - Managed via `/InstalledFonts` admin page for style definitions
 
+**Forms System:** Custom forms with support for two layout types: `card_swipe` (step-by-step) and `standard` (all fields visible).
+- Form entity stores: name, slug, description, layout_type, fields[], pages[], is_active, require_authentication
+- Forms support multi-page pagination with the `pages` JSONB column storing an array of page objects
+- Each page has: id, title, column_count (1, 2, or 3 columns)
+- Fields have: id, label, type, required, page_id (references page), column_index (0, 1, or 2)
+- Multi-column layout renders fields in responsive CSS grid columns (stack on mobile)
+- Unassigned fields (page_id === null) are rendered on the first page for backwards compatibility
+- Organisation dropdown field type uses public endpoint `/api/public/organisations` for both authenticated and guest users
+- FormRenderer component handles individual field rendering including auto-populated user fields
+- Forms can be embedded in page builder via IEditFormElement with optional header content
+
 **Speakers:** Speaker profiles for event assignments. Similar to GuestWriter but email is optional. Managed via `/SpeakerManagement` admin page. Events can have multiple speakers assigned (stored in `speaker_ids` array on Event).
 
 **Configuration:** NavigationItem, PortalMenu, PageBanner, TourGroup/TourStep, SystemSettings.

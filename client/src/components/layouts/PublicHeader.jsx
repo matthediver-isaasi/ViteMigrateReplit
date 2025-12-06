@@ -570,7 +570,7 @@ export default function PublicHeader() {
       <header className="bg-white shadow-sm sticky top-0 z-40 relative">
         {/* Desktop: Overlapping Logo */}
         <Link 
-          to={createPageUrl('Home')}
+          to="/"
           className="mt-4 absolute z-50 hidden lg:block"
           style={{
             top: '0',
@@ -733,7 +733,7 @@ export default function PublicHeader() {
           <div className="max-w-7xl mx-auto px-4 py-3 lg:py-6">
             <div className="flex justify-between items-center h-full">
               {/* Mobile Logo */}
-              <Link to={createPageUrl('Home')} className="lg:hidden">
+              <Link to="/" className="lg:hidden" data-testid="link-header-logo-mobile">
                 <img
                   src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68efc20f3e0a30fafad6dde7/26710cf5a_GFIheaderlogo.png"
                   alt="Graduate Futures Institute"

@@ -1934,12 +1934,12 @@ useEffect(() => {
             </Sheet>
 
             {!isFeatureExcluded('element_NewsTickerBar') && <NewsTickerBar />}
-            <main ref={mainContentRef} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0">
+            <main ref={mainContentRef} className="flex-1 overflow-y-auto overflow-x-hidden min-h-0 overscroll-contain">
               {portalBanner && <PortalHeroBanner banner={portalBanner} />}
               {childrenWithProps}
             </main>
 
-            <footer className="flex-shrink-0 bg-white border-t border-slate-200 py-6">
+            <footer className="flex-shrink-0 flex-grow-0 bg-white border-t border-slate-200 py-6">
               <div className="max-w-7xl mx-auto px-4 text-center">
                 <a 
                   href="https://isaasi.co.uk" 

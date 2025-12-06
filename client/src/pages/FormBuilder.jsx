@@ -22,6 +22,7 @@ import { Link } from "react-router-dom";
 import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { Columns2, Columns3 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Text Input' },
@@ -43,7 +44,7 @@ const FIELD_TYPES = [
   { value: 'user_job_title', label: 'User Job Title (Auto)' },
 ];
 
-function FieldCard({ field, index, originalIndex, updateField, removeField, FIELD_TYPES }) {
+function FieldCard({ field, index, originalIndex, updateField, removeField, FIELD_TYPES, categories = [] }) {
   return (
     <Draggable draggableId={field.id} index={index}>
       {(provided) => (
@@ -96,9 +97,52 @@ function FieldCard({ field, index, originalIndex, updateField, removeField, FIEL
               </div>
 
               {field.type === 'category_multiselect' && (
-                <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
-                  Options are automatically pulled from your Communication Categories. 
-                  Manage them in <span className="font-medium">Communications Management</span>.
+                <div className="space-y-2">
+                  <Label className="text-xs">Select Categories to Include</Label>
+                  {categories.length === 0 ? (
+                    <div className="p-2 bg-slate-50 border border-slate-200 rounded text-xs text-slate-500">
+                      Loading categories...
+                    </div>
+                  ) : (
+                    <>
+                      <div className="p-2 bg-slate-50 border border-slate-200 rounded space-y-2 max-h-48 overflow-y-auto">
+                        {categories.map((category) => {
+                          const isSelected = (field.allowed_category_ids || []).includes(category.id);
+                          return (
+                            <div key={category.id} className="flex items-start gap-2">
+                              <Checkbox
+                                id={`cat-${field.id}-${category.id}`}
+                                checked={isSelected}
+                                onCheckedChange={(checked) => {
+                                  const currentIds = field.allowed_category_ids || [];
+                                  const newIds = checked
+                                    ? [...currentIds, category.id]
+                                    : currentIds.filter(id => id !== category.id);
+                                  updateField(originalIndex, { allowed_category_ids: newIds });
+                                }}
+                              />
+                              <div className="flex-1">
+                                <Label 
+                                  htmlFor={`cat-${field.id}-${category.id}`} 
+                                  className="text-xs font-medium cursor-pointer"
+                                >
+                                  {category.name}
+                                </Label>
+                                {category.description && (
+                                  <p className="text-xs text-slate-500">{category.description}</p>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <p className="text-xs text-slate-500">
+                        {(field.allowed_category_ids || []).length === 0 
+                          ? "No categories selected - all categories will be shown"
+                          : `${(field.allowed_category_ids || []).length} category(ies) selected`}
+                      </p>
+                    </>
+                  )}
                 </div>
               )}
 
@@ -216,6 +260,16 @@ export default function FormBuilderPage() {
       return allForms.find(f => f.id === formId);
     },
     enabled: !!formId
+  });
+
+  // Fetch communication categories for category_multiselect field configuration
+  const { data: categories = [] } = useQuery({
+    queryKey: ['communication-categories'],
+    queryFn: async () => {
+      const response = await fetch('/api/public/categories');
+      if (!response.ok) throw new Error('Failed to fetch categories');
+      return response.json();
+    }
   });
 
   useEffect(() => {
@@ -817,6 +871,7 @@ export default function FormBuilderPage() {
                                       updateField={updateField}
                                       removeField={removeField}
                                       FIELD_TYPES={FIELD_TYPES}
+                                      categories={categories}
                                     />
                                   ))}
                                 {provided.placeholder}
@@ -903,6 +958,7 @@ export default function FormBuilderPage() {
                                               updateField={updateField}
                                               removeField={removeField}
                                               FIELD_TYPES={FIELD_TYPES}
+                                              categories={categories}
                                             />
                                           ))
                                         )}
@@ -933,6 +989,7 @@ export default function FormBuilderPage() {
                               updateField={updateField}
                               removeField={removeField}
                               FIELD_TYPES={FIELD_TYPES}
+                              categories={categories}
                             />
                           ))}
                           {provided.placeholder}

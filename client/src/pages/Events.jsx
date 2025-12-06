@@ -4,13 +4,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Ticket, Plus, History, Tag, Check, ChevronDown, Layers } from "lucide-react";
+import { Search, Calendar, Plus, History, Tag, Check, ChevronDown, Layers } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { parseISO } from "date-fns";
 import EventCard from "../components/events/EventCard";
-import ProgramFilter from "../components/events/ProgramFilter";
 import PageTour from "../components/tour/PageTour";
 import TourButton from "../components/tour/TourButton";
 import { base44 } from "@/api/base44Client";
@@ -43,7 +42,6 @@ export default function EventsPage({
   const { isAdmin } = useMemberAccess();
   const { eventTypes } = useEventTypes();
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedProgram, setSelectedProgram] = useState("all");
   const [selectedFilterTag, setSelectedFilterTag] = useState("all");
   const [selectedEventType, setSelectedEventType] = useState("all");
   const [showPastEvents, setShowPastEvents] = useState(false);
@@ -172,20 +170,6 @@ export default function EventsPage({
   // For non-logged-in users, only show events with public tickets
   const accessibleEvents = memberInfo ? events : events.filter(hasPublicTickets);
 
-  // Build programs list including a "One-off Events" option if there are any
-  const programTags = [...new Set(accessibleEvents.map((e) => e.program_tag).filter(Boolean))];
-  const hasOneOffEvents = accessibleEvents.some(e => !e.program_tag || e.program_tag === "");
-  const programs = [
-    "all", 
-    ...(hasOneOffEvents ? ["one-off"] : []),
-    ...programTags
-  ];
-
-  const getTicketBalance = (programTag) => {
-    if (!organizationInfo?.program_ticket_balances) return 0;
-    return organizationInfo.program_ticket_balances[programTag] || 0;
-  };
-
   // Helper to check if event is in the past (timezone-aware)
   const isEventPast = (event) => {
     if (!event.start_date) return false;
@@ -202,7 +186,6 @@ export default function EventsPage({
   };
 
   console.log('[Events] Debug - accessibleEvents count:', accessibleEvents.length);
-  console.log('[Events] Debug - selectedProgram:', selectedProgram);
   console.log('[Events] Debug - searchQuery:', searchQuery);
   console.log('[Events] Debug - showPastEvents:', showPastEvents);
   console.log('[Events] Debug - memberInfo exists:', !!memberInfo);
@@ -212,16 +195,6 @@ export default function EventsPage({
     const matchesSearch =
       event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    // Handle program filtering including one-off events
-    let matchesProgram = false;
-    if (selectedProgram === "all") {
-      matchesProgram = true;
-    } else if (selectedProgram === "one-off") {
-      matchesProgram = !event.program_tag || event.program_tag === "";
-    } else {
-      matchesProgram = event.program_tag === selectedProgram;
-    }
     
     // Handle filter tag filtering
     let matchesFilterTag = true;
@@ -241,11 +214,11 @@ export default function EventsPage({
     const matchesTimeFilter = showPastEvents || !isPast;
     
     // Debug log for each event
-    if (!matchesTimeFilter || !matchesSearch || !matchesProgram || !matchesFilterTag || !matchesEventType) {
-      console.log(`[Events] Filtered out: "${event.title}" - search:${matchesSearch}, program:${matchesProgram}, filterTag:${matchesFilterTag}, eventType:${matchesEventType}, time:${matchesTimeFilter}, isPast:${isPast}, start_date:${event.start_date}`);
+    if (!matchesTimeFilter || !matchesSearch || !matchesFilterTag || !matchesEventType) {
+      console.log(`[Events] Filtered out: "${event.title}" - search:${matchesSearch}, filterTag:${matchesFilterTag}, eventType:${matchesEventType}, time:${matchesTimeFilter}, isPast:${isPast}, start_date:${event.start_date}`);
     }
     
-    return matchesSearch && matchesProgram && matchesFilterTag && matchesEventType && matchesTimeFilter;
+    return matchesSearch && matchesFilterTag && matchesEventType && matchesTimeFilter;
   });
   
   console.log('[Events] Debug - filteredEvents count:', filteredEvents.length);
@@ -262,16 +235,6 @@ export default function EventsPage({
       event.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.description?.toLowerCase().includes(searchQuery.toLowerCase());
     
-    // Use same program matching logic
-    let matchesProgram = false;
-    if (selectedProgram === "all") {
-      matchesProgram = true;
-    } else if (selectedProgram === "one-off") {
-      matchesProgram = !event.program_tag || event.program_tag === "";
-    } else {
-      matchesProgram = event.program_tag === selectedProgram;
-    }
-    
     // Use same filter tag matching logic
     let matchesFilterTag = true;
     if (selectedFilterTag !== "all") {
@@ -285,7 +248,7 @@ export default function EventsPage({
       matchesEventType = event.event_type === selectedEventType;
     }
     
-    return matchesSearch && matchesProgram && matchesFilterTag && matchesEventType && isEventPast(event);
+    return matchesSearch && matchesFilterTag && matchesEventType && isEventPast(event);
   }).length;
 
   // Update member tour status via base44 client
@@ -393,11 +356,6 @@ export default function EventsPage({
                   className="pl-10"
                 />
               </div>
-              <ProgramFilter
-                programs={programs}
-                selectedProgram={selectedProgram}
-                onProgramChange={setSelectedProgram}
-              />
             </div>
             
             {/* Filter Dropdowns Row */}
@@ -623,17 +581,6 @@ export default function EventsPage({
           </div>
         ) : (
           <>
-            {organizationInfo && selectedProgram !== "all" && selectedProgram !== "one-off" && (
-              <div className="flex items-center gap-3 mb-6 p-4 bg-white rounded-lg border border-slate-200">
-                <Ticket className="w-5 h-5 text-purple-600" />
-                <span className="font-medium text-slate-700">
-                  You have {getTicketBalance(selectedProgram)}{" "}
-                  {getTicketBalance(selectedProgram) === 1 ? "ticket" : "tickets"}{" "}
-                  available for {selectedProgram}
-                </span>
-              </div>
-            )}
-
             {filteredEvents.length === 0 ? (
               <div className="text-center py-16">
                 <Calendar className="w-16 h-16 text-slate-300 mx-auto mb-4" />

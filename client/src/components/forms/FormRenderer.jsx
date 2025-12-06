@@ -268,7 +268,14 @@ export default function FormRenderer({ field, value, onChange, memberInfo, organ
             </div>
           );
         }
-        if (categories.length === 0) {
+        
+        // Filter categories based on field configuration
+        // If allowed_category_ids is empty/undefined, show all categories
+        const filteredCategories = field.allowed_category_ids?.length > 0
+          ? categories.filter(cat => field.allowed_category_ids.includes(cat.id))
+          : categories;
+        
+        if (filteredCategories.length === 0) {
           return (
             <p className="text-sm text-slate-500">
               No categories available. Please add categories in Communications Management.
@@ -277,7 +284,7 @@ export default function FormRenderer({ field, value, onChange, memberInfo, organ
         }
         return (
           <div className="space-y-2">
-            {categories.map((category) => (
+            {filteredCategories.map((category) => (
               <div key={category.id} className="flex items-start space-x-2">
                 <Checkbox
                   id={`${field.id}-${category.id}`}

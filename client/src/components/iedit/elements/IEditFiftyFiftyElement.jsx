@@ -54,8 +54,9 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
     right_column_padding = 24,
     column_border_radius = 0,
     button,
-    button_position = 'bottom-right',
-    vertical_alignment = 'center',
+    button_column = 'left',
+    left_vertical_alignment = 'center',
+    right_vertical_alignment = 'center',
     reverse_on_mobile = false,
     column_gap = 32,
     vertical_padding = 48
@@ -89,11 +90,14 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
     };
   };
 
-  const verticalAlignmentClass = {
+  const getVerticalAlignmentClass = (alignment) => ({
     top: 'justify-start',
     center: 'justify-center',
     bottom: 'justify-end'
-  }[vertical_alignment] || 'justify-center';
+  }[alignment] || 'justify-center');
+
+  const leftAlignmentClass = getVerticalAlignmentClass(left_vertical_alignment);
+  const rightAlignmentClass = getVerticalAlignmentClass(right_vertical_alignment);
 
   const renderTextContent = (side) => {
     const heading = content?.[`${side}_heading`];
@@ -167,12 +171,6 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
     return renderTextContent(side);
   };
 
-  const buttonPositionClasses = {
-    'bottom-left': 'justify-start',
-    'bottom-right': 'justify-end',
-    'bottom-center': 'justify-center'
-  };
-
   return (
     <div 
       className="relative w-full"
@@ -207,7 +205,7 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
           style={{ gap: `${column_gap}px` }}
         >
           <div 
-            className={`${reverse_on_mobile ? 'order-2 md:order-1' : ''} ${left_content_type === 'text' ? `flex flex-col ${verticalAlignmentClass}` : ''}`}
+            className={`${reverse_on_mobile ? 'order-2 md:order-1' : ''} ${left_content_type === 'text' ? `flex flex-col ${leftAlignmentClass}` : ''}`}
             style={{
               ...(left_content_type === 'text' && left_column_bg_color ? { 
                 backgroundColor: left_column_bg_color,
@@ -217,9 +215,24 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
             }}
           >
             {renderColumn('left')}
+            {button?.text && button_column === 'left' && left_content_type === 'text' && (
+              <div className="flex justify-end mt-6">
+                <AGCASButton
+                  text={button.text}
+                  link={button.link}
+                  buttonStyleId={button.button_style_id}
+                  customBgColor={button.custom_bg_color}
+                  customTextColor={button.custom_text_color}
+                  customBorderColor={button.custom_border_color}
+                  openInNewTab={button.open_in_new_tab}
+                  size={button.size || 'medium'}
+                  showArrow={button.show_arrow}
+                />
+              </div>
+            )}
           </div>
           <div 
-            className={`${reverse_on_mobile ? 'order-1 md:order-2' : ''} ${right_content_type === 'text' ? `flex flex-col ${verticalAlignmentClass}` : ''}`}
+            className={`${reverse_on_mobile ? 'order-1 md:order-2' : ''} ${right_content_type === 'text' ? `flex flex-col ${rightAlignmentClass}` : ''}`}
             style={{
               ...(right_content_type === 'text' && right_column_bg_color ? { 
                 backgroundColor: right_column_bg_color,
@@ -229,24 +242,23 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
             }}
           >
             {renderColumn('right')}
+            {button?.text && button_column === 'right' && right_content_type === 'text' && (
+              <div className="flex justify-end mt-6">
+                <AGCASButton
+                  text={button.text}
+                  link={button.link}
+                  buttonStyleId={button.button_style_id}
+                  customBgColor={button.custom_bg_color}
+                  customTextColor={button.custom_text_color}
+                  customBorderColor={button.custom_border_color}
+                  openInNewTab={button.open_in_new_tab}
+                  size={button.size || 'medium'}
+                  showArrow={button.show_arrow}
+                />
+              </div>
+            )}
           </div>
         </div>
-
-        {button?.text && (
-          <div className={`flex ${buttonPositionClasses[button_position] || 'justify-end'} mt-8`}>
-            <AGCASButton
-              text={button.text}
-              link={button.link}
-              buttonStyleId={button.button_style_id}
-              customBgColor={button.custom_bg_color}
-              customTextColor={button.custom_text_color}
-              customBorderColor={button.custom_border_color}
-              openInNewTab={button.open_in_new_tab}
-              size={button.size || 'medium'}
-              showArrow={button.show_arrow}
-            />
-          </div>
-        )}
       </div>
     </div>
   );
@@ -932,16 +944,16 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
         {expandedSections.button && (
           <div className="p-4 space-y-4">
             <div>
-              <Label className="text-sm">Button Position</Label>
+              <Label className="text-sm">Button Column</Label>
               <select
-                value={content.button_position || 'bottom-right'}
-                onChange={(e) => updateContent('button_position', e.target.value)}
+                value={content.button_column || 'left'}
+                onChange={(e) => updateContent('button_column', e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-md"
               >
-                <option value="bottom-left">Bottom Left</option>
-                <option value="bottom-center">Bottom Center</option>
-                <option value="bottom-right">Bottom Right</option>
+                <option value="left">Left Column</option>
+                <option value="right">Right Column</option>
               </select>
+              <p className="text-xs text-slate-500 mt-1">Button appears at bottom-right of the selected text column</p>
             </div>
 
             <div>
@@ -1061,17 +1073,31 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
         
         {expandedSections.layout && (
           <div className="p-4 space-y-4">
-            <div>
-              <Label className="text-sm">Vertical Alignment</Label>
-              <select
-                value={content.vertical_alignment || 'center'}
-                onChange={(e) => updateContent('vertical_alignment', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md"
-              >
-                <option value="top">Top</option>
-                <option value="center">Center</option>
-                <option value="bottom">Bottom</option>
-              </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <Label className="text-sm">Left Column Alignment</Label>
+                <select
+                  value={content.left_vertical_alignment || 'center'}
+                  onChange={(e) => updateContent('left_vertical_alignment', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                >
+                  <option value="top">Top</option>
+                  <option value="center">Center</option>
+                  <option value="bottom">Bottom</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-sm">Right Column Alignment</Label>
+                <select
+                  value={content.right_vertical_alignment || 'center'}
+                  onChange={(e) => updateContent('right_vertical_alignment', e.target.value)}
+                  className="w-full px-3 py-2 border border-slate-300 rounded-md"
+                >
+                  <option value="top">Top</option>
+                  <option value="center">Center</option>
+                  <option value="bottom">Bottom</option>
+                </select>
+              </div>
             </div>
 
             <div>

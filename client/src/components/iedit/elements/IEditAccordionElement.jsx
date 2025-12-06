@@ -133,15 +133,16 @@ export function IEditAccordionElementEditor({ element, onChange }) {
 
           <TypographyStyleSelector
             value={content.header_typography_style_id}
-            onChange={(styleId) => updateContent('header_typography_style_id', styleId)}
-            onApplyStyle={(style) => {
-              const styleProps = applyTypographyStyle(style);
-              if (styleProps.font_family) updateContent('header_font_family', styleProps.font_family);
-              if (styleProps.font_size) updateContent('header_font_size', styleProps.font_size);
-              if (styleProps.font_size_mobile) updateContent('header_font_size_mobile', styleProps.font_size_mobile);
-              if (styleProps.font_weight) updateContent('header_font_weight', styleProps.font_weight);
-              if (styleProps.color) updateContent('header_color', styleProps.color);
-              updateContent('header_typography_style_id', style.id);
+            onChange={(styleId, style) => {
+              updateContent('header_typography_style_id', styleId);
+              if (style) {
+                const styleProps = applyTypographyStyle(style);
+                if (styleProps.font_family) updateContent('header_font_family', styleProps.font_family);
+                if (styleProps.font_size) updateContent('header_font_size', styleProps.font_size);
+                if (styleProps.font_size_mobile) updateContent('header_font_size_mobile', styleProps.font_size_mobile);
+                if (styleProps.font_weight) updateContent('header_font_weight', styleProps.font_weight);
+                if (styleProps.color) updateContent('header_color', styleProps.color);
+              }
             }}
             filterTypes={['h1', 'h2', 'h3']}
             label="Title Typography Style"

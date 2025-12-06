@@ -496,7 +496,7 @@ export default function EventDetailsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
+      <div className="min-h-full bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8 flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading event...</div>
       </div>
     );
@@ -504,7 +504,7 @@ export default function EventDetailsPage() {
 
   if (!event) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+      <div className="min-h-full bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
         <div className="max-w-4xl mx-auto text-center py-16">
           <h2 className="text-2xl font-bold text-slate-900 mb-4">Event not found</h2>
           <Link to={createPageUrl('Events')}>
@@ -745,7 +745,7 @@ export default function EventDetailsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
+    <div className="min-h-full bg-gradient-to-br from-slate-50 to-blue-50 p-4 md:p-8">
       {showTour && shouldShowTours && (
         <PageTour
           tourGroupName="EventDetails"

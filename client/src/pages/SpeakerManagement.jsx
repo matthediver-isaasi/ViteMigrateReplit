@@ -107,7 +107,6 @@ export default function SpeakerManagementPage() {
         return await base44.entities.SystemSettings.create({
           setting_key: 'speaker_module_name',
           setting_value: settingValue,
-          setting_type: 'json',
           description: 'Custom module name for speakers (singular and plural forms)'
         });
       }
@@ -118,7 +117,8 @@ export default function SpeakerManagementPage() {
       setShowSettings(false);
     },
     onError: (error) => {
-      toast.error('Failed to save module name: ' + error.message);
+      console.error('Module name save error:', error);
+      toast.error('Failed to save module name: ' + (error.message || 'Unknown error'));
     }
   });
 

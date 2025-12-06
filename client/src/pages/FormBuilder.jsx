@@ -262,12 +262,12 @@ export default function FormBuilderPage() {
     enabled: !!formId
   });
 
-  // Fetch communication categories for category_multiselect field configuration
+  // Fetch resource categories for category_multiselect field configuration (search categories)
   const { data: categories = [] } = useQuery({
-    queryKey: ['communication-categories'],
+    queryKey: ['resource-categories-for-forms'],
     queryFn: async () => {
-      const response = await fetch('/api/public/categories');
-      if (!response.ok) throw new Error('Failed to fetch categories');
+      const response = await fetch('/api/public/resource-categories');
+      if (!response.ok) throw new Error('Failed to fetch resource categories');
       return response.json();
     }
   });

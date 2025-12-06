@@ -32,13 +32,13 @@ export default function FormRenderer({ field, value, onChange, memberInfo, organ
     staleTime: 5 * 60 * 1000 // Cache for 5 minutes
   });
 
-  // Fetch communication categories for category_multiselect field type (uses public endpoint)
+  // Fetch resource categories for category_multiselect field type (uses public endpoint)
   const { data: categories = [], isLoading: categoriesLoading } = useQuery({
-    queryKey: ['public-categories-for-form'],
+    queryKey: ['public-resource-categories-for-form'],
     queryFn: async () => {
-      const response = await fetch('/api/public/categories');
+      const response = await fetch('/api/public/resource-categories');
       if (!response.ok) {
-        throw new Error('Failed to fetch categories');
+        throw new Error('Failed to fetch resource categories');
       }
       return response.json();
     },
@@ -278,7 +278,7 @@ export default function FormRenderer({ field, value, onChange, memberInfo, organ
         if (filteredCategories.length === 0) {
           return (
             <p className="text-sm text-slate-500">
-              No categories available. Please add categories in Communications Management.
+              No categories available. Please add categories in Category Management.
             </p>
           );
         }

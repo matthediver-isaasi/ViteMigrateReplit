@@ -404,6 +404,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public endpoint for resource categories (used by forms for search/content category multi-select)
+  app.get('/api/public/resource-categories', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('resource_category')
+        .select('id, name, description, subcategories, applies_to_content_types')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching resource categories:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.json(data || []);
+    } catch (error) {
+      console.error('Public resource categories fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch resource categories' });
+    }
+  });
+
   // ============ Auth Routes ============
   
   app.get('/api/auth/me', async (req: Request, res: Response) => {

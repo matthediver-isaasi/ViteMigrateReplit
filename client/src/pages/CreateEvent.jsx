@@ -1513,7 +1513,7 @@ export default function CreateEvent() {
                 )}
 
                 {/* Allow Guests to View All Tickets Toggle */}
-                {ticketClasses.length > 0 && ticketClasses.some(tc => tc.visibility_mode === 'members_only') && (
+                {ticketClasses.length > 0 && (
                   <div className="mt-6 pt-4 border-t border-slate-200">
                     <div className="flex items-center justify-between p-4 bg-slate-50 rounded-lg">
                       <div className="flex items-start gap-3">

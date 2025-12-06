@@ -569,18 +569,25 @@ export default function PublicHeader() {
     <>
       <header className="bg-white shadow-sm sticky top-0 z-40 relative">
         {/* Desktop: Overlapping Logo */}
-        <img
-          src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68efc20f3e0a30fafad6dde7/26710cf5a_GFIheaderlogo.png"
-          alt="Graduate Futures Institute"
+        <Link 
+          to={createPageUrl('Home')}
           className="mt-4 absolute z-50 hidden lg:block"
           style={{
             top: '0',
             left: 'max(1rem, calc((100vw - 80rem) / 2))',
-            width: 'auto',
-            height: '158px',
             transform: 'translateY(-10px)'
           }}
-        />
+          data-testid="link-header-logo"
+        >
+          <img
+            src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68efc20f3e0a30fafad6dde7/26710cf5a_GFIheaderlogo.png"
+            alt="Graduate Futures Institute"
+            style={{
+              width: 'auto',
+              height: '158px'
+            }}
+          />
+        </Link>
 
         {/* Top Row - Gradient Header (Desktop only) */}
         <div

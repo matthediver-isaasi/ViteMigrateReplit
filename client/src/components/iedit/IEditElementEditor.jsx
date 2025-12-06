@@ -25,6 +25,7 @@ import { IEditAccordionElementEditor } from "./elements/IEditAccordionElement";
 import { IEditTwoColumnElementEditor } from "./elements/IEditTwoColumnElement";
 import { IEditQuoteElementEditor } from "./elements/IEditQuoteElement";
 import { IEditFiftyFiftyElementEditor } from "./elements/IEditFiftyFiftyElement";
+import { IEditFormElementEditor } from "./elements/IEditFormElement";
 
 export default function IEditElementEditor({ element, onClose, onSave }) {
   const [editedContent, setEditedContent] = useState(element.content || {});
@@ -497,6 +498,11 @@ export default function IEditElementEditor({ element, onClose, onSave }) {
             />
           ) : isFiftyFifty ? (
             <IEditFiftyFiftyElementEditor 
+              element={{ ...element, content: editedContent }}
+              onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
+            />
+          ) : isFormElement ? (
+            <IEditFormElementEditor 
               element={{ ...element, content: editedContent }}
               onChange={(updatedElement) => setEditedContent(updatedElement.content || {})}
             />

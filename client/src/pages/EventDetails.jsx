@@ -39,6 +39,7 @@ export default function EventDetailsPage() {
   const [showColleagueSelector, setShowColleagueSelector] = useState(false);
   const [selectedTicketClassId, setSelectedTicketClassId] = useState(null);
   const [paymentCanProceed, setPaymentCanProceed] = useState(false);
+  const [showAllTickets, setShowAllTickets] = useState(false); // Toggle to show all tickets for non-logged-in users
 
   // Modal states for description and speaker profiles
   const [showDescriptionModal, setShowDescriptionModal] = useState(false);
@@ -273,9 +274,8 @@ export default function EventDetailsPage() {
     return parsed;
   }, [event, isOneOffEvent]);
   
-  // Get ticket classes - for non-logged-in users, only show public tickets
-  // For logged-in users, show all ticket classes
-  const availableTicketClasses = useMemo(() => {
+  // Get ALL normalized ticket classes (for display purposes when "show all" toggle is on)
+  const allNormalizedTickets = useMemo(() => {
     if (!isOneOffEvent || !pricingConfig) return [];
     
     // Ensure ticket_classes is an array
@@ -284,27 +284,25 @@ export default function EventDetailsPage() {
     
     // If no ticket classes defined, use legacy single-price format
     if (ticketClasses.length === 0) {
-      const legacyTicket = {
+      return [{
         id: 'default',
         name: 'Standard Ticket',
         price: Number(pricingConfig.ticket_price) || 0,
         role_ids: [],
         is_default: true,
-        is_public: false, // Legacy tickets are not public by default
+        visibility_mode: 'members_only', // Legacy tickets are members only
+        role_match_only: false,
         offer_type: String(pricingConfig.offer_type || 'none'),
         bogo_logic_type: String(pricingConfig.bogo_logic_type || 'buy_x_get_y_free'),
         bogo_buy_quantity: Number(pricingConfig.bogo_buy_quantity) || 0,
         bogo_get_free_quantity: Number(pricingConfig.bogo_get_free_quantity) || 0,
         bulk_discount_threshold: Number(pricingConfig.bulk_discount_threshold) || 0,
         bulk_discount_percentage: Number(pricingConfig.bulk_discount_percentage) || 0
-      };
-      // Non-logged-in users cannot see legacy tickets (not public)
-      if (!currentMemberInfo && !legacyTicket.is_public) return [];
-      return [legacyTicket];
+      }];
     }
     
     // Normalize ticket classes with backwards compatibility for is_public field
-    const normalizedTickets = ticketClasses
+    return ticketClasses
       .filter(tc => tc && typeof tc === 'object')
       .map(tc => {
         // Handle backwards compatibility: convert is_public to visibility_mode
@@ -330,30 +328,79 @@ export default function EventDetailsPage() {
           bulk_discount_percentage: Number(tc.bulk_discount_percentage) || 0
         };
       });
+  }, [isOneOffEvent, pricingConfig]);
+  
+  // Helper to check if a ticket is purchasable by the current user
+  // Visibility logic:
+  // - Members Only: Visible to logged-in members. If role_match_only=true, only if user's role is in role_ids
+  // - Members & Public: Same as Members Only + visible to non-logged-in visitors
+  // - Public Only: ONLY visible/purchasable by non-logged-in visitors
+  const isTicketPurchasable = (ticket) => {
+    if (!ticket) return false;
     
-    // For non-logged-in users, only show tickets with visibility that includes public
+    const visibilityMode = ticket.visibility_mode;
+    
+    // For non-logged-in users
     if (!currentMemberInfo) {
-      return normalizedTickets.filter(tc => 
-        tc.visibility_mode === 'members_and_public' || tc.visibility_mode === 'public_only'
-      );
+      // Can only purchase public_only tickets (and members_and_public tickets)
+      return visibilityMode === 'public_only' || visibilityMode === 'members_and_public';
     }
     
+    // For logged-in members
+    // Public-only tickets cannot be purchased by logged-in members
+    if (visibilityMode === 'public_only') return false;
+    
+    // Members Only and Members & Public tickets:
+    // If role_match_only is false, any logged-in member can purchase
+    if (!ticket.role_match_only) return true;
+    
+    // If role_match_only is true, check if user's role is in the ticket's role_ids
+    // Empty role_ids means all roles (no restriction)
+    if (ticket.role_ids.length === 0) return true;
+    
+    return userRoleId && ticket.role_ids.includes(userRoleId);
+  };
+  
+  // Get ticket classes that should be displayed
+  // For non-logged-in users with showAllTickets=false: only public tickets
+  // For non-logged-in users with showAllTickets=true: ALL tickets (some disabled)
+  // For logged-in users: tickets they have access to based on visibility and role
+  const availableTicketClasses = useMemo(() => {
+    if (!isOneOffEvent || !pricingConfig) return [];
+    
     // For logged-in members, filter based on visibility_mode and role_match_only
-    return normalizedTickets.filter(tc => {
-      // Public-only tickets are NOT visible to logged-in members
-      if (tc.visibility_mode === 'public_only') return false;
-      
-      // If role_match_only is false or not set, show the ticket
-      if (!tc.role_match_only) return true;
-      
-      // If role_match_only is true, only show if user's role is in the ticket's role_ids
-      // Empty role_ids means all roles (no restriction)
-      if (tc.role_ids.length === 0) return true;
-      
-      // Check if user's role matches any of the ticket's role_ids
-      return userRoleId && tc.role_ids.includes(userRoleId);
-    });
-  }, [isOneOffEvent, pricingConfig, currentMemberInfo, userRoleId]);
+    if (currentMemberInfo) {
+      return allNormalizedTickets.filter(tc => {
+        // Public-only tickets are NOT visible to logged-in members
+        if (tc.visibility_mode === 'public_only') return false;
+        
+        // If role_match_only is false or not set, show the ticket
+        if (!tc.role_match_only) return true;
+        
+        // If role_match_only is true, only show if user's role is in the ticket's role_ids
+        // Empty role_ids means all roles (no restriction)
+        if (tc.role_ids.length === 0) return true;
+        
+        // Check if user's role matches any of the ticket's role_ids
+        return userRoleId && tc.role_ids.includes(userRoleId);
+      });
+    }
+    
+    // For non-logged-in users with showAllTickets toggle ON: show ALL tickets
+    if (showAllTickets) {
+      return allNormalizedTickets;
+    }
+    
+    // For non-logged-in users without toggle: only show tickets that include public visibility
+    return allNormalizedTickets.filter(tc => 
+      tc.visibility_mode === 'members_and_public' || tc.visibility_mode === 'public_only'
+    );
+  }, [isOneOffEvent, pricingConfig, currentMemberInfo, userRoleId, allNormalizedTickets, showAllTickets]);
+  
+  // Check if there are any member-only tickets to show the toggle
+  const hasMemberOnlyTickets = useMemo(() => {
+    return allNormalizedTickets.some(tc => tc.visibility_mode === 'members_only');
+  }, [allNormalizedTickets]);
   
   // Auto-select first available ticket class
   useEffect(() => {

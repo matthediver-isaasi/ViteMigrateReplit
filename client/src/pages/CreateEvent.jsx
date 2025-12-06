@@ -150,9 +150,30 @@ export default function CreateEvent() {
     queryFn: () => base44.entities.Speaker.list({ filter: { is_active: true }, sort: { full_name: 'asc' } })
   });
 
+  // Fetch system settings to get event filter category ID
+  const { data: systemSettings = [] } = useQuery({
+    queryKey: ['/api/entities/SystemSettings'],
+    queryFn: () => base44.entities.SystemSettings.list()
+  });
+
+  // Fetch resource categories for filter tag selection
+  const { data: resourceCategories = [] } = useQuery({
+    queryKey: ['/api/entities/ResourceCategory'],
+    queryFn: () => base44.entities.ResourceCategory.list('display_order')
+  });
+
+  // Get the configured filter category and its subcategories
+  // Note: SystemSetting values are strings, so we need to compare as strings
+  const eventFilterCategoryId = systemSettings.find(s => s.setting_key === 'event_filter_category_id')?.setting_value || '';
+  const filterCategory = resourceCategories.find(c => String(c.id) === eventFilterCategoryId);
+  const availableFilterTags = filterCategory?.subcategories || [];
+
   // Selected speakers state
   const [selectedSpeakers, setSelectedSpeakers] = useState([]);
   const [speakerModalOpen, setSpeakerModalOpen] = useState(false);
+  
+  // Selected filter tags state
+  const [selectedFilterTags, setSelectedFilterTags] = useState([]);
 
   // Speaker toggle function
   const toggleSpeaker = (speakerId) => {
@@ -413,7 +434,8 @@ export default function CreateEvent() {
       image_url: formData.image_url || null,
       available_seats: isOnline ? null : (formData.available_seats ? parseInt(formData.available_seats) : null),
       zoom_webinar_id: isOnline && selectedWebinarId ? selectedWebinarId : null,
-      speaker_ids: selectedSpeakers.length > 0 ? selectedSpeakers : []
+      speaker_ids: selectedSpeakers.length > 0 ? selectedSpeakers : [],
+      filter_tags: selectedFilterTags.length > 0 ? selectedFilterTags : []
     };
 
     // Add ticket classes for one-off events as JSON in pricing_config field
@@ -817,6 +839,47 @@ export default function CreateEvent() {
                   </>
                 )}
               </div>
+
+              {/* Event Filter Tags */}
+              {availableFilterTags.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-slate-500" />
+                    {filterCategory?.name || 'Filter Tags'}
+                  </Label>
+                  <p className="text-xs text-slate-500 mb-2">
+                    Select one or more filter values to help categorize this event.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {availableFilterTags.map((tag, idx) => {
+                      const isSelected = selectedFilterTags.includes(tag);
+                      return (
+                        <Badge
+                          key={idx}
+                          variant={isSelected ? "default" : "outline"}
+                          className={`cursor-pointer transition-colors ${isSelected ? 'bg-blue-600 hover:bg-blue-700' : 'hover:bg-slate-100'}`}
+                          onClick={() => {
+                            if (isSelected) {
+                              setSelectedFilterTags(prev => prev.filter(t => t !== tag));
+                            } else {
+                              setSelectedFilterTags(prev => [...prev, tag]);
+                            }
+                          }}
+                          data-testid={`badge-filter-tag-${idx}`}
+                        >
+                          {isSelected && <Check className="h-3 w-3 mr-1" />}
+                          {tag}
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                  {selectedFilterTags.length > 0 && (
+                    <p className="text-xs text-slate-500 mt-1">
+                      {selectedFilterTags.length} selected
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="internal_reference">Internal Reference</Label>

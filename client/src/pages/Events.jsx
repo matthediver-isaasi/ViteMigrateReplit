@@ -4,7 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, Calendar, Ticket, Plus, History, Tag, Check, ChevronDown } from "lucide-react";
+import { Search, Calendar, Ticket, Plus, History, Tag, Check, ChevronDown, Layers } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ import { base44 } from "@/api/base44Client";
 import { useLayoutContext } from "@/contexts/LayoutContext";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
+import { useEventTypes } from "@/hooks/useEventTypes";
 
 const DEFAULT_TIMEZONE = "Europe/London";
 
@@ -40,9 +41,11 @@ export default function EventsPage({
   const organizationInfo = contextOrganizationInfo || propsOrganizationInfo;
   const memberInfo = contextMemberInfo || propsMemberInfo;
   const { isAdmin } = useMemberAccess();
+  const { eventTypes } = useEventTypes();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProgram, setSelectedProgram] = useState("all");
   const [selectedFilterTag, setSelectedFilterTag] = useState("all");
+  const [selectedEventType, setSelectedEventType] = useState("all");
   const [showPastEvents, setShowPastEvents] = useState(false);
   const [showTour, setShowTour] = useState(false);
   const [tourAutoShow, setTourAutoShow] = useState(false);
@@ -227,16 +230,22 @@ export default function EventsPage({
       matchesFilterTag = eventFilterTags.includes(selectedFilterTag);
     }
     
+    // Handle event type filtering
+    let matchesEventType = true;
+    if (selectedEventType !== "all") {
+      matchesEventType = event.event_type === selectedEventType;
+    }
+    
     // Filter out past events unless showPastEvents is enabled
     const isPast = isEventPast(event);
     const matchesTimeFilter = showPastEvents || !isPast;
     
     // Debug log for each event
-    if (!matchesTimeFilter || !matchesSearch || !matchesProgram || !matchesFilterTag) {
-      console.log(`[Events] Filtered out: "${event.title}" - search:${matchesSearch}, program:${matchesProgram}, filterTag:${matchesFilterTag}, time:${matchesTimeFilter}, isPast:${isPast}, start_date:${event.start_date}`);
+    if (!matchesTimeFilter || !matchesSearch || !matchesProgram || !matchesFilterTag || !matchesEventType) {
+      console.log(`[Events] Filtered out: "${event.title}" - search:${matchesSearch}, program:${matchesProgram}, filterTag:${matchesFilterTag}, eventType:${matchesEventType}, time:${matchesTimeFilter}, isPast:${isPast}, start_date:${event.start_date}`);
     }
     
-    return matchesSearch && matchesProgram && matchesFilterTag && matchesTimeFilter;
+    return matchesSearch && matchesProgram && matchesFilterTag && matchesEventType && matchesTimeFilter;
   });
   
   console.log('[Events] Debug - filteredEvents count:', filteredEvents.length);
@@ -270,7 +279,13 @@ export default function EventsPage({
       matchesFilterTag = eventFilterTags.includes(selectedFilterTag);
     }
     
-    return matchesSearch && matchesProgram && matchesFilterTag && isEventPast(event);
+    // Use same event type matching logic
+    let matchesEventType = true;
+    if (selectedEventType !== "all") {
+      matchesEventType = event.event_type === selectedEventType;
+    }
+    
+    return matchesSearch && matchesProgram && matchesFilterTag && matchesEventType && isEventPast(event);
   }).length;
 
   // Update member tour status via base44 client
@@ -385,89 +400,179 @@ export default function EventsPage({
               />
             </div>
             
-            {/* Filter Tags */}
-            {filterTagOptions.length > 0 && (
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button 
-                    variant="outline" 
-                    className="mt-4 w-full md:w-auto justify-between gap-2"
-                    data-testid="filter-tags-trigger"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Tag className="w-4 h-4" />
-                      {selectedFilterTag === "all" ? (
-                        <span>Filter by category</span>
-                      ) : (
-                        <span className="truncate max-w-[200px]">{selectedFilterTag}</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      {selectedFilterTag !== "all" && (
-                        <Badge variant="secondary" className="h-5 px-1.5 text-xs">
-                          1
-                        </Badge>
-                      )}
-                      <ChevronDown className="w-4 h-4 opacity-50" />
-                    </div>
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-64 p-0" align="start">
-                  <div className="p-2 border-b border-slate-100">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-slate-700">Filter by category</span>
-                      {selectedFilterTag !== "all" && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs text-slate-500 hover:text-slate-700"
-                          onClick={() => setSelectedFilterTag("all")}
-                          data-testid="filter-tags-clear"
-                        >
-                          Clear
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="max-h-[280px] overflow-y-auto p-1">
-                    <button
-                      className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
-                        selectedFilterTag === "all" 
-                          ? "bg-slate-100 text-slate-900 font-medium" 
-                          : "text-slate-600 hover:bg-slate-50"
-                      }`}
-                      onClick={() => setSelectedFilterTag("all")}
-                      data-testid="filter-tag-all"
-                    >
-                      <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                        selectedFilterTag === "all" ? "bg-primary border-primary" : "border-slate-300"
-                      }`}>
-                        {selectedFilterTag === "all" && <Check className="w-3 h-3 text-white" />}
-                      </div>
-                      All categories
-                    </button>
-                    {filterTagOptions.map((tag) => (
-                      <button
-                        key={tag}
-                        className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
-                          selectedFilterTag === tag 
-                            ? "bg-slate-100 text-slate-900 font-medium" 
-                            : "text-slate-600 hover:bg-slate-50"
-                        }`}
-                        onClick={() => setSelectedFilterTag(tag)}
-                        data-testid={`filter-tag-${tag}`}
+            {/* Filter Dropdowns Row */}
+            {(filterTagOptions.length > 0 || eventTypes.length > 0) && (
+              <div className="flex flex-wrap gap-2 mt-4">
+                {/* Filter Tags */}
+                {filterTagOptions.length > 0 && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className="w-full md:w-auto justify-between gap-2"
+                        data-testid="filter-tags-trigger"
                       >
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center ${
-                          selectedFilterTag === tag ? "bg-primary border-primary" : "border-slate-300"
-                        }`}>
-                          {selectedFilterTag === tag && <Check className="w-3 h-3 text-white" />}
+                        <div className="flex items-center gap-2">
+                          <Tag className="w-4 h-4" />
+                          {selectedFilterTag === "all" ? (
+                            <span>Filter by category</span>
+                          ) : (
+                            <span className="truncate max-w-[200px]">{selectedFilterTag}</span>
+                          )}
                         </div>
-                        <span className="truncate">{tag}</span>
-                      </button>
-                    ))}
-                  </div>
-                </PopoverContent>
-              </Popover>
+                        <div className="flex items-center gap-1">
+                          {selectedFilterTag !== "all" && (
+                            <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                              1
+                            </Badge>
+                          )}
+                          <ChevronDown className="w-4 h-4 opacity-50" />
+                        </div>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0" align="start">
+                      <div className="p-2 border-b border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-700">Filter by category</span>
+                          {selectedFilterTag !== "all" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-slate-500 hover:text-slate-700"
+                              onClick={() => setSelectedFilterTag("all")}
+                              data-testid="filter-tags-clear"
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="max-h-[280px] overflow-y-auto p-1">
+                        <button
+                          className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
+                            selectedFilterTag === "all" 
+                              ? "bg-slate-100 text-slate-900 font-medium" 
+                              : "text-slate-600 hover:bg-slate-50"
+                          }`}
+                          onClick={() => setSelectedFilterTag("all")}
+                          data-testid="filter-tag-all"
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            selectedFilterTag === "all" ? "bg-primary border-primary" : "border-slate-300"
+                          }`}>
+                            {selectedFilterTag === "all" && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          All categories
+                        </button>
+                        {filterTagOptions.map((tag) => (
+                          <button
+                            key={tag}
+                            className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
+                              selectedFilterTag === tag 
+                                ? "bg-slate-100 text-slate-900 font-medium" 
+                                : "text-slate-600 hover:bg-slate-50"
+                            }`}
+                            onClick={() => setSelectedFilterTag(tag)}
+                            data-testid={`filter-tag-${tag}`}
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                              selectedFilterTag === tag ? "bg-primary border-primary" : "border-slate-300"
+                            }`}>
+                              {selectedFilterTag === tag && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span className="truncate">{tag}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+                
+                {/* Event Type Filter */}
+                {eventTypes.length > 0 && (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className="w-full md:w-auto justify-between gap-2"
+                        data-testid="filter-event-type-trigger"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Layers className="w-4 h-4" />
+                          {selectedEventType === "all" ? (
+                            <span>Filter by type</span>
+                          ) : (
+                            <span className="truncate max-w-[200px]">{selectedEventType}</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {selectedEventType !== "all" && (
+                            <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                              1
+                            </Badge>
+                          )}
+                          <ChevronDown className="w-4 h-4 opacity-50" />
+                        </div>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0" align="start">
+                      <div className="p-2 border-b border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-700">Filter by type</span>
+                          {selectedEventType !== "all" && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-slate-500 hover:text-slate-700"
+                              onClick={() => setSelectedEventType("all")}
+                              data-testid="filter-event-type-clear"
+                            >
+                              Clear
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="max-h-[280px] overflow-y-auto p-1">
+                        <button
+                          className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
+                            selectedEventType === "all" 
+                              ? "bg-slate-100 text-slate-900 font-medium" 
+                              : "text-slate-600 hover:bg-slate-50"
+                          }`}
+                          onClick={() => setSelectedEventType("all")}
+                          data-testid="filter-event-type-all"
+                        >
+                          <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                            selectedEventType === "all" ? "bg-primary border-primary" : "border-slate-300"
+                          }`}>
+                            {selectedEventType === "all" && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                          All types
+                        </button>
+                        {eventTypes.map((type) => (
+                          <button
+                            key={type}
+                            className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
+                              selectedEventType === type 
+                                ? "bg-slate-100 text-slate-900 font-medium" 
+                                : "text-slate-600 hover:bg-slate-50"
+                            }`}
+                            onClick={() => setSelectedEventType(type)}
+                            data-testid={`filter-event-type-${type}`}
+                          >
+                            <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                              selectedEventType === type ? "bg-primary border-primary" : "border-slate-300"
+                            }`}>
+                              {selectedEventType === type && <Check className="w-3 h-3 text-white" />}
+                            </div>
+                            <span className="truncate">{type}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                )}
+              </div>
             )}
             
             {/* Show Past Events Toggle */}

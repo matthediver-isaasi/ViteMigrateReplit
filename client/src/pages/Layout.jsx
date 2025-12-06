@@ -25,6 +25,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetClose } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import PublicLayout from "@/components/layouts/PublicLayout";
 import BarePublicLayout from "@/components/layouts/BarePublicLayout";
 import FloaterDisplay from "@/components/floaters/FloaterDisplay";
@@ -430,6 +432,9 @@ export default function Layout({ children, currentPageName }) {
   const mainContentRef = React.useRef(null);
   const sidebarContentRef = React.useRef(null);
   const lastActivityUpdateRef = React.useRef(null);
+  
+  // Mobile navigation menu state
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const { hasPendingPOs, pendingPOCount, isLoading: pendingPOsLoading } = usePendingPurchaseOrders();
   
@@ -1685,6 +1690,248 @@ useEffect(() => {
           </Sidebar>
 
           <div className="flex-1 flex flex-col min-h-screen max-h-screen overflow-hidden">
+            {/* Mobile Header - only visible on small screens */}
+            <header className="md:hidden flex items-center justify-between p-4 border-b border-slate-200 bg-white sticky top-0 z-50">
+              <Link to={createPageUrl('Events')} className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm border border-slate-200 overflow-hidden">
+                  {memberRecord?.profile_photo_url ? (
+                    <img 
+                      src={memberRecord.profile_photo_url} 
+                      alt="Profile" 
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <User className="w-4 h-4 text-slate-400" />
+                  )}
+                </div>
+                <div>
+                  <h2 className="font-bold text-slate-900 text-sm">AGCAS Events</h2>
+                </div>
+              </Link>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={() => setMobileMenuOpen(true)}
+                data-testid="button-mobile-menu"
+              >
+                <Menu className="w-6 h-6" />
+              </Button>
+            </header>
+
+            {/* Mobile Navigation Sheet */}
+            <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+              <SheetContent side="left" className="w-[300px] p-0 flex flex-col">
+                <SheetHeader className="border-b border-slate-200 p-4">
+                  <SheetTitle className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shadow-md border border-slate-200 overflow-hidden">
+                      {memberRecord?.profile_photo_url ? (
+                        <img 
+                          src={memberRecord.profile_photo_url} 
+                          alt="Profile" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <User className="w-6 h-6 text-slate-400" />
+                      )}
+                    </div>
+                    <div className="text-left">
+                      <div className="font-bold text-slate-900">AGCAS Events</div>
+                      <div className="text-xs text-slate-500 font-normal">Member Portal</div>
+                    </div>
+                  </SheetTitle>
+                </SheetHeader>
+                
+                <ScrollArea className="flex-1 p-3">
+                  {/* Member Info Section */}
+                  {memberInfo && !memberInfo.is_team_member && organizationInfo && (
+                    <div className="mb-4">
+                      <div className="text-xs font-medium text-slate-500 uppercase tracking-wider px-3 py-2">
+                        Your Account
+                      </div>
+                      <div className="px-3 py-2 space-y-3">
+                        {organizationInfo.name && (
+                          <div className="text-sm">
+                            <span className="text-slate-600 block mb-1">Organisation</span>
+                            <span className="font-medium text-slate-900">{organizationInfo.name}</span>
+                          </div>
+                        )}
+                        {organizationInfo.voucher_balance > 0 && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-slate-600">Vouchers</span>
+                            <span className="font-semibold text-blue-600">£{organizationInfo.voucher_balance}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Navigation Section */}
+                  <div className="mb-4">
+                    <div className="text-xs font-medium text-slate-500 uppercase tracking-wider px-3 py-2">
+                      Navigation
+                    </div>
+                    <nav className="space-y-1">
+                      {filteredNavigationItems.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = item.url === location.pathname || 
+                                         (item.subItems && item.subItems.some(sub => sub.url === location.pathname));
+                        const isBookingsPage = item.url?.toLowerCase() === '/bookings';
+                        const showPendingPOWarning = hasPendingPOs && isBookingsPage;
+
+                        if (item.subItems) {
+                          return (
+                            <Collapsible key={item.title} defaultOpen={isActive}>
+                              <CollapsibleTrigger className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
+                                isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-blue-50 hover:text-blue-700'
+                              }`}>
+                                <Icon className="w-4 h-4" />
+                                <span className="flex-1 text-left">{item.title}</span>
+                                <ChevronRight className="w-4 h-4 transition-transform group-data-[state=open]:rotate-90" />
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="pl-7 space-y-1 mt-1">
+                                  {item.subItems.map(subItem => {
+                                    const isSubItemActive = subItem.url === location.pathname;
+                                    return (
+                                      <Link
+                                        key={subItem.title}
+                                        to={subItem.url}
+                                        onClick={() => setMobileMenuOpen(false)}
+                                        className={`block px-3 py-2 rounded-lg text-sm ${
+                                          isSubItemActive ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-blue-50 hover:text-blue-700'
+                                        }`}
+                                      >
+                                        {subItem.title}
+                                      </Link>
+                                    );
+                                  })}
+                                </div>
+                              </CollapsibleContent>
+                            </Collapsible>
+                          );
+                        } else {
+                          return (
+                            <Link
+                              key={item.title}
+                              to={item.url}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
+                                isActive ? 'bg-blue-50 text-blue-700 font-medium' : 'hover:bg-blue-50 hover:text-blue-700'
+                              }`}
+                            >
+                              <Icon className="w-4 h-4" />
+                              <span className="flex-1">{item.title}</span>
+                              {showPendingPOWarning && (
+                                <Bell className="w-4 h-4 text-amber-500 animate-pulse" data-testid="pending-po-warning-bell-mobile" />
+                              )}
+                            </Link>
+                          );
+                        }
+                      })}
+                    </nav>
+                  </div>
+
+                  {/* Admin Section */}
+                  {filteredAdminNavigationItems.length > 0 && (
+                    <div className="mb-4">
+                      <div className="text-xs font-medium text-amber-600 uppercase tracking-wider px-3 py-2">
+                        Administration
+                      </div>
+                      <nav className="space-y-1">
+                        {filteredAdminNavigationItems.map((item) => {
+                          const Icon = item.icon;
+                          const isActive = item.url === location.pathname || 
+                                           (item.subItems && item.subItems.some(sub => sub.url === location.pathname));
+
+                          if (item.subItems) {
+                            return (
+                              <Collapsible key={item.title} defaultOpen={isActive}>
+                                <CollapsibleTrigger className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
+                                  isActive ? 'bg-amber-50 text-amber-700 font-medium' : 'hover:bg-amber-50 hover:text-amber-700'
+                                }`}>
+                                  <Icon className="w-4 h-4" />
+                                  <span className="flex-1 text-left">{item.title}</span>
+                                  <ChevronRight className="w-4 h-4 transition-transform group-data-[state=open]:rotate-90" />
+                                </CollapsibleTrigger>
+                                <CollapsibleContent>
+                                  <div className="pl-7 space-y-1 mt-1">
+                                    {item.subItems.map(subItem => {
+                                      const isSubItemActive = subItem.url === location.pathname;
+                                      return (
+                                        <Link
+                                          key={subItem.title}
+                                          to={subItem.url}
+                                          onClick={() => setMobileMenuOpen(false)}
+                                          className={`block px-3 py-2 rounded-lg text-sm ${
+                                            isSubItemActive ? 'bg-amber-50 text-amber-700 font-medium' : 'hover:bg-amber-50 hover:text-amber-700'
+                                          }`}
+                                        >
+                                          {subItem.title}
+                                        </Link>
+                                      );
+                                    })}
+                                  </div>
+                                </CollapsibleContent>
+                              </Collapsible>
+                            );
+                          } else {
+                            return (
+                              <Link
+                                key={item.title}
+                                to={item.url}
+                                onClick={() => setMobileMenuOpen(false)}
+                                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
+                                  isActive ? 'bg-amber-50 text-amber-700 font-medium' : 'hover:bg-amber-50 hover:text-amber-700'
+                                }`}
+                              >
+                                <Icon className="w-4 h-4" />
+                                <span>{item.title}</span>
+                              </Link>
+                            );
+                          }
+                        })}
+                      </nav>
+                    </div>
+                  )}
+                </ScrollArea>
+
+                {/* Footer with user info and logout */}
+                <div className="border-t border-slate-200 p-4">
+                  {memberInfo && (
+                    <div className="space-y-3">
+                      <div className="px-3 py-2 bg-slate-50 rounded-lg">
+                        <div className="flex items-center gap-2 mb-1">
+                          <User className="w-4 h-4 text-slate-500" />
+                          <span className="text-sm font-medium text-slate-900">
+                            {memberInfo.first_name} {memberInfo.last_name}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-500 pl-6">{memberInfo.email}</p>
+                        {memberRole && (
+                          <div className="pl-6 mt-2">
+                            <Badge className="bg-blue-100 text-blue-700 text-xs">
+                              {memberRole.name}
+                            </Badge>
+                          </div>
+                        )}
+                      </div>
+                      <Button
+                        variant="ghost"
+                        className="w-full justify-start text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+                        onClick={() => {
+                          setMobileMenuOpen(false);
+                          handleLogout();
+                        }}
+                      >
+                        <LogOut className="w-4 h-4 mr-2" />
+                        Sign Out
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </SheetContent>
+            </Sheet>
+
             {!isFeatureExcluded('element_NewsTickerBar') && <NewsTickerBar />}
             <main ref={mainContentRef} className="flex-1 overflow-y-auto overflow-x-hidden">
               {portalBanner && <PortalHeroBanner banner={portalBanner} />}

@@ -1689,9 +1689,9 @@ useEffect(() => {
             </SidebarFooter>
           </Sidebar>
 
-          <div className="flex-1 flex flex-col min-h-screen max-h-screen overflow-hidden">
+          <div className="flex-1 flex flex-col h-screen overflow-hidden">
             {/* Mobile Header - only visible on small screens */}
-            <header className="md:hidden flex items-center justify-between p-4 border-b border-slate-200 bg-white sticky top-0 z-50">
+            <header className="md:hidden flex-shrink-0 flex items-center justify-between p-4 border-b border-slate-200 bg-white z-50">
               <Link to={createPageUrl('Events')} className="flex items-center gap-2">
                 <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center shadow-sm border border-slate-200 overflow-hidden">
                   {memberRecord?.profile_photo_url ? (

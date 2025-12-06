@@ -142,7 +142,7 @@ export default function PublicEventsPage() {
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <CardTitle className="text-lg">{event.title}</CardTitle>
                       {event.program_tag && (
-                        <Badge className="bg-blue-100 text-blue-700 border-blue-200 shrink-0">
+                        <Badge className="bg-purple-100 text-purple-700 border-purple-200 shrink-0">
                           {event.program_tag}
                         </Badge>
                       )}

@@ -783,11 +783,18 @@ export default function EventDetailsPage() {
               <CardHeader>
                 <div className="flex items-start justify-between gap-4 mb-2">
                   <h1 className="text-3xl font-bold text-slate-900">{event.title}</h1>
-                  {event.program_tag && (
-                    <Badge className="bg-blue-100 text-blue-700 border-blue-200 shrink-0">
-                      {event.program_tag}
-                    </Badge>
-                  )}
+                  <div className="flex flex-wrap gap-2 shrink-0">
+                    {event.program_tag && (
+                      <Badge className="bg-purple-100 text-purple-700 border-purple-200">
+                        {event.program_tag}
+                      </Badge>
+                    )}
+                    {event.filter_tags && event.filter_tags.length > 0 && event.filter_tags.map((tag, index) => (
+                      <Badge key={index} className="bg-purple-100 text-purple-700 border-purple-200">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
                 
                 <div className="space-y-3 pt-4">

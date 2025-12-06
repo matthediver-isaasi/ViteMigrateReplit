@@ -1671,7 +1671,7 @@ useEffect(() => {
                     <p className="text-xs text-slate-500 pl-6">{memberInfo.email}</p>
                     {memberRole && (
                       <div className="pl-6 mt-2">
-                        <Badge className="bg-blue-100 text-blue-700 text-xs">
+                        <Badge className="bg-purple-100 text-purple-700 text-xs">
                           {memberRole.name}
                         </Badge>
                       </div>
@@ -1910,7 +1910,7 @@ useEffect(() => {
                         <p className="text-xs text-slate-500 pl-6">{memberInfo.email}</p>
                         {memberRole && (
                           <div className="pl-6 mt-2">
-                            <Badge className="bg-blue-100 text-blue-700 text-xs">
+                            <Badge className="bg-purple-100 text-purple-700 text-xs">
                               {memberRole.name}
                             </Badge>
                           </div>

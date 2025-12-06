@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -830,33 +831,101 @@ export default function EditEvent() {
                   <p className="text-xs text-slate-500 mb-2">
                     Select one or more filter values to help categorize this event.
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    {availableFilterTags.map((tag, idx) => {
-                      const isSelected = selectedFilterTags.includes(tag);
-                      return (
-                        <Badge
-                          key={idx}
-                          variant={isSelected ? "default" : "outline"}
-                          className={`cursor-pointer transition-colors ${isSelected ? 'bg-blue-600 hover:bg-blue-700' : 'hover:bg-slate-100'}`}
-                          onClick={() => {
-                            if (isSelected) {
-                              setSelectedFilterTags(prev => prev.filter(t => t !== tag));
-                            } else {
-                              setSelectedFilterTags(prev => [...prev, tag]);
-                            }
-                          }}
-                          data-testid={`badge-filter-tag-${idx}`}
-                        >
-                          {isSelected && <Check className="h-3 w-3 mr-1" />}
-                          {tag}
-                        </Badge>
-                      );
-                    })}
-                  </div>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button 
+                        variant="outline" 
+                        className="w-full justify-between gap-2"
+                        data-testid="filter-tags-trigger"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Tag className="w-4 h-4" />
+                          {selectedFilterTags.length === 0 ? (
+                            <span className="text-slate-500">Select categories...</span>
+                          ) : selectedFilterTags.length === 1 ? (
+                            <span className="truncate max-w-[200px]">{selectedFilterTags[0]}</span>
+                          ) : (
+                            <span>{selectedFilterTags.length} categories selected</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1">
+                          {selectedFilterTags.length > 0 && (
+                            <Badge variant="secondary" className="h-5 px-1.5 text-xs">
+                              {selectedFilterTags.length}
+                            </Badge>
+                          )}
+                          <ChevronDown className="w-4 h-4 opacity-50" />
+                        </div>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-0" align="start">
+                      <div className="p-2 border-b border-slate-100">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-slate-700">Select categories</span>
+                          {selectedFilterTags.length > 0 && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 text-xs text-slate-500 hover:text-slate-700"
+                              onClick={() => setSelectedFilterTags([])}
+                              data-testid="filter-tags-clear"
+                            >
+                              Clear all
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="max-h-[280px] overflow-y-auto p-1">
+                        {availableFilterTags.map((tag, idx) => {
+                          const isSelected = selectedFilterTags.includes(tag);
+                          return (
+                            <button
+                              key={idx}
+                              className={`w-full flex items-center gap-2 px-2 py-2 text-sm rounded-md transition-colors ${
+                                isSelected 
+                                  ? "bg-slate-100 text-slate-900 font-medium" 
+                                  : "text-slate-600 hover:bg-slate-50"
+                              }`}
+                              onClick={() => {
+                                if (isSelected) {
+                                  setSelectedFilterTags(prev => prev.filter(t => t !== tag));
+                                } else {
+                                  setSelectedFilterTags(prev => [...prev, tag]);
+                                }
+                              }}
+                              data-testid={`filter-tag-${idx}`}
+                            >
+                              <div className={`w-4 h-4 rounded border flex items-center justify-center ${
+                                isSelected ? "bg-primary border-primary" : "border-slate-300"
+                              }`}>
+                                {isSelected && <Check className="w-3 h-3 text-white" />}
+                              </div>
+                              <span className="truncate">{tag}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                   {selectedFilterTags.length > 0 && (
-                    <p className="text-xs text-slate-500 mt-1">
-                      {selectedFilterTags.length} selected
-                    </p>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {selectedFilterTags.map((tag, idx) => (
+                        <Badge 
+                          key={idx} 
+                          variant="secondary" 
+                          className="text-xs"
+                        >
+                          {tag}
+                          <button
+                            type="button"
+                            className="ml-1 hover:text-slate-900"
+                            onClick={() => setSelectedFilterTags(prev => prev.filter(t => t !== tag))}
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
                   )}
                 </div>
               )}

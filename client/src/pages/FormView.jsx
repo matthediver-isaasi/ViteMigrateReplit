@@ -326,16 +326,54 @@ export default function FormViewPage() {
             )}
           </CardHeader>
           <CardContent className="space-y-6">
-            {displayFields.map(field => (
-              <FormRenderer
-                key={field.id}
-                field={field}
-                value={formValues[field.id]}
-                onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
-                memberInfo={memberData}
-                organizationInfo={organizationInfo}
-              />
-            ))}
+            {/* Render fields in columns if page has column_count > 1 */}
+            {(() => {
+              const columnCount = currentPage?.column_count || 1;
+              
+              if (columnCount === 1) {
+                // Single column - render fields in order
+                return displayFields.map(field => (
+                  <FormRenderer
+                    key={field.id}
+                    field={field}
+                    value={formValues[field.id]}
+                    onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
+                    memberInfo={memberData}
+                    organizationInfo={organizationInfo}
+                  />
+                ));
+              }
+              
+              // Multi-column layout - group fields by column and render in grid
+              const gridClass = columnCount === 2 
+                ? 'grid grid-cols-1 md:grid-cols-2 gap-4' 
+                : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4';
+              
+              return (
+                <div className={gridClass}>
+                  {Array.from({ length: columnCount }).map((_, colIndex) => {
+                    const columnFields = displayFields.filter(f => 
+                      (f.column_index || 0) === colIndex
+                    );
+                    
+                    return (
+                      <div key={colIndex} className="space-y-4">
+                        {columnFields.map(field => (
+                          <FormRenderer
+                            key={field.id}
+                            field={field}
+                            value={formValues[field.id]}
+                            onChange={(value) => setFormValues({ ...formValues, [field.id]: value })}
+                            memberInfo={memberData}
+                            organizationInfo={organizationInfo}
+                          />
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
             <div className="flex justify-between pt-4">
               {/* Previous button (only show if we have pages and not on first page) */}
               {hasPages && !isFirstPage ? (

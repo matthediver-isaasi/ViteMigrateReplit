@@ -379,6 +379,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Public endpoint for communication categories (used by forms for category multi-select)
+  app.get('/api/public/categories', async (req: Request, res: Response) => {
+    if (!supabase) {
+      return res.status(503).json({ error: 'Supabase not configured' });
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('communication_category')
+        .select('id, name, description')
+        .eq('is_active', true)
+        .order('display_order', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching categories:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      res.json(data || []);
+    } catch (error) {
+      console.error('Public categories fetch error:', error);
+      res.status(500).json({ error: 'Failed to fetch categories' });
+    }
+  });
+
   // ============ Auth Routes ============
   
   app.get('/api/auth/me', async (req: Request, res: Response) => {

@@ -32,6 +32,20 @@ export default function FormRenderer({ field, value, onChange, memberInfo, organ
     staleTime: 5 * 60 * 1000 // Cache for 5 minutes
   });
 
+  // Fetch communication categories for category_multiselect field type (uses public endpoint)
+  const { data: categories = [], isLoading: categoriesLoading } = useQuery({
+    queryKey: ['public-categories-for-form'],
+    queryFn: async () => {
+      const response = await fetch('/api/public/categories');
+      if (!response.ok) {
+        throw new Error('Failed to fetch categories');
+      }
+      return response.json();
+    },
+    enabled: field.type === 'category_multiselect',
+    staleTime: 5 * 60 * 1000 // Cache for 5 minutes
+  });
+
   // Auto-populate user fields
   useEffect(() => {
     if (!memberInfo) return;
@@ -243,6 +257,55 @@ export default function FormRenderer({ field, value, onChange, memberInfo, organ
               ))}
             </SelectContent>
           </Select>
+        );
+
+      case 'category_multiselect':
+        if (categoriesLoading) {
+          return (
+            <div className="flex items-center gap-2 text-sm text-slate-500">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Loading categories...
+            </div>
+          );
+        }
+        if (categories.length === 0) {
+          return (
+            <p className="text-sm text-slate-500">
+              No categories available. Please add categories in Communications Management.
+            </p>
+          );
+        }
+        return (
+          <div className="space-y-2">
+            {categories.map((category) => (
+              <div key={category.id} className="flex items-start space-x-2">
+                <Checkbox
+                  id={`${field.id}-${category.id}`}
+                  checked={(value || []).includes(category.name)}
+                  onCheckedChange={(checked) => {
+                    const currentValues = value || [];
+                    if (checked) {
+                      onChange([...currentValues, category.name]);
+                    } else {
+                      onChange(currentValues.filter(v => v !== category.name));
+                    }
+                  }}
+                  data-testid={`checkbox-category-${category.id}`}
+                />
+                <div className="grid gap-0.5 leading-none">
+                  <Label 
+                    htmlFor={`${field.id}-${category.id}`} 
+                    className="font-normal cursor-pointer"
+                  >
+                    {category.name}
+                  </Label>
+                  {category.description && (
+                    <p className="text-xs text-slate-500">{category.description}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         );
 
       default:

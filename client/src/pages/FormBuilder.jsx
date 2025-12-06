@@ -31,6 +31,7 @@ const FIELD_TYPES = [
   { value: 'textarea', label: 'Text Area' },
   { value: 'select', label: 'Dropdown' },
   { value: 'organisation_dropdown', label: 'Organisation Dropdown' },
+  { value: 'category_multiselect', label: 'Category Multi-Select' },
   { value: 'radio', label: 'Radio Buttons' },
   { value: 'checkbox', label: 'Checkboxes' },
   { value: 'date', label: 'Date' },
@@ -93,6 +94,13 @@ function FieldCard({ field, index, originalIndex, updateField, removeField, FIEL
                   className="h-9"
                 />
               </div>
+
+              {field.type === 'category_multiselect' && (
+                <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">
+                  Options are automatically pulled from your Communication Categories. 
+                  Manage them in <span className="font-medium">Communications Management</span>.
+                </div>
+              )}
 
               {['select', 'radio', 'checkbox'].includes(field.type) && (
                 <div className="space-y-2">

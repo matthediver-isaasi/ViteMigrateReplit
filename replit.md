@@ -119,6 +119,7 @@ Preferred communication style: Simple, everyday language.
 - Multi-column layout renders fields in responsive CSS grid columns (stack on mobile)
 - Unassigned fields (page_id === null) are rendered on the first page for backwards compatibility
 - Organisation dropdown field type uses public endpoint `/api/public/organisations` for both authenticated and guest users
+- Category Multi-Select field type uses public endpoint `/api/public/categories` to pull options from CommunicationCategory entity, keeping form choices aligned with Communications Management
 - FormRenderer component handles individual field rendering including auto-populated user fields
 - Forms can be embedded in page builder via IEditFormElement with optional header content
 

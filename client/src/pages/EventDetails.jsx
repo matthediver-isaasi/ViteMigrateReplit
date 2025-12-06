@@ -402,14 +402,29 @@ export default function EventDetailsPage() {
     return allNormalizedTickets.some(tc => tc.visibility_mode === 'members_only');
   }, [allNormalizedTickets]);
   
-  // Auto-select first available ticket class
+  // Auto-select first available PURCHASABLE ticket class
+  // Also reset selection if currently selected ticket becomes non-purchasable
   useEffect(() => {
-    if (availableTicketClasses.length > 0 && !selectedTicketClassId) {
-      // Prefer default ticket, otherwise use first available
-      const defaultTicket = availableTicketClasses.find(tc => tc.is_default);
-      setSelectedTicketClassId(defaultTicket?.id || availableTicketClasses[0]?.id);
+    if (availableTicketClasses.length > 0) {
+      // Find the currently selected ticket if any
+      const currentSelection = selectedTicketClassId 
+        ? availableTicketClasses.find(tc => tc.id === selectedTicketClassId)
+        : null;
+      
+      // If no selection or current selection is not purchasable, select first purchasable ticket
+      if (!currentSelection || !isTicketPurchasable(currentSelection)) {
+        // Find the first purchasable ticket, preferring the default one
+        const purchasableTickets = availableTicketClasses.filter(isTicketPurchasable);
+        if (purchasableTickets.length > 0) {
+          const defaultPurchasable = purchasableTickets.find(tc => tc.is_default);
+          setSelectedTicketClassId(defaultPurchasable?.id || purchasableTickets[0]?.id);
+        } else {
+          // No purchasable tickets available - clear selection
+          setSelectedTicketClassId(null);
+        }
+      }
     }
-  }, [availableTicketClasses, selectedTicketClassId]);
+  }, [availableTicketClasses, selectedTicketClassId, showAllTickets, currentMemberInfo, userRoleId]);
   
   // Get selected ticket class
   const selectedTicketClass = useMemo(() => {
@@ -1312,22 +1327,55 @@ export default function EventDetailsPage() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="flex items-center justify-between p-4 rounded-lg border border-slate-200 bg-slate-50">
-                    <div>
-                      <div className="font-medium text-slate-900">{String(selectedTicketClass.name || 'Ticket')}</div>
-                      {/* Hide offers for guest checkout - they can only purchase 1 ticket */}
-                      {!isGuestCheckout && selectedTicketClass.offer_type && selectedTicketClass.offer_type !== 'none' && (
-                        <div className="text-xs text-green-600 mt-0.5">
-                          {selectedTicketClass.offer_type === 'bogo' && `Buy ${selectedTicketClass.bogo_buy_quantity || 0}, get ${selectedTicketClass.bogo_get_free_quantity || 0} free`}
-                          {selectedTicketClass.offer_type === 'bulk_discount' && `${selectedTicketClass.bulk_discount_percentage || 0}% off for ${selectedTicketClass.bulk_discount_threshold || 0}+ tickets`}
+                  {(() => {
+                    const purchasable = isTicketPurchasable(selectedTicketClass);
+                    return (
+                      <div className={`relative flex items-center justify-between p-4 rounded-lg border border-slate-200 ${purchasable ? 'bg-slate-50' : 'bg-slate-50 opacity-60'}`}>
+                        {/* Disabled overlay for non-purchasable tickets */}
+                        {!purchasable && (
+                          <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-900/10 z-10">
+                            <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white text-sm font-medium rounded-full">
+                              <Lock className="h-3.5 w-3.5" />
+                              Available to members only
+                            </div>
+                          </div>
+                        )}
+                        
+                        <div>
+                          <div className={`font-medium ${purchasable ? 'text-slate-900' : 'text-slate-500'}`}>{String(selectedTicketClass.name || 'Ticket')}</div>
+                          {/* Hide offers for guest checkout - they can only purchase 1 ticket */}
+                          {!isGuestCheckout && selectedTicketClass.offer_type && selectedTicketClass.offer_type !== 'none' && (
+                            <div className="text-xs text-green-600 mt-0.5">
+                              {selectedTicketClass.offer_type === 'bogo' && `Buy ${selectedTicketClass.bogo_buy_quantity || 0}, get ${selectedTicketClass.bogo_get_free_quantity || 0} free`}
+                              {selectedTicketClass.offer_type === 'bulk_discount' && `${selectedTicketClass.bulk_discount_percentage || 0}% off for ${selectedTicketClass.bulk_discount_threshold || 0}+ tickets`}
+                            </div>
+                          )}
                         </div>
-                      )}
+                        <div className={`flex items-center gap-1 text-lg font-semibold ${purchasable ? 'text-slate-900' : 'text-slate-500'}`}>
+                          <PoundSterling className="h-4 w-4" />
+                          {(Number(selectedTicketClass.price) || 0).toFixed(2)}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                  
+                  {/* Toggle to show all tickets for non-logged-in users */}
+                  {isGuestCheckout && hasMemberOnlyTickets && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-4 w-4 text-slate-500" />
+                        <Label htmlFor="show-all-tickets-single" className="text-sm text-slate-600 cursor-pointer">
+                          Show member-only tickets
+                        </Label>
+                      </div>
+                      <Switch
+                        id="show-all-tickets-single"
+                        checked={showAllTickets}
+                        onCheckedChange={setShowAllTickets}
+                        data-testid="switch-show-all-tickets-single"
+                      />
                     </div>
-                    <div className="flex items-center gap-1 text-lg font-semibold text-slate-900">
-                      <PoundSterling className="h-4 w-4" />
-                      {(Number(selectedTicketClass.price) || 0).toFixed(2)}
-                    </div>
-                  </div>
+                  )}
                 </CardContent>
               </Card>
             )}

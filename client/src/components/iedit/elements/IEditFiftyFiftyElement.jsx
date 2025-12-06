@@ -28,6 +28,16 @@ const fontWeights = [
   { value: 800, label: 'Extra Bold' }
 ];
 
+const safeHexColor = (color, fallback = '#000000') => {
+  if (!color || typeof color !== 'string') return fallback;
+  const trimmed = color.trim();
+  if (/^#[0-9A-Fa-f]{6}$/.test(trimmed)) return trimmed;
+  if (/^#[0-9A-Fa-f]{3}$/.test(trimmed)) {
+    return '#' + trimmed[1] + trimmed[1] + trimmed[2] + trimmed[2] + trimmed[3] + trimmed[3];
+  }
+  return fallback;
+};
+
 export default function IEditFiftyFiftyElement({ content, variant, settings }) {
   const isMobile = useIsMobile();
   
@@ -403,7 +413,7 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
             <Label className="text-xs">Text Color</Label>
             <input
               type="color"
-              value={content[`${prefix}_color`] || defaults.color}
+              value={safeHexColor(content[`${prefix}_color`], defaults.color)}
               onChange={(e) => updateContent(`${prefix}_color`, e.target.value)}
               className="w-full h-8 px-0.5 py-0.5 border border-slate-300 rounded cursor-pointer"
             />
@@ -668,7 +678,7 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
               <div className="flex gap-2 items-center">
                 <input
                   type="color"
-                  value={content[bgColorKey] || '#f8fafc'}
+                  value={safeHexColor(content[bgColorKey], '#f8fafc')}
                   onChange={(e) => updateContent(bgColorKey, e.target.value)}
                   className="w-12 h-8 px-1 py-1 border border-slate-300 rounded cursor-pointer"
                 />
@@ -746,7 +756,7 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
                 <div className="flex gap-2 items-center">
                   <input
                     type="color"
-                    value={content.background_color || '#ffffff'}
+                    value={safeHexColor(content.background_color, '#ffffff')}
                     onChange={(e) => updateContent('background_color', e.target.value)}
                     className="w-16 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
                   />
@@ -772,7 +782,7 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
                     <div className="flex gap-2 items-center">
                       <input
                         type="color"
-                        value={content.gradient_start_color || '#3b82f6'}
+                        value={safeHexColor(content.gradient_start_color, '#3b82f6')}
                         onChange={(e) => updateContent('gradient_start_color', e.target.value)}
                         className="w-12 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
                       />
@@ -788,7 +798,7 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
                     <div className="flex gap-2 items-center">
                       <input
                         type="color"
-                        value={content.gradient_end_color || '#8b5cf6'}
+                        value={safeHexColor(content.gradient_end_color, '#8b5cf6')}
                         onChange={(e) => updateContent('gradient_end_color', e.target.value)}
                         className="w-12 h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
                       />
@@ -889,7 +899,7 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
                       <Label className="text-xs">Overlay Color</Label>
                       <input
                         type="color"
-                        value={content.overlay_color || '#000000'}
+                        value={safeHexColor(content.overlay_color, '#000000')}
                         onChange={(e) => updateContent('overlay_color', e.target.value)}
                         className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
                       />
@@ -1015,7 +1025,7 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
                 <Label className="text-xs">Background</Label>
                 <input
                   type="color"
-                  value={content.button?.custom_bg_color || '#000000'}
+                  value={safeHexColor(content.button?.custom_bg_color, '#000000')}
                   onChange={(e) => updateButton('custom_bg_color', e.target.value)}
                   className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
                 />
@@ -1024,7 +1034,7 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
                 <Label className="text-xs">Text</Label>
                 <input
                   type="color"
-                  value={content.button?.custom_text_color || '#ffffff'}
+                  value={safeHexColor(content.button?.custom_text_color, '#ffffff')}
                   onChange={(e) => updateButton('custom_text_color', e.target.value)}
                   className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
                 />
@@ -1033,7 +1043,7 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
                 <Label className="text-xs">Border (opt.)</Label>
                 <input
                   type="color"
-                  value={content.button?.custom_border_color || ''}
+                  value={safeHexColor(content.button?.custom_border_color, '#cccccc')}
                   onChange={(e) => updateButton('custom_border_color', e.target.value)}
                   className="w-full h-10 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
                 />

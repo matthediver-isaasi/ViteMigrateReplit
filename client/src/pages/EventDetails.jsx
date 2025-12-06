@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video, AlertTriangle, PoundSterling, User, Mic, ChevronRight, X } from "lucide-react";
+import { Calendar, MapPin, Clock, Users, ArrowLeft, Ticket, Plus, Loader2, Video, AlertTriangle, PoundSterling, User, Mic, ChevronRight, X, Lock, Eye } from "lucide-react";
 import { format } from "date-fns";
 import DOMPurify from "dompurify";
 import { createPageUrl } from "@/utils";
@@ -1208,27 +1208,59 @@ export default function EventDetailsPage() {
                 <CardContent>
                   <RadioGroup 
                     value={String(selectedTicketClassId || '')} 
-                    onValueChange={setSelectedTicketClassId}
+                    onValueChange={(value) => {
+                      // Only allow selection of purchasable tickets
+                      const ticket = availableTicketClasses.find(tc => String(tc.id) === value);
+                      if (ticket && isTicketPurchasable(ticket)) {
+                        setSelectedTicketClassId(value);
+                      }
+                    }}
                     className="space-y-3"
                   >
                     {availableTicketClasses.map((tc) => {
                       const ticketId = String(tc.id || '');
                       const ticketPrice = Number(tc.price) || 0;
+                      const purchasable = isTicketPurchasable(tc);
+                      const isSelected = String(selectedTicketClassId) === ticketId;
+                      
                       return (
                         <div 
                           key={ticketId}
-                          className={`flex items-center justify-between p-4 rounded-lg border-2 cursor-pointer transition-colors ${
-                            String(selectedTicketClassId) === ticketId 
-                              ? 'border-blue-500 bg-blue-50' 
-                              : 'border-slate-200 hover:bg-slate-50'
+                          className={`relative flex items-center justify-between p-4 rounded-lg border-2 transition-colors ${
+                            !purchasable 
+                              ? 'border-slate-200 bg-slate-50 opacity-60 cursor-not-allowed' 
+                              : isSelected 
+                                ? 'border-blue-500 bg-blue-50 cursor-pointer' 
+                                : 'border-slate-200 hover:bg-slate-50 cursor-pointer'
                           }`}
-                          onClick={() => setSelectedTicketClassId(ticketId)}
+                          onClick={() => {
+                            if (purchasable) {
+                              setSelectedTicketClassId(ticketId);
+                            }
+                          }}
                           data-testid={`ticket-class-${ticketId}`}
                         >
+                          {/* Disabled overlay for non-purchasable tickets */}
+                          {!purchasable && (
+                            <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-slate-900/10 z-10">
+                              <div className="flex items-center gap-2 px-3 py-1.5 bg-slate-800 text-white text-sm font-medium rounded-full">
+                                <Lock className="h-3.5 w-3.5" />
+                                Available to members only
+                              </div>
+                            </div>
+                          )}
+                          
                           <div className="flex items-center gap-3">
-                            <RadioGroupItem value={ticketId} id={`ticket-${ticketId}`} />
+                            <RadioGroupItem 
+                              value={ticketId} 
+                              id={`ticket-${ticketId}`} 
+                              disabled={!purchasable}
+                            />
                             <div>
-                              <Label htmlFor={`ticket-${ticketId}`} className="font-medium cursor-pointer">
+                              <Label 
+                                htmlFor={`ticket-${ticketId}`} 
+                                className={`font-medium ${purchasable ? 'cursor-pointer' : 'cursor-not-allowed'}`}
+                              >
                                 {String(tc.name || 'Ticket')}
                               </Label>
                               {/* Hide offers for guest checkout - they can only purchase 1 ticket */}
@@ -1240,7 +1272,7 @@ export default function EventDetailsPage() {
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-1 text-lg font-semibold text-slate-900">
+                          <div className={`flex items-center gap-1 text-lg font-semibold ${purchasable ? 'text-slate-900' : 'text-slate-500'}`}>
                             <PoundSterling className="h-4 w-4" />
                             {ticketPrice.toFixed(2)}
                           </div>
@@ -1248,6 +1280,24 @@ export default function EventDetailsPage() {
                       );
                     })}
                   </RadioGroup>
+                  
+                  {/* Toggle to show all tickets for non-logged-in users */}
+                  {isGuestCheckout && hasMemberOnlyTickets && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-slate-200">
+                      <div className="flex items-center gap-2">
+                        <Eye className="h-4 w-4 text-slate-500" />
+                        <Label htmlFor="show-all-tickets" className="text-sm text-slate-600 cursor-pointer">
+                          Show member-only tickets
+                        </Label>
+                      </div>
+                      <Switch
+                        id="show-all-tickets"
+                        checked={showAllTickets}
+                        onCheckedChange={setShowAllTickets}
+                        data-testid="switch-show-all-tickets"
+                      />
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             )}

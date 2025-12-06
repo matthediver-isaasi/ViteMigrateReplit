@@ -28,6 +28,7 @@ export default function OrganisationDirectoryPage() {
   
   // State for organization profile modal
   const [selectedOrg, setSelectedOrg] = useState(null);
+  const [customFieldFilters, setCustomFieldFilters] = useState({});
 
   const { data: organizations = [], isLoading } = useQuery({
     queryKey: ['organizations'],
@@ -157,6 +158,51 @@ export default function OrganisationDirectoryPage() {
     }
   });
 
+  // Get filterable fields for the directory filter dropdowns
+  const filterableFields = useMemo(() => {
+    return orgCustomFields.filter(f => f.is_filterable);
+  }, [orgCustomFields]);
+
+  // Fetch ALL organization preference values for filtering
+  const { data: allOrgPreferenceValues = [] } = useQuery({
+    queryKey: ['all-org-preference-values'],
+    enabled: filterableFields.length > 0,
+    queryFn: async () => {
+      try {
+        const values = await base44.entities.OrganizationPreferenceValue.list();
+        return values || [];
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 60 * 1000,
+  });
+
+  // Build a lookup map: organization_id -> { field_id -> value }
+  // Normalizes values: JSON arrays are parsed, strings are kept as-is
+  const orgPreferenceMap = useMemo(() => {
+    const map = {};
+    allOrgPreferenceValues.forEach(pv => {
+      if (!map[pv.organization_id]) {
+        map[pv.organization_id] = {};
+      }
+      // Parse JSON array/object strings if applicable
+      let normalizedValue = pv.value;
+      if (typeof pv.value === 'string') {
+        const trimmed = pv.value.trim();
+        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+          try {
+            normalizedValue = JSON.parse(trimmed);
+          } catch {
+            // Keep as string if parse fails
+          }
+        }
+      }
+      map[pv.organization_id][pv.preference_field_id] = normalizedValue;
+    });
+    return map;
+  }, [allOrgPreferenceValues]);
+
   const filteredOrganizations = useMemo(() => {
     const excludedIds = displaySettings?.excludedOrgIds || [];
     
@@ -174,6 +220,24 @@ export default function OrganisationDirectoryPage() {
       );
     }
     
+    // Filter by custom fields
+    const activeFilters = Object.entries(customFieldFilters).filter(([_, value]) => value && value !== 'all');
+    if (activeFilters.length > 0) {
+      filtered = filtered.filter(org => {
+        const orgValues = orgPreferenceMap[org.id] || {};
+        return activeFilters.every(([fieldId, filterValue]) => {
+          const orgValue = orgValues[fieldId];
+          if (!orgValue) return false;
+          // For picklist (array), check if filterValue is in the array
+          if (Array.isArray(orgValue)) {
+            return orgValue.includes(filterValue);
+          }
+          // For dropdown (single value), check exact match
+          return orgValue === filterValue;
+        });
+      });
+    }
+    
     // Apply sorting
     filtered.sort((a, b) => {
       const nameA = (a.name || '').toLowerCase();
@@ -186,7 +250,7 @@ export default function OrganisationDirectoryPage() {
     });
     
     return filtered;
-  }, [organizations, searchQuery, displaySettings?.excludedOrgIds, sortOrder]);
+  }, [organizations, searchQuery, displaySettings?.excludedOrgIds, sortOrder, customFieldFilters, orgPreferenceMap]);
 
   const totalPages = Math.ceil(filteredOrganizations.length / itemsPerPage);
   const paginatedOrganizations = useMemo(() => {
@@ -283,36 +347,70 @@ export default function OrganisationDirectoryPage() {
 
         <Card className="mb-6 border-slate-200">
           <CardContent className="p-4">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="relative flex-1">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                <Input
-                  placeholder="Search organisations by name or domain..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
-                  data-testid="input-search-organisations"
-                />
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Input
+                    placeholder="Search organisations by name or domain..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                    data-testid="input-search-organisations"
+                  />
+                </div>
+                <Select value={sortOrder} onValueChange={setSortOrder}>
+                  <SelectTrigger className="w-full sm:w-36" data-testid="select-sort-order">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="asc">
+                      <span className="flex items-center gap-2">
+                        <ArrowDownAZ className="w-4 h-4" />
+                        A-Z
+                      </span>
+                    </SelectItem>
+                    <SelectItem value="desc">
+                      <span className="flex items-center gap-2">
+                        <ArrowUpZA className="w-4 h-4" />
+                        Z-A
+                      </span>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <Select value={sortOrder} onValueChange={setSortOrder}>
-                <SelectTrigger className="w-full sm:w-36" data-testid="select-sort-order">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="asc">
-                    <span className="flex items-center gap-2">
-                      <ArrowDownAZ className="w-4 h-4" />
-                      A-Z
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="desc">
-                    <span className="flex items-center gap-2">
-                      <ArrowUpZA className="w-4 h-4" />
-                      Z-A
-                    </span>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
+              
+              {filterableFields.length > 0 && (
+                <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-slate-200">
+                  {filterableFields.map(field => (
+                    <div key={field.id} className="flex items-center gap-2">
+                      <span className="text-sm text-slate-700">{field.label}:</span>
+                      <Select 
+                        value={customFieldFilters[field.id] || "all"} 
+                        onValueChange={(value) => {
+                          setCustomFieldFilters(prev => ({
+                            ...prev,
+                            [field.id]: value === "all" ? "" : value
+                          }));
+                          setCurrentPage(1);
+                        }}
+                      >
+                        <SelectTrigger className="w-[180px]" data-testid={`select-filter-${field.name}`}>
+                          <SelectValue placeholder={`All ${field.label}`} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All</SelectItem>
+                          {(field.options || []).map(option => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

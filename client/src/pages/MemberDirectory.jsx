@@ -34,6 +34,7 @@ export default function MemberDirectoryPage() {
     const searchParams = new URLSearchParams(window.location.search);
     return searchParams.get('org') || "";
   });
+  const [customFieldFilters, setCustomFieldFilters] = useState({});
 
   const { data: allMembers = [], isLoading: membersLoading } = useQuery({
     queryKey: ['all-members-directory'],
@@ -141,6 +142,73 @@ export default function MemberDirectoryPage() {
     refetchOnMount: true,
   });
 
+  // Fetch member-scoped filterable custom fields
+  const { data: filterableFields = [] } = useQuery({
+    queryKey: ['member-filterable-fields'],
+    queryFn: async () => {
+      try {
+        const fields = await base44.entities.PreferenceField.list({
+          filter: { is_active: true, entity_scope: 'member', is_filterable: true },
+          sort: { display_order: 'asc' }
+        });
+        return (fields || []).filter(f => f.entity_scope === 'member' && f.is_filterable);
+      } catch {
+        try {
+          const allFields = await base44.entities.PreferenceField.list({
+            filter: { is_active: true },
+            sort: { display_order: 'asc' }
+          });
+          return (allFields || []).filter(f => 
+            (!f.entity_scope || f.entity_scope === 'member') && f.is_filterable
+          );
+        } catch {
+          return [];
+        }
+      }
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Fetch all member preference values for filtering
+  const { data: memberPreferenceValues = [] } = useQuery({
+    queryKey: ['all-member-preference-values'],
+    enabled: filterableFields.length > 0,
+    queryFn: async () => {
+      try {
+        const values = await base44.entities.MemberPreferenceValue.list();
+        return values || [];
+      } catch {
+        return [];
+      }
+    },
+    staleTime: 60 * 1000,
+  });
+
+  // Build a lookup map: member_id -> { field_id -> value }
+  // Normalizes values: JSON arrays are parsed, strings are kept as-is
+  const memberPreferenceMap = useMemo(() => {
+    const map = {};
+    memberPreferenceValues.forEach(pv => {
+      if (!map[pv.member_id]) {
+        map[pv.member_id] = {};
+      }
+      // Parse JSON array/object strings if applicable
+      let normalizedValue = pv.value;
+      if (typeof pv.value === 'string') {
+        const trimmed = pv.value.trim();
+        if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
+          try {
+            normalizedValue = JSON.parse(trimmed);
+          } catch {
+            // Keep as string if parse fails
+          }
+        }
+      }
+      map[pv.member_id][pv.preference_field_id] = normalizedValue;
+    });
+    return map;
+  }, [memberPreferenceValues]);
+
   // Handle browser back/forward navigation
   useEffect(() => {
     const handlePopState = () => {
@@ -221,6 +289,24 @@ export default function MemberDirectoryPage() {
       });
     }
     
+    // Filter by custom fields
+    const activeFilters = Object.entries(customFieldFilters).filter(([_, value]) => value && value !== 'all');
+    if (activeFilters.length > 0) {
+      filtered = filtered.filter(member => {
+        const memberValues = memberPreferenceMap[member.id] || {};
+        return activeFilters.every(([fieldId, filterValue]) => {
+          const memberValue = memberValues[fieldId];
+          if (!memberValue) return false;
+          // For picklist (array), check if filterValue is in the array
+          if (Array.isArray(memberValue)) {
+            return memberValue.includes(filterValue);
+          }
+          // For dropdown (single value), check exact match
+          return memberValue === filterValue;
+        });
+      });
+    }
+    
     // Sort members
     const sorted = [...filtered].sort((a, b) => {
       switch (sortBy) {
@@ -254,7 +340,7 @@ export default function MemberDirectoryPage() {
     });
     
     return sorted;
-  }, [allMembers, searchQuery, showDisabled, sortBy, organizations, memberStats, displaySettings, selectedOrganization]);
+  }, [allMembers, searchQuery, showDisabled, sortBy, organizations, memberStats, displaySettings, selectedOrganization, customFieldFilters, memberPreferenceMap]);
 
   const totalPages = Math.ceil(filteredAndSortedMembers.length / itemsPerPage);
   const paginatedMembers = useMemo(() => {
@@ -264,7 +350,7 @@ export default function MemberDirectoryPage() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, showDisabled, sortBy, itemsPerPage]);
+  }, [searchQuery, showDisabled, sortBy, itemsPerPage, customFieldFilters]);
 
   const handleViewMember = (member) => {
     setViewingMember(member);
@@ -393,6 +479,37 @@ export default function MemberDirectoryPage() {
                     </Select>
                   </div>
                 </div>
+
+                {filterableFields.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-slate-200">
+                    {filterableFields.map(field => (
+                      <div key={field.id} className="flex items-center gap-2">
+                        <Label className="text-sm text-slate-700">{field.label}:</Label>
+                        <Select 
+                          value={customFieldFilters[field.id] || "all"} 
+                          onValueChange={(value) => {
+                            setCustomFieldFilters(prev => ({
+                              ...prev,
+                              [field.id]: value === "all" ? "" : value
+                            }));
+                          }}
+                        >
+                          <SelectTrigger className="w-[180px]" data-testid={`select-filter-${field.name}`}>
+                            <SelectValue placeholder={`All ${field.label}`} />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            {(field.options || []).map(option => (
+                              <SelectItem key={option.value} value={option.value}>
+                                {option.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

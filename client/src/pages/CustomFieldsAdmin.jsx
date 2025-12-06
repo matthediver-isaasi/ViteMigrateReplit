@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { GripVertical, Loader2, ClipboardList, Plus, Pencil, Trash2, X, User, Building2 } from "lucide-react";
+import { GripVertical, Loader2, ClipboardList, Plus, Pencil, Trash2, X, User, Building2, Filter } from "lucide-react";
 import { toast } from "sonner";
 import { useMemberAccess } from "@/hooks/useMemberAccess";
 import { createPageUrl } from "@/utils";
@@ -124,6 +124,7 @@ function CustomFieldsManager({ queryClient, entityScope, title, description }) {
   const [fieldOptions, setFieldOptions] = useState([]);
   const [newOptionValue, setNewOptionValue] = useState('');
   const [newOptionLabel, setNewOptionLabel] = useState('');
+  const [fieldFilterable, setFieldFilterable] = useState(false);
 
   const { data: preferenceFields = [], isLoading } = useQuery({
     queryKey: ['/api/entities/PreferenceField', entityScope],
@@ -228,6 +229,7 @@ function CustomFieldsManager({ queryClient, entityScope, title, description }) {
     setFieldOptions([]);
     setNewOptionValue('');
     setNewOptionLabel('');
+    setFieldFilterable(false);
   };
 
   const handleOpenCreateDialog = () => {
@@ -242,6 +244,7 @@ function CustomFieldsManager({ queryClient, entityScope, title, description }) {
     setFieldType(field.field_type || 'text');
     setFieldRequired(field.is_required || false);
     setFieldOptions(field.options || []);
+    setFieldFilterable(field.is_filterable || false);
     setIsDialogOpen(true);
   };
 
@@ -279,7 +282,8 @@ function CustomFieldsManager({ queryClient, entityScope, title, description }) {
       options: (fieldType === 'picklist' || fieldType === 'dropdown') ? fieldOptions : null,
       display_order: editingField ? editingField.display_order : preferenceFields.length,
       is_active: true,
-      entity_scope: entityScope
+      entity_scope: entityScope,
+      is_filterable: (fieldType === 'picklist' || fieldType === 'dropdown') ? fieldFilterable : false
     };
 
     if (editingField) {
@@ -365,6 +369,12 @@ function CustomFieldsManager({ queryClient, entityScope, title, description }) {
                               </span>
                               {field.is_required && (
                                 <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded">Required</span>
+                              )}
+                              {field.is_filterable && (
+                                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded flex items-center gap-1">
+                                  <Filter className="w-3 h-3" />
+                                  Filterable
+                                </span>
                               )}
                               {!field.is_active && (
                                 <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded">Inactive</span>
@@ -539,6 +549,26 @@ function CustomFieldsManager({ queryClient, entityScope, title, description }) {
                 data-testid="switch-field-required"
               />
             </div>
+
+            {(fieldType === 'picklist' || fieldType === 'dropdown') && (
+              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-200">
+                <div>
+                  <Label htmlFor="fieldFilterable" className="cursor-pointer flex items-center gap-2">
+                    <Filter className="w-4 h-4 text-purple-600" />
+                    Use as Directory Filter
+                  </Label>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Show this field as a dropdown filter in the {entityScope === 'member' ? 'Member' : 'Organisation'} Directory
+                  </p>
+                </div>
+                <Switch
+                  id="fieldFilterable"
+                  checked={fieldFilterable}
+                  onCheckedChange={setFieldFilterable}
+                  data-testid="switch-field-filterable"
+                />
+              </div>
+            )}
           </div>
 
           <DialogFooter>

@@ -106,8 +106,7 @@ export default function SpeakerManagementPage() {
       } else {
         return await base44.entities.SystemSettings.create({
           setting_key: 'speaker_module_name',
-          setting_value: settingValue,
-          description: 'Custom module name for speakers (singular and plural forms)'
+          setting_value: settingValue
         });
       }
     },

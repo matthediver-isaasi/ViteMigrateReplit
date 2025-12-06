@@ -228,7 +228,7 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
               {renderColumn('left')}
             </div>
             {button?.text && button_column === 'left' && left_content_type === 'text' && (
-              <div className="flex justify-end mt-6 pt-4">
+              <div className="flex justify-end">
                 <AGCASButton
                   text={button.text}
                   link={button.link}
@@ -257,7 +257,7 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
               {renderColumn('right')}
             </div>
             {button?.text && button_column === 'right' && right_content_type === 'text' && (
-              <div className="flex justify-end mt-6 pt-4">
+              <div className="flex justify-end">
                 <AGCASButton
                   text={button.text}
                   link={button.link}

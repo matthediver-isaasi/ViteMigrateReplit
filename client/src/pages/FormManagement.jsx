@@ -46,6 +46,26 @@ export default function FormManagementPage() {
     staleTime: 0, // Admin views need instant freshness after edits
   });
 
+  // Fetch actual submission counts from FormSubmission table (use listAll for pagination)
+  const { data: submissions = [] } = useQuery({
+    queryKey: ['form-submissions-all'],
+    queryFn: async () => {
+      return await base44.entities.FormSubmission.listAll();
+    },
+    staleTime: 0,
+  });
+
+  // Create a map of form_id to actual submission count
+  const submissionCounts = React.useMemo(() => {
+    const counts = {};
+    submissions.forEach(sub => {
+      if (sub.form_id) {
+        counts[sub.form_id] = (counts[sub.form_id] || 0) + 1;
+      }
+    });
+    return counts;
+  }, [submissions]);
+
   const deleteFormMutation = useMutation({
     mutationFn: async (id) => {
       return await base44.entities.Form.delete(id);
@@ -174,10 +194,12 @@ export default function FormManagementPage() {
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">Submissions:</span>
-                    <Badge variant="secondary" className="gap-1">
-                      <BarChart3 className="w-3 h-3" />
-                      {form.submission_count || 0}
-                    </Badge>
+                    <Link to={`${createPageUrl('FormSubmissions')}?formId=${form.id}`}>
+                      <Badge variant="secondary" className="gap-1 cursor-pointer hover:bg-slate-200">
+                        <BarChart3 className="w-3 h-3" />
+                        {submissionCounts[form.id] || 0}
+                      </Badge>
+                    </Link>
                   </div>
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-slate-600">Slug:</span>

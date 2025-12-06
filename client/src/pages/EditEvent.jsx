@@ -40,6 +40,7 @@ import { createPageUrl } from "@/utils";
 import EventImageUpload from "@/components/events/EventImageUpload";
 import { SpeakerSelectionModal } from "@/components/SpeakerSelectionModal";
 import { useSpeakerModuleName } from "@/hooks/useSpeakerModuleName";
+import { useEventTypes } from "@/hooks/useEventTypes";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -68,6 +69,7 @@ const createEmptyTicketClass = (isDefault = false) => ({
 export default function EditEvent() {
   const queryClient = useQueryClient();
   const { singular: speakerSingular, plural: speakerPlural } = useSpeakerModuleName();
+  const { eventTypes } = useEventTypes();
   const urlParams = new URLSearchParams(window.location.search);
   const eventId = urlParams.get('id');
 
@@ -84,6 +86,7 @@ export default function EditEvent() {
     summary: "",
     description: "",
     internal_reference: "",
+    event_type: "",
     program_tag: "",
     start_date: "",
     end_date: "",
@@ -289,6 +292,7 @@ export default function EditEvent() {
         summary: event.summary || "",
         description: event.description || "",
         internal_reference: event.internal_reference || "",
+        event_type: event.event_type || "",
         program_tag: event.program_tag || "",
         start_date: event.start_date || "",
         end_date: event.end_date || "",
@@ -489,6 +493,7 @@ export default function EditEvent() {
       summary: formData.summary || null,
       description: formData.description || null,
       internal_reference: formData.internal_reference || null,
+      event_type: formData.event_type || null,
       // For one-off events, program_tag should be empty string; for program events, use the selected program
       // Visibility is determined by program_tag: empty = one-off event, non-empty = program event
       program_tag: isOneOffEvent ? "" : formData.program_tag,
@@ -941,18 +946,43 @@ export default function EditEvent() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="internal_reference">Internal Reference</Label>
-                <Input
-                  id="internal_reference"
-                  value={formData.internal_reference}
-                  onChange={(e) => handleInputChange('internal_reference', e.target.value)}
-                  placeholder="e.g. PROJECT-123, Budget Code, etc."
-                  data-testid="input-internal-reference"
-                />
-                <p className="text-xs text-slate-500">
-                  For internal use only. Not shown to attendees but included on invoices.
-                </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="internal_reference">Internal Reference</Label>
+                  <Input
+                    id="internal_reference"
+                    value={formData.internal_reference}
+                    onChange={(e) => handleInputChange('internal_reference', e.target.value)}
+                    placeholder="e.g. PROJECT-123, Budget Code, etc."
+                    data-testid="input-internal-reference"
+                  />
+                  <p className="text-xs text-slate-500">
+                    For internal use only. Not shown to attendees but included on invoices.
+                  </p>
+                </div>
+
+                {eventTypes.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="event_type">Event Type</Label>
+                    <Select
+                      value={formData.event_type || "_none"}
+                      onValueChange={(val) => handleInputChange('event_type', val === "_none" ? "" : val)}
+                    >
+                      <SelectTrigger id="event_type" data-testid="select-event-type">
+                        <SelectValue placeholder="Select event type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">None</SelectItem>
+                        {eventTypes.map((type, idx) => (
+                          <SelectItem key={idx} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500">
+                      Categorize this event by type (e.g., Workshop, Training).
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

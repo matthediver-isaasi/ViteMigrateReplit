@@ -44,6 +44,7 @@ import { createPageUrl } from "@/utils";
 import EventImageUpload from "@/components/events/EventImageUpload";
 import { SpeakerSelectionModal } from "@/components/SpeakerSelectionModal";
 import { useSpeakerModuleName } from "@/hooks/useSpeakerModuleName";
+import { useEventTypes } from "@/hooks/useEventTypes";
 import ReactQuill from 'react-quill';
 import 'react-quill/dist/quill.snow.css';
 
@@ -88,6 +89,7 @@ export default function CreateEvent() {
   const location = useLocation();
   const queryClient = useQueryClient();
   const { singular: speakerSingular, plural: speakerPlural } = useSpeakerModuleName();
+  const { eventTypes } = useEventTypes();
   const [isOnline, setIsOnline] = useState(false);
   const [isProgramEvent, setIsProgramEvent] = useState(true);
   const [selectedWebinarId, setSelectedWebinarId] = useState("");
@@ -103,6 +105,7 @@ export default function CreateEvent() {
     description: "",
     internal_reference: "",
     program_tag: "",
+    event_type: "",
     start_date: "",
     end_date: "",
     location: "",
@@ -431,6 +434,7 @@ export default function CreateEvent() {
       summary: formData.summary || null,
       description: formData.description || null,
       internal_reference: formData.internal_reference || null,
+      event_type: formData.event_type || null,
       // Visibility is determined by program_tag: empty = one-off event, non-empty = program event
       program_tag: isProgramEvent ? formData.program_tag : "",
       start_date: formData.start_date,
@@ -955,18 +959,43 @@ export default function CreateEvent() {
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="internal_reference">Internal Reference</Label>
-                <Input
-                  id="internal_reference"
-                  value={formData.internal_reference}
-                  onChange={(e) => handleInputChange('internal_reference', e.target.value)}
-                  placeholder="e.g. PROJECT-123, Budget Code, etc."
-                  data-testid="input-internal-reference"
-                />
-                <p className="text-xs text-slate-500">
-                  For internal use only. Not shown to attendees but included on invoices.
-                </p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="internal_reference">Internal Reference</Label>
+                  <Input
+                    id="internal_reference"
+                    value={formData.internal_reference}
+                    onChange={(e) => handleInputChange('internal_reference', e.target.value)}
+                    placeholder="e.g. PROJECT-123, Budget Code, etc."
+                    data-testid="input-internal-reference"
+                  />
+                  <p className="text-xs text-slate-500">
+                    For internal use only. Not shown to attendees but included on invoices.
+                  </p>
+                </div>
+
+                {eventTypes.length > 0 && (
+                  <div className="space-y-2">
+                    <Label htmlFor="event_type">Event Type</Label>
+                    <Select
+                      value={formData.event_type || "_none"}
+                      onValueChange={(val) => handleInputChange('event_type', val === "_none" ? "" : val)}
+                    >
+                      <SelectTrigger id="event_type" data-testid="select-event-type">
+                        <SelectValue placeholder="Select event type..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="_none">None</SelectItem>
+                        {eventTypes.map((type, idx) => (
+                          <SelectItem key={idx} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500">
+                      Categorize this event by type (e.g., Workshop, Training).
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

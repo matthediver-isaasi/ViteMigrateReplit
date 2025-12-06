@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Settings, Calendar, Clock, MapPin, Ticket, RefreshCw, Save, Image as ImageIcon, Upload, X, FileText, Plus } from "lucide-react";
+import { Settings, Calendar, Clock, MapPin, Ticket, RefreshCw, Save, Image as ImageIcon, Upload, X, FileText, Plus, Trash2, Edit2, Tag } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from "date-fns";
@@ -58,6 +58,13 @@ export default function EventSettingsPage() {
   const [newBulkThreshold, setNewBulkThreshold] = useState("");
   const [newBulkPercentage, setNewBulkPercentage] = useState("");
   const [savingNewProgram, setSavingNewProgram] = useState(false);
+  
+  // Event Types state
+  const [eventTypes, setEventTypes] = useState([]);
+  const [newEventType, setNewEventType] = useState("");
+  const [editingEventTypeIndex, setEditingEventTypeIndex] = useState(null);
+  const [editingEventTypeValue, setEditingEventTypeValue] = useState("");
+  const [savingEventTypes, setSavingEventTypes] = useState(false);
   
   const queryClient = useQueryClient();
 
@@ -114,6 +121,17 @@ export default function EventSettingsPage() {
     const filterCategorySetting = settings.find(s => s.setting_key === 'event_filter_category_id');
     if (filterCategorySetting) {
       setEventFilterCategoryId(filterCategorySetting.setting_value || "");
+    }
+    
+    // Load event types
+    const eventTypesSetting = settings.find(s => s.setting_key === 'event_types');
+    if (eventTypesSetting?.setting_value) {
+      try {
+        const parsed = JSON.parse(eventTypesSetting.setting_value);
+        setEventTypes(parsed);
+      } catch (e) {
+        console.error('Failed to parse event types:', e);
+      }
     }
   }, [settings]);
 
@@ -190,6 +208,80 @@ export default function EventSettingsPage() {
 
   const handleSyncEvents = () => {
     syncEventsMutation.mutate();
+  };
+
+  // Event Types handlers
+  const handleAddEventType = () => {
+    const trimmedType = newEventType.trim();
+    if (!trimmedType) {
+      toast.error('Please enter an event type');
+      return;
+    }
+    if (eventTypes.includes(trimmedType)) {
+      toast.error('This event type already exists');
+      return;
+    }
+    setEventTypes([...eventTypes, trimmedType]);
+    setNewEventType("");
+  };
+
+  const handleRemoveEventType = (index) => {
+    const updated = eventTypes.filter((_, i) => i !== index);
+    setEventTypes(updated);
+  };
+
+  const handleStartEditEventType = (index) => {
+    setEditingEventTypeIndex(index);
+    setEditingEventTypeValue(eventTypes[index]);
+  };
+
+  const handleSaveEditEventType = () => {
+    const trimmedValue = editingEventTypeValue.trim();
+    if (!trimmedValue) {
+      toast.error('Event type cannot be empty');
+      return;
+    }
+    if (eventTypes.some((t, i) => i !== editingEventTypeIndex && t === trimmedValue)) {
+      toast.error('This event type already exists');
+      return;
+    }
+    const updated = [...eventTypes];
+    updated[editingEventTypeIndex] = trimmedValue;
+    setEventTypes(updated);
+    setEditingEventTypeIndex(null);
+    setEditingEventTypeValue("");
+  };
+
+  const handleCancelEditEventType = () => {
+    setEditingEventTypeIndex(null);
+    setEditingEventTypeValue("");
+  };
+
+  const handleSaveEventTypes = async () => {
+    setSavingEventTypes(true);
+    try {
+      const eventTypesSetting = settings.find(s => s.setting_key === 'event_types');
+      const value = JSON.stringify(eventTypes);
+      
+      if (eventTypesSetting) {
+        await base44.entities.SystemSettings.update(eventTypesSetting.id, {
+          setting_value: value
+        });
+      } else {
+        await base44.entities.SystemSettings.create({
+          setting_key: 'event_types',
+          setting_value: value
+        });
+      }
+      
+      queryClient.invalidateQueries({ queryKey: ['system-settings'] });
+      toast.success('Event types saved successfully');
+    } catch (error) {
+      console.error('Failed to save event types:', error);
+      toast.error('Failed to save event types: ' + (error.message || 'Unknown error'));
+    } finally {
+      setSavingEventTypes(false);
+    }
   };
 
   const handleEditImage = (event) => {
@@ -824,6 +916,130 @@ export default function EventSettingsPage() {
                     Save
                   </Button>
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Event Types Section */}
+        <Card className="border-slate-200 shadow-sm mb-8">
+          <CardHeader className="border-b border-slate-200">
+            <div className="flex items-center gap-2">
+              <Tag className="w-5 h-5 text-indigo-600" />
+              <CardTitle>Event Types</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="max-w-2xl space-y-4">
+              <p className="text-sm text-slate-600">
+                Define event types (e.g., Workshop, Self-paced Training, Conference) that can be assigned to events during creation.
+              </p>
+              
+              <div className="flex items-center gap-2">
+                <Input
+                  placeholder="Enter new event type..."
+                  value={newEventType}
+                  onChange={(e) => setNewEventType(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddEventType()}
+                  className="flex-1"
+                  data-testid="input-new-event-type"
+                />
+                <Button
+                  onClick={handleAddEventType}
+                  variant="outline"
+                  data-testid="button-add-event-type"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add
+                </Button>
+              </div>
+              
+              {eventTypes.length === 0 ? (
+                <p className="text-sm text-slate-500 py-4">No event types defined yet. Add your first event type above.</p>
+              ) : (
+                <div className="space-y-2">
+                  {eventTypes.map((type, index) => (
+                    <div 
+                      key={index} 
+                      className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200"
+                      data-testid={`event-type-item-${index}`}
+                    >
+                      {editingEventTypeIndex === index ? (
+                        <div className="flex items-center gap-2 flex-1">
+                          <Input
+                            value={editingEventTypeValue}
+                            onChange={(e) => setEditingEventTypeValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleSaveEditEventType();
+                              if (e.key === 'Escape') handleCancelEditEventType();
+                            }}
+                            className="flex-1"
+                            autoFocus
+                            data-testid={`input-edit-event-type-${index}`}
+                          />
+                          <Button
+                            onClick={handleSaveEditEventType}
+                            size="sm"
+                            data-testid={`button-save-event-type-${index}`}
+                          >
+                            <Save className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            onClick={handleCancelEditEventType}
+                            size="sm"
+                            variant="outline"
+                            data-testid={`button-cancel-edit-event-type-${index}`}
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <>
+                          <span className="font-medium text-slate-700">{type}</span>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => handleStartEditEventType(index)}
+                              size="sm"
+                              variant="ghost"
+                              data-testid={`button-edit-event-type-${index}`}
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              onClick={() => handleRemoveEventType(index)}
+                              size="sm"
+                              variant="ghost"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              data-testid={`button-remove-event-type-${index}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              
+              <div className="pt-4 border-t border-slate-200">
+                <Button
+                  onClick={handleSaveEventTypes}
+                  disabled={savingEventTypes}
+                  data-testid="button-save-event-types"
+                >
+                  {savingEventTypes ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Event Types
+                    </>
+                  )}
+                </Button>
               </div>
             </div>
           </CardContent>

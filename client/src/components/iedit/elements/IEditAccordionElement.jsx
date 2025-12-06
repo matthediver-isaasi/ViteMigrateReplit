@@ -1,4 +1,5 @@
 import React, { useState, useId } from "react";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { base44 } from "@/api/base44Client";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -41,6 +42,16 @@ export function IEditAccordionElementEditor({ element, onChange }) {
       content: {
         ...content,
         [key]: value
+      }
+    });
+  };
+
+  const updateMultipleContent = (updates) => {
+    onChange({
+      ...element,
+      content: {
+        ...content,
+        ...updates
       }
     });
   };
@@ -134,18 +145,21 @@ export function IEditAccordionElementEditor({ element, onChange }) {
           <TypographyStyleSelector
             value={content.header_typography_style_id}
             onChange={(styleId, style) => {
-              updateContent('header_typography_style_id', styleId);
+              const updates = { header_typography_style_id: styleId };
               if (style) {
-                const styleProps = applyTypographyStyle(style);
-                if (styleProps.font_family) updateContent('header_font_family', styleProps.font_family);
-                if (styleProps.font_size) updateContent('header_font_size', styleProps.font_size);
-                if (styleProps.font_size_mobile) updateContent('header_font_size_mobile', styleProps.font_size_mobile);
-                if (styleProps.font_weight) updateContent('header_font_weight', styleProps.font_weight);
-                if (styleProps.color) updateContent('header_color', styleProps.color);
+                const mapped = applyTypographyStyle(style);
+                if (mapped.font_family) updates.header_font_family = mapped.font_family;
+                if (mapped.font_size) updates.header_font_size = mapped.font_size;
+                if (mapped.font_size_mobile) updates.header_font_size_mobile = mapped.font_size_mobile;
+                if (mapped.font_weight) updates.header_font_weight = mapped.font_weight;
+                if (mapped.line_height) updates.header_line_height = mapped.line_height;
+                if (mapped.letter_spacing !== undefined) updates.header_letter_spacing = mapped.letter_spacing;
+                if (mapped.color) updates.header_color = mapped.color;
               }
+              updateMultipleContent(updates);
             }}
             filterTypes={['h1', 'h2', 'h3']}
-            label="Title Typography Style"
+            label="Section Title Typography Style"
           />
 
           <details className="text-xs">
@@ -421,61 +435,115 @@ export function IEditAccordionElementEditor({ element, onChange }) {
         <h4 className="font-semibold text-sm mb-3">Accordion Header Style</h4>
         
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Font Family</Label>
-              <select
-                value={content.item_header_font_family || 'Poppins'}
-                onChange={(e) => updateContent('item_header_font_family', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontFamilies.map(font => (
-                  <option key={font} value={font}>{font}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Font Weight</Label>
-              <select
-                value={content.item_header_font_weight || 600}
-                onChange={(e) => updateContent('item_header_font_weight', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontWeights.map(weight => (
-                  <option key={weight.value} value={weight.value}>{weight.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <TypographyStyleSelector
+            value={content.item_header_typography_style_id}
+            onChange={(styleId, style) => {
+              const updates = { item_header_typography_style_id: styleId };
+              if (style) {
+                const mapped = applyTypographyStyle(style);
+                if (mapped.font_family) updates.item_header_font_family = mapped.font_family;
+                if (mapped.font_size) updates.item_header_font_size = mapped.font_size;
+                if (mapped.font_size_mobile) updates.item_header_font_size_mobile = mapped.font_size_mobile;
+                if (mapped.font_weight) updates.item_header_font_weight = mapped.font_weight;
+                if (mapped.line_height) updates.item_header_line_height = mapped.line_height;
+                if (mapped.letter_spacing !== undefined) updates.item_header_letter_spacing = mapped.letter_spacing;
+                if (mapped.color) updates.item_header_color = mapped.color;
+              }
+              updateMultipleContent(updates);
+            }}
+            filterTypes={['h3', 'h4']}
+            label="Accordion Header Typography Style"
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Font Size (px)</Label>
-              <Input
-                type="number"
-                value={content.item_header_font_size || 18}
-                onChange={(e) => updateContent('item_header_font_size', parseInt(e.target.value) || 18)}
-                min="12"
-                max="48"
-              />
-            </div>
-            <div>
-              <Label>Text Color</Label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="color"
-                  value={content.item_header_color || '#1e293b'}
-                  onChange={(e) => updateContent('item_header_color', e.target.value)}
-                  className="w-12 h-9 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-                />
-                <Input
-                  value={content.item_header_color || '#1e293b'}
-                  onChange={(e) => updateContent('item_header_color', e.target.value)}
-                  className="flex-1 font-mono text-xs"
-                />
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Font Family</Label>
+                  <select
+                    value={content.item_header_font_family || 'Poppins'}
+                    onChange={(e) => updateContent('item_header_font_family', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontFamilies.map(font => (
+                      <option key={font} value={font}>{font}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>Font Weight</Label>
+                  <select
+                    value={content.item_header_font_weight || 600}
+                    onChange={(e) => updateContent('item_header_font_weight', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontWeights.map(weight => (
+                      <option key={weight.value} value={weight.value}>{weight.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>Font Size (px)</Label>
+                  <Input
+                    type="number"
+                    value={content.item_header_font_size || 18}
+                    onChange={(e) => updateContent('item_header_font_size', parseInt(e.target.value) || 18)}
+                    min="12"
+                    max="48"
+                  />
+                </div>
+                <div>
+                  <Label>Mobile Size (px)</Label>
+                  <Input
+                    type="number"
+                    value={content.item_header_font_size_mobile || ''}
+                    onChange={(e) => updateContent('item_header_font_size_mobile', e.target.value ? parseInt(e.target.value) : '')}
+                    min="12"
+                    max="48"
+                    placeholder="Same"
+                  />
+                </div>
+                <div>
+                  <Label>Text Color</Label>
+                  <input
+                    type="color"
+                    value={content.item_header_color || '#1e293b'}
+                    onChange={(e) => updateContent('item_header_color', e.target.value)}
+                    className="w-full h-9 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Letter Spacing (px)</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={content.item_header_letter_spacing || 0}
+                    onChange={(e) => updateContent('item_header_letter_spacing', parseFloat(e.target.value) || 0)}
+                    min="-2"
+                    max="10"
+                  />
+                </div>
+                <div>
+                  <Label>Line Height</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={content.item_header_line_height || 1.4}
+                    onChange={(e) => updateContent('item_header_line_height', parseFloat(e.target.value) || 1.4)}
+                    min="0.8"
+                    max="3"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          </details>
 
           <div>
             <Label>Header Background</Label>
@@ -502,90 +570,131 @@ export function IEditAccordionElementEditor({ element, onChange }) {
         <h4 className="font-semibold text-sm mb-3">Accordion Content Style</h4>
         
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Font Family</Label>
-              <select
-                value={content.item_content_font_family || 'Poppins'}
-                onChange={(e) => updateContent('item_content_font_family', e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontFamilies.map(font => (
-                  <option key={font} value={font}>{font}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <Label>Font Weight</Label>
-              <select
-                value={content.item_content_font_weight || 400}
-                onChange={(e) => updateContent('item_content_font_weight', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
-              >
-                {fontWeights.map(weight => (
-                  <option key={weight.value} value={weight.value}>{weight.label}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <TypographyStyleSelector
+            value={content.item_content_typography_style_id}
+            onChange={(styleId, style) => {
+              const updates = { item_content_typography_style_id: styleId };
+              if (style) {
+                const mapped = applyTypographyStyle(style);
+                if (mapped.font_family) updates.item_content_font_family = mapped.font_family;
+                if (mapped.font_size) updates.item_content_font_size = mapped.font_size;
+                if (mapped.font_size_mobile) updates.item_content_font_size_mobile = mapped.font_size_mobile;
+                if (mapped.font_weight) updates.item_content_font_weight = mapped.font_weight;
+                if (mapped.line_height) updates.item_content_line_height = mapped.line_height;
+                if (mapped.letter_spacing !== undefined) updates.item_content_letter_spacing = mapped.letter_spacing;
+                if (mapped.color) updates.item_content_color = mapped.color;
+              }
+              updateMultipleContent(updates);
+            }}
+            filterTypes={['paragraph']}
+            label="Accordion Content Typography Style"
+          />
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Font Size (px)</Label>
-              <Input
-                type="number"
-                value={content.item_content_font_size || 16}
-                onChange={(e) => updateContent('item_content_font_size', parseInt(e.target.value) || 16)}
-                min="12"
-                max="32"
-              />
-            </div>
-            <div>
-              <Label>Text Color</Label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="color"
-                  value={content.item_content_color || '#475569'}
-                  onChange={(e) => updateContent('item_content_color', e.target.value)}
-                  className="w-12 h-9 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-                />
-                <Input
-                  value={content.item_content_color || '#475569'}
-                  onChange={(e) => updateContent('item_content_color', e.target.value)}
-                  className="flex-1 font-mono text-xs"
-                />
+          <details className="text-xs">
+            <summary className="cursor-pointer text-slate-500 hover:text-slate-700 font-medium">Manual Font Settings</summary>
+            <div className="mt-3 space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Font Family</Label>
+                  <select
+                    value={content.item_content_font_family || 'Poppins'}
+                    onChange={(e) => updateContent('item_content_font_family', e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontFamilies.map(font => (
+                      <option key={font} value={font}>{font}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <Label>Font Weight</Label>
+                  <select
+                    value={content.item_content_font_weight || 400}
+                    onChange={(e) => updateContent('item_content_font_weight', parseInt(e.target.value))}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-md text-sm"
+                  >
+                    {fontWeights.map(weight => (
+                      <option key={weight.value} value={weight.value}>{weight.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <Label>Font Size (px)</Label>
+                  <Input
+                    type="number"
+                    value={content.item_content_font_size || 16}
+                    onChange={(e) => updateContent('item_content_font_size', parseInt(e.target.value) || 16)}
+                    min="12"
+                    max="32"
+                  />
+                </div>
+                <div>
+                  <Label>Mobile Size (px)</Label>
+                  <Input
+                    type="number"
+                    value={content.item_content_font_size_mobile || ''}
+                    onChange={(e) => updateContent('item_content_font_size_mobile', e.target.value ? parseInt(e.target.value) : '')}
+                    min="12"
+                    max="32"
+                    placeholder="Same"
+                  />
+                </div>
+                <div>
+                  <Label>Text Color</Label>
+                  <input
+                    type="color"
+                    value={content.item_content_color || '#475569'}
+                    onChange={(e) => updateContent('item_content_color', e.target.value)}
+                    className="w-full h-9 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <Label>Letter Spacing (px)</Label>
+                  <Input
+                    type="number"
+                    step="0.5"
+                    value={content.item_content_letter_spacing || 0}
+                    onChange={(e) => updateContent('item_content_letter_spacing', parseFloat(e.target.value) || 0)}
+                    min="-2"
+                    max="10"
+                  />
+                </div>
+                <div>
+                  <Label>Line Height</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={content.item_content_line_height || 1.6}
+                    onChange={(e) => updateContent('item_content_line_height', parseFloat(e.target.value) || 1.6)}
+                    min="1"
+                    max="3"
+                  />
+                </div>
               </div>
             </div>
-          </div>
+          </details>
 
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <Label>Line Height</Label>
-              <Input
-                type="number"
-                step="0.1"
-                value={content.item_content_line_height || 1.6}
-                onChange={(e) => updateContent('item_content_line_height', parseFloat(e.target.value) || 1.6)}
-                min="1"
-                max="3"
+          <div>
+            <Label>Content Background</Label>
+            <div className="flex gap-2 items-center">
+              <input
+                type="color"
+                value={content.item_content_bg || '#f8fafc'}
+                onChange={(e) => updateContent('item_content_bg', e.target.value)}
+                className="w-12 h-9 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
               />
-            </div>
-            <div>
-              <Label>Content Background</Label>
-              <div className="flex gap-2 items-center">
-                <input
-                  type="color"
-                  value={content.item_content_bg || '#f8fafc'}
-                  onChange={(e) => updateContent('item_content_bg', e.target.value)}
-                  className="w-12 h-9 px-1 py-1 border border-slate-300 rounded-md cursor-pointer"
-                />
-                <Input
-                  value={content.item_content_bg || '#f8fafc'}
-                  onChange={(e) => updateContent('item_content_bg', e.target.value)}
-                  className="flex-1 font-mono text-xs"
-                  placeholder="#f8fafc"
-                />
-              </div>
+              <Input
+                value={content.item_content_bg || '#f8fafc'}
+                onChange={(e) => updateContent('item_content_bg', e.target.value)}
+                className="flex-1 font-mono text-xs"
+                placeholder="#f8fafc"
+              />
             </div>
           </div>
         </div>
@@ -683,6 +792,7 @@ export function IEditAccordionElementRenderer({ element, content }) {
   const [openItems, setOpenItems] = useState([]);
   const rawId = useId();
   const uniqueId = rawId.replace(/:/g, '');
+  const isMobile = useIsMobile();
   
   const displayContent = element?.content || content || {};
   const items = displayContent.items || [];
@@ -696,31 +806,43 @@ export function IEditAccordionElementRenderer({ element, content }) {
     );
   };
 
-  // Header styles
+  // Helper to get font size with mobile fallback
+  const getFontSize = (desktopSize, mobileSize, defaultSize) => {
+    const desktop = desktopSize || defaultSize;
+    const mobile = mobileSize || desktop;
+    return isMobile ? mobile : desktop;
+  };
+
+  // Section header styles
   const headerStyle = {
     fontFamily: displayContent.header_font_family || 'Poppins',
     fontWeight: displayContent.header_font_weight || 700,
-    fontSize: `${displayContent.header_font_size || 32}px`,
+    fontSize: `${getFontSize(displayContent.header_font_size, displayContent.header_font_size_mobile, 32)}px`,
     color: displayContent.header_color || '#1e293b',
-    textAlign: displayContent.header_align || 'center'
+    textAlign: displayContent.header_align || 'center',
+    lineHeight: displayContent.header_line_height || 1.2,
+    letterSpacing: displayContent.header_letter_spacing ? `${displayContent.header_letter_spacing}px` : undefined
   };
 
-  // Item header styles
+  // Accordion item header styles
   const itemHeaderStyle = {
     fontFamily: displayContent.item_header_font_family || 'Poppins',
     fontWeight: displayContent.item_header_font_weight || 600,
-    fontSize: `${displayContent.item_header_font_size || 18}px`,
+    fontSize: `${getFontSize(displayContent.item_header_font_size, displayContent.item_header_font_size_mobile, 18)}px`,
     color: displayContent.item_header_color || '#1e293b',
-    backgroundColor: displayContent.item_header_bg || '#ffffff'
+    backgroundColor: displayContent.item_header_bg || '#ffffff',
+    lineHeight: displayContent.item_header_line_height || 1.4,
+    letterSpacing: displayContent.item_header_letter_spacing ? `${displayContent.item_header_letter_spacing}px` : undefined
   };
 
-  // Item content styles
+  // Accordion item content styles
   const itemContentStyle = {
     fontFamily: displayContent.item_content_font_family || 'Poppins',
     fontWeight: displayContent.item_content_font_weight || 400,
-    fontSize: `${displayContent.item_content_font_size || 16}px`,
+    fontSize: `${getFontSize(displayContent.item_content_font_size, displayContent.item_content_font_size_mobile, 16)}px`,
     color: displayContent.item_content_color || '#475569',
     lineHeight: displayContent.item_content_line_height || 1.6,
+    letterSpacing: displayContent.item_content_letter_spacing ? `${displayContent.item_content_letter_spacing}px` : undefined,
     backgroundColor: displayContent.item_content_bg || '#f8fafc'
   };
 

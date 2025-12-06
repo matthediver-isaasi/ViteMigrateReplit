@@ -48,6 +48,11 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
     left_image_fit = 'cover',
     right_image_url,
     right_image_fit = 'cover',
+    left_column_bg_color,
+    right_column_bg_color,
+    left_column_padding = 24,
+    right_column_padding = 24,
+    column_border_radius = 0,
     button,
     button_position = 'bottom-right',
     vertical_alignment = 'center',
@@ -85,10 +90,10 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
   };
 
   const verticalAlignmentClass = {
-    top: 'items-start',
-    center: 'items-center',
-    bottom: 'items-end'
-  }[vertical_alignment] || 'items-center';
+    top: 'justify-start',
+    center: 'justify-center',
+    bottom: 'justify-end'
+  }[vertical_alignment] || 'justify-center';
 
   const renderTextContent = (side) => {
     const heading = content?.[`${side}_heading`];
@@ -129,19 +134,25 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
 
     if (!imageUrl) {
       return (
-        <div className="w-full h-64 bg-slate-200 flex items-center justify-center rounded-lg">
+        <div 
+          className="w-full h-full min-h-64 bg-slate-200 flex items-center justify-center"
+          style={{ borderRadius: `${column_border_radius}px` }}
+        >
           <span className="text-slate-500">No image</span>
         </div>
       );
     }
 
     return (
-      <div className="w-full">
+      <div className="w-full h-full">
         <img 
           src={imageUrl} 
           alt="" 
-          className="w-full h-auto rounded-lg"
-          style={{ objectFit: imageFit }}
+          className="w-full h-full object-cover"
+          style={{ 
+            objectFit: imageFit,
+            borderRadius: `${column_border_radius}px`
+          }}
         />
       </div>
     );
@@ -192,13 +203,31 @@ export default function IEditFiftyFiftyElement({ content, variant, settings }) {
         style={{ paddingTop: `${vertical_padding}px`, paddingBottom: `${vertical_padding}px` }}
       >
         <div 
-          className={`grid grid-cols-1 md:grid-cols-2 ${verticalAlignmentClass}`}
+          className="grid grid-cols-1 md:grid-cols-2 items-stretch"
           style={{ gap: `${column_gap}px` }}
         >
-          <div className={reverse_on_mobile ? 'order-2 md:order-1' : ''}>
+          <div 
+            className={`${reverse_on_mobile ? 'order-2 md:order-1' : ''} ${left_content_type === 'text' ? `flex flex-col ${verticalAlignmentClass}` : ''}`}
+            style={{
+              ...(left_content_type === 'text' && left_column_bg_color ? { 
+                backgroundColor: left_column_bg_color,
+                padding: `${left_column_padding}px`,
+                borderRadius: `${column_border_radius}px`
+              } : {})
+            }}
+          >
             {renderColumn('left')}
           </div>
-          <div className={reverse_on_mobile ? 'order-1 md:order-2' : ''}>
+          <div 
+            className={`${reverse_on_mobile ? 'order-1 md:order-2' : ''} ${right_content_type === 'text' ? `flex flex-col ${verticalAlignmentClass}` : ''}`}
+            style={{
+              ...(right_content_type === 'text' && right_column_bg_color ? { 
+                backgroundColor: right_column_bg_color,
+                padding: `${right_column_padding}px`,
+                borderRadius: `${column_border_radius}px`
+              } : {})
+            }}
+          >
             {renderColumn('right')}
           </div>
         </div>
@@ -583,6 +612,8 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
   const renderColumnControls = (side, label) => {
     const contentTypeKey = `${side}_content_type`;
     const contentType = content[contentTypeKey] || 'text';
+    const bgColorKey = `${side}_column_bg_color`;
+    const paddingKey = `${side}_column_padding`;
 
     return (
       <div className="space-y-4">
@@ -597,6 +628,52 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
             <option value="image">Image</option>
           </select>
         </div>
+
+        {contentType === 'text' && (
+          <div className="p-3 bg-slate-50 rounded-md space-y-3">
+            <h5 className="font-medium text-sm text-slate-700">Column Background</h5>
+            <div>
+              <Label className="text-xs">Background Color (optional)</Label>
+              <div className="flex gap-2 items-center">
+                <input
+                  type="color"
+                  value={content[bgColorKey] || '#f8fafc'}
+                  onChange={(e) => updateContent(bgColorKey, e.target.value)}
+                  className="w-12 h-8 px-1 py-1 border border-slate-300 rounded cursor-pointer"
+                />
+                <Input
+                  value={content[bgColorKey] || ''}
+                  onChange={(e) => updateContent(bgColorKey, e.target.value)}
+                  placeholder="No background"
+                  className="flex-1 font-mono text-xs h-8"
+                />
+                {content[bgColorKey] && (
+                  <button
+                    type="button"
+                    onClick={() => updateContent(bgColorKey, '')}
+                    className="p-1 text-slate-500 hover:text-red-600"
+                    title="Remove background"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+            {content[bgColorKey] && (
+              <div>
+                <Label className="text-xs">Column Padding: {content[paddingKey] || 24}px</Label>
+                <input
+                  type="range"
+                  min="0"
+                  max="64"
+                  value={content[paddingKey] || 24}
+                  onChange={(e) => updateContent(paddingKey, parseInt(e.target.value))}
+                  className="w-full"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {contentType === 'text' ? renderTextControls(side) : renderImageControls(side)}
       </div>
@@ -1016,6 +1093,18 @@ export function IEditFiftyFiftyElementEditor({ element, onChange }) {
                 onChange={(e) => updateContent('vertical_padding', parseInt(e.target.value) || 48)}
                 min="0"
                 max="200"
+              />
+            </div>
+
+            <div>
+              <Label className="text-sm">Column Corner Radius: {content.column_border_radius || 0}px</Label>
+              <input
+                type="range"
+                min="0"
+                max="48"
+                value={content.column_border_radius || 0}
+                onChange={(e) => updateContent('column_border_radius', parseInt(e.target.value))}
+                className="w-full"
               />
             </div>
 
